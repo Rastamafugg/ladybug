@@ -20,6 +20,11 @@ ENGINE_LIMIT = 920
 PACKED_SOUND_BYTES = 3478
 KNOWN_AUDIO_DP_BYTES = 20
 MAX_REGISTER_WRITES = 11
+BOOT_DESCRIPTOR_START = 0x0287
+BOOT_DESCRIPTOR_MAX_BYTES = 99
+BOOT_STATE_START = 0x02F0
+AUDIO_GUARD_START = 0x02C0
+AUDIO_STATE_START = 0x02DC
 
 
 def parse_stream_include(path: Path) -> tuple[bytes, dict[str, int]]:
@@ -202,9 +207,14 @@ def main() -> None:
     boot_symbols = {name: int(value, 16) for name, value in re.findall(
         r"^Symbol: (GMC_LZSS_TABLE_RAM|GMC_LZSS_STREAM_TABLE_BYTES) .* = ([0-9A-Fa-f]+)$",
         boot_map, re.MULTILINE)}
-    if (len(boot_symbols) != 2 or sum(boot_symbols.values()) > 0x02C0
-            or not 0 < guard_bytes <= 0x02DC - 0x02C0):
-        raise SystemExit("audio proof: completion guard overlaps boot table or audio state")
+    descriptor_start = boot_symbols.get("GMC_LZSS_TABLE_RAM", -1)
+    descriptor_bytes = boot_symbols.get("GMC_LZSS_STREAM_TABLE_BYTES", 0)
+    descriptor_end = descriptor_start + descriptor_bytes
+    if (len(boot_symbols) != 2 or descriptor_start != BOOT_DESCRIPTOR_START
+            or not 0 < descriptor_bytes <= BOOT_DESCRIPTOR_MAX_BYTES
+            or descriptor_end > BOOT_STATE_START
+            or not 0 < guard_bytes <= AUDIO_STATE_START - AUDIO_GUARD_START):
+        raise SystemExit("audio proof: boot descriptor bounds or completion guard capacity invalid")
 
     cue_path = args.gmc_manifest or args.cues
     cue_manifest = json.loads(cue_path.read_text(encoding="ascii"))
@@ -379,7 +389,7 @@ def main() -> None:
         ("audio_find_low", "AUDIO_WORK_SLOT", 4),
         ("audio_advance_next", "AUDIO_WORK_SLOT", 4),
         ("audio_mix_find_exclusive", "AUDIO_WORK_SLOT", 4),
-        ("audio_mix_all_next", "AUDIO_WORK_SLOT", 4),
+        ("audio_mix_all_next", "audio_mix_priority", 4),
         ("audio_mix_tone_next", "AUDIO_WORK_VOICE", 3),
     ):
         start = source_text.index(f"\n{loop_label}\n")

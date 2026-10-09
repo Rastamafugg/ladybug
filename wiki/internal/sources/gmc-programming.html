@@ -63,7 +63,7 @@
       <ul>
         <li>The document's MPI guidance is for programs that are not distributed on a GMC. Ladybug's shipped image already requires the GMC and does not add an MPI dependency.</li>
         <li>The document emphasizes VGM/raw playback. Ladybug instead compiles MAME PSG traces into compact semantic command records so event ownership, interruption, channel arbitration, and memory usage remain explicit. VGM remains a possible offline import or comparison format, not the runtime ABI.</li>
-        <li>Ladybug uses redundant CoCo 3 SCS aliases <code>$FF50</code> for banking and <code>$FF51</code> for sound. Local XRoar dispatches GMC behavior by SCS parity, but the project's MAME 0.220 evidence accepts only the primary <code>$FF40/$FF41</code> addresses. This is an emulator-compatibility and physical-hardware acceptance issue, not a resolved portability fact.</li>
+        <li>The BUG-113 candidate aligns Ladybug bank selection with the guide's write-only primary register <code>$FF40</code>; the SN76489 write path remains at <code>$FF51</code>. Local XRoar dispatches GMC behavior by SCS parity, while MAME 0.220 models the SN76489 at primary address <code>$FF41</code>. Sound-address compatibility and physical-hardware qualification remain unresolved.</li>
       </ul>
     </section>
 
@@ -73,7 +73,7 @@
         <li>FEAT-006 must encode and verify the 32-oscillator-cycle write-spacing rule without polling a nonexistent status bit.</li>
         <li>The audio service must initialize the cartridge-SND mux and prove that legacy DAC/PB1 state cannot override or contaminate the selected output.</li>
         <li>Cold boot, warm reset, replacement, explicit stop, and game-over paths must prove that all four channels are muted before any new cue is exposed.</li>
-        <li>A compatibility test must compare <code>$FF40/$FF41</code> and <code>$FF50/$FF51</code> on the selected emulator and, later, on physical GMC hardware. No address change is authorized by this source ingest.</li>
+        <li>BUG-113 separately authorizes the bank-select migration to <code>$FF40</code>; the source ingest itself did not authorize code changes. A compatibility test must still compare the SN76489 addresses <code>$FF41</code> and <code>$FF51</code> on the selected emulator and, later, on physical GMC hardware.</li>
       </ul>
     </section>
 

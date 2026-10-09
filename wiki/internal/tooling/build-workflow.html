@@ -277,17 +277,26 @@ print(f'padded {16384-pad} → 16384 bytes')
         observation.
       </p>
       <p>
-        <strong>Current-image limitation:</strong> Ladybug selects GMC banks at
-        even SCS address <code>$FF50</code>. MAME 0.220's GMC model accepts its
-        bank register only at <code>$FF40</code> and its PSG only at
-        <code>$FF41</code>. Under the command above, the unmodified image enters
-        the bootstrap but fails its bank-signature checks and leaves a striped,
-        corrupted display. A controlled ROM changing only the five bootstrap
-        <code>STA $FF50</code> operands to <code>STA $FF40</code> produced a
-        coherent Ladybug high-score screen under the same four-emulated-second
-        deadline. Until the SCS-address compatibility decision is resolved,
-        this MAME command proves cartridge mapping and entry only; it is not a
-        valid BUG-008 gameplay/framebuffer verifier for the shipped image.
+        <strong>GMC address compatibility:</strong> The pre-BUG-113 image used
+        bank-select address <code>$FF50</code>; MAME 0.220 accepts the GMC bank
+        register at <code>$FF40</code> and its PSG at <code>$FF41</code>. The
+        baseline entered the bootstrap but failed bank-signature checks and
+        showed a striped frame. An earlier controlled ROM changed five literal
+        bank-select operands and reached a coherent high-score screen, but that
+        historical control is not current-revision acceptance evidence. BUG-113
+        changes the shared bank-select equate to <code>$FF40</code>; its paired
+        HST MAME marker passes: the candidate displays the coherent high-score
+        screen within four emulated seconds, against the striped baseline. The
+        complete-profile build, packaging, source audit, presentation and audio
+        proof now pass. The full <code>verify-gmc</code> command stops at the
+        existing FEAT-007 static font/descriptor fixture before XRoar; the
+        focused startup verifier stops at a separate enemy-map preflight. XRoar
+        dispatches bank selection by even SCS parity and cannot distinguish
+        <code>$FF40</code> from <code>$FF50</code>, so MAME's paired marker is the
+        exact-address check. See <a
+        href="../tickets/bug-113-gmc-bank-select-address.html">BUG-113</a>.
+        SN76489 writes remain at <code>$FF51</code>, and this MAME command is
+        not a BUG-008 gameplay/framebuffer verifier.
       </p>
     </section>
 

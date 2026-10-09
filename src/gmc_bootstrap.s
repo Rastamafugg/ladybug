@@ -19,7 +19,7 @@
 ; DOC-002 source-contract mirror contract synthesize_perimeter_reset profile=boot: Synthesize perimeter reset.
 ; DOC-002 source-contract mirror ends.
 
-GMC_BANK    equ $FF50
+GMC_BANK    equ $FF40
 GIME_INIT0  equ $FF90
 GIME_MMU    equ $FF91
 PAR_EXEC    equ $FFA0
@@ -68,7 +68,7 @@ boot_entry
         sta     PAR_EXEC+6
         lda     #$3F
         sta     PAR_EXEC+7
-        lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF50
+        lda     #%01101100      ; MMU + force FExx + SCS for GMC $FF40
         sta     GIME_INIT0
         ; Clear any SN76489 state left by a warm or cold reset before the
         ; foreground runtime is installed.  These are attenuation writes,

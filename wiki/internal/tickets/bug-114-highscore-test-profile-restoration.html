@@ -17,21 +17,21 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · bug</p>
-      <h1>BUG-114 — Historical highscore-test build restoration <span class="wiki-badge">Verification</span></h1>
+      <h1>BUG-114 — Historical highscore-test build restoration <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">Restore one current-source high-score diagnostic ROM so BUG-113 can keep its approved MAME startup marker.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Verification; implementation and both profile builds completed, QA review pending</li>
+        <li><strong>Status:</strong> Done; one-time HST ROM build and QA accepted</li>
         <li><strong>Bug risk class:</strong> High-risk, because the repair crosses the hard one-byte tile-ID limit and fixed demo-runtime, resident, asset, module, and cartridge capacities</li>
         <li><strong>Priority / order:</strong> P2 / 15.2, before BUG-113</li>
         <li><strong>Created / updated:</strong> 2026-10-09 / 2026-10-09</li>
         <li><strong>Owner:</strong> parent agent; no delegation proposed</li>
-        <li><strong>Dependencies:</strong> DOC-007 is complete. BUG-113 is downstream and remains Approved, not Ready, until this profile build is restored.</li>
+        <li><strong>Dependencies:</strong> DOC-007 is complete. BUG-113 was downstream of this one-time restoration; BUG-114 is now Done and its HST image is retained as historical evidence without ongoing build support.</li>
         <li><strong>Related tickets:</strong> <a href="./feat-003-high-score-presentation.html">FEAT-003</a> is Done. <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a> retains the approved $FF40 change and high-score startup marker.</li>
-        <li><strong>Current source revision:</strong> <code>1893399155b2fb75a0f4ab437106ec82066d37a1</code></li>
+        <li><strong>Source revision:</strong> <code>1893399155b2fb75a0f4ab437106ec82066d37a1</code>; implementation commit <code>541f6f1</code></li>
       </ul>
     </section>
 
@@ -109,8 +109,13 @@
     </section>
 
     <section>
+      <h2>Completion and QA review</h2>
+      <p><strong>QA verdict: accepted as scoped.</strong> Commit <code>541f6f1</code> contains the six-map HST placeholder selection, the user-directed HST live-entry omission, and the sole approved short-branch edit. The highscore-test build passed all existing guards and produced the preserved 65,536-byte ROM; its demo runtime is exactly <code>938/938</code> bytes. The same-source complete build passed and its 65,536-byte ROM hash exactly matches the pinned baseline. No boundary was widened. HST demo-runtime headroom is zero bytes; this profile is now historical and receives no ongoing build-support guarantee.</p>
+      <p>Retained failures include the original 257-tile overflow, the 257-tile partial-placeholder candidate, the undefined <code>life_marker_position</code> assembly candidate, and the pre-fix 940/938 runtime overflow. The final HST profile retains the authored high-score/name-entry startup map, selected by the <code>HIGHSCORE_TEST_PROFILE</code> startup branch. Full FEAT-003 gameplay and MAME were not run; BUG-113 owns the paired MAME baseline/candidate marker check. The implementation commit, current-source HST ROM, concise build log, capacities, and hashes are linked above.</p>
+
       <h2>Decision log</h2>
       <ul>
+        <li>2026-10-09 — QA accepted all BUG-114 criteria on integrated commit <code>541f6f1</code>. HST and complete builds both pass; HST demo runtime meets exactly <code>938/938</code>, and the complete ROM remains byte-identical to baseline. The one-time HST ROM and evidence are retained. No MAME or FEAT-003 gameplay-suite run was required by this ticket. Marked BUG-114 Done and released the BUG-113 dependency.</li>
         <li>2026-10-09 — The approved HST-only <code>lbeq</code> to <code>beq</code> edit passes: demo runtime is exactly <code>938/938</code> bytes, and the full HST build produces ROM <code>0d2884132597aa26f235ad37eb3be5055e5db9268fc58a03145b7f7d901ea02d</code>. The current-source complete build also passes with ROM SHA-256 identical to pinned baseline <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code>. Preserved the HST ROM for BUG-113 and retained capacity/build evidence. Moved In Progress → Verification for QA; no MAME or full FEAT-003 gameplay run was performed.</li>
         <li>2026-10-09 — The user explicitly approved shortening only the HST-only <code>lbeq highscore_name_tick</code> at <code>$0304</code> to <code>beq</code>, with the existing 938-byte demo-runtime limit unchanged. Revised scope advanced Proposed → Approved. The assignment already names the exact artifacts, build commands, evidence, capacity and profile-isolation checks; advanced Approved → Ready → In Progress for parent implementation.</li>
         <li>2026-10-09 — After the user-directed live-entry omission, the HST build passed the presentation, resident, asset, audio, page-$3D, and module checks but failed the fixed demo-runtime guard at <code>940/938</code>. The map/listing shows the first HST-only name-mode <code>lbeq</code> uses four bytes and targets <code>$034A</code> from <code>$0304</code>; its short <code>beq</code> form would save exactly two bytes. This adds <code>src/demo_runtime.s</code> to the approved assignment scope, so BUG-114 returns to <code>Proposed</code>. Proposed acceptance is a bounded change to that branch only; no further size reduction is included. No ROM, commit, or MAME probe exists. <a href="evidence/bug114/highscore-test-demo-runtime-overflow-20261009.json">Failure receipt</a>.</li>
@@ -128,7 +133,7 @@
     </section>
 
     <footer class="wiki-footer">
-      <p>Verification: the one-time HST ROM is produced and preserved; the exact 938-byte runtime limit passes, and the complete profile remains byte-identical to baseline. MAME acceptance is assigned to BUG-113. QA review determines whether BUG-114 can close and BUG-113 can advance to Ready.</p>
+      <p>Done: the one-time HST ROM is preserved for BUG-113, the 938-byte runtime limit passes, and the complete profile remains byte-identical to baseline. The highscore-test profile remains historical and has no ongoing build-support guarantee.</p>
     </footer>
   </main>
 </div>

@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-016 — Boot descriptor and audio low-RAM lifetime — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · research</p>
+      <h1>RSCH-016 — Boot descriptor and audio low-RAM lifetime <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">Static lifetime diagnosis complete; the complete-profile overlap rejection was a false spatial bound.</p>
+    </header>
+
+    <section>
+      <h2>Identity and ordering</h2>
+      <ul>
+        <li><strong>Status:</strong> Done; static interval and control-flow diagnosis completed 2026-10-09</li>
+        <li><strong>Priority / order:</strong> Closed as a BUG-113 prerequisite; complete-profile XRoar execution remains separately unverified</li>
+        <li><strong>Risk class:</strong> High-risk diagnosis; the boot/audio aliases are phase-disjoint in source, while emulator execution remains open under BUG-113</li>
+        <li><strong>Owner:</strong> parent agent; static diagnosis integrated into BUG-113</li>
+        <li><strong>Related ticket:</strong> <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a> authorized and integrated the minimal complete-profile verifier corrections when the user reprioritized the complete build. Broader verifier coverage remains under <a href="./tool-006-audio-verifier-current-topology.html">TOOL-006</a>.</li>
+        <li><strong>Baseline:</strong> commit <code>541f6f1</code> plus the address-only BUG-113 candidate; complete candidate ROM hash <code>3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161</code></li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Determine whether the complete-profile <code>verify-gmc</code> audio guard correctly rejects a real overlap or falsely treats boot-only descriptors and foreground audio state as simultaneous. The static review established phase-disjoint ownership and supplied the evidence for the complete-profile verifier correction integrated under BUG-113.</p>
+
+      <h3>Observed baseline</h3>
+      <p>The first candidate image built to 65,536 bytes and passed source, presentation, sparse reconstruction, and GMC boundary checks, then exited 1 with <code>audio proof: completion guard overlaps boot table or audio state</code> before XRoar. The map places <code>GMC_LZSS_TABLE_RAM</code> at <code>$0287</code> with size <code>$0063</code> (99 bytes), so the occupied interval is <code>$0287-$02E9</code> inclusive and ends at <code>$02EA</code> exclusive. The old verifier incorrectly required <code>$0287+99</code> to be at or below <code>$02C0</code>. The descriptor cap remains 99 bytes and the complete verifier now checks the unchanged <code>$02F0</code> boot-state boundary. The 20-byte audio guard fits its 28-byte <code>$02C0-$02DB</code> slot.</p>
+      <p>Source references are confined to <code>src/gmc_bootstrap.s</code>. <code>decompress_gmc_streams</code> consumes the first six descriptors before resident/assets staging; <code>decompress_staged_audio</code> consumes the final audio descriptor and returns directly to <code>boot_streams_retired</code>. The subsequent attract-surface expansion, optional historical HST atlas expansion, boot-flag write and <code>jmp $C002</code> do not access the descriptor table. Audio initialization and <code>key_init</code> occur in the runtime after handoff. Foreground keybindings reuse <code>$0287-$029A</code>; the audio guard owns <code>$02C0-$02D3</code>, audio state <code>$02DC-$02DD</code>, and gateway <code>$02DE-$02EF</code>. These are later-phase owners, not concurrent boot consumers. The memory map records the exact intervals and lifetime.</p>
+      <p>Retained evidence: <a href="evidence/bug113/bug113-complete-verify-gmc-failure-20261009.json">original failure receipt</a>, <a href="evidence/bug113/bug113-complete-build-verify-20261009.json">complete-profile build/audio proof and later verifier stops</a>, current source <code>src/gmc_bootstrap.s</code>, map <code>build/ladybug-gmc-boot.map</code>, and verifier <code>scripts/verify_audio_runtime.py</code>.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> read-only source/control-flow audit of every descriptor reader and writer, confirmation of the last consumer and audio/keybinding initialization order, reconciliation of source audit metadata, build maps, verifier limits, and memory-map documentation, and a recommendation with the smallest safe verification change.</p>
+      <p><strong>Out:</strong> changing production assembly, descriptor format or size, audio guard/state, the verifier, memory placement, bank-select behavior, gameplay, build limits, or emulator/hardware configuration. Any implementation remedy requires its own approved assignment.</p>
+
+      <h3>Questions and discriminating checks</h3>
+      <ul>
+        <li>Enumerate all accesses to <code>$0287-$02E9</code> by phase and prove whether any descriptor access can occur after <code>boot_streams_retired</code>. Risk covered: the descriptor table may still be live when runtime state writes begin.</li>
+        <li>Compare exact map symbols and source-reference lifetimes for the boot descriptor range, the keybinding state, the audio guard, and the audio mode/gateway. Risk covered: the verifier may enforce spatial disjointness where the documented ownership is temporal.</li>
+        <li>Reconcile the observed <code>$02EA</code> table end with the memory-map page's historical <code>$02C0</code> end claim and the current audit width of 99 bytes. Risk covered: stale documentation or a wrong generated boundary.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Provide a byte-accurate interval map with inclusive/exclusive boundaries and named owners for each boot and runtime phase.</li>
+        <li>List every source-level descriptor consumer and prove whether each is before or after the retirement boundary. State evidence and any unresolved aliasing assumption.</li>
+        <li>Identify the immediate verifier condition and decide, with source/map evidence, whether it is a false positive or detects an actual invalid lifetime overlap.</li>
+        <li>Recommend the smallest verifier correction and retain separate runtime qualification as an explicit remaining risk.</li>
+        <li>Retain a concise diagnosis receipt, update BUG-113 and the memory-map page, ticket index, and project log. Do not claim XRoar or physical-hardware acceptance from static ownership evidence.</li>
+      </ol>
+
+      <h3>Risks and alternatives</h3>
+      <p>The source control flow and the explicit <code>boot_streams_retired</code> boundary confirm that no descriptor consumer remains when foreground owners install into the overlapping range. The safe correction retains the 99-byte descriptor cap, the <code>$02F0</code> boot-state boundary, the 28-byte audio slot, and the four-pass mixer counter. No assembly, table-size, audio runtime, or memory-placement change was made. The remaining runtime limitation is recorded in BUG-113: current verifier preflights stop before XRoar, and XRoar's parity-based SCS model cannot distinguish <code>$FF40</code> from <code>$FF50</code>.</p>
+
+      <h3>Assignment proposal</h3>
+      <ul>
+        <li><strong>Owned artifacts:</strong> read <code>src/gmc_bootstrap.s</code>, <code>src/audio_runtime.s</code>, the current complete-profile map, <code>scripts/verify_audio_runtime.py</code>, <code>build/source-reference</code>, and <a href="../implementation/memory-map.html">memory-map documentation</a>; write only the diagnosis receipt, ticket, memory-map correction if source evidence settles the fact, ticket index, and log.</li>
+        <li><strong>Verification:</strong> static source/map review established the phase boundary. Complete build and audio proof pass; full XRoar remains blocked before launch by independent fixture/map preflights described in BUG-113.</li>
+        <li><strong>Cost boundary:</strong> High-risk diagnosis because boot/audio lifetimes intersect. The user later authorized only the minimal complete-profile verifier corrections through BUG-113; other profile and malformed-fixture tests remain deferred under TOOL-006.</li>
+      </ul>
+
+      <h3>Decision log</h3>
+      <p>2026-10-09 — Initial priority placed this question in backlog while BUG-113 proceeded on the HST marker. The user later reprioritized the complete profile and authorized completion of the minimal verifier correction under BUG-113. Static review resolved the alias: descriptors use <code>$0287-$02E9</code> during boot, all consumers return before <code>boot_streams_retired</code>, and audio/keybinding owners install afterward. The retained verifier limits still reject over-99-byte tables and guard overflow. Complete audio proof passes; full XRoar execution remains unverified for the separate reasons in BUG-113. Diagnosis closed; no hardware qualification implied.</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>

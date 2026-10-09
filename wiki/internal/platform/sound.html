@@ -67,7 +67,7 @@
         <li>Ladybug intentionally uses boot-time bank selection and RAM publication; it does not bank switch during gameplay.</li>
         <li>The guide's MPI slot-routing path is for non-ROM programs and is not a dependency of the shipped GMC image.</li>
         <li>The guide's VGM/raw playback path is retained as an offline import or comparison option. The runtime remains semantic command records compiled from arcade PSG traces.</li>
-        <li>The guide names <code>$FF40/$FF41</code>, while Ladybug currently uses the CoCo 3 aliases <code>$FF50/$FF51</code>. XRoar accepts the parity-based aliases, but existing MAME 0.220 evidence requires the primary addresses. This remains an emulator and physical-hardware compatibility gate.</li>
+        <li>The guide names <code>$FF40/$FF41</code>. The BUG-113 candidate moves bank selection to the primary <code>$FF40</code> register; Ladybug's SN76489 writes remain at <code>$FF51</code>. XRoar accepts odd SCS writes by parity, while MAME 0.220 models the PSG at <code>$FF41</code>. Sound-address compatibility and physical GMC qualification remain open.</li>
       </ul>
       <p>
         FEAT-006 must explicitly verify fixed write spacing without status polling,
@@ -85,7 +85,7 @@
         delivered Ladybug image already requires the GMC, whose hardware and
         XRoar model include one 4 MHz SN76489. Writes to any odd SCS address
         program sound; Ladybug can reserve <code>$FF51</code>, alongside its
-        existing even-address <code>$FF50</code> bank-select convention. This
+        existing even-address <code>$FF40</code> bank-select register. This
         provides three autonomous square-wave voices plus noise, matches one of
         the arcade board's two SN76489 chips, and requires neither an MPI nor a
         new XRoar device.
@@ -136,7 +136,7 @@
         </li>
       </ul>
       <p>
-        The current GMC bootstrap uses SCS register <code>$FF50</code>, while
+        The current GMC bootstrap uses SCS register <code>$FF40</code>, while
         the runtime subsequently executes from RAM. With an MPI, boot must
         leave SCS routed to the Ladybug slot until all GMC payloads are copied,
         then route SCS to the external sound slot and leave it there. The MPI

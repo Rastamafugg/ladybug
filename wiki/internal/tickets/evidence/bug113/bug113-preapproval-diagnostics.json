@@ -1,0 +1,44 @@
+{
+  "ticket": "BUG-113",
+  "capturedDate": "2026-10-09",
+  "status": "approval-revision-proposed",
+  "sourceRevision": "1893399155b2fb75a0f4ab437106ec82066d37a1",
+  "bootstrapSourceSha256": "32d766b9a7edde2ac4890324253d9cab4a2e6d355f0a79dd6a0d1db89af2694a",
+  "branch": "main",
+  "tools": {
+    "mame": {"path": "/usr/games/mame", "version": "0.220 (unknown)", "sha256": "7fb5200f8c62d51ef39af168f0965196efbd53cc3d2b759d9db93118114760e4"},
+    "xroar": {"path": "/usr/local/bin/xroar", "version": "1.10", "sha256": "97eabf8ffd29ff47fb03cae4fedcdda9233e9c4c7b59aabd5ad4274ae72ce96b"},
+    "ffmpeg": {"path": "/usr/bin/ffmpeg", "version": "4.2.7-0ubuntu0.1"}
+  },
+  "highscoreTestProfileBuild": {
+    "command": "LADYBUG_PROFILE=highscore-test bash scripts/build.sh build",
+    "exitCode": 1,
+    "lastMarker": "build_presentation.py compile_profile_maps -> compile_map before ROM assembly",
+    "result": "Failed before ROM creation: presentation atlas exceeds one-byte tile IDs",
+    "retainedLog": "wiki/internal/tickets/evidence/bug113/highscore-test-build-failure.log"
+  },
+  "completeProfileBuild": {
+    "command": "LADYBUG_PROFILE=complete bash scripts/build.sh build",
+    "exitCode": 0,
+    "romSha256": "7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce",
+    "romSizeBytes": 65536,
+    "presentationProof": "9 screens pixel-exact; presentation cold payload 14377 bytes",
+    "capacity": {"resident": "8149/8192 bytes", "assets": "7671/7680 bytes", "presentationModule": "1262/1280 bytes", "cpuReadableGmcSpareBytes": 11855},
+    "sourceDocumentation": "16 modules, 312/312 routines, 5038/5038 labels pass"
+  },
+  "completeProfileMameBaseline": {
+    "command": "timeout --kill-after=5s 60s /usr/games/mame coco3 -ext games_master -cart build/bug113/complete-baseline.rom -autoboot_delay 1 -autoboot_command 'EXEC &HC002\\n' -seconds_to_run 4 -aviwrite build/bug113/complete-baseline.avi",
+    "exitCode": 0,
+    "output": "Average speed: 64.79% (3 seconds); ALSA sequencer unavailable",
+    "videoDurationSeconds": 4.02,
+    "aviObservedPath": "/home/rastamafugg/.mame/snap/build/bug113/complete-baseline.avi",
+    "aviSizeBytes": 111987420,
+    "aviSha256": "63eda02a83ecd72377b24ac10ab62549c3036a48b5c0bed0064af6340d2ab4fd",
+    "framePath": "wiki/internal/tickets/evidence/bug113/baseline-last-frame.png",
+    "frameSizeBytes": 3922,
+    "frameSha256": "fdd7d244740556547f0c011be234577ff7c5a681decfbd76d01dfa2629c573c8",
+    "visualResult": "striped/corrupted frame; current bank-selection failure reproduced"
+  },
+  "candidate": {"sourceEdited": false, "romBuilt": false, "mameRun": false, "xroarVerificationRun": false},
+  "reassessment": "Use supported complete profile for paired MAME runs. Its initial mode is ATTRACT, so revise the proposed candidate marker from high-score screen to coherent complete-profile attract/startup screen; renewed approval is required."
+}

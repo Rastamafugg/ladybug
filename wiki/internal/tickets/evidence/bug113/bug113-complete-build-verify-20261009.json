@@ -1,0 +1,73 @@
+{
+  "ticket": "BUG-113",
+  "date": "2026-10-09",
+  "profile": "complete",
+  "source_base_revision": "f3386da",
+  "production_source_change": "GMC_BANK $FF50 to $FF40; adjacent Init0 comment only",
+  "rom": {
+    "bytes": 65536,
+    "sha256": "3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161"
+  },
+  "source_sha256": {
+    "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+    "scripts/verify_audio_runtime.py": "2f3a50b475ec81209622174d32102f800730af88a6e24bdfe870350e45247bda"
+  },
+  "complete_build": {
+    "command": "PATH=/usr/local/bin:$PATH LADYBUG_PROFILE=complete bash scripts/build.sh verify-gmc",
+    "build_result": "pass; verify-gmc later exited 1 in the independent FEAT-007 static fixture",
+    "capacity_used_over_limit_bytes": {
+      "mapped": [198, 220],
+      "banked": [696, 698],
+      "resident": [8149, 8192],
+      "assets": [7671, 7680],
+      "presentation": [1262, 1280],
+      "instruction_staging": [938, 938],
+      "ranking": [917, 920],
+      "cold": [14377, 16384],
+      "audio_engine": [734, 920],
+      "page_3d_payload": [6656, 8192]
+    },
+    "gmc_cpu_readable_source_spare_bytes": 11855,
+    "sparse_loader_segments": 12,
+    "gmc_streams": 7,
+    "presentation_screens_pixel_exact": 9,
+    "source_reference": "16 modules, 36,405 source lines; pass",
+    "source_documentation": "16 modules, 312/312 routines and 5,038/5,038 labels; pass"
+  },
+  "audio_proof": {
+    "status": "pass",
+    "cues": 18,
+    "waits": 400,
+    "tester_equivalent_psg_bytes": 1938,
+    "boot_descriptor_start": "$0287",
+    "boot_descriptor_bytes": 99,
+    "boot_descriptor_end_exclusive": "$02EA",
+    "boot_state_boundary": "$02F0",
+    "mixer_loop_counter": "audio_mix_priority, bounded at four iterations"
+  },
+  "verify_gmc": {
+    "exit_code": 1,
+    "earlier_audio_guard_failure": "The boot descriptor end $02EA exceeded the obsolete $02C0 spatial bound; the check now retains the $0287 start, 99-byte maximum, and $02F0 boot-state boundary.",
+    "intermediate_complete_run_failure": "audio_mix_all_next was incorrectly required to use AUDIO_WORK_SLOT as its loop counter; the source uses audio_mix_priority",
+    "current_complete_run_failure": "verify_feat007_text.py --phase static: independent font/descriptor fixture drift",
+    "xroar_launched": false
+  },
+  "focused_startup_probe": {
+    "command": "python3 scripts/verify_gmc_boot.py --rom build/ladybug.rom --map build/ladybug.map --manifest build/ladybug-sparse-layout.json --startup-only",
+    "exit_code": 1,
+    "failure": "static preflight: framebuffer_queue_damage missing from enemy map",
+    "xroar_launched": false,
+    "phase_deadlines_seconds_if_reached": {
+      "loader_handoff": 10,
+      "resident_startup": 10
+    }
+  },
+  "address_decoding": {
+    "paired_mame_hst_marker": "pass; baseline striped, candidate coherent high-score name-entry screen within four emulated seconds",
+    "baseline_rom_sha256": "0d2884132597aa26f235ad37eb3be5055e5db9268fc58a03145b7f7d901ea02d",
+    "candidate_hst_rom_sha256": "cba9070ee43b9d05f4697e097394691b38f41a74966bea778e5cc55b147270d7",
+    "xroar_limit": "Local XRoar dispatches GMC SCS behavior by address parity; even $FF40 and $FF50 both select the banking path and are not distinguishable in that emulator.",
+    "physical_gmc_hardware": "not tested"
+  },
+  "other_profiles": "Not required by the current user direction; failures and broader verifier coverage remain backlog work."
+}
