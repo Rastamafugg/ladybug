@@ -53,6 +53,9 @@ SPARSE_BANK3="$BUILD_DIR/ladybug-sparse-bank3.bin"
 SPARSE_BANK0="$BUILD_DIR/ladybug-gmc-bank0-overflow.bin"
 SPARSE_LOADER="$BUILD_DIR/ladybug-sparse-loader.inc"
 SPARSE_MANIFEST="$BUILD_DIR/ladybug-sparse-layout.json"
+EVENT_ART_RAW="$BUILD_DIR/ladybug-event-art.raw"
+DINOSAUR_ART_RAW="$BUILD_DIR/ladybug-dinosaur-art.raw"
+EVENT_ASSETS_MANIFEST="$BUILD_DIR/ladybug-event-assets.json"
 PERIMETER_RESET="$BUILD_DIR/ladybug-perimeter-reset.bin"
 PERIMETER_HELPER="$BUILD_DIR/ladybug-perimeter-reset-helper.bin"
 PERIMETER_HELPER_LST="$BUILD_DIR/ladybug-perimeter-reset-helper.lst"
@@ -450,6 +453,16 @@ cmd_build() {
         --development-profile "$BUG011_DEVELOPMENT_PROFILE" \
         --complete-profile "$COMPLETE_PROFILE" \
         --highscore-test-profile "$HIGHSCORE_TEST_PROFILE"
+
+    python3 "$ROOT/scripts/build_event_asset_bundle.py" \
+        --special-map "$ROOT/tiled/coco-special-screen.tmx" \
+        --extra-map "$ROOT/tiled/coco-extra-screen.tmx" \
+        --tileset "$ROOT/tiled/arcade-event-tiles.tsx" \
+        --tilesheet "$ROOT/tiled/arcade-event-tiles.png" \
+        --sprites "$ROOT/assets/arcade/sprites.json" \
+        --event-output "$EVENT_ART_RAW" \
+        --dinosaur-output "$DINOSAUR_ART_RAW" \
+        --manifest-output "$EVENT_ASSETS_MANIFEST"
 
     python3 - "$PRESENTATION_MANIFEST" "$PRESENTATION_RESIDENT_INC" "$BUG011_DEVELOPMENT_PROFILE" <<'PY'
 import json
@@ -988,6 +1001,9 @@ PY
         keybinding_args=(--keybinding-runtime "$BUILD_DIR/ladybug-keybinding-runtime.bin")
     fi
     python3 "$ROOT/scripts/build_sparse_sprites.py" "${adaptive_args[@]}" "${keybinding_args[@]}" \
+        --event-art-input "$EVENT_ART_RAW" \
+        --dinosaur-input "$DINOSAUR_ART_RAW" \
+        --asset-manifest-input "$EVENT_ASSETS_MANIFEST" \
         --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
@@ -1019,6 +1035,9 @@ PY
         --manifest-output "$SPARSE_MANIFEST"
 
     python3 "$ROOT/scripts/verify_sparse_sprites.py" "${adaptive_args[@]}" \
+        --event-art-input "$EVENT_ART_RAW" \
+        --dinosaur-input "$DINOSAUR_ART_RAW" \
+        --asset-manifest-input "$EVENT_ASSETS_MANIFEST" \
         --enemy-helper "$ENEMY_HELPER" \
         --sprites "$ROOT/assets/arcade/sprites.json" \
         --enemy-runtime "$ENEMY_ROM" \
@@ -1132,6 +1151,16 @@ for segment in manifest['gmc']['segments']:
         raise SystemExit('build: bank-0 overflow segment is outside $0800-$3DFF')
     if any(value != 0xFF for value in boot[start:end]):
         raise SystemExit('build: bank-0 overflow segment overlaps assembled boot bytes')
+    boot[start:end] = bank0[start:end]
+for asset in manifest['gmc']['rom_assets']:
+    if asset['bank'] != 0:
+        continue
+    start = asset['source_offset']
+    end = start + asset['compressed_bytes']
+    if start < 0x0800 or end > 0x3E00:
+        raise SystemExit('build: ROM asset is outside $0800-$3DFF bank-0 overflow')
+    if any(value != 0xFF for value in boot[start:end]):
+        raise SystemExit('build: ROM asset overlaps assembled boot bytes')
     boot[start:end] = bank0[start:end]
 boot_final_path = boot_path + '.final.tmp'
 with open(boot_final_path, 'wb') as stream:

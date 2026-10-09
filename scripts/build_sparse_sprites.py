@@ -130,9 +130,22 @@ class PackedStream:
         return self.destination_address + len(self.raw)
 
 
+@dataclass(frozen=True)
+class RomAsset:
+    name: str
+    raw: bytes
+    compressed: bytes
+    bank: int
+    source_offset: int
+    details: dict[str, object]
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keybinding-runtime", type=Path)
+    parser.add_argument("--event-art-input", type=Path, required=True)
+    parser.add_argument("--dinosaur-input", type=Path, required=True)
+    parser.add_argument("--asset-manifest-input", type=Path, required=True)
     parser.add_argument("--sprites", type=Path, required=True)
     parser.add_argument("--enemy-runtime", type=Path, required=True)
     parser.add_argument("--enemy-output", type=Path, required=True)
@@ -407,6 +420,7 @@ def pack_candidate_banks(
         enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
+        rom_asset_inputs: list[tuple[str, bytes, dict[str, object]]] | None = None,
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
     if len(enemy_runtime) > ENEMY_RUNTIME_RESERVED:
@@ -603,6 +617,31 @@ def pack_candidate_banks(
             source_cursor += count
             target_cursor += count
 
+    rom_assets: list[RomAsset] = []
+    if rom_asset_inputs:
+        bank0_occupied_end = max(
+            [BOOT_OVERFLOW_START + len(BOOT_OVERFLOW_PROOF)] +
+            [segment.source_offset + segment.count
+             for segment in segments if segment.bank == 0] +
+            [stream.source_offset + len(stream.compressed)
+             for stream in packed_streams if stream.bank == 0]
+        )
+        asset_cursor = max(bank0_occupied_end, helper_source_end)
+        for name, raw, details in rom_asset_inputs:
+            compressed = lzss_compress(raw)
+            if lzss_decompress(compressed, len(raw)) != raw:
+                raise ValueError(f"{name} ROM asset host round trip differs")
+            if asset_cursor + len(compressed) > CART_READABLE_BYTES:
+                raise ValueError(
+                    f"{name} ROM asset exceeds bank-0 readable overflow interval"
+                )
+            banks[0][asset_cursor:asset_cursor + len(compressed)] = compressed
+            rom_assets.append(RomAsset(
+                name=name, raw=raw, compressed=compressed, bank=0,
+                source_offset=asset_cursor, details=details,
+            ))
+            asset_cursor += len(compressed)
+
     for segment in segments:
         if segment.source_offset + segment.count > CART_READABLE_BYTES:
             raise ValueError("loader segment enters forced-RAM/I/O cart offsets")
@@ -640,7 +679,7 @@ def pack_candidate_banks(
     result = (
         bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments,
     )
-    return result + (packed_streams,) if include_streams else result
+    return result + (packed_streams, rom_assets) if include_streams else result
 
 
 # @audit-producer {"id": "sparse-index", "symbols": ["SPARSE_ENEMY_INDEX_ADDR", "SPARSE_PLAYER_INDEX_ADDR"], "function": "write_loader_include"}
@@ -738,6 +777,18 @@ def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
 # @audit-producer {"id":"vegetable-sparse","symbols":["VEGETABLE_SPARSE_INDEX"],"function":"main"}
 def main() -> None:
     args = parse_args()
+    event_asset = args.event_art_input.read_bytes()
+    dinosaur_asset = args.dinosaur_input.read_bytes()
+    asset_manifest = json.loads(args.asset_manifest_input.read_text(encoding="ascii"))
+    asset_details = asset_manifest.get("assets", {})
+    expected_asset_names = ("special_extra_event_art", "dinosaur")
+    asset_inputs = []
+    for name, raw in zip(expected_asset_names, (event_asset, dinosaur_asset)):
+        details = asset_details.get(name)
+        if (not isinstance(details, dict) or details.get("raw_bytes") != len(raw) or
+                details.get("raw_sha256") != digest(raw)):
+            raise SystemExit(f"sparse: {name} compiler manifest does not match payload")
+        asset_inputs.append((name, raw, details))
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
@@ -824,7 +875,7 @@ def main() -> None:
         aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
     else:
         aux_runtime_stage = demo_runtime
-    bank0, bank2, bank3, segments, packed_streams = pack_candidate_banks(
+    bank0, bank2, bank3, segments, packed_streams, rom_assets = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
         perimeter_payload, perimeter_helper, instruction_runtime, demo_runtime,
@@ -837,6 +888,7 @@ def main() -> None:
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
         keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
+        rom_asset_inputs=asset_inputs,
     )
     outputs = (
         (args.enemy_output, enemy_payload),
@@ -857,11 +909,15 @@ def main() -> None:
     used_payload_source_bytes = sum(
         segment.count for segment in segments
         if segment.target != "boot_overflow_proof"
-    ) + sum(len(stream.compressed) for stream in packed_streams)
+    ) + sum(len(stream.compressed) for stream in packed_streams) + sum(
+        len(asset.compressed) for asset in rom_assets
+    )
     bank0_used_bytes = sum(
         segment.count for segment in segments if segment.bank == 0
     ) + sum(
         len(stream.compressed) for stream in packed_streams if stream.bank == 0
+    ) + sum(
+        len(asset.compressed) for asset in rom_assets if asset.bank == 0
     )
     usable_expansion_bytes = (
         (CART_READABLE_BYTES - BANK2_PAYLOAD_START) +
@@ -1054,6 +1110,27 @@ def main() -> None:
             "compressed_stream_source_bytes": sum(
                 len(stream.compressed) for stream in packed_streams
             ),
+            "rom_asset_source_bytes": sum(
+                len(asset.compressed) for asset in rom_assets
+            ),
+            "rom_assets": [
+                {
+                    "name": asset.name,
+                    "bank": asset.bank,
+                    "source_offset": asset.source_offset,
+                    "source_address": CART_CPU_BASE + asset.source_offset,
+                    "compressed_bytes": len(asset.compressed),
+                    "raw_bytes": len(asset.raw),
+                    "compressed_sha256": digest(asset.compressed),
+                    "raw_sha256": digest(asset.raw),
+                    "expanded_sha256": digest(
+                        lzss_decompress(asset.compressed, len(asset.raw))
+                    ),
+                    "round_trip_exact": True,
+                    "details": asset.details,
+                }
+                for asset in rom_assets
+            ],
         },
     }
     if args.aux_runtime_role in ("development", "complete"):

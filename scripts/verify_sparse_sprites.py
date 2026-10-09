@@ -16,6 +16,7 @@ from build_screen import (
     compile_sprite_codes,
     VEGETABLE_CODES,
 )
+from build_event_asset_bundle import compile_dinosaur_asset, compile_event_asset
 from gmc_lzss import decompress as lzss_decompress
 
 
@@ -54,6 +55,13 @@ GAMEPLAY_ENEMY_PEN_MAPS = (
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--sprites", type=Path, default=ROOT / "assets/arcade/sprites.json")
+    parser.add_argument("--special-map", type=Path, default=ROOT / "tiled/coco-special-screen.tmx")
+    parser.add_argument("--extra-map", type=Path, default=ROOT / "tiled/coco-extra-screen.tmx")
+    parser.add_argument("--event-tileset", type=Path, default=ROOT / "tiled/arcade-event-tiles.tsx")
+    parser.add_argument("--event-tilesheet", type=Path, default=ROOT / "tiled/arcade-event-tiles.png")
+    parser.add_argument("--event-art-input", type=Path, required=True)
+    parser.add_argument("--dinosaur-input", type=Path, required=True)
+    parser.add_argument("--asset-manifest-input", type=Path, required=True)
     parser.add_argument("--enemy-runtime", type=Path, default=BUILD / "ladybug-enemy-runtime.rom")
     parser.add_argument("--enemy-payload", type=Path, default=BUILD / "ladybug-enemy-sparse.bin")
     parser.add_argument("--player-payload", type=Path, default=BUILD / "ladybug-player-sparse.bin")
@@ -276,6 +284,23 @@ def sha256(data: bytes) -> str:
 
 def main() -> None:
     args = parse_args()
+    event_art, event_details = compile_event_asset(
+        args.special_map, args.extra_map, args.event_tileset, args.event_tilesheet
+    )
+    dinosaur_art, dinosaur_details = compile_dinosaur_asset(args.sprites)
+    event_art_input = args.event_art_input.read_bytes()
+    dinosaur_input = args.dinosaur_input.read_bytes()
+    compiler_manifest = json.loads(
+        args.asset_manifest_input.read_text(encoding="ascii")
+    )
+    expected_compiler_assets = {
+        "special_extra_event_art": event_details,
+        "dinosaur": dinosaur_details,
+    }
+    if compiler_manifest.get("assets") != expected_compiler_assets:
+        raise SystemExit("sparse proof: generated ROM asset source manifest differs")
+    if event_art_input != event_art or dinosaur_input != dinosaur_art:
+        raise SystemExit("sparse proof: ROM asset compiler output identity differs")
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
@@ -693,6 +718,40 @@ def main() -> None:
                 raise SystemExit("sparse proof: combined audio/keybinding page differs")
             reconstructed["audio_runtime"][:] = raw[:len(audio_runtime)]
             coverage["audio_runtime"][:] = b"\x01" * len(audio_runtime)
+
+    expected_rom_assets = {
+        "special_extra_event_art": (event_art_input, event_details),
+        "dinosaur": (dinosaur_input, dinosaur_details),
+    }
+    rom_assets = manifest["gmc"].get("rom_assets", [])
+    if {item.get("name") for item in rom_assets} != set(expected_rom_assets) or len(rom_assets) != 2:
+        raise SystemExit("sparse proof: ROM asset inventory differs")
+    for asset in rom_assets:
+        name = asset["name"]
+        expected_raw, expected_details = expected_rom_assets[name]
+        bank = asset["bank"]
+        source_offset = asset["source_offset"]
+        compressed_bytes = asset["compressed_bytes"]
+        if (bank != 0 or source_offset < BOOT_OVERFLOW_START or
+                source_offset + compressed_bytes > CART_READABLE_BYTES or
+                asset["source_address"] != 0xC000 + source_offset):
+            raise SystemExit(f"sparse proof: {name} location is outside bank-0 readable overflow")
+        if any(source_coverage[bank][source_offset:source_offset + compressed_bytes]):
+            raise SystemExit(f"sparse proof: {name} overlaps another GMC source interval")
+        source_coverage[bank][source_offset:source_offset + compressed_bytes] = (
+            b"\x01" * compressed_bytes
+        )
+        compressed = banks[bank][source_offset:source_offset + compressed_bytes]
+        if sha256(compressed) != asset["compressed_sha256"]:
+            raise SystemExit(f"sparse proof: {name} compressed source hash differs")
+        if (asset["raw_bytes"] != len(expected_raw) or
+                asset["raw_sha256"] != sha256(expected_raw) or
+                asset["details"] != expected_details):
+            raise SystemExit(f"sparse proof: {name} compiler metadata differs")
+        expanded = lzss_decompress(compressed, asset["raw_bytes"])
+        if (expanded != expected_raw or sha256(expanded) != asset["expanded_sha256"] or
+                not asset.get("round_trip_exact")):
+            raise SystemExit(f"sparse proof: {name} embedded bytes do not match compiler output")
     if (
         not all(coverage["enemy"]) or
         not all(coverage["player"]) or
@@ -746,12 +805,26 @@ def main() -> None:
     )
     if manifest["gmc"]["spare_bytes"] != expected_spare:
         raise SystemExit("sparse proof: total CPU-readable GMC spare capacity differs")
+    expected_asset_source_bytes = sum(
+        item["compressed_bytes"] for item in rom_assets
+    )
+    if manifest["gmc"].get("rom_asset_source_bytes") != expected_asset_source_bytes:
+        raise SystemExit("sparse proof: ROM asset source byte count differs")
+    expected_bank0_used = sum(
+        segment["count"] for segment in manifest_segments if segment["bank"] == 0
+    ) + sum(
+        stream["compressed_bytes"] for stream in streams if stream["bank"] == 0
+    ) + expected_asset_source_bytes
+    if (manifest["gmc"].get("boot_overflow_used_bytes") != expected_bank0_used or
+            manifest["gmc"].get("boot_overflow_spare_bytes") !=
+            CART_READABLE_BYTES - BOOT_OVERFLOW_START - expected_bank0_used):
+        raise SystemExit("sparse proof: bank-0 overflow capacity accounting differs")
 
     print(
         f"sparse proof: {len(enemy_ranges)} enemy and {len(player_ranges)} player "
         f"frames decode and blend pixel-exactly; {len(loader)} loader segments reconstruct "
         f"actor, gate, presentation, cold, module, page-$34 enemy helper, audio, "
-        f"and auxiliary payloads with "
+        f"and auxiliary payloads; {len(rom_assets)} standalone ROM assets with "
         f"{manifest['gmc']['spare_bytes']} bytes spare"
     )
 
