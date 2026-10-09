@@ -63,6 +63,26 @@
         <li><strong>Vegetable pickups</strong> also use Set A attrs.</li>
         <li><strong>Death animation</strong> (angel wings) uses one of the Set B attrs.</li>
       </ul>
+      <p id="unused-dinosaur-artwork">
+        <strong>Unused dinosaur artwork:</strong> the last five columns of
+        <code>sprites_raw2bpp.png</code> are rotated-sheet sprite codes 88–127
+        (<code>code = column × 8 + (7 − row)</code>). Code 88 is the final
+        death-animation angel; codes 89–125 are the large dinosaur artwork;
+        codes 126 and 127 each contain 64 <code>0xFF</code> bytes and decode
+        to a uniform pen-3 tile.
+        MAME's <code>spritelayout</code> uses 64 bytes per 16×16 sprite, and
+        <code>gfx2</code> loads <code>l8.l7</code> then <code>l7.m7</code> at
+        offset <code>0x1000</code>. Thus dinosaur codes 89–125 occupy offsets
+        <code>0x0640–0x0F7F</code> within <code>l7.m7</code>. The installed
+        MAME 0.220 <code>ladybug.zip</code> SHA-256 is
+        <code>2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8</code>;
+        its local chip matches MAME's CRC32 <code>86a5b448</code> and SHA-1
+        <code>f8585a6fcf921e3e21f112dd2de474cb53cef290</code>. The
+        <a href="https://adb.arcadeitalia.net/dettaglio_mame.php?back_games=ladybugb%3B&amp;game_name=ladybug&amp;lang=en&amp;search_id=0">Arcade Database MAME entry</a>
+        identifies the dinosaur art as unused. No game trigger or intended
+        reason for retaining it has been established. Speculation: it may be
+        leftover or cut artwork; the ROM and driver do not document its origin.
+      </p>
     </section>
 
     <section>

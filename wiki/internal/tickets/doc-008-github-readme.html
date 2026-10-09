@@ -88,6 +88,41 @@
       <p><strong>Assignment and verification:</strong> Owned artifacts are <code>README.md</code>, this ticket, the ticket index, and the wiki log. Check README content, relative links, emulator command arguments against the wiki, the MAME caveat against retained runbook evidence and current upstream GMC code, CoCo-Pi source links, and <code>git diff --check</code>. No ROM build or emulator session is required for this documentation-only refinement. QA reviewed the final README and synchronized wiki records; result: pass. The refinement was initially left in the working tree; the 2026-09-29 main synchronization includes it.</p>
     </section>
 
+    <section id="xroar-online-beta-proposal-20261007">
+      <h2>Beta ROM in XRoar Online — 2026-10-07</h2>
+      <p><strong>Status:</strong> Done, 2026-10-07. The approved README update and QA are complete. The user approved the beta ROM pointer and XRoar Online instructions; the previously completed alpha archive and emulator guidance remain historical.</p>
+      <h3>Objective and motivation</h3>
+      <p>Update the prebuilt-ROM pointer to the beta image and give readers a browser-based path from the pinned GitHub ROM file to a running game in XRoar Online. The same ordered steps should be usable as the outline for a tutorial video.</p>
+      <h3>Evidence and baseline</h3>
+      <p>The current root README still identifies <code>roms/1.0.0-alpha.rom</code> as current. The beta image is <code>roms/coco-ladybug-1.0.0-beta.rom</code>, present in tag <code>1.0.0-beta</code>, 65,536 bytes, SHA-256 <code>7a676d149bf2e46771b1341fe90b03479b5d79c5d7ceecef75fda37269d6edce</code>. The GitHub tag file page exposes a Raw/Download action. The current XRoar Online UI offers Hardware → Machine → Tandy CoCo 3 and File → Run, labeled as loading a local file and trying to autorun. The official XRoar manual states that autorunning a ROM larger than 16 KiB automatically selects and autostarts a Games Master Cartridge; this beta image is 64 KiB.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> replace the README's current prebuilt image pointer with the beta ROM; add a concise XRoar Online section linking to the pinned GitHub tag file, explaining that the ROM must first be downloaded locally, selecting Tandy CoCo 3, running the local ROM, and entering the menu with the verified beta controls; provide a short recording sequence in this ticket for reuse in the video.</p>
+      <p><strong>Out:</strong> producing or publishing a video; changing the ROM, release, tag, game source, XRoar Online service, desktop XRoar/MAME/CoCo-Pi guidance, or unrelated README status prose.</p>
+      <h3>Golden path, scenarios, and edge cases</h3>
+      <ol>
+        <li>Reader downloads <code>coco-ladybug-1.0.0-beta.rom</code> from the immutable <code>1.0.0-beta</code> tag link. Risk covered: a mutable branch or wrong image is used.</li>
+        <li>Reader opens XRoar Online, selects Hardware → Machine → Tandy CoCo 3, then File → Run and chooses the saved local ROM. Risk covered: the emulator remains on its Dragon default or the online file dialog is mistaken for a remote URL loader.</li>
+        <li>XRoar autoruns the 64 KiB cartridge image; the reader waits for the game menu, presses 5 or 6 for credit, releases Enter if already held, then presses Enter. Risk covered: wrong cartridge handling or an inherited Enter hold prevents the expected menu transition.</li>
+      </ol>
+      <h3>Tutorial video recording outline</h3><ol><li>Show the GitHub file at the fixed <code>1.0.0-beta</code> tag and download <code>coco-ladybug-1.0.0-beta.rom</code> using the raw-file action.</li><li>Open XRoar Online and select Hardware → Machine → Tandy CoCo 3.</li><li>Use File → Run to select the downloaded ROM; show the game booting.</li><li>At the menu, press 5 or 6 to add a credit, then press Enter. Show arrow-key menu navigation and the Options entry for gameplay controls.</li></ol>
+      <p>XRoar Online's Run control accepts a local file; the user must download the GitHub file before choosing it. XRoar's documented auto-detection should select GMC for this greater-than-16-KiB ROM, so manual cartridge switching is not a required step. Gameplay control configuration stays in the game's Options menu.</p>
+      <h3>Recommendation and tradeoff</h3>
+      <p>Link directly to the ROM file page at the fixed <code>1.0.0-beta</code> tag and tell the reader to use GitHub's Download raw file action. This keeps the tutorial attached to the requested <code>roms/</code> artifact and avoids a branch-moving target. XRoar Online cannot load the GitHub URL directly through File → Run; the added download step is required.</p>
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>The README identifies the beta ROM as the current prebuilt image and its link resolves to <code>roms/coco-ladybug-1.0.0-beta.rom</code> at tag <code>1.0.0-beta</code>.</li>
+        <li>The XRoar Online instructions use the current UI labels and exact order: download locally, select Tandy CoCo 3, File → Run, choose the saved ROM, then add credit and enter the game.</li>
+        <li>The text does not claim that File → Run accepts a remote GitHub URL. It explains local selection and documented GMC autorun behavior.</li>
+        <li>The tutorial outline and README steps agree on the ROM name, controls, and ordering.</li>
+        <li>All new external and repository links resolve; <code>git diff --check</code> passes. No build or gameplay acceptance is claimed by this documentation scope.</li>
+      </ul>
+      <h3>Dependencies, risks, and ordering</h3>
+      <p>No technical dependency. User approval of this revised DOC-008 outcome and acceptance criteria was received 2026-10-07 before editing. Residual risk: XRoar Online is a third-party web UI that may change its menu labels or behavior after this documentation is reviewed.</p>
+      <h3>Assignment contract after approval</h3>
+      <p>Owned artifacts: <code>README.md</code>, this ticket, the ticket index, and the project log. Execution is on the current <code>main</code> checkout with no separate worktree. Preserve all previously approved DOC-008 behavior outside the stated beta-pointer and XRoar Online additions. Verification commands: <code>git diff --check</code>; inspect the README URLs and repository link targets; compare UI names, local-file requirement, GMC autorun behavior, and input sequence with the current official XRoar Online page/manual and beta release. No ROM rebuild, emulator upload, game-source change, commit, or publication is part of the approved scope. Retain concise results here.</p>
+      <h3>Implementation and QA evidence — 2026-10-07</h3>
+      <p>The README now links the current prebuilt image to the ROM file at the immutable <code>1.0.0-beta</code> tag and adds the ordered browser flow: download locally, open XRoar Online, choose Tandy CoCo 3, use File → Run, and enter the game. The tutorial outline follows the same filenames, labels, and controls. Verified the GitHub ROM page and release controls, the current XRoar Online page/UI labels, the official manual's &gt;16 KiB GMC auto-selection/autostart rule, and the beta release's 5/6 credit and Enter start instructions. <code>git diff --check</code> passes. No build or gameplay test was run or claimed, as required by the approved documentation-only scope. QA result: pass. No commit or publication was authorized. Residual scope note: existing desktop XRoar, MAME, and CoCo-Pi examples still name the alpha ROM; refreshing those examples was explicitly excluded from this refinement.</p>    </section>
+
     <section>
       <h2>Decision log</h2>
       <ul>
@@ -98,9 +133,48 @@
         <li>2026-09-23 — Advanced to Ready. Assignment specifies the current main checkout, source identity gate, fresh build/hash comparison, two bounded commits, and single-tag force update plus remote verification.</li>
         <li>2026-09-23 — Started implementation after the source identity gate passed and local/published tag targets were confirmed unchanged.</li>
         <li>2026-09-23 — Fresh complete-profile build and QA passed; the 64 KiB archive matches byte-for-byte and by SHA-256. Deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code> contains the README and ROM. After closure-evidence preparation, local and published <code>1.0.0-alpha</code> moved from <code>516bdd3b7858425cef5a71439fdfcacf1ff7f62d</code> to the deliverable commit; the forced tag push succeeded and remote verification returned the new SHA. Marked Done. No branch push or gameplay/hardware acceptance is claimed.</li>
+        <li>2026-10-07 — User requested beta ROM instructions for XRoar Online and intended use in the README and a tutorial video. Reopened DOC-008 as Proposed for the pinned beta-ROM link, local-file upload sequence, CoCo 3 selection, GMC autorun explanation, and matching recording outline. No README implementation or external upload is included before approval.</li>
+        <li>2026-10-07 — User approved the proposed beta-ROM pointer and XRoar Online README scope. Advanced DOC-008 through Approved and Ready after confirming the owned files, worktree, verification commands, evidence, and no-commit boundary; implementation started on <code>main</code>.</li>
+        <li>2026-10-07 — README beta pointer and XRoar Online flow implemented. Moved DOC-008 from In Progress to Verification after checking the current GitHub/XRoar sources, beta controls, links, and <code>git diff --check</code>; QA passed, so the ticket advanced to Done. No ROM/build/gameplay changes or commit were made; desktop emulator examples remain on alpha as explicitly excluded.</li>
+        <li>2026-10-07 — User requested removing the held-Enter reminder from the README. Removed it from the README and matching video outline; this wording refinement does not change the approved loading flow or acceptance scope.</li>
+        <li>2026-10-07 — User directed a README refinement to disclose Codex/LLM use and refresh Current Status. Returned DOC-008 to Proposed for this exact scope. The direct user request approved it; advanced through Ready to In Progress with no code, ROM, release, or emulator-instruction changes authorized.</li>
+        <li>2026-10-07 — User requested removing the 512 KiB RAM detail from the README opening; removed it. The project description now starts with the game and platform identity, followed by the Codex disclosure.</li>        <li>2026-10-07 — README Codex/LLM disclosure and Current Status edits are complete. Moved DOC-008 to Verification for current-source, link, and scope review.</li>
+        <li>2026-10-07 — QA verified the Codex/LLM disclosure, current beta status against the published release and project log, release link, and scoped documentation changes. <code>git diff --check</code> passed. Advanced DOC-008 from Verification to Done. No build, gameplay test, ROM change, commit, or publication was performed.</li>
+        <li>2026-10-07 — User identified the remaining alpha ROM path as outdated. Reopened DOC-008 for a focused README correction: point the saved-ROM fallback, desktop XRoar/MAME commands, and CoCo-Pi instructions to the current beta filename. The direct request approved this documentation-only scope.</li>
+        <li>2026-10-07 — Replaced alpha ROM filenames in the fallback sentence and desktop XRoar, MAME, and CoCo-Pi examples. Moved DOC-008 to Verification for path, file, and diff checks.</li>
+        <li>2026-10-07 — QA confirmed all README ROM paths use the beta filename, the local image exists, the published beta link resolves, and <code>git diff --check</code> passes. Advanced DOC-008 from Verification to Done; no build or gameplay test was performed.</li>
       </ul>
     </section>
 
+    <section id="codex-transparency-current-status-20261007">
+      <h2>Codex disclosure and current status refinement — 2026-10-07</h2>
+      <p><strong>Status:</strong> Done, 2026-10-07. This README refinement passed QA; no dependencies remain.</p>
+      <h3>Objective and baseline</h3>
+      <p>Make the README opening transparent that OpenAI Codex, an LLM-based coding agent, contributes under the maintainer's direction. Refresh the status dated 2026-09-29, which predates the beta release. The 1.0.0-beta release was published on 2026-10-07 at source tag commit <code>11927e3066bda9d35fab5a79ad7d2bfb7558ae28</code>. Its notes state that 27,000-cycle performance targets remain open, performance proposals are not included, physical CoCo 3 qualification is incomplete, and MAME gameplay is unverified due to GMC bank-selection compatibility. The current project log records PERF-009/PERF-010 as Proposed and BUG-058/FEAT-005 as open performance gates.</p>
+      <h3>Scope and scenarios</h3>
+      <p><strong>In:</strong> revise only the README opening paragraph and Current Status section; add a link to the published beta release; synchronize this ticket, its index row, and the project log. <strong>Out:</strong> emulator instructions, game source, ROM contents, tags/releases, roadmap scope, and build scripts.</p>
+      <ol>
+        <li>Opening paragraph identifies Codex as an LLM-based coding agent and states that the maintainer provides direction and reviews contributions. Risk covered: readers cannot tell how LLM tools were used or who directs the work.</li>
+        <li>Current Status dates the beta publication and states the known open performance, hardware, and MAME limitations without implying release completion or unverified gameplay. Risk covered: stale or overstated project status.</li>
+      </ol>
+      <h3>Acceptance criteria and verification</h3>
+      <ul>
+        <li>The opening directly identifies OpenAI Codex and LLM use, and says the project is developed under the maintainer's direction.</li>
+        <li>Current Status is dated 2026-10-07, links the published beta release, and accurately summarizes open performance targets/proposals, incomplete physical qualification, and unverified MAME gameplay against the release notes and current project log.</li>
+        <li>No stale Phase 9 or alpha-era status claim remains in the Current Status section. No claim says proposed optimizations are integrated or all performance targets pass.</li>
+        <li>New links resolve and <code>git diff --check</code> passes. No build, emulator session, or gameplay test is needed for this documentation-only scope.</li>
+      </ul>
+      <p><strong>Assignment:</strong> owned artifacts are <code>README.md</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>. No commit or publication is authorized. Retain the exact source comparisons and QA verdict below.</p>
+      <h3>Implementation evidence and QA — 2026-10-07</h3>
+      <p>The opening paragraph identifies OpenAI Codex as an LLM-based coding agent, states that the maintainer directs the work, and omits the unnecessary RAM amount. Current Status is dated 2026-10-07 and links the published beta release. Its performance, beta-slowdown, physical CoCo 3, MAME, and proposal claims match the current public release notes and project log. The release link resolves and the section contains no stale phase claim. Structural checks confirm balanced ticket list/section tags and synchronized status in the index and log. <code>git diff --check</code> passes. No build, ROM change, emulator session, or gameplay test was performed. QA disposition: pass. No commit or publication was authorized; existing desktop emulator examples remain outside this refinement.</p>
+    </section>
+    <section id="beta-rom-paths-20261007">
+      <h2>Current beta ROM paths — 2026-10-07</h2>
+      <p><strong>Status:</strong> Done, 2026-10-07. The stale ROM path correction passed QA.</p>
+      <p><strong>Scope:</strong> update the saved-ROM fallback path and the XRoar, MAME, and CoCo-Pi ROM filenames in <code>README.md</code>. Do not change emulator arguments, compatibility claims, ROM contents, tags, game source, or build workflow.</p>
+      <p><strong>Acceptance:</strong> every README ROM filename and repository path identifies <code>coco-ladybug-1.0.0-beta.rom</code>; the local repository image exists; no alpha ROM path remains; <code>git diff --check</code> passes. No build or gameplay test is required.</p>
+      <p><strong>QA evidence, 2026-10-07:</strong> The README contains no <code>1.0.0-alpha.rom</code> reference; the prebuilt fallback, desktop XRoar/MAME commands, and CoCo-Pi instructions use <code>coco-ladybug-1.0.0-beta.rom</code>. The local ROM exists, the pinned GitHub beta link resolves, and <code>git diff --check</code> passes. No command options or MAME compatibility claims changed. No build or gameplay test was run. QA disposition: pass. No commit or publication was made.</p>
+    </section>
     <footer class="wiki-footer">
       <p>Sources: product source revision <code>028b1f76bd5c</code>, deliverable commit <code>be61f75479e7b9038802ad19953061f0e3a70b36</code>, <a href="../../index.html">wiki catalog</a>, <a href="../implementation/roadmap.html">roadmap</a>, <a href="./rsch-013-20260923-visual-gameplay-intake.html#source-review-20260923">current issue intake and source review</a>, current tag <code>1.0.0-alpha</code>, and <code>scripts/build.sh</code>.</p>
     </footer>

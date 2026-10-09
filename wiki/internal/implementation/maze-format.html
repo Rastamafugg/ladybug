@@ -190,6 +190,29 @@
       </p>
     </section>
 
+    <section id="arcade-event-reference-maps-20261009">
+      <h2>Arcade SPECIAL and EXTRA event reference maps</h2>
+      <p>
+        MAME 0.220 captures provide one representative frame for each distinct
+        completion scene: SPECIAL at frame 1000 (300 frames after completion)
+        and EXTRA at frame 899 (200 frames after completion). The arcade maps
+        are 24×30 Tiled maps with 8×8 cells. Both reconstruct pixel-exactly
+        from their BGRA32 source frame using the shared 315-tile
+        <a href="../../../tiled/arcade-event-tiles.tsx">event tileset</a>.
+      </p>
+      <ul>
+        <li><a href="../../../tiled/arcade-special-screen.tmx">Arcade SPECIAL map</a> and <a href="../../../tiled/arcade-extra-screen.tmx">Arcade EXTRA map</a> preserve the full MAME frame and place a visible <code>Ladybug Path</code> object group over it.</li>
+        <li><a href="../../../tiled/coco-special-screen.tmx">CoCo SPECIAL map</a> and <a href="../../../tiled/coco-extra-screen.tmx">CoCo EXTRA map</a> place arcade rows 2–25 in CoCo columns 8–31. They reuse the Background, Maze and Panel Background, Arcade Maze Border, and HUD Placeholder layers from <code>tiled/coco-screen.tmx</code>.</li>
+        <li>Path points are ordered from start to finish and identify the top-left pixel of the 16×16 Ladybug sprite. SPECIAL follows <code>(169,171) → (16,171) → (16,32)</code>. EXTRA follows <code>(89,25) → (89,89) → (73,89) → (73,121) → (105,121) → (105,89) → (9,89) → (9,207)</code>. CoCo map points use <code>x+64, y−16</code>.</li>
+      </ul>
+      <p>
+        The maps record SHA-256 values for each representative BGRA frame, its
+        path evidence, and the shared atlas. These are editable reference maps;
+        the single image frame is paired with a polyline that documents the
+        longer event animation.
+      </p>
+    </section>
+
     <section>
       <h2>Exact maze source — resolved 2026-07-17</h2>
       <p>

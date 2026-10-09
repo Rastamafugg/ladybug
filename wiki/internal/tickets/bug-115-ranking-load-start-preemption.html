@@ -17,16 +17,16 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · bug</p>
-      <h1>BUG-115 — Ranking-load start pre-emption timeout <span class="wiki-badge">Proposed</span></h1>
+      <h1>BUG-115 — Ranking-load start pre-emption timeout <span class="wiki-badge">Deferred</span></h1>
       <p class="wiki-meta">Diagnose the missing complete-profile start-screen marker after a Start scan-code press during ranking load.</p>
     </header>
 
     <section>
       <h2>Identity and ordering</h2>
       <ul>
-        <li><strong>Status:</strong> Proposed; cause is unconfirmed and no gameplay behavior change is authorized.</li>
+        <li><strong>Status:</strong> Deferred for review before official 1.0; proposal remains unapproved, cause is unconfirmed, and no gameplay behavior change is authorized.</li>
         <li><strong>Created / updated:</strong> 2026-10-09 / 2026-10-09</li>
-        <li><strong>Priority / order:</strong> P1 / 15.31; follow-up to the complete-profile XRoar run under <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a>.</li>
+        <li><strong>Priority / order:</strong> P1 / Backlog; follow-up to the complete-profile XRoar run under <a href="./bug-113-gmc-bank-select-address.html">BUG-113</a>, deferred for pre-1.0 review.</li>
         <li><strong>Owner:</strong> unassigned</li>
         <li><strong>Dependencies:</strong> BUG-113's current FEAT-007 static and focused GMC startup preflights pass. Approval of this diagnosis is required before code changes.</li>
         <li><strong>Bug risk class:</strong> High-risk because the scenario crosses ranking-load and start-screen/gameplay handoffs and the runtime cause is unresolved.</li>
@@ -78,6 +78,7 @@
     <section>
       <h2>Decision log</h2>
       <ul>
+        <li>2026-10-09 — User reports interactive play appears to work and directs remaining work to the backlog for review before official 1.0. BUG-115 is Deferred and remains unapproved; its 10-second start-pre-emption timeout is unresolved. No diagnosis, runtime change, or release-blocker claim is made.</li>
         <li>2026-10-09 — Created after the complete-profile XRoar run passed all static gates and failed to observe <code>start-preempts-ranking-load</code> within 10 seconds. Cause remains unconfirmed. No runtime behavior changed; awaiting approval.</li>
       </ul>
     </section>

@@ -1,0 +1,95 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-009 Event art ROM bundle — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./feat-008-eighth-attract-enemy.html">FEAT-008</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · feature proposal</p>
+      <h1>FEAT-009 — Package SPECIAL, EXTRA, and dinosaur art in the ROM <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Proposed · High-risk ROM packing and capacity · 2026-10-09</p>
+    </header>
+
+    <section id="approval">
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Place the converted SPECIAL event art, EXTRA event art, and dinosaur sprite set in the 64 KiB GMC ROM, ready for later screen implementation. This is asset packaging only. No screen entry, rendering, animation, decompression at runtime, or gameplay behavior is added.</p>
+      <p>The SPECIAL and EXTRA CoCo Tiled maps and representative arcade maps already exist in the working tree. Packaging these assets makes their converted art available to a later implementation ticket while keeping that future screen behavior separately reviewable.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>Baseline build artifact: <code>build/ladybug.rom</code>, 65,536 bytes, SHA-256 <code>3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161</code>. Build layout: <code>build/ladybug-sparse-layout.json</code>, SHA-256 <code>8333529204ef5eaf4d910096ea491f8ff62a0a4a55b6cdc56b972a38156db90c</code>, built from source revision <code>8f951e8c64aece600734c64e299c1829493f24ca</code>. The candidate Tiled event files are working-tree inputs and are not yet included in this ROM.</p>
+      <p>The current complete build uses 29,583 of 41,438 CPU-readable GMC source bytes, leaving 11,855. It has seven boot LZSS streams and the full 99-byte descriptor allocation. The current cold presentation payload is 14,377 of 16,384 bytes, leaving 2,007; page $39 has 2,442 bytes free. Converted SPECIAL art adds 171 native tiles (5,472 expanded bytes) and EXTRA adds 71 (2,272 bytes); the cross-screen shared atlas contains 242 tiles (7,744 bytes). The dinosaur sprite-tile payload and index total 5,221 expanded bytes. These payloads do not fit as additional boot-expanded data in the current cold or page-$39 allocations.</p>
+      <p>Current conversion projections are 3,014 compressed bytes for the shared SPECIAL/EXTRA native tile pixels, plus 1,842 compressed bytes for the dinosaur sprite tiles: 4,856 bytes total before per-screen references, format metadata, or alignment. These are exact minimum-byte LZSS parse projections for the current codec model, not emitted ROM payload measurements. The current source-capacity margin is 6,999 bytes after that projected payload, before metadata/alignment. The source event tilesheet PNG SHA-256 is <code>c05ac1c9ba07c4c45f058a5003e7d304aab1cc091c1fce7825b5aa5b98fcebc8</code>.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> Compile the SPECIAL and EXTRA CoCo Tiled event art into a shared native 4bpp tile atlas with source-TileID-to-atlas-ID mappings for each event map; compile the 37 selected dinosaur sprite tiles in the existing sparse sprite format while preserving source tile IDs; compress and embed these payloads in available GMC ROM source intervals; emit generated bank, source offset, length, and hash metadata so a later screen task can locate them. Preserve the current ROM size and all existing runtime and boot data.</p>
+      <p><strong>Out:</strong> SPECIAL/EXTRA full-map compilation or presentation, runtime reads or decompression, framebuffers, screen transitions, event animation/path playback, dinosaur game logic, new loader/MMU/boot descriptors, palette redesign, and changes to the source Tiled files. Screen behavior will require a separate ticket.</p>
+      <p><strong>Palette assumption:</strong> use the current canonical CoCo GIME palette mapping. The current nearest-palette conversion merges two arcade green shades into one CoCo slot; preserving the arcade distinction would require a separate palette decision and is outside this scope.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Both CoCo event maps compile against the authored 320-tile arcade event tileset, with shared native tile pixels deduplicated and each map's source-tile-to-atlas mapping retained; full 40×24 placement layers are excluded.</li>
+        <li>The dinosaur selection includes sprite codes 89–125 only. Code 88 is the existing death angel frame; codes 126–127 are uniform pen-3 tiles and are excluded.</li>
+        <li>Builds fail on an asset source mismatch, duplicate or missing tile reference, source interval overlap, protected GMC region overlap, output beyond the 64 KiB image, or total source-capacity overflow.</li>
+        <li>The existing seven boot descriptors, runtime bank, nine deployed presentation maps, and their outputs remain valid. The new compressed assets are present in the ROM but remain unused at runtime.</li>
+      </ul>
+
+      <h3>Possible SPECIAL mini-game follow-up</h3>
+      <p>These are design sketches, not approved behavior. The 16×16 sheet entries show varied dinosaur forms, but their intended combinations and animation order are not yet confirmed against a measured arcade sequence.</p>
+      <ul>
+        <li><strong>Pose parade:</strong> assemble several source tiles into larger dinosaur poses, then cycle through the pose changes while Lady Bug crosses the scene to collect a coin or egg trail. Completing the route awards points and an extra life.</li>
+        <li><strong>Telegraphed stomp:</strong> use distinct head, limb, and tail poses to signal a stomp, sweep, or lunge. Lady Bug navigates a short maze route, avoids the indicated area, and collects bonus items. Score scales with collected items; surviving the sequence earns an extra life.</li>
+        <li><strong>Silhouette match:</strong> briefly show a target pose, then let the player collect or select the appendage tiles that complete it. Correct combinations earn points; a full set earns the extra life. This emphasizes the modular art but needs the most new interaction rules.</li>
+      </ul>
+      <p>Recommendation for the later screen ticket: first reconstruct the actual source-tile grouping and arcade timing from MAME captures, then evaluate the telegraphed-stomp sequence if the forms represent distinct action poses. Keep any added player control and reward thresholds behind an explicit gameplay approval; asset packaging alone does not select a mini-game.</p>
+
+      <h3>Options and recommendation</h3>
+      <p><strong>Recommended:</strong> keep the new assets as two independently compressed, unexpanded GMC ROM payloads and emit generated source-location metadata. This fits the measured source budget without consuming a boot descriptor or claiming unavailable RAM capacity. The tradeoff is that a later screen ticket must design and verify how to retrieve/decompress the payload at the screen boundary.</p>
+      <p><strong>Rejected for this scope:</strong> add boot expansion descriptors and RAM destinations. The descriptor allocation is full, and the 12,965 expanded bytes exceed current cold and page-$39 headroom. That alternative changes boot/runtime memory ownership and would expand this ticket into a loader design.</p>
+      <p><strong>Rejected:</strong> store the converted art uncompressed. Its 12,965-byte projected footprint exceeds the 11,855-byte current free GMC source capacity before any location metadata.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>The complete 65,536-byte ROM contains both the deduplicated event-art payload and the dinosaur payload, with reproducible generated source locations, lengths, and SHA-256 values.</li>
+        <li>Decompressing each embedded payload reproduces its compiler output byte-for-byte; SPECIAL and EXTRA source tile IDs resolve to the intended shared-atlas tiles, and all 37 selected dinosaur sprite tiles match their converted source pixels and preserve their source IDs.</li>
+        <li>The complete build succeeds with no GMC source interval overlaps, protected-region writes, source-capacity overflow, ROM-length change, or added boot descriptor. Remaining GMC source capacity is nonnegative and is reported exactly.</li>
+        <li>Existing nine-screen pixel proofs, runtime/boot payload identity, and current complete-profile capacity guards remain passing.</li>
+        <li>No runtime behavior or visual output changes are claimed or required by this ticket.</li>
+      </ul>
+
+      <h3>Dependencies and ordering</h3>
+      <p>Inputs are the current <code>tiled/coco-special-screen.tmx</code>, <code>tiled/coco-extra-screen.tmx</code>, <code>tiled/arcade-special-screen.tmx</code>, <code>tiled/arcade-extra-screen.tmx</code>, <code>tiled/arcade-event-tiles.tsx</code> and PNG, and the existing arcade sprite JSON/raw tileset. No runtime feature ticket is a prerequisite. A later SPECIAL/EXTRA screen implementation will depend on this bundle and must separately approve its data-access/lifetime design.</p>
+
+      <h3>Constraints and risks</h3>
+      <p>High-risk technical classification: this feature consumes tight cartridge source capacity and changes the build-time cartridge packing contract. The hard current ceiling for new source payload plus metadata/alignment is 11,855 bytes. The build-time package must not be counted as an available decompressed RAM destination. Seven of seven boot descriptor slots are already used; any design that changes this or adds runtime access must return for renewed approval.</p>
+      <p>If the emitted compressor output and metadata exceed available source capacity, stop and return this ticket to Proposed with actual sizes and a revised design. Do not remove existing assets, alter GMC limits, or modify boot/runtime behavior to force a fit.</p>
+
+      <h3>Assignment contract</h3>
+      <p>After approval, keep ownership in the current project checkout and limit production edits to the event asset conversion/build integration, <code>scripts/build_sparse_sprites.py</code>, <code>scripts/build.sh</code>, generated build metadata, and this ticket/wiki log. Preserve the current Tiled and source sprite inputs. Do not add a runtime reader or screen implementation. Record source/output hashes, per-payload compressed and expanded sizes, exact remaining source capacity, and the complete build result in the ticket. Commit only the approved asset packaging change; no push or merge authority is included.</p>
+
+      <h3>Verification plan</h3>
+      <ul>
+        <li><strong>Payload/source identity risk:</strong> run the complete build and exact per-payload decompression/byte comparison; require the expected event atlas references and 37 dinosaur sprite tiles.</li>
+        <li><strong>Cartridge packing risk:</strong> inspect generated GMC locations against all current source intervals and protected regions; require a 65,536-byte ROM and nonnegative remaining capacity.</li>
+        <li><strong>Regression risk:</strong> run the existing nine-screen pixel proof and complete-profile source/capacity guards; compare runtime bank and boot descriptor content against the pre-change build wherever the approved package is not meant to alter them.</li>
+      </ul>
+      <p>No MAME/XRoar runtime probe is required because this ticket adds no runtime consumer. Emulator validation of SPECIAL/EXTRA presentation belongs to the later screen implementation ticket.</p>
+
+      <h3>Decision log</h3>
+      <ul><li>2026-10-09 — Proposed as compressed, cartridge-resident data only. The current source budget can carry the projected payload, while current descriptor and expanded destinations cannot support boot loading. Awaiting explicit user approval.</li></ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>

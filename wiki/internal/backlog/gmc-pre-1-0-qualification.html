@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GMC qualification before 1.0 — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog</p>
+      <h1>GMC qualification before 1.0 <span class="wiki-badge">Deferred</span></h1>
+      <p class="wiki-meta">Review remaining GMC emulator and hardware qualification before the official 1.0 release.</p>
+    </header>
+
+    <section>
+      <h2>Current evidence</h2>
+      <p>The user reports the game appears to work during interactive play in XRoar. The current complete-profile ROM is 65,536 bytes with SHA-256 <code>3794d6feac156514f1dcf97ca0f83f5b0dfeba6561cfb93be38a586f2938d161</code>. It passes the recorded build, capacity, static, audio, and focused startup checks.</p>
+      <p>The retained MAME 0.220 paired marker pass is for the historical <code>highscore-test</code> candidate ROM with SHA-256 <code>cba9070ee43b9d05f4697e097394691b38f41a74966bea778e5cc55b147270d7</code>. The current complete-profile ROM has not been verified in MAME. The full automated complete-profile XRoar verifier also retains a 10-second timeout before <code>start-preempts-ranking-load</code>; this does not identify a cause. XRoar's parity-based SCS handling cannot distinguish <code>$FF40</code> from <code>$FF50</code>, and physical GMC-compatible hardware has not been tested. See <a href="../tickets/bug-113-gmc-bank-select-address.html">BUG-113</a> and <a href="../tickets/bug-115-ranking-load-start-preemption.html">BUG-115</a>.</p>
+    </section>
+
+    <section>
+      <h2>Items for pre-1.0 review</h2>
+      <ol>
+        <li>Decide whether to qualify the current complete-profile ROM in MAME. If approved, name its expected startup marker and deadline in the assignment before running the emulator; retain the ROM hash, command, and marker evidence. The previous HST marker result is not a complete-profile MAME result.</li>
+        <li>Decide whether to diagnose the automated start-pre-emption timeout in <a href="../tickets/bug-115-ranking-load-start-preemption.html">BUG-115</a>. Its proposal remains unapproved; the timeout alone does not establish a gameplay defect.</li>
+        <li>Decide whether direct physical GMC-compatible hardware qualification is required for 1.0, because XRoar cannot discriminate the two even-address aliases.</li>
+      </ol>
+      <p>These are deferred review candidates, not newly approved implementation scope or established release blockers. BUG-113 and BUG-115 remain Deferred until the pre-1.0 review assigns any required work.</p>
+    </section>
+  </main>
+</div>
+</body>
+</html>
