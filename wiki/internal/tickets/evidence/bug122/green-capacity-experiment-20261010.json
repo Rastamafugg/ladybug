@@ -1,0 +1,56 @@
+{
+  "ticket": "BUG-122",
+  "scope": "isolated Green candidate capacity only; production unchanged",
+  "candidate_inputs": {
+    "scope": "scratch full candidate only, production unchanged",
+    "patch_sha256": "bfb3204fb682c8800f0b8d27444dc3d0461cb0c9bc2e813bdae7ded5bec28df2",
+    "inputs": {
+      "src/main.s": "7b52e87c8dca363f4d0c4f55e44c8dd0d7fa5cfaae68e6fe531aaa3d396a4e6f",
+      "src/presentation_runtime.s": "970affd35205d347bcbab844d7d3cc161eb31580895fd8012764bd544f5fdc20",
+      "src/shared_text_stage.inc": "c00e19b081f813c16928e0a19417d257ceb2809849625057ce5893dde527151b",
+      "scripts/build.sh": "93f46bd4600ad023123afcd101578847cc31b3c34f3dc0fe3f70c4b9bde623da",
+      "tiled/coco-level-start-screen.tmx": "c9789ca8d79605c67942ac51b9d60166df4ebb4b72f698c6b0361424caa9816d"
+    }
+  },
+  "profile": "adaptive keyboard",
+  "build_exit": 1,
+  "assembly_capacity_result": "PASS",
+  "source_contract_audit": "FAIL",
+  "resident_bytes": 8127,
+  "resident_limit": 8192,
+  "presentation_bytes": 1259,
+  "presentation_limit": 1280,
+  "assets_bytes": 7663,
+  "assets_limit": 7680,
+  "mapped_helper_bytes": 3136,
+  "mapped_helper_end": "B880",
+  "mapped_helper_limit": "B880",
+  "internal_reader_start": "B062",
+  "internal_reader_end": "B080",
+  "cold_bytes": 14313,
+  "audit_failures": [
+    "missing routine contract and mirror: highscore-helper:PRES_MAIN_READ_STAGE_LETTERS",
+    "missing routine contract and mirror: highscore-helper:stage_panel_read_letters",
+    "unclassified global label: resident-runtime:read_stage_letter_variants"
+  ],
+  "pixel_acceptance": "FAIL: Green foreground; final candidate must use independently established Blue 3",
+  "runtime_verification": "NOT RUN",
+  "artifacts": {
+    "ladybug.rom": {
+      "bytes": 65536,
+      "sha256": "e25f62d4b76b2a7a1c3b2ab7cddba70536244a70b6fae2af661dd3e03893308b"
+    },
+    "ladybug-highscore-helper.bin": {
+      "bytes": 3136,
+      "sha256": "936871dad9845f407b5890e9708f685c46cb3bb8368240858601a28fe08241bd"
+    },
+    "ladybug-presentation-runtime.bin": {
+      "bytes": 1259,
+      "sha256": "47148a1c579f756f7e90cd75fd52f709b082a328ad56596bfd2d0ad493a5286f"
+    },
+    "source-build-receipt.json": {
+      "bytes": 56626,
+      "sha256": "1904d362a1f08cd5c179d4af392c4b99ef5264594c426281c0e00631376a8d23"
+    }
+  }
+}
