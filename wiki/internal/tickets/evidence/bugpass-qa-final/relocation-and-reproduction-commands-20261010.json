@@ -1,0 +1,85 @@
+{
+  "date": "2026-10-10",
+  "repository_root": "E:\\projects\\ladybug",
+  "relocation": {
+    "from": "E:\\projects\\ladybug\\evidence\\bugpass-qa-final",
+    "to": "E:\\projects\\ladybug\\wiki\\internal\\tickets\\evidence\\bugpass-qa-final",
+    "operation": "one native PowerShell Move-Item -LiteralPath after resolving and checking both paths within repository",
+    "moved_raw_receipt_hashes_preserved": true
+  },
+  "moved_files_sha256": {
+    "bug117-entry-trajectory-comparison.json": "20A330DF377A35052EDA6382DA28023D12DF9E010D79A967FE93002C6BD87335",
+    "bug118-wall-static-current.json": "62544E905ECD81D2444FE38D5FDC7CB56202D269AFB1C01483688D6098CA9530",
+    "life-wall-nonadaptive-current.json": "8D27AE463C7C591BA6DF2393641CC5D4E7B8A16E05527709A505B81545CEECCF",
+    "luna-review-summary.json": "56BA831B9E777FC10D86F20373BF9C155445C60E1AA7B394F809BCB40B8A88C5"
+  },
+  "commands_and_original_outputs": [
+    {
+      "command": "wsl python3 repro/bugpass-20261010/luna-review/verify_wall_static.py",
+      "original_output": "E:\\projects\\ladybug\\evidence\\bugpass-qa-final\\bug118-wall-static-current.json",
+      "canonical_output": "wiki/internal/tickets/evidence/bugpass-qa-final/bug118-wall-static-current.json"
+    },
+    {
+      "command": "wsl python3 repro/bugpass-20261010/luna-review/compare_entry_trajectories.py",
+      "original_output": "E:\\projects\\ladybug\\evidence\\bugpass-qa-final\\bug117-entry-trajectory-comparison.json",
+      "canonical_output": "wiki/internal/tickets/evidence/bugpass-qa-final/bug117-entry-trajectory-comparison.json"
+    },
+    {
+      "command": "wsl env LADYBUG_TEST_BUILD=/mnt/e/projects/ladybug/repro/bugpass-20261010/baseline LADYBUG_TEST_OUTPUT=luna-review/life-gaps-baseline.json LADYBUG_EXPECT_REPLACEMENT_MUSIC=0 python3 repro/bugpass-20261010/luna-review/verify_life_gaps.py",
+      "output": "repro/bugpass-20261010/luna-review/life-gaps-baseline.json",
+      "sha256": "EC364D069D4363BDC78C9F2103CCCBF0DDFC9F516314D9715A0D878B555F9B47"
+    },
+    {
+      "command": "wsl env LADYBUG_TEST_BUILD=/mnt/e/projects/ladybug/build LADYBUG_TEST_OUTPUT=luna-review/life-gaps-current.json LADYBUG_EXPECT_REPLACEMENT_MUSIC=1 python3 repro/bugpass-20261010/luna-review/verify_life_gaps.py",
+      "output": "repro/bugpass-20261010/luna-review/life-gaps-current.json",
+      "sha256": "E931FCE4A7DC742F8F5D78C53BE5714D669BFACC34C7FAF88EFD5A865362C5D5"
+    },
+    {
+      "command": "wsl env LADYBUG_TEST_BUILD=/mnt/e/projects/ladybug/build LADYBUG_TEST_OUTPUT=luna-review/movement-current.json python3 repro/bugpass-20261010/luna-review/verify_movement.py",
+      "output": "repro/bugpass-20261010/luna-review/movement-current.json",
+      "sha256": "9853DAD91BCED408A8DDD665CA50532944F6F97A58AB3516332E539588C9BECC"
+    },
+    {
+      "command": "wsl env LADYBUG_TEST_BUILD=/mnt/e/projects/ladybug/build LADYBUG_TEST_OUTPUT=luna-review/wall-route-current.json python3 repro/bugpass-20261010/luna-review/verify_wall_route.py",
+      "output": "repro/bugpass-20261010/luna-review/wall-route-current.json",
+      "sha256": "0289E8F70F57D32C5D9E3D9A15F852828121A7F504EE31A05A5F1CC780C4B3D7"
+    },
+    {
+      "command": "wsl env LADYBUG_TEST_BUILD=/mnt/e/projects/ladybug/build/bugpass-nonadaptive LADYBUG_TEST_OUTPUT=/mnt/e/projects/ladybug/evidence/bugpass-qa-final/life-wall-nonadaptive-current.json python3 repro/bugpass-20261010/luna-review/verify_life_wall.py",
+      "original_output": "E:\\projects\\ladybug\\evidence\\bugpass-qa-final\\life-wall-nonadaptive-current.json",
+      "canonical_output": "wiki/internal/tickets/evidence/bugpass-qa-final/life-wall-nonadaptive-current.json"
+    }
+  ],
+  "reused_receipts": [
+    {
+      "file": "repro/bugpass-20261010/luna119/life-wall-default.json",
+      "sha256": "4A936D268CF64BDE99F97DC76048C8F8F95550D5C1F2E33AB4DC4892C6C2DD7B"
+    },
+    {
+      "file": "repro/bugpass-20261010/luna119/life-wall-joystick.json",
+      "sha256": "35F34D13B7A082E3D2B69C1DFE912DCBBC3153AC9DBE8C64CFA1116C8329C545"
+    },
+    {
+      "file": "repro/bugpass-20261010/luna119/demo-default.json",
+      "sha256": "0AEC02323FEF76168A38E1E51B5037FC5725C7FDB8C6089C00ED34B603C5F860"
+    },
+    {
+      "file": "repro/bugpass-20261010/luna119/credit-default.json",
+      "sha256": "2A036C3E2D27064F5C2A5678E934E15BE03219D2EF0674873AB4469AE9A2560B"
+    },
+    {
+      "file": "repro/bugpass-20261010/luna119/worklists-default.json",
+      "sha256": "CE96214F2648096107E19D4A8BEB0A2816680621197C86FDAF1D445A4E89B31E"
+    }
+  ],
+  "reusable_existing_scripts": [
+    "repro/bugpass-20261010/luna-review/runtime.py",
+    "repro/bugpass-20261010/luna-review/verify_life_gaps.py",
+    "repro/bugpass-20261010/luna-review/compare_entry_trajectories.py",
+    "repro/bugpass-20261010/luna-review/verify_movement.py",
+    "repro/bugpass-20261010/luna-review/verify_wall_route.py",
+    "repro/bugpass-20261010/luna-review/verify_wall_static.py",
+    "repro/bugpass-20261010/luna-review/verify_life_wall.py"
+  ],
+  "note": "Command and original output locations are recorded as executed. Four moved raw JSON files remain byte-identical; no receipt content or hash was rewritten."
+}

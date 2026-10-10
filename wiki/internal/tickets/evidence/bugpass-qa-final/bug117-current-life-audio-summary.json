@@ -1,0 +1,108 @@
+{
+  "ticket": "BUG-117",
+  "current_default_rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "focused_result": "PASS",
+  "life_count": {
+    "before": 2,
+    "after": 1,
+    "decremented_exactly_one": true
+  },
+  "audio_and_pickup": {
+    "cue6_admissions": 2,
+    "natural_dot_route": [
+      [
+        12,
+        17
+      ],
+      [
+        12,
+        16
+      ]
+    ],
+    "dots_before": 109,
+    "dots_after": 108,
+    "natural_effect_id": 3,
+    "cue6_music_slot_during_effect": 6,
+    "active_voice_ids": [
+      6,
+      3,
+      4,
+      255
+    ]
+  },
+  "profile_coverage": {
+    "default_life_wall": {
+      "receipt": "repro/bugpass-20261010/luna119/life-wall-default.json",
+      "sha256": "4A936D268CF64BDE99F97DC76048C8F8F95550D5C1F2E33AB4DC4892C6C2DD7B",
+      "cue6_admissions": 2,
+      "tunes_completed": true,
+      "stage_only_admissions": 0,
+      "final_death_admissions": 0
+    },
+    "joystick_life_wall": {
+      "receipt": "repro/bugpass-20261010/luna119/life-wall-joystick.json",
+      "sha256": "35F34D13B7A082E3D2B69C1DFE912DCBBC3153AC9DBE8C64CFA1116C8329C545",
+      "reused_from_bug119_owner": true
+    },
+    "nonadaptive_life_wall": {
+      "receipt": "life-wall-nonadaptive-current.json",
+      "sha256": "8D27AE463C7C591BA6DF2393641CC5D4E7B8A16E05527709A505B81545CEECCF",
+      "rom_sha256": "dfa266669eb9f958812dd79cf564e62a629fabb94e24ecba789cd6b56b040978",
+      "cue6_admissions": 2,
+      "tunes_completed": true,
+      "stage_only_admissions": 0,
+      "final_death_admissions": 0
+    }
+  },
+  "entry_comparison": {
+    "baseline_rom_sha256": "b32560c32f61da6d3da55fb078825b6c4002a15a9de28be44de6c3da63d6a668",
+    "receipt": "bug117-entry-trajectory-comparison.json",
+    "receipt_sha256": "20A330DF377A35052EDA6382DA28023D12DF9E010D79A967FE93002C6BD87335",
+    "excluded": [
+      "frame number",
+      "audio events",
+      "wall-clock timing"
+    ],
+    "initial": {
+      "baseline_samples": 33,
+      "current_samples": 33,
+      "state_pose_equal": true,
+      "PLAYER_ANIM_phase_equal": true
+    },
+    "replacement": {
+      "baseline_samples": 33,
+      "current_samples": 33,
+      "state_pose_equal": true,
+      "PLAYER_ANIM_phase_equal": false,
+      "PLAYER_ANIM_phase_mismatch_count": 16
+    },
+    "baseline_presentation_sidecar": {
+      "file": "ladybug-presentation-runtime.bin",
+      "retained": false,
+      "delivery_claimed": false
+    },
+    "interpretation": "Replacement PLAYER_ANIM phase mismatch remains unattributed. This is not full frame or animation timing equality."
+  },
+  "timing_gate": {
+    "target_max_cycles": 27000,
+    "worklist_receipt": "repro/bugpass-20261010/luna119/worklists-default.json",
+    "worklist_sha256": "CE96214F2648096107E19D4A8BEB0A2816680621197C86FDAF1D445A4E89B31E",
+    "maxima": {
+      "ordinary north input": 42541,
+      "one roaming enemy plus popup and nest animation": 54539
+    },
+    "target_met": false,
+    "disposition": "Remain Verification; retain BUG-058 linkage."
+  },
+  "raw_life_gap_receipts": {
+    "baseline": {
+      "path": "repro/bugpass-20261010/luna-review/life-gaps-baseline.json",
+      "sha256": "EC364D069D4363BDC78C9F2103CCCBF0DDFC9F516314D9715A0D878B555F9B47"
+    },
+    "current": {
+      "path": "repro/bugpass-20261010/luna-review/life-gaps-current.json",
+      "sha256": "E931FCE4A7DC742F8F5D78C53BE5714D669BFACC34C7FAF88EFD5A865362C5D5"
+    }
+  },
+  "audio_limit": "Emulator admission and voice overlap only; physical CoCo 3 output was not measured."
+}

@@ -1,0 +1,24 @@
+{
+  "date": "2026-10-10",
+  "reviewer": "Luna Extra High QA subagent",
+  "source_head_before_evidence_commit": "41b3a8d",
+  "current_default_rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "dispositions": {
+    "BUG-117": "Focused life/audio behavior passes; replacement PLAYER_ANIM mismatch remains; literal 27,000-cycle worklist target fails at 42,541 and 54,539. Keep Verification and BUG-058 linkage.",
+    "BUG-118": "Focused static/navigation and natural wall-route/restoration checks pass. Parent integration, combined artifact review, and lifecycle update remain.",
+    "BUG-121": "Focused movement checks pass; 325/330 cycles are isolated player_tick observations. Literal 27,000-cycle worklist target fails at 42,541 and 54,539. Keep Verification and BUG-058 linkage."
+  },
+  "limitations": [
+    "Retained baseline bundle lacks ladybug-presentation-runtime.bin; baseline presentation delivery is not claimed.",
+    "Replacement PLAYER_ANIM mismatch is unattributed and is not full animation or timing equality.",
+    "Audio evidence is emulator admission and voice overlap only.",
+    "No builds or probes were run during evidence packaging; no ticket status was changed."
+  ],
+  "evidence_location": "wiki/internal/tickets/evidence/bugpass-qa-final",
+  "contract_sources": [
+    "wiki/internal/tickets/bug-117-new-life-entry-music.html#ready-current-20261010",
+    "wiki/internal/tickets/bug-118-start-passage-wall-spur.html#ready-current-20261010",
+    "wiki/internal/tickets/bug-121-blocked-sideways-position-hold.html#approved-ready-20261010"
+  ],
+  "contract_interpretation": "BUG-117 ready assignment requires <=27000 cycles per required worklist and its recorded completion explicitly accepts no over-limit frame worklist; BUG-121 measurable acceptance says no active worklist may exceed 27000. Retain both failures. BUG-118 is judged against its own static/navigation and natural passage/restoration gates; do not import BUG-058 as a new 118 criterion."
+}
