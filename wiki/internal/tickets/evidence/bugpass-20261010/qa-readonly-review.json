@@ -1,0 +1,63 @@
+{
+  "review_date": "2026-10-10",
+  "reviewer": "Luna Extra High QA subagent",
+  "mode": "read-only inspection of retained tickets, commits and receipts",
+  "production_source_or_wiki_modified": false,
+  "builds_or_live_probes_run": false,
+  "source_head_at_handoff": "a2777babab8de9644929cb44bfacea3d6ac1e69d",
+  "inspected_commits": {
+    "BUG-117": "ce5e1a9fe3d69d260b550653c9e3f633cb950a61",
+    "BUG-118": "6016a4c33f2b2a55861ec1d431d54ee4591bc63b",
+    "BUG-121": "d8d0e94cc843f13851187e9434d01386fc159bcb"
+  },
+  "artifact_limit": "ROM a64e7621bff08c55790b9c923fee79f5920f5c60d753392e90fa946094c926c1 and all profile/evidence receipts below are historical. BUG-119 audio guard follow-up is changing shared source and profile builds; none of these results proves the final combined artifact.",
+  "tickets": {
+    "BUG-117": {
+      "status_recommendation": "Remain Verification; do not mark Done under the current literal contract.",
+      "focused_result": "Retained receipts show exactly two cue-6 admissions at live ENTRY_MAZE_ENTRY, initial and replacement cue completion, zero stage-only/final-death admissions, 100 natural silent-demo samples, and live credit cue-12 completion. Keyboard adaptive, joystick adaptive, and keyboard nonadaptive receipts identify separate ROM hashes and mapped audio identity.",
+      "source_review": "The commit changes admission from a mode edge to the ENTRY_MAZE_ENTRY state edge in live mode, reuses AUDIO_LAST_MODE storage, and shortens existing branches. No new state, queue owner, or melody bytes are introduced. The existing entry path proceeds independently; retained runtime observations reach completion.",
+      "literal_gate": "Ready assignment sets at most 27,000 cycles per required active gameplay worklist; implementation-QA text says no over-limit frame worklist is accepted. Historical candidate samples are 42,541 cycles for ordinary north input and 54,539 for roaming enemy plus popup/nest animation. Baseline samples are 42,394 and 54,411. Both exceed 27,000; baseline failure is tracked by BUG-058 and is not grounds to claim this target passed. The life-entry worklist itself has no retained cycle sample. Isolated audio-helper cycles are not the approved whole-worklist metric and cannot substitute for it.",
+      "other_evidence_gaps": [
+        "No direct concurrent live-effect regression is retained for the changed entry/audio arbitration path.",
+        "Stage-only life count is checked unchanged, but the expected one-life decrement on replacement entry is not recorded as a before/after assertion.",
+        "Entry reaches gameplay, but its animation trajectory is not compared against a baseline.",
+        "Emulator sequencing is evidenced; physical CoCo 3 audio output is not measured."
+      ],
+      "capacity_and_profile_risk": "Historical integration fits all reported limits but has narrow margins: resident free 108/72/47 bytes for adaptive keyboard/joystick/nonadaptive; assets free 9/9/50; name helper free 3; enemy helper free 5; rate helper free 1; adaptive audio source ends at $B9FD with 3 bytes before $BA00. Recompute against final BUG-119 source. Historical joystick profile command exited 1 at the alternate-root source registry audit; package/fit completed and a generated-only invocation-path correction passed the source audit, but a clean current profile result is still required.",
+      "required_parent_gates": [
+        "After BUG-119 profile work settles, rerun the standard combined-source build and all three assigned profiles with artifact/source/live identity checks and current capacity guards.",
+        "Repeat the natural life-entry sequence on the final candidate, including exactly-once cue admission/completion, duplicate prevention, stage/final suppression, silent demo and credit cue; add explicit live-effect, life-count and entry-trajectory assertions required by the ticket.",
+        "Measure full active worklists for the required changed path and apply the literal 27,000-cycle target. Current retained samples fail; keep BUG-117 in Verification unless this gate passes or the user approves a material acceptance change. Link the pre-existing debt to BUG-058."
+      ]
+    },
+    "BUG-118": {
+      "status_recommendation": "Focused behavior is supported; remain Verification until parent current-artifact integration is complete. It may move to Done after those checks pass.",
+      "focused_result": "The commit clears one authored overlay cell. Static before/after receipt shows exactly 16 changed Pink pixels at x=104..111, y=136..137 and zero other static changes; generated navigation hash is unchanged. Natural route reaches anchor (6,18), exits north to (6,14), and eight post-movement captures retain a black cleared region and the adjacent wall. Life-chain captures also retain the correction through initial/replacement/stage cases and both adaptive front-buffer owners.",
+      "literal_gate": "This ticket changes authored art only and adds no executed code or timing work. Its completion note explicitly assigns the pre-existing whole-worklist overrun to BUG-058 and excludes that unrelated debt from BUG-118 acceptance. That overrun does not block BUG-118 closure.",
+      "required_parent_gates": [
+        "Regenerate and inspect the corrected static image and navigation from the final combined source; confirm the exact 16-pixel difference and unchanged navigation/collision semantics.",
+        "Repeat the natural passage/restoration and initial/replacement/stage output checks on the revision-identified final ROM, with loaded/live identity and relevant capacity guards.",
+        "Record clean build/profile results, evidence hashes, commit and ticket/index/log completion evidence."
+      ]
+    },
+    "BUG-121": {
+      "status_recommendation": "Remain Verification with timing failure retained; do not mark Done under the current literal contract.",
+      "focused_result": "Historical mapped-input receipts show zero pose/step movement for North-to-West at 2/4/6 pixels and South-to-East at 6 pixels, with requested facing retained; neutral release is stationary, resume moves exactly two pixels, a legal six-pixel corner snap still works, and gate rotation is admitted. Nonadaptive focused cases pass. The change removes the rejected upcoming-cell probe/advance and takes the existing pt_draw hold; can_move admission remains intact.",
+      "misleading_gate": "verify_movement.py times only player_tick-to-pt_done and records 325/330 cycles. This is an isolated-call metric, not a full gameplay worklist. The ticket explicitly says no active worklist above 27,000 cycles may be accepted. Retained full-worklist maxima are 42,541 and 54,539; baseline is 42,394 and 54,411. The target therefore fails even though the movement-call behavior passes; the baseline debt belongs to BUG-058, but the written BUG-121 gate remains unmet.",
+      "required_parent_gates": [
+        "After BUG-119 builds settle, run the focused current-artifact movement scenarios and full standard/capacity checks with author/build/live-byte identity.",
+        "Measure full active worklists against 27,000; do not use 325/330 player-call cycles as a substitute. Keep Verification and link BUG-058 while the literal gate fails; any acceptance change requires explicit user approval."
+      ]
+    }
+  },
+  "historical_worklist_evidence": {
+    "baseline_rom_sha256": "b32560c32f61da6d3da55fb078825b6c4002a15a9de28be44de6c3da63d6a668",
+    "candidate_rom_sha256": "a64e7621bff08c55790b9c923fee79f5920f5c60d753392e90fa946094c926c1",
+    "phases_and_cycles": {
+      "ordinary_north_input": {"baseline": 42394, "candidate": 42541, "target": 27000},
+      "roaming_enemy_popup_nest_animation": {"baseline": 54411, "candidate": 54539, "target": 27000}
+    },
+    "interpretation": "Both artifacts fail the target. These observations are not current-source verification and do not attribute the small candidate deltas to any one commit."
+  },
+  "parent_disposition": "No ticket lifecycle changes made. BUG-117 and BUG-121 have focused behavioral support but fail their literal timing acceptance. BUG-118's focused acceptance is supported; final combined-artifact integration remains outstanding."
+}

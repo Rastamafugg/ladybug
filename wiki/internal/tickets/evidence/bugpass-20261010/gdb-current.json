@@ -1,0 +1,20 @@
+{
+  "phase": "Cold reset through first resident control address and immutable resident identity",
+  "success_marker": "PC C116 after mapped C000-FDFF bytes equal the current built resident artifact",
+  "deadline_seconds_per_control": 10,
+  "timeout_meaning": "Attach or resident identity boundary absent; not a CPU-speed measurement",
+  "source_head": "11b8e17550b234540690dfd74be5ecfaf3c31727",
+  "source_fix_commit": "41b3a8d012d9427056c576c49266864e1a8cad04",
+  "rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "resident_bytes": 15872,
+  "resident_sha256": "9ba58c414242c609873e2515342620ee51ef98f0aa45a8769eae74d3325135f6",
+  "live_equals_built": true,
+  "reset_observation": "Initial target PC0, PAR raw C0 repeated: runtime not yet copied. No resident label interpreted at reset. Continue to raw control C116, then prove full immutable bytes before naming resident mainloop.",
+  "par_raw": "f8f0f1f2f3f4feff",
+  "par_page_numbers_mask_3f": "3830313233343e3f",
+  "gdb_settings": ["set architecture m6809", "set pagination off", "set remote supported-packets-packet off"],
+  "commands": ["target remote 127.0.0.1:65524", "break *0xc116", "continue", "dump binary memory repro/bugpass-20261010/gdb-current-resident.bin 0xc000 0xfe00", "info registers pc", "x/8bx 0xffa0", "detach"],
+  "cleanup": "Owned headless PID3263 command line was verified against XRoar, current ROM and port65524, then killed. GDB session b670ece9 stopped. No unrelated process stopped.",
+  "result": "PASS",
+  "scope_limit": "This round trip proves current resident delivery; separate Luna receipts prove gameplay/presentation/audio owners and behavior. No physical hardware or whole-worklist timing acceptance inferred."
+}

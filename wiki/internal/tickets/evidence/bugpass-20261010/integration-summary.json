@@ -1,0 +1,211 @@
+{
+  "evidence_status": "Historical integration before BUG-119 final-collectible audio-guard correction. These ROM hashes and final-popup receipts do not qualify the follow-up candidate; current acceptance must use bug119-final evidence and a fresh parent integration receipt.",
+  "baseline_revision": "dc6e35cf0ad0efe4f2e3530c2ea81453de456405",
+  "integrated_source_commits": {
+    "research": "b536e38",
+    "BUG-121": "d8d0e94",
+    "BUG-117": "ce5e1a9",
+    "BUG-118": "6016a4c",
+    "BUG-119": "a2777ba"
+  },
+  "profiles": {
+    "adaptive-keyboard": {
+      "artifact_directory": "build",
+      "adaptive": 1,
+      "joystick": 0,
+      "rom_sha256": "a64e7621bff08c55790b9c923fee79f5920f5c60d753392e90fa946094c926c1",
+      "rom_bytes": 65536,
+      "resident": {
+        "bytes": 8084,
+        "limit": 8192,
+        "free": 108
+      },
+      "assets": {
+        "bytes": 7671,
+        "limit": 7680,
+        "free": 9
+      },
+      "presentation": {
+        "bytes": 1266,
+        "limit": 1280,
+        "free": 14
+      },
+      "name": {
+        "bytes": 917,
+        "limit": 920,
+        "free": 3
+      },
+      "enemy": {
+        "bytes": 4091,
+        "limit": 4096,
+        "free": 5
+      },
+      "rate_helper": {
+        "bytes": 191,
+        "start": 41904,
+        "exclusive_limit": 42096,
+        "free": 1
+      },
+      "audio_engine": {
+        "bytes": 733,
+        "limit": 920,
+        "free": 187
+      },
+      "audio_source": {
+        "bytes": 6653,
+        "source_start": 40960,
+        "keybinding_boundary": 47616,
+        "free_before_keybindings": 3
+      },
+      "source_receipt_sha256": "bdb81bb8ac720733329b5791b09c847cf05e7998ef58488102a0364137f36f14",
+      "source_inputs_sha256": "e107a2fe5d79d201305ca75b0cefc39df9d09c9fc681da4c4e265d4844c0a12f",
+      "adaptive_active": {
+        "bytes": 622,
+        "limit": 777,
+        "free": 155
+      }
+    },
+    "adaptive-joystick": {
+      "artifact_directory": "build/bugpass-joystick",
+      "adaptive": 1,
+      "joystick": 1,
+      "rom_sha256": "861f24155989dc9a85312518eb3a6ea1385c3b85f6a36897450fee6d8b76378a",
+      "rom_bytes": 65536,
+      "resident": {
+        "bytes": 8120,
+        "limit": 8192,
+        "free": 72
+      },
+      "assets": {
+        "bytes": 7671,
+        "limit": 7680,
+        "free": 9
+      },
+      "presentation": {
+        "bytes": 1266,
+        "limit": 1280,
+        "free": 14
+      },
+      "name": {
+        "bytes": 917,
+        "limit": 920,
+        "free": 3
+      },
+      "enemy": {
+        "bytes": 4091,
+        "limit": 4096,
+        "free": 5
+      },
+      "rate_helper": {
+        "bytes": 191,
+        "start": 41904,
+        "exclusive_limit": 42096,
+        "free": 1
+      },
+      "audio_engine": {
+        "bytes": 733,
+        "limit": 920,
+        "free": 187
+      },
+      "audio_source": {
+        "bytes": 6653,
+        "source_start": 40960,
+        "keybinding_boundary": 47616,
+        "free_before_keybindings": 3
+      },
+      "source_receipt_sha256": "734a2cdbf407c1c1ebbcf9638ee6d77f8c4985fd549ce22e781fc1d0310ee980",
+      "source_inputs_sha256": "e107a2fe5d79d201305ca75b0cefc39df9d09c9fc681da4c4e265d4844c0a12f",
+      "adaptive_active": {
+        "bytes": 622,
+        "limit": 777,
+        "free": 155
+      }
+    },
+    "nonadaptive-keyboard": {
+      "artifact_directory": "build/bugpass-nonadaptive",
+      "adaptive": 0,
+      "joystick": 0,
+      "rom_sha256": "135e20b149d1622cf766ee31004ef66d8d6c6b7babfa8bf320e626b6d8525569",
+      "rom_bytes": 65536,
+      "resident": {
+        "bytes": 8145,
+        "limit": 8192,
+        "free": 47
+      },
+      "assets": {
+        "bytes": 7630,
+        "limit": 7680,
+        "free": 50
+      },
+      "presentation": {
+        "bytes": 1279,
+        "limit": 1280,
+        "free": 1
+      },
+      "name": {
+        "bytes": 917,
+        "limit": 920,
+        "free": 3
+      },
+      "enemy": {
+        "bytes": 4091,
+        "limit": 4096,
+        "free": 5
+      },
+      "rate_helper": {
+        "bytes": 191,
+        "start": 41904,
+        "exclusive_limit": 42096,
+        "free": 1
+      },
+      "audio_engine": {
+        "bytes": 733,
+        "limit": 920,
+        "free": 187
+      },
+      "audio_source": {
+        "bytes": 5674,
+        "source_start": 40960,
+        "keybinding_boundary": 47616,
+        "free_before_keybindings": 982
+      },
+      "source_receipt_sha256": "6af210089bfa38b67b71343037e3f0ccb87236f12102fbee16c7132c2bb819ab",
+      "source_inputs_sha256": "e107a2fe5d79d201305ca75b0cefc39df9d09c9fc681da4c4e265d4844c0a12f"
+    }
+  },
+  "commands": {
+    "adaptive-keyboard": "wsl bash scripts/build.sh build",
+    "adaptive-joystick": "wsl env LADYBUG_BUILD_DIR=/mnt/e/projects/ladybug/build/bugpass-joystick LADYBUG_INPUT=joystick bash scripts/build.sh build",
+    "nonadaptive-keyboard": "wsl env LADYBUG_BUILD_DIR=/mnt/e/projects/ladybug/build/bugpass-nonadaptive LADYBUG_ADAPTIVE=0 bash scripts/build.sh build"
+  },
+  "default_full_build_exit": 0,
+  "nonadaptive_full_build_exit": 0,
+  "joystick_full_build_exit": 1,
+  "joystick_original_failure": "generated adaptive registry source paths use build/ rather than alternate emitted paths; ROM/package/fit complete",
+  "joystick_generated_only_correction": "source-reference-joystick.json takes each generated source path from the exact recorded invocation; no production tool change",
+  "source_documentation": {
+    "adaptive-keyboard": "PASS 16 modules,312 routines,5034 labels",
+    "adaptive-joystick": "PASS 16 modules,312 routines,5036 labels after generated-only correction",
+    "nonadaptive-keyboard": "PASS 13 modules,289 routines,4764 labels"
+  },
+  "default_baseline_resident_bytes": 8149,
+  "default_current_resident_bytes": 8084,
+  "resident_headroom_gain_bytes": 65,
+  "timing_verdict": "FAIL27000 whole-worklist gate; BUG-119 remains Verification, linked BUG-058",
+  "hardware_scope": "XRoar/MAME observations; native physical CoCo3 execution and audio output not measured",
+  "unrelated_user_artifacts_preserved": true,
+  "user_untracked_dinosaur_map_sha256": "1f06b096825f490097af36bad824468d0154072095347239acbbed1df9dfdb19",
+  "rejected_experiments": [
+    "entry-only MAME capture",
+    "synthetic PC/stack call lacking actual entry",
+    "first life observer mistook BOX_PHASE for DEATH_STATE",
+    "oversized audio source BA0D",
+    "oversized name module923/920",
+    "source-modified-during-build candidate",
+    "event-only waits at already-stopped expected PC",
+    "incorrect low0300 audio/demo ownership assertions",
+    "generated alternate-root source-registry mismatch",
+    "completed-receipt refresh attempt rejected; final standard build rerun"
+  ],
+  "build_artifacts_unchanged_after_runtime_checks": true
+}

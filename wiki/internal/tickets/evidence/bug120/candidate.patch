@@ -1,0 +1,90 @@
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -597,7 +597,14 @@
+     # logical tile right of PLAYER_CELL and one tile above it.  Exclude the
+     # otherwise-open top/right anchor lanes so opaque player pixels cannot
+     # overlap the authored perimeter.
+-    blocked_cells = wall_cells | {
++    # PLAYER_CELL is the sprite's left anchor. In a vertical passage the
++    # opaque right half occupies the next tile: exclude anchors immediately
++    # left of each inner wall as well, while keeping character rows open.
++    inner_wall_overhang = {
++        (x - 1, y) for x, y in wall_cells
++        if 0 < x < 23 and 0 < y < 23
++    }
++    blocked_cells = wall_cells | inner_wall_overhang | {
+         (x, y)
+         for y in range(24)
+         for x in range(24)
+--- a/src/shared_text_ranking.inc
++++ b/src/shared_text_ranking.inc
+@@ -722,9 +722,7 @@
+         lda     PRES_MODE
+         cmpa    #MODE_GAMEOVER
+         beq     highscore_name_hold
+-        lbsr    name_tick
+-        lda     #1
+-        rts
++        bsr     name_tick
+ highscore_name_hold
+         lda     #1
+         rts
+@@ -841,12 +839,15 @@
+         anda    #3
+         sta     PLAYER_ANIM
+ name_animation_ready
++        lda     PLAYER_FACE
++        pshs    a
+         jsr     PRES_MAIN_READ_JOY
++        puls    a
++        sta     PLAYER_FACE     ; only legal movement below changes facing
+ name_joy_ready
+         lda     JOY_DIR
+         cmpa    #DIR_NONE
+         beq     name_idle
+-        sta     PLAYER_WANT
+         lda     FRAMES+1
+         lsra
+         bcs     name_idle
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -1451,8 +1451,6 @@
+         cmpa    #MODE_GAMEOVER
+         beq     highscore_name_hold
+         lbsr    name_tick
+-        lda     #1
+-        rts
+ highscore_name_hold
+         lda     #1
+         rts
+@@ -1561,12 +1559,15 @@
+         anda    #3
+         sta     PLAYER_ANIM
+ name_animation_ready
++        lda     PLAYER_FACE
++        pshs    a
+         jsr     PRES_MAIN_READ_JOY
++        puls    a
++        sta     PLAYER_FACE     ; only legal movement below changes facing
+ name_joy_ready
+         lda     JOY_DIR
+         cmpa    #DIR_NONE
+         beq     name_idle
+-        sta     PLAYER_WANT
+         lda     FRAMES+1
+         lsra
+         bcs     name_idle
+--- a/src/main.s
++++ b/src/main.s
+@@ -4865,8 +4865,9 @@
+ name_late_turn
+         tst     TURN_SNAP
+         bne     nlt_snap
+-        tst     $DE
+-        beq     nlt_no
++        lda     $DE
++        cmpa    #2              ; name walls need a four-pixel late-turn window
++        blo     nlt_no
+         lda     PLAYER_WANT
+         cmpa    PLAYER_DIR
+         beq     nlt_no

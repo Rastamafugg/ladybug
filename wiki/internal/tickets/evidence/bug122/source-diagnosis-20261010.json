@@ -1,0 +1,51 @@
+{
+  "ticket": "BUG-122",
+  "date": "2026-10-10",
+  "status": "source-only diagnosis; no current-build runtime evidence",
+  "source_head": "a2777babab8de9644929cb44bfacea3d6ac1e69d",
+  "source_worktree": "clean for the five inspected production/art input files at receipt time",
+  "file_sha256": {
+    "src/main.s": "BB56ECAB4D7CD329BA7046202A56884106FBF174105405659692BA0C82C2F0BE",
+    "src/presentation_runtime.s": "3A316EFB931699370951DD43F32BEBBC629956A687DA0C6EB247E935C41BDB2B",
+    "src/shared_text_stage.inc": "83D94CB5211D49208BD29F376DB3B51BF6BFA00E1C5B4A03D8DC62EB8B8348A2",
+    "scripts/build_presentation.py": "167F9ABDCAAA65540CB208D7F68D52D1F9CD98DC44B69F11AB97A3CD62097FD6",
+    "tiled/coco-level-start-screen.tmx": "D468223AB5706BF4E045E0FCC9DACFB2B59A21339A18436F3D1F4DB1506B8B1"
+  },
+  "confirmed_source_facts": [
+    "The presentation compiler classifies the Level Start Panel as static. Its level-start runtime and deferred layer lists are empty (scripts/build_presentation.py:184-209). The phase overlay only clears cells at y=9, y=4, and y=20; it does not replace the candidate collectible row at y=17-18 (scripts/build_presentation.py:888-910).",
+    "The authored level-start TMX contains three repeated two-by-two marker patterns at x=17-18, 19-20, and 21-22 over y=17-18. Each pattern has GIDs (264,228;486,468), so the three preview icons are identical in source; no type-specific variant is encoded in these cells.",
+    "The shared stage-panel runtime writes part, bonus value/name, GOOD LUCK, and the vegetable sprite. No letter-type selection or letter-to-preview drawing is present (src/shared_text_stage.inc:482-497, 547-696).",
+    "Gameplay selects one random letter from X/T/R, one from S/P/C/I/L, and one from E/A, then stores the chosen object variants in ENTITY_TABLE (src/main.s:1745-1834). These are the only source references to letter_xtr/letter_spcil/letter_ea.",
+    "For first credited start, the presentation screen is loaded before live_begin calls init_gameplay and init_entities (src/presentation_runtime.s:379-455, 801-874; src/main.s:1038). For subsequent stage, next_stage calls init_entities before loading level-start (src/presentation_runtime.s:365-377; src/main.s:1022-1038). The NEXT_STAGE release path exits level mode without another init_gameplay, so source shows one letter selection per stage, not a second random selection at release (src/presentation_runtime.s:801-813)."
+  ],
+  "diagnosis": {
+    "leading_cause": "Static authored marker icons on the level-start panel are not connected to the randomized entity variants. The preview has no dynamic letter producer; maze gameplay has a single randomized producer.",
+    "rng_reselection": "Not supported by the inspected source. Subsequent-stage init runs before preview and is retained at release; first-start init runs once after preview.",
+    "translation_or_handoff": "No letter preview translation path exists to fail. The phase ordering creates a first-start visibility gap, but no repeated letter selection is found.",
+    "evidence_limit": "No reproduction capture or stable current artifact/live-memory comparison is included in this source-only receipt. The exact pixel identity of the user's reported preview slots remains to be confirmed on the stable final build."
+  },
+  "proposed_outcome_only": "Make the preview display the exact three selected letter types that init_entities places for that stage, with selection consumed once and the selected values reused. Preserve letter groups/probabilities, object-placement call order/distribution, rewards, and replacement-life behavior.",
+  "provisional_cost_class": "High-risk: the first-stage screen precedes gameplay entity creation, while later-stage entity creation precedes that same screen. Bridging the value across the presentation/gameplay phase boundary changes runtime ownership or initialization order.",
+  "candidate_artifacts_for_design_review": [
+    "src/main.s",
+    "src/presentation_runtime.s",
+    "src/shared_text_stage.inc",
+    "tiled/coco-level-start-screen.tmx",
+    "scripts/build_presentation.py"
+  ],
+  "verification_risks_and_scenarios": [
+    {"scenario": "Initial credited level start, observed before publication and after natural release", "risk": "Selection must be available to preview before first-stage gameplay initialization and remain the same in the maze."},
+    {"scenario": "Natural later-stage handoff", "risk": "Already initialized ENTITY_TABLE variants must match the preview and survive presentation release without reroll."},
+    {"scenario": "Visible preview pixels for each letter group", "risk": "The renderer must encode each selected entity variant as the intended letter; compare against an independent object/glyph oracle."},
+    {"scenario": "Replacement life in the same stage", "risk": "Entry must preserve the stage's selected letters instead of generating a new triple."},
+    {"scenario": "Current supported build profiles and capacity guards", "risk": "Any shared writer or phase-state changes must fit each supported runtime/asset profile."}
+  ],
+  "readiness_gaps": [
+    "Stable default build and emulator lease; pickup_final is still building profiles and must finish serialized runtime checks first.",
+    "Current authored/staged/live artifact identity and a natural reproduction capture for the user's exact screen sequence.",
+    "Architecture decision for how initial-stage selection is available before level-start publication without changing the approved RNG/placement contract.",
+    "Current profile capacity/headroom after the selected design.",
+    "Concrete Proposed ticket contract and explicit user approval before production Ready or implementation."
+  ],
+  "runtime_action": "None. Deferred until pickup_final and parent clear the stable-artifact runtime lease."
+}
