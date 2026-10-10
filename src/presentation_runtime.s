@@ -365,6 +365,8 @@ normal_tick
 normal_stage
         tst     <STAGE_PENDING
         beq     normal_start
+        tst     <$51            ; publish restored player before stage handoff
+        bne     normal_game
         jsr     PRES_MAIN_NEXT_STAGE
         ifne    COMPLETE_PROFILE
         lda     #PRES_CONTEXT_NEXT_STAGE
@@ -2137,6 +2139,8 @@ normal_tick
 normal_stage
         tst     STAGE_PENDING
         beq     normal_start
+        tst     <$51
+        bne     normal_game
         jsr     PRES_MAIN_NEXT_STAGE
         ifne    COMPLETE_PROFILE
         lda     #PRES_CONTEXT_NEXT_STAGE

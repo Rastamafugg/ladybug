@@ -764,7 +764,7 @@ main_game_tick
         lda     INITIAL_ENTRY_STATE
         beq     main_game_tick_normal
         lbsr    player_animation_tick
-        bsr    initial_entry_tick
+        lbsr   initial_entry_tick
         ; Keep the existing two-commit/30 Hz schedule while the entrant owns
         ; the tick.  The state dispatcher above consumes a pending tick; an
         ; even committed epoch arms the next one before this render.
@@ -781,11 +781,19 @@ main_game_tick_normal
         ; Keep every player restore/mutation/redraw at the front of Vbord.
         ; Logical movement remains 30 Hz, queued by the preceding even frame.
         lbsr    finish_gate_animation
-        lbsr    pickup_tick
         lbsr    player_animation_tick
         ; Publish the shared nest first so the player remains the final owner
         ; when the two regions overlap at the vegetable/spawner cell.
         lbsr    enemy_tick
+        tst     PICKUP_TIMER
+        beq     main_no_popup
+        lbsr    pickup_tick
+        tst     BONUS_LEFT
+        beq     main_popup_render
+        lbsr    bonus_color_tick
+main_popup_render
+        lbra    main_render
+main_no_popup
         lda     DEATH_STATE
         bne     main_after_player
         tst     PLAYER_TICK_PENDING
@@ -800,6 +808,8 @@ main_after_player
         beq     main_bonus_exhausted
         lbsr    bonus_color_tick
 main_bonus_exhausted
+        tst     PICKUP_TIMER
+        bne     main_after_timers ; collection onset holds the perimeter too
         lbsr    perimeter_timer_tick
 main_after_timers
         lbsr    rng_next         ; stage placement depends on elapsed play time

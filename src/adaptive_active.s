@@ -170,9 +170,19 @@ atb_live
         bra atb_barrier
 atb_normal
         jsr finish_gate_animation
-        jsr pickup_tick
         jsr player_animation_tick
         jsr enemy_tick
+        tst PICKUP_TIMER
+        beq atb_no_popup
+        jsr pickup_tick
+        tst BONUS_LEFT
+        beq atb_popup_publish
+        jsr bonus_color_tick
+atb_popup_publish
+        ; Even timer-to-zero must publish the restored player before catch-up.
+        lda #1
+        bra atb_done
+atb_no_popup
         tst DEATH_STATE
         bne atb_after_player
         tst PLAYER_TICK_PENDING
@@ -187,6 +197,8 @@ atb_after_player
         beq atb_bonus_done
         jsr bonus_color_tick
 atb_bonus_done
+        tst PICKUP_TIMER
+        bne atb_after_timers     ; collection onset holds the perimeter too
         jsr perimeter_timer_tick
 atb_after_timers
         jsr rng_next

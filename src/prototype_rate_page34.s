@@ -15,6 +15,7 @@
         setdp   $00
 STAGE           equ     $0024
 FREEZE_TIMER    equ     $005B
+PICKUP_TIMER    equ     $0051
 RATE_TIMER      equ     $029B
 RATE_BUCKET     equ     $029C
 RATE_FRAC       equ     $029D
@@ -48,10 +49,15 @@ rate_tick
         lbsr    rate_select
 rt_freeze_gate
         ldd     FREEZE_TIMER
-        beq     rt_accumulate
+        beq     rt_pickup_gate
         subd    #1
         std     FREEZE_TIMER
         clra                    ; frozen calls advance elapsed time only, not frac/phase
+        rts
+rt_pickup_gate
+        tst     PICKUP_TIMER
+        beq     rt_accumulate
+        clra                    ; score popup pauses movement, not sprite animation
         rts
 rt_accumulate
         lda     RATE_FRAC

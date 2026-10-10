@@ -473,7 +473,8 @@ et_animation_timer
         bne     et_freeze_timer
         inc     ENEMY_NEST_DIRTY
         lda     ENEMY_RENDER_FLAGS
-        ora     #ERF_NEST_ANIM
+        ; Sprite animation is visual work even when movement is paused.
+        ora     #ERF_NEST_ANIM|ERF_DIRTY
         sta     ENEMY_RENDER_FLAGS
 et_freeze_timer
         tst     DEATH_STATE
