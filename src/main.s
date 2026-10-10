@@ -2873,46 +2873,7 @@ pt_try_late_turn
         lda     PLAYER_WANT
         lbsr    can_move         ; test from the last aligned cell; may turn gate
         bcs     pt_begin_late_turn
-        lda     PLAYER_STEP
-        cmpa    #3              ; next junction is 2 pixels past sprite midpoint
-        lbne    pt_advance       ; retain request while approaching its junction
-        lda     PLAYER_DIR      ; probe requested passage from the upcoming cell
-        beq     pt_probe_north
-        cmpa    #DIR_EAST
-        beq     pt_probe_east
-        cmpa    #DIR_SOUTH
-        beq     pt_probe_south
-        dec     PLAYER_CELL_X
-        bra     pt_probe_turn
-pt_probe_north
-        dec     PLAYER_CELL_Y
-        bra     pt_probe_turn
-pt_probe_east
-        inc     PLAYER_CELL_X
-        bra     pt_probe_turn
-pt_probe_south
-        inc     PLAYER_CELL_Y
-pt_probe_turn
-        lda     PLAYER_WANT
-        lbsr    can_move         ; legal gate push occurs at the approached junction
-        lda     PLAYER_DIR      ; restore last aligned cell before normal arrival
-        beq     pt_unprobe_north
-        cmpa    #DIR_EAST
-        beq     pt_unprobe_east
-        cmpa    #DIR_SOUTH
-        beq     pt_unprobe_south
-        inc     PLAYER_CELL_X
-        bra     pt_unprobe_done
-pt_unprobe_north
-        inc     PLAYER_CELL_Y
-        bra     pt_unprobe_done
-pt_unprobe_east
-        dec     PLAYER_CELL_X
-        bra     pt_unprobe_done
-pt_unprobe_south
-        dec     PLAYER_CELL_Y
-pt_unprobe_done
-        lbra    pt_advance       ; arrive at centre, then retry buffered request
+        lbra    pt_draw          ; blocked perpendicular input holds exact position
 pt_begin_late_turn
         lda     PLAYER_DIR
         sta     TURN_OLD
