@@ -86,8 +86,8 @@
         <p><strong>Clobbers:</strong> A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present.</p>
         <p><strong>Reads:</strong> The declared source stream, table, framebuffer rows, or metadata record.</p>
         <p><strong>Writes:</strong> Only the declared bounded destination record, cache, row range, or scratch fields.</p>
-        <p><strong>Side effects:</strong> May temporarily map PAR5 while moving or decoding data.</p>
-        <p><strong>Invariants:</strong> Counts and destination bounds are honored; temporary mappings are restored before returning.</p>
+        <p><strong>Side effects:</strong> May temporarily map a required GIME page while moving or decoding data.</p>
+        <p><strong>Invariants:</strong> Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise.</p>
       </section>
       <section id="profile-presentation">
         <h3>Presentation interval</h3>
@@ -97,7 +97,7 @@
         <p><strong>Reads:</strong> Presentation direct-page state, cold payloads, authored map streams, and input state.</p>
         <p><strong>Writes:</strong> Presentation state, mapped BACK pixels, and presentation-owned persistent metadata.</p>
         <p><strong>Side effects:</strong> May retain the foreground interval or produce a complete presentation surface.</p>
-        <p><strong>Invariants:</strong> Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned.</p>
+        <p><strong>Invariants:</strong> Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned.</p>
       </section>
       <section id="profile-input">
         <h3>PIA input sampling</h3>
@@ -188,6 +188,7 @@
           <tr id="routine-resident-runtime-init-joystick"><td><code>init_joystick</code></td><td>Initialize joystick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-init-maze-state"><td><code>init_maze_state</code></td><td>Initialize maze state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-init-player"><td><code>init_player</code></td><td>Initialize player.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-install-phase-tiles-for-screen"><td><code>install_phase_tiles_for_screen</code></td><td>Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-irq-handler"><td><code>irq_handler</code></td><td>Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-joy-read-axis"><td><code>joy_read_axis</code></td><td>Sample and normalize one joystick axis through the PIA comparator.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-mark-gate-enemy-overlap"><td><code>mark_gate_enemy_overlap</code></td><td>Mark roaming enemy captures whose destinations intersect the current gate mutation.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
@@ -203,6 +204,7 @@
           <tr id="routine-resident-runtime-player-tick"><td><code>player_tick</code></td><td>Advance player state for one scheduled tick.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-queue-gate-render"><td><code>queue_gate_render</code></td><td>Record the current gate as pending framebuffer work.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-read-joystick"><td><code>read_joystick</code></td><td>Read joystick.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-read-stage-letter-variants"><td><code>read_stage_letter_variants</code></td><td>Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-refresh-enemy-zone-dot"><td><code>refresh_enemy_zone_dot</code></td><td>Refresh enemy zone dot.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-reload-box-timer"><td><code>reload_box_timer</code></td><td>Reload box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-reload-enemy-box-timer"><td><code>reload_enemy_box_timer</code></td><td>Reload enemy box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
@@ -328,7 +330,7 @@
           <tr id="routine-presentation-runtime-draw-coin-slots"><td><code>draw_coin_slots</code></td><td>Draw coin slots.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-draw-tile-id"><td><code>draw_tile_id</code></td><td>Draw tile id.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-gameplay-reentry"><td><code>gameplay_reentry</code></td><td>Restore gameplay mappings and state after presentation releases the interval.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
-          <tr id="routine-presentation-runtime-init-gameplay"><td><code>init_gameplay</code></td><td>Initialize gameplay.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-init-gameplay"><td><code>init_gameplay</code></td><td>Prepare the first level before its preview and skip the already initialized next-stage context.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-install-aux-runtime"><td><code>install_aux_runtime</code></td><td>Install aux runtime.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-map-back"><td><code>map_back</code></td><td>Map back.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-presentation-flow-tick"><td><code>presentation_flow_tick</code></td><td>Dispatch the current presentation interval and return retain or release status.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>exported, shared-state-mutating</td></tr>
@@ -345,6 +347,15 @@
         <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
         <tbody>
           <tr id="routine-demo-runtime-tick"><td><code>demo_runtime_tick</code></td><td>Advance the deterministic release-demo route at eligible semantic cells.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>exported</td></tr>
+        </tbody>
+      </table>
+    </section>
+    <section id="module-highscore-helper">
+      <h2>High-score and level-start panel helper</h2>
+      <table>
+        <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
+        <tbody>
+          <tr id="routine-highscore-helper-stage-panel-read-letters"><td><code>stage_panel_read_letters</code></td><td>Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
         </tbody>
       </table>
     </section>

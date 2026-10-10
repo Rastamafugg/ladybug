@@ -1,4 +1,5 @@
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
+; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -8,7 +9,7 @@
 ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
 ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
 ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
-; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
 ; DOC-002 source-contract mirror contract demo_runtime_tick profile=presentation: Advance the deterministic release-demo route at eligible semantic cells.
 ; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
 ; DOC-002 source-contract mirror ends.
@@ -303,10 +304,10 @@ highscore_gameover_tick
         std     PRES_TIMER
         cmpd    #180
         blo     highscore_phase_hold
-        lbsr    highscore_prepare_name
+        bsr     highscore_prepare_name
         lda     PRES_INSERT
         cmpa    #$FF
-        lbeq    highscore_commit_done
+        beq     highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
@@ -533,6 +534,22 @@ name_rank_data
         fcb 7,29,17
         fcb 8,29,17
         fcb 9,29,17
+
+; The 25-byte alias wrapper and five setup bytes occupy the $B062-$B080 helper gap.
+stage_panel_read_letters
+        pshs cc
+        orcc #$10
+        lda PAR4
+        pshs a
+        lda #$34
+        sta PAR4
+        jsr PRES_MAIN_READ_STAGE_LETTERS
+        puls a
+        sta PAR4
+        puls cc
+        ldu #PRES_TMP_H
+        ldb #3
+        rts
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
 ; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
@@ -563,7 +580,7 @@ stage_panel_regular_slice
         cmpa #PRESENTATION_MAP_LEVEL_START
         beq stage_name_schedule_ready
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        lbne stage_slice_return
+        bne  stage_slice_return
         lbra stage_name_dispatch
 stage_name_schedule_ready
         ldd $AA
@@ -659,7 +676,26 @@ stage_name_sprite_hud
         puls y
         ldu #sprite_attr0_pairs
         ldx #$5C80
-        jmp blit_packed_sprite
+        jsr blit_packed_sprite
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_LEVEL_START
+        bne stage_slice_return
+        jsr stage_panel_read_letters
+        ldx #$7544
+stage_panel_letter_loop
+        lda ,u+
+        pshs b,u
+        ldb #64
+        mul
+        ldy #object_masks
+        leay d,y
+        ldu #sprite_blue_pairs
+        jsr blit_packed_sprite
+        puls b,u
+        leax -2552,x
+        decb
+        bne stage_panel_letter_loop
+        rts
 stage_schedule
         fdb 288
         fdb $3450
@@ -716,7 +752,7 @@ spn_hundreds_done
         bne     spn_hundreds_write
         lda     #36
 spn_hundreds_write
-        lbsr    stage_panel_char
+        bsr     stage_panel_char
 spn_tens_begin
         lda     PRES_TMP_M
         clrb
@@ -730,14 +766,14 @@ spn_tens_done
         sta     PRES_TMP_M
 spn_write_tens
         tfr     b,a
-        lbsr    stage_panel_char
+        bsr     stage_panel_char
 spn_units
         lda     PRES_TMP_M
-        lbra    stage_panel_char
+        bra     stage_panel_char
 
 stage_panel_text
         lda     ,y+
-        lbsr    stage_panel_char
+        bsr     stage_panel_char
         decb
         bne     stage_panel_text
         rts
@@ -763,10 +799,10 @@ stage_player_score_actual
         lsra
         lsra
         lsra
-        lbsr stage_panel_char
+        bsr  stage_panel_char
         puls a
         anda #15
-        lbsr stage_panel_char
+        bsr  stage_panel_char
         decb
         bne stage_player_score_pair
         rts
@@ -989,7 +1025,7 @@ credit_panel_count
         puls    a
 credit_panel_unit
         lbsr    stage_panel_char
-        lbra    top_panel_draw
+        bra     top_panel_draw
 credit_panel_label
         fcb 12,27,14,13,18,29
 credit_panel_two_prompt
@@ -1168,7 +1204,7 @@ menu_idle
         jmp     PRES_HIGHSCORE_FB_PREPARE
 menu_updated
         ; Existing callback restored page $23 after preparing game-page state.
-        lbsr    menu_load_finish
+        bsr     menu_load_finish
         lda     FB_BACK_ID
         inca
         coma
@@ -1198,14 +1234,14 @@ menu_load_original
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
         beq     menu_paint_high
         cmpa    #PRESENTATION_MAP_OPTIONS
-        lbeq    menu_paint_options
+        beq     menu_paint_options
         cmpa    #PRESENTATION_MAP_CREDITS
         beq     menu_paint_credits
         jmp     stage_panel_finish
 menu_paint_high
         leay    menu_high_score_rows,pcr
         ldb     #3
-        lbsr    menu_paint_rows
+        bsr     menu_paint_rows
         tst     $A8
         bne     menu_high_paint_done
         lda     #7
@@ -1249,7 +1285,7 @@ menu_label_colour
 menu_paint_options
         leay    menu_option_rows,pcr
         ldb     #4
-        lbsr    menu_paint_rows
+        bsr     menu_paint_rows
         leay    menu_options_pairs,pcr
         clr     $D1
 menu_value_row

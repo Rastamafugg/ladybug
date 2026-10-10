@@ -20,8 +20,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
 ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
 ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
-; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
-; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
 ; DOC-002 source-contract mirror profile framebuffer Inputs: ACTIVE/PENDING state, BACK identity, owner metadata, and the current worklist
 ; DOC-002 source-contract mirror profile framebuffer Outputs: A prepared, captured, finished, or published framebuffer transaction as named by the routine
 ; DOC-002 source-contract mirror profile framebuffer Clobbers: A, B, D, X, Y, U, and condition codes unless the fixed entry contract narrows them

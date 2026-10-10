@@ -430,6 +430,15 @@
           "reasons": []
         },
         {
+          "name": "install_phase_tiles_for_screen",
+          "profile": "state",
+          "purpose": "Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-install-phase-tiles-for-screen"
+        },
+        {
           "name": "irq_handler",
           "profile": "framebuffer",
           "purpose": "Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.",
@@ -522,6 +531,15 @@
           "profile": "input",
           "purpose": "Read joystick.",
           "reasons": []
+        },
+        {
+          "name": "read_stage_letter_variants",
+          "profile": "copy",
+          "purpose": "Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-read-stage-letter-variants"
         },
         {
           "name": "refresh_enemy_zone_dot",
@@ -1112,11 +1130,6 @@
         },
         {
           "name": "dynamic_index",
-          "routine": null,
-          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
-        },
-        {
-          "name": "install_phase_tiles_for_screen",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         },
@@ -2161,7 +2174,7 @@
         {
           "name": "init_gameplay",
           "profile": "presentation",
-          "purpose": "Initialize gameplay.",
+          "purpose": "Prepare the first level before its preview and skip the already initialized next-stage context.",
           "reasons": []
         },
         {
@@ -3588,7 +3601,8 @@
         "PRES_MAIN_SHARED_MASK",
         "blit_packed_sprite",
         "PRES_MAIN_KEY_SERVICE",
-        "PRES_GAME_PAGE_RETURN"
+        "PRES_GAME_PAGE_RETURN",
+        "PRES_MAIN_READ_STAGE_LETTERS"
       ],
       "routines": [
         {
@@ -3618,6 +3632,15 @@
           "purpose": "Stage panel char.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-stage-panel-char"
+        },
+        {
+          "name": "stage_panel_read_letters",
+          "profile": "copy",
+          "purpose": "Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-highscore-helper-stage-panel-read-letters"
         },
         {
           "name": "stage_panel_text",
@@ -5497,8 +5520,8 @@
       "clobbers": "A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present",
       "reads": "The declared source stream, table, framebuffer rows, or metadata record",
       "writes": "Only the declared bounded destination record, cache, row range, or scratch fields",
-      "side_effects": "May temporarily map PAR5 while moving or decoding data",
-      "invariants": "Counts and destination bounds are honored; temporary mappings are restored before returning"
+      "side_effects": "May temporarily map a required GIME page while moving or decoding data",
+      "invariants": "Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise"
     },
     "presentation": {
       "inputs": "Presentation state, interval timer, input edges, current map, and the selected auxiliary profile",
@@ -5507,7 +5530,7 @@
       "reads": "Presentation direct-page state, cold payloads, authored map streams, and input state",
       "writes": "Presentation state, mapped BACK pixels, and presentation-owned persistent metadata",
       "side_effects": "May retain the foreground interval or produce a complete presentation surface",
-      "invariants": "Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned"
+      "invariants": "Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned"
     },
     "input": {
       "inputs": "PIA input state, prior sampled state, and axis or key selection",

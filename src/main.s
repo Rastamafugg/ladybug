@@ -32,8 +32,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
 ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
 ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
-; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
-; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
 ; DOC-002 source-contract mirror profile framebuffer Inputs: ACTIVE/PENDING state, BACK identity, owner metadata, and the current worklist
 ; DOC-002 source-contract mirror profile framebuffer Outputs: A prepared, captured, finished, or published framebuffer transaction as named by the routine
 ; DOC-002 source-contract mirror profile framebuffer Clobbers: A, B, D, X, Y, U, and condition codes unless the fixed entry contract narrows them
@@ -138,6 +138,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract init_joystick profile=state: Initialize joystick.
 ; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
 ; DOC-002 source-contract mirror contract init_player profile=state: Initialize player.
+; DOC-002 source-contract mirror contract install_phase_tiles_for_screen profile=state: Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.
+; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.
 ; DOC-002 source-contract mirror contract irq_handler profile=framebuffer: Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.
 ; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
 ; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
@@ -4795,6 +4797,30 @@ par_table
         ifne    COMPLETE_PROFILE
         include "ladybug_presentation.inc"
 install_phase_tiles_for_screen
+        lbsr    init_game_state
+        lbsr    init_maze_state
+        lbsr    init_gate_state
+        lbsr    init_entities
+        lbsr    init_player
+        lbsr    init_enemy
+        inc     FB_INIT_STATE
+        lda     #RF_STAGE
+        sta     RENDER_FLAGS
+        rts
+
+; Caller masks IRQ and maps PAR4=$34. Copy only the final three active
+; record variant fields to $C2-$C4; preserve mapping and entity state.
+read_stage_letter_variants
+        ldx     #$8377
+        ldb     <ENTITY_COUNT
+        lslb
+        lslb
+        abx
+        lda     ,x
+        ldb     4,x
+        std     <$C2
+        lda     8,x
+        sta     <$C4
         rts
 
 ; Return bridge for code executing from page $23 through a routine that

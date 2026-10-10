@@ -17,8 +17,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
 ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
 ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
-; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
-; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
 ; DOC-002 source-contract mirror profile input Inputs: PIA input state, prior sampled state, and axis or key selection
 ; DOC-002 source-contract mirror profile input Outputs: Normalized input state, edge bits, or axis sample
 ; DOC-002 source-contract mirror profile input Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -32,7 +32,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
 ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
 ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
-; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
 ; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
 ; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
 ; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -50,7 +50,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
-; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Initialize gameplay.
+; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
@@ -416,7 +416,7 @@ menu_screen_retained
 start_screen_context_ready
         endc
         ifne    COMPLETE_PROFILE
-        jsr     PRES_MAIN_INSTALL_PHASE_TILES
+        jsr     init_gameplay
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         beq     start_screen_instruction_install
         tsta
@@ -828,7 +828,7 @@ level_tick_demo_check
         tst     <PRES_CONTEXT
         bne     live_begin
         ifne    COMPLETE_PROFILE
-        bsr     init_gameplay
+        bsr     gameplay_reentry
         clr     PRES_TIMER
         clr     PRES_TIMER+1
         clr     PRES_DEMO_ROUTE ; CoCo walk starts after automatic maze entry
@@ -863,23 +863,23 @@ level_tick_demo_check
         endc
         endc
 live_begin
-        bsr     init_gameplay
+        bsr     gameplay_reentry
         lda     #ENTRY_WAIT_STAGE
         sta     INITIAL_ENTRY_STATE
         clr     <PRES_MODE
         clra
         rts
 init_gameplay
+        cmpa    #PRESENTATION_MAP_LEVEL_START
+        bne     init_gameplay_done
+        ldb     <PRES_CONTEXT
+        cmpb    #PRES_CONTEXT_NEXT_STAGE
+        beq     init_gameplay_done
+        pshs    a
         bsr     gameplay_reentry
-        jsr     PRES_MAIN_INIT
-        jsr     PRES_MAIN_MAZE
-        jsr     PRES_MAIN_GATES
-        jsr     PRES_MAIN_ENTITIES
-        jsr     PRES_MAIN_PLAYER
-        jsr     PRES_MAIN_ENEMY
-        inc     FB_INIT_STATE   ; shared initialization clears this ownership flag
-        lda     #RF_STAGE       ; replace the presentation map on both A/B owners
-        sta     $007F
+        jsr     PRES_MAIN_INSTALL_PHASE_TILES
+        puls    a
+init_gameplay_done
         rts
 
 gameplay_reentry
@@ -1832,8 +1832,8 @@ presentation_module_end
 ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
 ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
 ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
-; DOC-002 source-contract mirror profile copy Side effects: May temporarily map PAR5 while moving or decoding data
-; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; temporary mappings are restored before returning
+; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
 ; DOC-002 source-contract mirror profile input Inputs: PIA input state, prior sampled state, and axis or key selection
 ; DOC-002 source-contract mirror profile input Outputs: Normalized input state, edge bits, or axis sample
 ; DOC-002 source-contract mirror profile input Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -1847,7 +1847,7 @@ presentation_module_end
 ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
 ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
 ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
-; DOC-002 source-contract mirror profile presentation Invariants: Gameplay mutation begins only after the dispatcher releases the interval; FRONT publication remains IRQ-owned
+; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
 ; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
 ; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
 ; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
