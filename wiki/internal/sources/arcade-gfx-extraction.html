@@ -169,7 +169,7 @@
       </p>
     </footer>
   <section id="shared-text-source"><h2>Shared monochrome text derivation</h2><p>FEAT-007 production ingestion: <code>scripts/shared_text.py</code> derives mask shapes from the existing arcade character JSON and authored TMX transforms. It accepts only ordinary text codes0–40 and42–45, excluding the heart41 and other graphics. <code>assets/arcade/text-colours.json</code> supplies optional foreground overrides; it does not modify extracted arcade art. The generated manifest retains all509 static text cells, masks and colours. See <a href="../implementation/data-layouts.html#shared-text-colours">the production representation</a>.</p></section>
-</main>
+<section id="blocked-movement-20261010"><h2>2026-10-10 — No-exit sideways input</h2><p>Current MAME0.220, verified Lady Bug ROM SHA-2562d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8: blocked sideways requests at2/4/6-pixel between-row offsets leave coordinates unchanged, matching neutral-input controls, while facing changes. The last/current cells(12,15)/(12,16) admit only N/S; the next farther junction is excluded from the no-exit assertion. A fresh legal-corner positive control confirms six-pixel correction, so legal-turn evidence must not be applied to blocked requests. See <a href="../tickets/evidence/rsch017/summary-20261010.json">current paired receipts</a> and assets/arcade/movement_snap_reference.json. Byte-verified CoCo player_tick still advances2pixels after rejecting West; proposed <a href="../tickets/bug-121-blocked-sideways-position-hold.html">BUG-121</a> owns any production correction. No arcade behavior is inferred from CoCo owner identity or emulator wall time.</p></section></main>
 </div>
 </body>
 </html>

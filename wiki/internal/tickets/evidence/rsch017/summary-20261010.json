@@ -1,0 +1,231 @@
+{
+  "status": "PASS",
+  "driver": "ladybug",
+  "mame_version": "0.220 (unknown)",
+  "phase_deadline_seconds": 60,
+  "source_rom": "locally supplied Lady Bug arcade ROM; ROM hash to be added",
+  "closed_cells": [
+    [
+      12,
+      15,
+      5
+    ],
+    [
+      12,
+      16,
+      5
+    ]
+  ],
+  "nav_bit_meaning": "5 is N+S, with E/W clear",
+  "no_exit_cases": [
+    {
+      "arm": "closed",
+      "neutral_arm": "neutral",
+      "frames": [
+        722,
+        731
+      ],
+      "eight_pixel_anchor_offset": 4,
+      "position": [
+        89,
+        133
+      ],
+      "position_changes": 0,
+      "matches_neutral": true,
+      "blocked_facing": 2,
+      "neutral_facing": 3
+    },
+    {
+      "arm": "closed",
+      "neutral_arm": "neutral",
+      "frames": [
+        758,
+        767
+      ],
+      "eight_pixel_anchor_offset": 6,
+      "position": [
+        89,
+        131
+      ],
+      "position_changes": 0,
+      "matches_neutral": true,
+      "blocked_facing": 0,
+      "neutral_facing": 1
+    },
+    {
+      "arm": "near-row",
+      "neutral_arm": "near-row-neutral",
+      "frames": [
+        720,
+        731
+      ],
+      "eight_pixel_anchor_offset": 2,
+      "position": [
+        89,
+        135
+      ],
+      "position_changes": 0,
+      "matches_neutral": true,
+      "blocked_facing": 2,
+      "neutral_facing": 3
+    }
+  ],
+  "coco": {
+    "phase": "natural credited initialization then forced legal between-row positions",
+    "deadline_seconds": 45,
+    "success_marker": "three natural player_tick entry-to-pt_done paths with blocked west request",
+    "timeout_meaning": "initialization or return marker absent; not timing evidence",
+    "samples": [
+      {
+        "step": 1,
+        "before": 27308,
+        "after": 26988,
+        "dy_pixels": -2,
+        "turn_snap": 0,
+        "cell": [
+          12,
+          16
+        ]
+      },
+      {
+        "step": 2,
+        "before": 26988,
+        "after": 26668,
+        "dy_pixels": -2,
+        "turn_snap": 0,
+        "cell": [
+          12,
+          16
+        ]
+      },
+      {
+        "step": 3,
+        "before": 26668,
+        "after": 26348,
+        "dy_pixels": -2,
+        "turn_snap": 0,
+        "cell": [
+          12,
+          15
+        ]
+      }
+    ],
+    "resident_and_enemy_identity": true,
+    "excluded_probe": "Direct PC/stack call did not prove function entry and timed out; retry uses natural callback entry and exit markers.",
+    "result": "observed",
+    "rom_sha256": "b32560c32f61da6d3da55fb078825b6c4002a15a9de28be44de6c3da63d6a668"
+  },
+  "finding": "Arcade changes facing but holds position at 2/4/6 pixel offsets under blocked lateral input; matched neutral arms have identical stationary coordinates. CoCo still advances 2 pixels north per player tick before stopping at alignment.",
+  "rejected_experiments": [
+    "First 650-frame capture sampled automatic entry, not manual corridor control; excluded.",
+    "Synthetic PC function call timed out without entry proof; corrected to natural player_tick/pt_done markers."
+  ],
+  "positive_corner": {
+    "source_plan": "scripts/mame_plans/corner-snap-up.json",
+    "mame_provenance": {
+      "driver": "ladybug",
+      "mame_version": "0.220 (unknown)",
+      "frames": 770
+    },
+    "frames": {
+      "742": [
+        {
+          "x": 69,
+          "y": 185,
+          "code": 1,
+          "direction": 2
+        }
+      ],
+      "743": [
+        {
+          "x": 68,
+          "y": 185,
+          "code": 1,
+          "direction": 2
+        }
+      ],
+      "744": [
+        {
+          "x": 67,
+          "y": 185,
+          "code": 1,
+          "direction": 2
+        }
+      ],
+      "745": [
+        {
+          "x": 67,
+          "y": 185,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "746": [
+        {
+          "x": 68,
+          "y": 185,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "747": [
+        {
+          "x": 69,
+          "y": 185,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "748": [
+        {
+          "x": 70,
+          "y": 184,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "749": [
+        {
+          "x": 71,
+          "y": 183,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "750": [
+        {
+          "x": 72,
+          "y": 182,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "751": [
+        {
+          "x": 73,
+          "y": 181,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "752": [
+        {
+          "x": 73,
+          "y": 180,
+          "code": 0,
+          "direction": 3
+        }
+      ],
+      "753": [
+        {
+          "x": 73,
+          "y": 179,
+          "code": 1,
+          "direction": 3
+        }
+      ]
+    }
+  },
+  "source_rom_sha256": "2d62b0194495bea6fa765c733a60c431ce685ab1f965a999d463557ef416ddf8",
+  "rom_verification": "MAME verifyroms: ladybug is good"
+}
