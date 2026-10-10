@@ -251,7 +251,7 @@ audio_credit_service
         bne     audio_credit_done
         lda     #12
         sta     AUDIO_SAVED_ID
-        lbsr    audio_admit
+        bsr     audio_admit       ; existing relative call, proven short-range
         dec     AUDIO_CREDIT_PENDING
 audio_credit_done
         rts
@@ -272,7 +272,7 @@ audio_process_next
         anda    #7
         sta     AUDIO_Q_HEAD
         dec     AUDIO_Q_COUNT
-        lbsr    audio_admit
+        bsr     audio_admit       ; recover source bytes without moving entries
         bra     audio_process_next
 audio_process_done
         rts
@@ -1003,6 +1003,8 @@ audio_transition_guard
         cmpa    #8
         lbeq    audio_drain_busy
         tsta
+        bne     audio_guard_free
+        tst     <$51             ; popup owns its animation ticks before draining
         bne     audio_guard_free
         lda     <$4D
         cmpa    #4

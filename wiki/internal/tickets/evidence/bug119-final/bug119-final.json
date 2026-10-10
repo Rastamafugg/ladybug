@@ -1,0 +1,136 @@
+{
+  "ticket": "BUG-119",
+  "status": "Verification",
+  "class": "High-risk",
+  "revision": "a2777ba plus bounded audio guard correction",
+  "roms": {
+    "default_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+    "joystick_sha256": "ef637e7e1015a913a9facd166360d6cb3e78bad4d473d274cac8f249df4ee7b9",
+    "nonadaptive_sha256": "dfa266669eb9f958812dd79cf564e62a629fabb94e24ecba789cd6b56b040978"
+  },
+  "change": {
+    "file": "src/audio_runtime.s",
+    "behavior": "audio_transition_guard returns through audio_guard_free while PICKUP_TIMER is nonzero, allowing popup animation/timer work before stage/death/name drain behavior resumes",
+    "live_identity": "default guard A628 tests byte $51 at A633 and branches to A658; assembled source bytes equal live bytes",
+    "packing": {
+      "audio_engine_bytes": 731,
+      "audio_engine_limit": 920,
+      "audio_source_bytes": 6655,
+      "audio_source_limit": 6656,
+      "audio_source_free": 1
+    }
+  },
+  "builds": {
+    "default": {
+      "result": "PASS",
+      "source_reference": "16 modules; coverage pass",
+      "documentation": "16 modules; 312/312 routines; 5034/5034 labels",
+      "resident": "8084/8192",
+      "presentation": "1266/1280",
+      "enemy_helper": "87/93",
+      "active": "622/777"
+    },
+    "joystick": {
+      "result": "compile, package, fit PASS; default source-reference command fails on registry's literal build/ paths in alternate output root",
+      "corrected_generated_config": "source-reference-joystick.json in owned scratch, using generated module paths from the build receipt",
+      "corrected_source_reference": "16 modules; coverage pass",
+      "documentation": "16 modules; 312/312 routines; 5036/5036 labels",
+      "resident": "8120/8192",
+      "presentation": "1266/1280",
+      "enemy_helper": "87/93"
+    },
+    "nonadaptive": {
+      "result": "PASS",
+      "source_reference": "13 modules; coverage pass",
+      "documentation": "13 modules; 289/289 routines; 4764/4764 labels",
+      "resident": "8145/8192",
+      "presentation": "1279/1280",
+      "enemy_helper": "87/93"
+    }
+  },
+  "behavior": {
+    "final_letter_default": {
+      "receipt": "final-popup-audio.json",
+      "result": "PASS",
+      "observations": 38,
+      "popup": "30 to 0; all 31 values observed; at most 2 repeated observations",
+      "cue6": "active in all 38 samples; active while popup was positive in 37 observations",
+      "animation": "four ENEMY_ANIM values and three distinct visible nest hashes while cue 6 active",
+      "owners": [0, 1],
+      "restoration": "Lady Bug pixels match at $1900 while stage=1 and stage_pending=1; stage 2 then enters MODE_LOAD and MODE_LEVEL panel with screen/context 2; cue 6 is idle at first increment and panel"
+    },
+    "final_heart_default": {
+      "receipt": "final-popup-heart-audio.json",
+      "result": "PASS",
+      "collectible_type": 2,
+      "popup": "30 to 0 across 38 observations; at most 2 repeated observations",
+      "cue6": "active during 34 popup observations",
+      "animation_and_handoff": "four ENEMY_ANIM values; three visible nest hashes; restored Lady Bug matches before stage 2 load/panel; voices idle at increment and panel"
+    },
+    "final_nonadaptive": {
+      "receipt": "final-popup-nonadaptive.json",
+      "result": "PASS",
+      "popup": "30 to 0 across 31 observations; at most 1 repeated observation",
+      "cue6": "active across popup progression",
+      "animation_and_handoff": "four ENEMY_ANIM values; three visible nest hashes; owners 0/1; restored sprite matches; voices idle at stage 2 increment and panel"
+    },
+    "owner_and_pause_profiles": {
+      "receipts": [
+        "pickup-owner0-default.json",
+        "pickup-owner1-default.json"
+      ],
+      "result": "PASS for both independent starting owners",
+      "checks": "natural mapped collectible route; player/enemy records/box/movement phase stationary; roaming and nest frames visible; vegetable freeze 120 to 90 to 60 while movement phase stays fixed; first resume advances 2 pixels with zero popup-end debt; final stage handoff follows restored publication"
+    },
+    "life_wall": {
+      "receipts": [
+        "life-wall-default.json",
+        "life-wall-joystick.json"
+      ],
+      "result": "PASS",
+      "checks": "initial and replacement cue 6 complete; no stage-only/final-death cue admissions; removed wall pixels remain clear"
+    },
+    "credit": {
+      "receipt": "credit-default.json",
+      "result": "PASS",
+      "checks": "credit 0 to 1; cue 12 completes; no extra-life music admission"
+    },
+    "demo": {
+      "receipt": "demo-default.json",
+      "result": "PASS",
+      "checks": "100 natural silent-demo samples; no cue 6 admission; all voices idle"
+    }
+  },
+  "timing": {
+    "receipt": "worklists-default.json",
+    "unit": "raw event_ticks/8",
+    "measurement": "AD_WORK_EXEC entry to mainloop return; sampled maxima include interrupts during work and exclude prior SYNC",
+    "target": 27000,
+    "maxima": {
+      "ordinary_north_input": 42541,
+      "one_roaming_enemy_popup_nest": 54539
+    },
+    "baseline_maxima": {
+      "ordinary_north_input": 42394,
+      "one_roaming_enemy_popup_nest": 54411
+    },
+    "result": "FAIL: both worklists exceed target; no timing acceptance or causal performance claim"
+  },
+  "rejected_observer_assumptions": {
+    "receipt": "observer-rejections.json",
+    "attempts": 2,
+    "timeouts": 0,
+    "production_failures_established": 0,
+    "assumptions": [
+      "A monitor stop need not decrement PICKUP_TIMER exactly once; one sample repeated 28 while FRAMES advanced and framebuffer owner changed.",
+      "STAGE increments before the stage panel reaches PRES_MODE 6; the rejected attempt did not retain voices at the increment. The corrected receipt records voices at increment and panel without a cue-completion gate."
+    ]
+  },
+  "probe_limits": {
+    "phase_deadline_seconds": 45,
+    "marker_wait_seconds": 10,
+    "timeout_meaning": "required execution/publication marker absent; no speed inference",
+    "hardware": "physical hardware not tested",
+    "integration": "parent-owned combined-source QA and GDB round trip remain pending"
+  }
+}

@@ -1,0 +1,22 @@
+{
+  "rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "identity": "Each attempt entered through Run.start(); runtime.py verified the current resident ROM plus loaded enemy, presentation, audio, adaptive-active and rate-helper bytes against the selected build.",
+  "deadline_seconds": 45,
+  "marker_wait_seconds": 10,
+  "attempts": [
+    {
+      "attempt": 1,
+      "rejected_assertion": "Require PICKUP_TIMER to decrement exactly once per mainloop monitor stop.",
+      "last_successful_boundary": "Real mapped-input final collectible contact; popup timer and cue 6 were active.",
+      "observation": "One sample changed 29 to 28; the next remained 28 while FRAMES advanced 670 to 671 and framebuffer owner changed 1 to 0.",
+      "disposition": "Rejected observer cadence assumption. A mainloop stop is not one pickup-timer unit. No runtime timeout or production failure established."
+    },
+    {
+      "attempt": 2,
+      "rejected_assertion": "Require STAGE to remain 1 until PRES_MODE reaches 6.",
+      "last_successful_boundary": "Strict popup hold completed; restored Lady Bug pixels matched at $1900 before presentation handoff, with STAGE still 1.",
+      "observation": "The subsequent stage-transition loop observed STAGE no longer equal to 1 before PRES_MODE 6 and stopped at the extra assertion. The changed STAGE, mode, context, and voice sample were not retained, so this attempt does not establish whether cue 6 was active at that boundary.",
+      "disposition": "Rejected acceptance assumption. Ticket requires restoration before next-stage handoff; presentation source increments STAGE before the level panel finishes loading. The corrected capture records voice IDs at increment and panel without a cue-completion gate. No runtime timeout or production failure established."
+    }
+  ]
+}
