@@ -100,15 +100,15 @@ audio_tick
         lda     #$6C
         sta     GIME_INIT0
         jsr     audio_select_gmc
-        lda     PRES_MODE
+        ; AUDIO_LAST_MODE retains the previous life-entry state, not screen mode.
+        lda     <$A0
         ldb     AUDIO_LAST_MODE
         sta     AUDIO_LAST_MODE
-        cmpb    #MODE_LEVEL
+        cmpb    #4              ; only a fresh maze-entry transition admits music
+        beq     audio_mode_ready
+        cmpa    #4
         bne     audio_mode_ready
-        tsta
-        bne     audio_mode_ready
-        lda     <$A7            ; credited new-game context, not next-stage/demo
-        cmpa    #1
+        tst     PRES_MODE
         bne     audio_mode_ready
 audio_mode_level_start
         lda     #6

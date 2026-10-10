@@ -74,15 +74,15 @@ aas_elapsed_next
         blo aas_elapsed_slot
         bra aas_ok
 aas_admit
-        lda PRES_MODE
+        ; Reuse the previous-state byte for live new-life maze entry.
+        lda $00A0
         ldb AUDIO_LAST_MODE
         sta AUDIO_LAST_MODE
-        cmpb #6
+        cmpb #4
+        beq aas_poll
+        cmpa #4
         bne aas_poll
-        tsta
-        bne aas_poll
-        lda $00A7
-        cmpa #1
+        tst PRES_MODE
         bne aas_poll
         lda #6
         clrb
@@ -147,34 +147,34 @@ aas_dirty
         bne aas_dirty_yes
         lda AUDIO_GAME_DOTS
         cmpa audio_poll_dots
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_BONUS
         cmpa audio_poll_bonus
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_BOX
         cmpa audio_poll_box
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_GATE
         cmpa audio_poll_gate
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_DEATH
         cmpa audio_poll_death
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_VEG
         cmpa audio_poll_veg
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_RELEASE
         cmpa audio_poll_release
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_SPECIAL
         cmpa audio_poll_special
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_EXTRA
         cmpa audio_poll_extra
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         lda AUDIO_GAME_STAGE
         cmpa audio_poll_stage
-        lbne aas_dirty_yes
+        bne aas_dirty_yes
         andcc #$FE
         rts
 aas_dirty_yes
