@@ -1,0 +1,1877 @@
+{
+  "ticket": "BUG-122",
+  "scenario": "demo-terminal-combined",
+  "candidate_build_directory": "/mnt/e/projects/ladybug/build",
+  "baseline_build_directory": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline",
+  "candidate_rom_expected_sha256": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+  "baseline_rom_expected_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "command": "python repro/bug122-parent/luna122-terminal-reassessment/verify_bug122_terminal_adapter.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-parent/luna122-terminal-reassessment/evidence",
+  "phase_deadline_seconds": 45,
+  "monitor_stop_seconds": 10,
+  "timeout_meaning": "required phase marker absent; no speed inference",
+  "execution_count": 1,
+  "result": "FAIL",
+  "failure": "AssertionError('player release boundary: released input event MENU_EVENT is 10')",
+  "scenario_failure_evidence": {
+    "last_boundaries": [
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          20,
+          2,
+          32108
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          20,
+          2,
+          32108
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          20,
+          3,
+          31788
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          20,
+          3,
+          31788
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          0,
+          31468
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          0,
+          31468
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          1,
+          31148
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          1,
+          31148
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          2,
+          30828
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          2,
+          30828
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          3,
+          30508
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      },
+      {
+        "request": "mainloop",
+        "pc": 49430,
+        "pose": [
+          12,
+          19,
+          3,
+          30508
+        ],
+        "mode": 0,
+        "joy": 255,
+        "popup": 0
+      }
+    ],
+    "selection_diagnostic": {
+      "label": "initial live stage entity selection",
+      "stage": 18,
+      "seed_hex": "a5c3",
+      "maze_sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+      "predicted_variants": [
+        10,
+        5,
+        2
+      ],
+      "init_entities_entry": 50633,
+      "entry_stop": {
+        "pc": 50633,
+        "stops": 0
+      },
+      "entry_identity": {
+        "label": "init_entities",
+        "pc": 50633,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "0f497fa89c8606973396248102251081",
+        "entry_bytes_sha256": "878b52b4f502dd8008692d34b1913372b80c2cc068c2d5a4e8afae8fadb90239",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "stage_mapping_proof": {
+        "label": "initial live stage entity selection: STAGE at init_entities entry",
+        "logical_address": 36,
+        "PAR_index": 0,
+        "PAR_raw": 184,
+        "physical_page": 56,
+        "physical_address": 458788,
+        "bytes_hex": "12",
+        "logical_matches_physical": true
+      },
+      "maze_mapping_proof": {
+        "label": "initial live stage entity selection: init_entities selection boundary",
+        "symbol_address": 40960,
+        "PAR5_raw": 52,
+        "PAR5_page": 52,
+        "physical_page": 52,
+        "byte_count": 576,
+        "sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+        "logical_matches_physical": true
+      },
+      "caller_stack_address": 8177,
+      "caller_stack_proof": {
+        "label": "initial live stage entity selection: init_entities caller return address stack",
+        "logical_address": 8177,
+        "PAR_index": 0,
+        "PAR_raw": 56,
+        "physical_page": 56,
+        "physical_address": 466929,
+        "bytes_hex": "df28",
+        "logical_matches_physical": true
+      },
+      "return_pc": 57128,
+      "failure_boundary": "qualified init_entities return before prediction assertion",
+      "return_pc_identity": {
+        "code_owner": "resident",
+        "label": "initial live stage entity selection: init_entities caller return PC",
+        "pc": 57128,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+        "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "rng_before_seed_hex": "dfdf",
+      "rng_before_seed_mapping_proof": {
+        "label": "initial live stage entity selection: RNG_STATE before seed",
+        "logical_address": 52,
+        "PAR_index": 0,
+        "PAR_raw": 120,
+        "physical_page": 56,
+        "physical_address": 458804,
+        "bytes_hex": "dfdf",
+        "logical_matches_physical": true
+      },
+      "seeded_rng_mapping_proof": {
+        "label": "initial live stage entity selection: seeded RNG_STATE",
+        "logical_address": 52,
+        "PAR_index": 0,
+        "PAR_raw": 248,
+        "physical_page": 56,
+        "physical_address": 458804,
+        "bytes_hex": "a5c3",
+        "logical_matches_physical": true
+      },
+      "return_stop": {
+        "pc": 57128,
+        "stops": 0
+      },
+      "return_identity": {
+        "code_owner": "resident",
+        "label": "initial live stage entity selection: init_entities return",
+        "pc": 57128,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+        "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "stage_after_hex": "12",
+      "stage_after_mapping_proof": {
+        "label": "initial live stage entity selection: STAGE after init_entities",
+        "logical_address": 36,
+        "PAR_index": 0,
+        "PAR_raw": 120,
+        "physical_page": 56,
+        "physical_address": 458788,
+        "bytes_hex": "12",
+        "logical_matches_physical": true
+      },
+      "entity_count": 12,
+      "entity_count_mapping_proof": {
+        "label": "initial live stage entity selection: ENTITY_COUNT after init_entities",
+        "logical_address": 50,
+        "PAR_index": 0,
+        "PAR_raw": 56,
+        "physical_page": 56,
+        "physical_address": 458802,
+        "bytes_hex": "0c",
+        "logical_matches_physical": true
+      },
+      "rng_after_hex": "c6c6",
+      "rng_after_mapping_proof": {
+        "label": "initial live stage entity selection: RNG_STATE after init_entities",
+        "logical_address": 52,
+        "PAR_index": 0,
+        "PAR_raw": 56,
+        "physical_page": 56,
+        "physical_address": 458804,
+        "bytes_hex": "c6c6",
+        "logical_matches_physical": true
+      },
+      "entity_table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+      "entity_table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+      "entity_table_mapping_proof": {
+        "label": "initial live stage entity selection: init_entities result",
+        "entity_count": 12,
+        "PAR5_raw": 244,
+        "PAR5_page": 52,
+        "logical_address": 41856,
+        "physical_address": 426880,
+        "table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+        "table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+        "logical_matches_physical": true
+      },
+      "actual_variants": [
+        10,
+        5,
+        2
+      ],
+      "raw_letter_variants": [
+        10,
+        5,
+        2
+      ],
+      "letter_parse_error": null,
+      "result": "prediction_matches_qualified_return"
+    },
+    "page23_alias_reader_calls": [
+      {
+        "entry_PC": 45154,
+        "return_pc": 45427,
+        "context": 1,
+        "PAR5_raw": 163,
+        "PAR5_page": 35,
+        "entry_physical_bytes_match": true,
+        "entry_logical_bytes_match": true,
+        "entry_bytes_sha256": "dc33307c0c0fa2aa7ba1925c27c39d68a926493dd131fd4372bb056984f2e25c",
+        "PAR4_raw": 111,
+        "PAR4_page": 47,
+        "CC": 196,
+        "entry_bytes": "34011a10b6ffa434028634b7ffa4bddf",
+        "return_breakpoint_id": 594,
+        "return_PC": 45427,
+        "return_PAR5_raw": 35,
+        "return_PAR5_page": 35,
+        "return_physical_bytes_match": true,
+        "return_logical_bytes_match": true,
+        "return_bytes_sha256": "1646745cf042d55eaa75ec87448230e1b89a569151a0e9a842692669ce3c2a33",
+        "return_state": {
+          "PAR4_raw": 175,
+          "PAR4_page": 47,
+          "CC": 192
+        },
+        "cc_compare_mask": 80,
+        "cc_if_bits_restored": true,
+        "PAR4_compare_mask": 63,
+        "PAR4_physical_page_restored": true
+      }
+    ],
+    "audio_events_tail": [
+      {
+        "id": 6,
+        "mode": 0,
+        "entry": 4,
+        "frame": 566,
+        "voices": [
+          255,
+          255,
+          255,
+          255
+        ],
+        "audio_enqueue_entry_PC": 41204,
+        "PAR5_raw": 189,
+        "PAR5_page": 61,
+        "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+        "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+        "staged_bytes_match": true,
+        "physical_bytes_match": true,
+        "audio_artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+        "music_slot0": 255
+      }
+    ],
+    "scenario_state": {
+      "last_proven_boundary": {
+        "phase": "player input released before terminal fixture",
+        "pc": 49430,
+        "code_identity": {
+          "code_owner": "resident",
+          "label": "demo player input released before terminal fixture control PC",
+          "pc": 49430,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "130d9126fbbd0a0010b3bd2427f2fdbd",
+          "entry_bytes_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "PAR0_raw": 184,
+        "PAR0_page": 56,
+        "frame": "0256",
+        "state": {
+          "PRES_MODE": {
+            "hex": "00",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page PRES_MODE",
+              "logical_address": 165,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458917,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "LIVES": {
+            "hex": "02",
+            "proof": {
+              "label": "demo player input released before terminal fixture LIVES",
+              "logical_address": 35,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458787,
+              "bytes_hex": "02",
+              "logical_matches_physical": true
+            }
+          },
+          "DEATH_STATE": {
+            "hex": "00",
+            "proof": {
+              "label": "demo player input released before terminal fixture DEATH_STATE",
+              "logical_address": 77,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458829,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "STAGE": {
+            "hex": "12",
+            "proof": {
+              "label": "demo player input released before terminal fixture STAGE",
+              "logical_address": 36,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458788,
+              "bytes_hex": "12",
+              "logical_matches_physical": true
+            }
+          },
+          "INITIAL_ENTRY_STATE": {
+            "hex": "00",
+            "proof": {
+              "label": "demo player input released before terminal fixture INITIAL_ENTRY_STATE",
+              "logical_address": 160,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458912,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "STAGE_PENDING": {
+            "hex": "00",
+            "proof": {
+              "label": "demo player input released before terminal fixture STAGE_PENDING",
+              "logical_address": 38,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458790,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "BONUS_LEFT": {
+            "hex": "06",
+            "proof": {
+              "label": "demo player input released before terminal fixture BONUS_LEFT",
+              "logical_address": 51,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458803,
+              "bytes_hex": "06",
+              "logical_matches_physical": true
+            }
+          },
+          "DOTS_LEFT": {
+            "hex": "69",
+            "proof": {
+              "label": "demo player input released before terminal fixture DOTS_LEFT",
+              "logical_address": 37,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458789,
+              "bytes_hex": "69",
+              "logical_matches_physical": true
+            }
+          },
+          "ENTITY_COUNT": {
+            "hex": "0c",
+            "proof": {
+              "label": "demo player input released before terminal fixture ENTITY_COUNT",
+              "logical_address": 50,
+              "PAR_index": 0,
+              "PAR_raw": 120,
+              "physical_page": 56,
+              "physical_address": 458802,
+              "bytes_hex": "0c",
+              "logical_matches_physical": true
+            }
+          },
+          "RNG_STATE": {
+            "hex": "c6c6",
+            "proof": {
+              "label": "demo player input released before terminal fixture RNG_STATE",
+              "logical_address": 52,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458804,
+              "bytes_hex": "c6c6",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_CELL_X": {
+            "hex": "0c12",
+            "proof": {
+              "label": "demo player input released before terminal fixture PLAYER_CELL_X",
+              "logical_address": 9,
+              "PAR_index": 0,
+              "PAR_raw": 248,
+              "physical_page": 56,
+              "physical_address": 458761,
+              "bytes_hex": "0c12",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_STEP": {
+            "hex": "00",
+            "proof": {
+              "label": "demo player input released before terminal fixture PLAYER_STEP",
+              "logical_address": 8,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458760,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_FB": {
+            "hex": "75ec",
+            "proof": {
+              "label": "demo player input released before terminal fixture PLAYER_FB",
+              "logical_address": 11,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458763,
+              "bytes_hex": "75ec",
+              "logical_matches_physical": true
+            }
+          },
+          "FRAMES": {
+            "hex": "0256",
+            "proof": {
+              "label": "demo player input released before terminal fixture FRAMES",
+              "logical_address": 2,
+              "PAR_index": 0,
+              "PAR_raw": 248,
+              "physical_page": 56,
+              "physical_address": 458754,
+              "bytes_hex": "0256",
+              "logical_matches_physical": true
+            }
+          },
+          "screen": {
+            "hex": "02",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page screen",
+              "logical_address": 166,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458918,
+              "bytes_hex": "02",
+              "logical_matches_physical": true
+            }
+          },
+          "context": {
+            "hex": "01",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page context",
+              "logical_address": 167,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458919,
+              "bytes_hex": "01",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_CREDITS": {
+            "hex": "00",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page PRES_CREDITS",
+              "logical_address": 168,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458920,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_EVENT": {
+            "hex": "00",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page PRES_EVENT",
+              "logical_address": 169,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458921,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_TIMER": {
+            "hex": "00b4",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page PRES_TIMER",
+              "logical_address": 176,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458928,
+              "bytes_hex": "00b4",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_PREV": {
+            "hex": "030000",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page PRES_PREV",
+              "logical_address": 178,
+              "PAR_index": 0,
+              "PAR_raw": 184,
+              "physical_page": 56,
+              "physical_address": 458930,
+              "bytes_hex": "030000",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_EVENT": {
+            "hex": "10",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page MENU_EVENT",
+              "logical_address": 208,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458960,
+              "bytes_hex": "10",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_PREV": {
+            "hex": "3f",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page MENU_PREV",
+              "logical_address": 223,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458975,
+              "bytes_hex": "3f",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_SELECT": {
+            "hex": "00",
+            "proof": {
+              "label": "player input released before terminal fixture: direct-page MENU_SELECT",
+              "logical_address": 224,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458976,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          }
+        },
+        "cue_events": [
+          {
+            "id": 6,
+            "mode": 0,
+            "entry": 4,
+            "frame": 566,
+            "voices": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "audio_enqueue_entry_PC": 41204,
+            "PAR5_raw": 189,
+            "PAR5_page": 61,
+            "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+            "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+            "staged_bytes_match": true,
+            "physical_bytes_match": true,
+            "audio_artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+            "music_slot0": 255
+          }
+        ],
+        "audio_event_count": 1
+      },
+      "phase_snapshots": [
+        {
+          "phase": "player stage18 live entry complete",
+          "pc": 49430,
+          "code_identity": {
+            "code_owner": "resident",
+            "label": "demo player stage18 live entry complete control PC",
+            "pc": 49430,
+            "PAR6_PAR7_pages": "3e3f",
+            "expected_page": 62,
+            "entry_bytes": "130d9126fbbd0a0010b3bd2427f2fdbd",
+            "entry_bytes_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae",
+            "logical_match": true,
+            "physical_match": true
+          },
+          "PAR0_raw": 184,
+          "PAR0_page": 56,
+          "frame": "0256",
+          "state": {
+            "PRES_MODE": {
+              "hex": "00",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page PRES_MODE",
+                "logical_address": 165,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458917,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "LIVES": {
+              "hex": "02",
+              "proof": {
+                "label": "demo player stage18 live entry complete LIVES",
+                "logical_address": 35,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458787,
+                "bytes_hex": "02",
+                "logical_matches_physical": true
+              }
+            },
+            "DEATH_STATE": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player stage18 live entry complete DEATH_STATE",
+                "logical_address": 77,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458829,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "STAGE": {
+              "hex": "12",
+              "proof": {
+                "label": "demo player stage18 live entry complete STAGE",
+                "logical_address": 36,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458788,
+                "bytes_hex": "12",
+                "logical_matches_physical": true
+              }
+            },
+            "INITIAL_ENTRY_STATE": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player stage18 live entry complete INITIAL_ENTRY_STATE",
+                "logical_address": 160,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458912,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "STAGE_PENDING": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player stage18 live entry complete STAGE_PENDING",
+                "logical_address": 38,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458790,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "BONUS_LEFT": {
+              "hex": "06",
+              "proof": {
+                "label": "demo player stage18 live entry complete BONUS_LEFT",
+                "logical_address": 51,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458803,
+                "bytes_hex": "06",
+                "logical_matches_physical": true
+              }
+            },
+            "DOTS_LEFT": {
+              "hex": "69",
+              "proof": {
+                "label": "demo player stage18 live entry complete DOTS_LEFT",
+                "logical_address": 37,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458789,
+                "bytes_hex": "69",
+                "logical_matches_physical": true
+              }
+            },
+            "ENTITY_COUNT": {
+              "hex": "0c",
+              "proof": {
+                "label": "demo player stage18 live entry complete ENTITY_COUNT",
+                "logical_address": 50,
+                "PAR_index": 0,
+                "PAR_raw": 120,
+                "physical_page": 56,
+                "physical_address": 458802,
+                "bytes_hex": "0c",
+                "logical_matches_physical": true
+              }
+            },
+            "RNG_STATE": {
+              "hex": "c6c6",
+              "proof": {
+                "label": "demo player stage18 live entry complete RNG_STATE",
+                "logical_address": 52,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458804,
+                "bytes_hex": "c6c6",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_CELL_X": {
+              "hex": "0c12",
+              "proof": {
+                "label": "demo player stage18 live entry complete PLAYER_CELL_X",
+                "logical_address": 9,
+                "PAR_index": 0,
+                "PAR_raw": 248,
+                "physical_page": 56,
+                "physical_address": 458761,
+                "bytes_hex": "0c12",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_STEP": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player stage18 live entry complete PLAYER_STEP",
+                "logical_address": 8,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458760,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_FB": {
+              "hex": "75ec",
+              "proof": {
+                "label": "demo player stage18 live entry complete PLAYER_FB",
+                "logical_address": 11,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458763,
+                "bytes_hex": "75ec",
+                "logical_matches_physical": true
+              }
+            },
+            "FRAMES": {
+              "hex": "0256",
+              "proof": {
+                "label": "demo player stage18 live entry complete FRAMES",
+                "logical_address": 2,
+                "PAR_index": 0,
+                "PAR_raw": 248,
+                "physical_page": 56,
+                "physical_address": 458754,
+                "bytes_hex": "0256",
+                "logical_matches_physical": true
+              }
+            },
+            "screen": {
+              "hex": "02",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page screen",
+                "logical_address": 166,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458918,
+                "bytes_hex": "02",
+                "logical_matches_physical": true
+              }
+            },
+            "context": {
+              "hex": "01",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page context",
+                "logical_address": 167,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458919,
+                "bytes_hex": "01",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_CREDITS": {
+              "hex": "00",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page PRES_CREDITS",
+                "logical_address": 168,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458920,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_EVENT": {
+              "hex": "00",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page PRES_EVENT",
+                "logical_address": 169,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458921,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_TIMER": {
+              "hex": "00b4",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page PRES_TIMER",
+                "logical_address": 176,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458928,
+                "bytes_hex": "00b4",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_PREV": {
+              "hex": "030000",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page PRES_PREV",
+                "logical_address": 178,
+                "PAR_index": 0,
+                "PAR_raw": 184,
+                "physical_page": 56,
+                "physical_address": 458930,
+                "bytes_hex": "030000",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_EVENT": {
+              "hex": "10",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page MENU_EVENT",
+                "logical_address": 208,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458960,
+                "bytes_hex": "10",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_PREV": {
+              "hex": "3f",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page MENU_PREV",
+                "logical_address": 223,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458975,
+                "bytes_hex": "3f",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_SELECT": {
+              "hex": "00",
+              "proof": {
+                "label": "player stage18 live entry complete: direct-page MENU_SELECT",
+                "logical_address": 224,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458976,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            }
+          },
+          "cue_events": [
+            {
+              "id": 6,
+              "mode": 0,
+              "entry": 4,
+              "frame": 566,
+              "voices": [
+                255,
+                255,
+                255,
+                255
+              ],
+              "audio_enqueue_entry_PC": 41204,
+              "PAR5_raw": 189,
+              "PAR5_page": 61,
+              "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+              "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+              "staged_bytes_match": true,
+              "physical_bytes_match": true,
+              "audio_artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+              "music_slot0": 255
+            }
+          ],
+          "audio_event_count": 1
+        },
+        {
+          "phase": "player input released before terminal fixture",
+          "pc": 49430,
+          "code_identity": {
+            "code_owner": "resident",
+            "label": "demo player input released before terminal fixture control PC",
+            "pc": 49430,
+            "PAR6_PAR7_pages": "3e3f",
+            "expected_page": 62,
+            "entry_bytes": "130d9126fbbd0a0010b3bd2427f2fdbd",
+            "entry_bytes_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae",
+            "logical_match": true,
+            "physical_match": true
+          },
+          "PAR0_raw": 184,
+          "PAR0_page": 56,
+          "frame": "0256",
+          "state": {
+            "PRES_MODE": {
+              "hex": "00",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page PRES_MODE",
+                "logical_address": 165,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458917,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "LIVES": {
+              "hex": "02",
+              "proof": {
+                "label": "demo player input released before terminal fixture LIVES",
+                "logical_address": 35,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458787,
+                "bytes_hex": "02",
+                "logical_matches_physical": true
+              }
+            },
+            "DEATH_STATE": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player input released before terminal fixture DEATH_STATE",
+                "logical_address": 77,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458829,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "STAGE": {
+              "hex": "12",
+              "proof": {
+                "label": "demo player input released before terminal fixture STAGE",
+                "logical_address": 36,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458788,
+                "bytes_hex": "12",
+                "logical_matches_physical": true
+              }
+            },
+            "INITIAL_ENTRY_STATE": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player input released before terminal fixture INITIAL_ENTRY_STATE",
+                "logical_address": 160,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458912,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "STAGE_PENDING": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player input released before terminal fixture STAGE_PENDING",
+                "logical_address": 38,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458790,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "BONUS_LEFT": {
+              "hex": "06",
+              "proof": {
+                "label": "demo player input released before terminal fixture BONUS_LEFT",
+                "logical_address": 51,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458803,
+                "bytes_hex": "06",
+                "logical_matches_physical": true
+              }
+            },
+            "DOTS_LEFT": {
+              "hex": "69",
+              "proof": {
+                "label": "demo player input released before terminal fixture DOTS_LEFT",
+                "logical_address": 37,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458789,
+                "bytes_hex": "69",
+                "logical_matches_physical": true
+              }
+            },
+            "ENTITY_COUNT": {
+              "hex": "0c",
+              "proof": {
+                "label": "demo player input released before terminal fixture ENTITY_COUNT",
+                "logical_address": 50,
+                "PAR_index": 0,
+                "PAR_raw": 120,
+                "physical_page": 56,
+                "physical_address": 458802,
+                "bytes_hex": "0c",
+                "logical_matches_physical": true
+              }
+            },
+            "RNG_STATE": {
+              "hex": "c6c6",
+              "proof": {
+                "label": "demo player input released before terminal fixture RNG_STATE",
+                "logical_address": 52,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458804,
+                "bytes_hex": "c6c6",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_CELL_X": {
+              "hex": "0c12",
+              "proof": {
+                "label": "demo player input released before terminal fixture PLAYER_CELL_X",
+                "logical_address": 9,
+                "PAR_index": 0,
+                "PAR_raw": 248,
+                "physical_page": 56,
+                "physical_address": 458761,
+                "bytes_hex": "0c12",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_STEP": {
+              "hex": "00",
+              "proof": {
+                "label": "demo player input released before terminal fixture PLAYER_STEP",
+                "logical_address": 8,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458760,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PLAYER_FB": {
+              "hex": "75ec",
+              "proof": {
+                "label": "demo player input released before terminal fixture PLAYER_FB",
+                "logical_address": 11,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458763,
+                "bytes_hex": "75ec",
+                "logical_matches_physical": true
+              }
+            },
+            "FRAMES": {
+              "hex": "0256",
+              "proof": {
+                "label": "demo player input released before terminal fixture FRAMES",
+                "logical_address": 2,
+                "PAR_index": 0,
+                "PAR_raw": 248,
+                "physical_page": 56,
+                "physical_address": 458754,
+                "bytes_hex": "0256",
+                "logical_matches_physical": true
+              }
+            },
+            "screen": {
+              "hex": "02",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page screen",
+                "logical_address": 166,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458918,
+                "bytes_hex": "02",
+                "logical_matches_physical": true
+              }
+            },
+            "context": {
+              "hex": "01",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page context",
+                "logical_address": 167,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458919,
+                "bytes_hex": "01",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_CREDITS": {
+              "hex": "00",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page PRES_CREDITS",
+                "logical_address": 168,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458920,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_EVENT": {
+              "hex": "00",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page PRES_EVENT",
+                "logical_address": 169,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458921,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_TIMER": {
+              "hex": "00b4",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page PRES_TIMER",
+                "logical_address": 176,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458928,
+                "bytes_hex": "00b4",
+                "logical_matches_physical": true
+              }
+            },
+            "PRES_PREV": {
+              "hex": "030000",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page PRES_PREV",
+                "logical_address": 178,
+                "PAR_index": 0,
+                "PAR_raw": 184,
+                "physical_page": 56,
+                "physical_address": 458930,
+                "bytes_hex": "030000",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_EVENT": {
+              "hex": "10",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page MENU_EVENT",
+                "logical_address": 208,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458960,
+                "bytes_hex": "10",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_PREV": {
+              "hex": "3f",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page MENU_PREV",
+                "logical_address": 223,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458975,
+                "bytes_hex": "3f",
+                "logical_matches_physical": true
+              }
+            },
+            "MENU_SELECT": {
+              "hex": "00",
+              "proof": {
+                "label": "player input released before terminal fixture: direct-page MENU_SELECT",
+                "logical_address": 224,
+                "PAR_index": 0,
+                "PAR_raw": 56,
+                "physical_page": 56,
+                "physical_address": 458976,
+                "bytes_hex": "00",
+                "logical_matches_physical": true
+              }
+            }
+          },
+          "cue_events": [
+            {
+              "id": 6,
+              "mode": 0,
+              "entry": 4,
+              "frame": 566,
+              "voices": [
+                255,
+                255,
+                255,
+                255
+              ],
+              "audio_enqueue_entry_PC": 41204,
+              "PAR5_raw": 189,
+              "PAR5_page": 61,
+              "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+              "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+              "staged_bytes_match": true,
+              "physical_bytes_match": true,
+              "audio_artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+              "music_slot0": 255
+            }
+          ],
+          "audio_event_count": 1
+        }
+      ],
+      "trace_tail": [
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            0,
+            31468
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            0,
+            31468
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            1,
+            31148
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            1,
+            31148
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            2,
+            30828
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            2,
+            30828
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            3,
+            30508
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        },
+        {
+          "request": "mainloop",
+          "pc": 49430,
+          "pose": [
+            12,
+            19,
+            3,
+            30508
+          ],
+          "mode": 0,
+          "joy": 255,
+          "popup": 0
+        }
+      ],
+      "exception_boundary": {
+        "phase": "combined demo exception catch",
+        "pc": 49430,
+        "code_identity": {
+          "code_owner": "resident",
+          "label": "demo combined demo exception catch control PC",
+          "pc": 49430,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "130d9126fbbd0a0010b3bd2427f2fdbd",
+          "entry_bytes_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "PAR0_raw": 184,
+        "PAR0_page": 56,
+        "frame": "0256",
+        "state": {
+          "PRES_MODE": {
+            "hex": "00",
+            "proof": {
+              "label": "combined demo exception catch: direct-page PRES_MODE",
+              "logical_address": 165,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458917,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "LIVES": {
+            "hex": "02",
+            "proof": {
+              "label": "demo combined demo exception catch LIVES",
+              "logical_address": 35,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458787,
+              "bytes_hex": "02",
+              "logical_matches_physical": true
+            }
+          },
+          "DEATH_STATE": {
+            "hex": "00",
+            "proof": {
+              "label": "demo combined demo exception catch DEATH_STATE",
+              "logical_address": 77,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458829,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "STAGE": {
+            "hex": "12",
+            "proof": {
+              "label": "demo combined demo exception catch STAGE",
+              "logical_address": 36,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458788,
+              "bytes_hex": "12",
+              "logical_matches_physical": true
+            }
+          },
+          "INITIAL_ENTRY_STATE": {
+            "hex": "00",
+            "proof": {
+              "label": "demo combined demo exception catch INITIAL_ENTRY_STATE",
+              "logical_address": 160,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458912,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "STAGE_PENDING": {
+            "hex": "00",
+            "proof": {
+              "label": "demo combined demo exception catch STAGE_PENDING",
+              "logical_address": 38,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458790,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "BONUS_LEFT": {
+            "hex": "06",
+            "proof": {
+              "label": "demo combined demo exception catch BONUS_LEFT",
+              "logical_address": 51,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458803,
+              "bytes_hex": "06",
+              "logical_matches_physical": true
+            }
+          },
+          "DOTS_LEFT": {
+            "hex": "69",
+            "proof": {
+              "label": "demo combined demo exception catch DOTS_LEFT",
+              "logical_address": 37,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458789,
+              "bytes_hex": "69",
+              "logical_matches_physical": true
+            }
+          },
+          "ENTITY_COUNT": {
+            "hex": "0c",
+            "proof": {
+              "label": "demo combined demo exception catch ENTITY_COUNT",
+              "logical_address": 50,
+              "PAR_index": 0,
+              "PAR_raw": 120,
+              "physical_page": 56,
+              "physical_address": 458802,
+              "bytes_hex": "0c",
+              "logical_matches_physical": true
+            }
+          },
+          "RNG_STATE": {
+            "hex": "c6c6",
+            "proof": {
+              "label": "demo combined demo exception catch RNG_STATE",
+              "logical_address": 52,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458804,
+              "bytes_hex": "c6c6",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_CELL_X": {
+            "hex": "0c12",
+            "proof": {
+              "label": "demo combined demo exception catch PLAYER_CELL_X",
+              "logical_address": 9,
+              "PAR_index": 0,
+              "PAR_raw": 248,
+              "physical_page": 56,
+              "physical_address": 458761,
+              "bytes_hex": "0c12",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_STEP": {
+            "hex": "00",
+            "proof": {
+              "label": "demo combined demo exception catch PLAYER_STEP",
+              "logical_address": 8,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458760,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PLAYER_FB": {
+            "hex": "75ec",
+            "proof": {
+              "label": "demo combined demo exception catch PLAYER_FB",
+              "logical_address": 11,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458763,
+              "bytes_hex": "75ec",
+              "logical_matches_physical": true
+            }
+          },
+          "FRAMES": {
+            "hex": "0256",
+            "proof": {
+              "label": "demo combined demo exception catch FRAMES",
+              "logical_address": 2,
+              "PAR_index": 0,
+              "PAR_raw": 248,
+              "physical_page": 56,
+              "physical_address": 458754,
+              "bytes_hex": "0256",
+              "logical_matches_physical": true
+            }
+          },
+          "screen": {
+            "hex": "02",
+            "proof": {
+              "label": "combined demo exception catch: direct-page screen",
+              "logical_address": 166,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458918,
+              "bytes_hex": "02",
+              "logical_matches_physical": true
+            }
+          },
+          "context": {
+            "hex": "01",
+            "proof": {
+              "label": "combined demo exception catch: direct-page context",
+              "logical_address": 167,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458919,
+              "bytes_hex": "01",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_CREDITS": {
+            "hex": "00",
+            "proof": {
+              "label": "combined demo exception catch: direct-page PRES_CREDITS",
+              "logical_address": 168,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458920,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_EVENT": {
+            "hex": "00",
+            "proof": {
+              "label": "combined demo exception catch: direct-page PRES_EVENT",
+              "logical_address": 169,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458921,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_TIMER": {
+            "hex": "00b4",
+            "proof": {
+              "label": "combined demo exception catch: direct-page PRES_TIMER",
+              "logical_address": 176,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458928,
+              "bytes_hex": "00b4",
+              "logical_matches_physical": true
+            }
+          },
+          "PRES_PREV": {
+            "hex": "030000",
+            "proof": {
+              "label": "combined demo exception catch: direct-page PRES_PREV",
+              "logical_address": 178,
+              "PAR_index": 0,
+              "PAR_raw": 184,
+              "physical_page": 56,
+              "physical_address": 458930,
+              "bytes_hex": "030000",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_EVENT": {
+            "hex": "10",
+            "proof": {
+              "label": "combined demo exception catch: direct-page MENU_EVENT",
+              "logical_address": 208,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458960,
+              "bytes_hex": "10",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_PREV": {
+            "hex": "3f",
+            "proof": {
+              "label": "combined demo exception catch: direct-page MENU_PREV",
+              "logical_address": 223,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458975,
+              "bytes_hex": "3f",
+              "logical_matches_physical": true
+            }
+          },
+          "MENU_SELECT": {
+            "hex": "00",
+            "proof": {
+              "label": "combined demo exception catch: direct-page MENU_SELECT",
+              "logical_address": 224,
+              "PAR_index": 0,
+              "PAR_raw": 56,
+              "physical_page": 56,
+              "physical_address": 458976,
+              "bytes_hex": "00",
+              "logical_matches_physical": true
+            }
+          }
+        },
+        "cue_events": [
+          {
+            "id": 6,
+            "mode": 0,
+            "entry": 4,
+            "frame": 566,
+            "voices": [
+              255,
+              255,
+              255,
+              255
+            ],
+            "audio_enqueue_entry_PC": 41204,
+            "PAR5_raw": 189,
+            "PAR5_page": 61,
+            "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+            "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+            "staged_bytes_match": true,
+            "physical_bytes_match": true,
+            "audio_artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+            "music_slot0": 255
+          }
+        ],
+        "audio_event_count": 1
+      }
+    }
+  },
+  "serialized_binary_fields": []
+}

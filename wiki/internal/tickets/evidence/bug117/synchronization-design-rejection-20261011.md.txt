@@ -1,0 +1,31 @@
+# BUG-117 synchronized-entry design disposition
+
+## Scope and evidence
+
+- BUG-117 is High-risk: audio ownership/protocol, life-entry handoff, framebuffer publication, and tight code limits. Canonical production ticket remains Proposed. This scratch report authorizes no source fit or implementation.
+- Source basis: onset receipt revision `ce6d07d28bf80a9588c15e1cc873e7a767d10514`; docs HEAD `765671c4a80dfb8644bc3ccf59fc723004ed415`; current ROM SHA256 `73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81`. Four inspected source owners still match receipt hashes.
+- Seven existing byte proofs match compiled objects: `audio_runtime.s` `$A027=C104`, `$A02B=8104`; `adaptive_audio_service.s` `$B6C1=C104`, `$B6C5=8104`; `main.s` `$C1AF=8602`; `adaptive_active.s` `$0513=8601`, `$0515=BD047C`. These prove current source/object identity only.
+- Current slots 0/1/2 map to HUD X 33/35/37 and walk-off 28/20/12 two-pixel steps. Cue 6 contains 31 waits totaling 192 nominal 60Hz ticks. Common maze walk-on is projected at progress160; 16 steps occupy 162..192; projected offscreen padding is 104/120/136. These are schedule projections, not output measurements.
+
+## Confirmed owners and ordering
+
+- Delivered audio owners are `src/audio_runtime.s` and `src/adaptive_audio_service.s`; entry owners are `src/main.s` and `src/adaptive_active.s`. Delivered binding is `adaptive_audio_binding` in `src/adaptive_active.s`; experimental `src/adaptive_audio_bindings.s` is excluded.
+- Adaptive A=0 consumes raw FRAMES delta, advances at most one note boundary, starts the next dwell at service, and drops excess elapsed after the current wait. A=1 admits; A=2 writes PSG output. `audio_adaptive_late` reports overdue service. Current `AD_BATCH` budget is two callbacks; any nonzero `INITIAL_ENTRY_STATE` makes `adaptive_tick_binding` return a barrier, so the batch stops and discards remaining debt. Nonadaptive `audio_tick` advances once per call, then mixes/writes; it does not consume FRAMES delta.
+- Nonadaptive main currently updates/renders entry before `AUDIO_ENGINE_EXEC`. Adaptive order is A=0, simulation/A=1, render, A=2, then `framebuffer_finish_back`.
+- `framebuffer_finish_back` only arms `FB_RENDER_PENDING`. The actual display commit is `framebuffer_irq_impl` in `src/enemy_runtime.s`: it flips front/back, clears pending, and increments `FB_COMMIT_SEQ`. Any future control release must require DONE output plus `FB_RENDER_PENDING=0` and `FB_COMMIT_SEQ` advanced from the final-pose render's saved baseline. Adaptive may compare against its batch `AD_COMMIT`; nonadaptive needs a retained baseline. Function return from `framebuffer_finish_back` is not commit evidence.
+- Current entry calls `player_animation_tick` in every nonzero state. Replacement death completion calls `marker_entry_begin` before cue 6 starts. Any later design must freeze both animation and HUD-to-player transfer until cue-6 first output is committed, as well as keep collision/death/input locked.
+
+## Rejected proposal and counterexample
+
+The previous two-byte progress/status sketch is rejected as a production design. A fault sentinel on missed milestones is diagnostic only and is not accepted recovery. Clamping cue time, changing authored note waits, accelerating movement, or hiding steps in one render would change the approved cadence/music contract.
+
+- Adaptive normal case: with one A=0 service per VBlank, cue progress advances one tick per service; entry transitions and each two-tick movement threshold can be rendered in sequence. The projected schedule is walk-off to 56/40/24, common maze pose at160, steps162..192, and terminal output at192.
+- Correction: p=158 with delta4 does not reach p=162. The active encoded wait ends at p=160, so adaptive A=0 adds only `min(4,2)=2`; it advances to p=160 and drops the excess. This case crosses only the maze-pose milestone and is not evidence of two missed movement thresholds.
+- Adaptive late counterexample: from p=162, delta4 reaches p=166 within the current cue dwell, crossing maze-step thresholds p=164 and p=166. A=0 consumes all four ticks; the entry barrier permits one callback before output, so it cannot present both step boundaries. The terminal case is also valid: p=188 with delta4 reaches p=192 across steps15/16 at p=190/192. One callback misses a step; batching both before one render hides an intermediate pose. A `$FF` fault is diagnostic, not production recovery.
+- Nonadaptive is different: `audio_tick` advances by call count, while `FB_SIM_SEQ` advances only with a successful pending framebuffer IRQ commit. A missed VBlank does not itself advance either service-counted cue time or committed simulation. Its remaining design issue is placing the final entry step/output in the same pending-frame transaction, then waiting for the actual IRQ commit before unlocking.
+
+## Proposed timing discriminator (not acceptance criterion)
+
+Before any source-fit candidate, the smallest useful timing discriminator is one complete adaptive cue-6 entry trace recording every A=0 FRAMES delta, remaining-wait clamp, crossed movement threshold, simulation callback, A=2 output, pending transition, and `FB_COMMIT_SEQ` change. A proposed conservative screen is maximum delta 1; it gives a no-gap reference, but is not an established necessary condition or approved acceptance target. For larger deltas, judge the actual `min(delta, remaining wait)` and whether two movement thresholds within one dwell are crossed before output. Record sustained rate against the existing 58Hz target and worst-case cycles against 27,000; these measurements do not make average rate a maximum-gap proof. Any reproduced double-threshold crossing remains unresolved under the current barrier. Do not turn it into runtime FAULT, cue-time clamping, or fit freeze; a timing-policy or authored-cue change requires renewed approval.
+
+Capacity correction from current assignment: adaptive audio 6655/6656 baseline, cap 6656; default resident 8127/8192, cap 8192; adaptive joystick 8163/8192 baseline, cap 8192; nonadaptive resident 8188/8192, cap 8192. Preserve helper limits, report exact helper occupancy, and do not raise limits. No candidate assembly, build, emulator probe, or audio measurement was run; scratch fit remains unassigned and the timing discriminator is unrun.
