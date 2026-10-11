@@ -1,0 +1,128 @@
+BUG-117 completion-order mechanics — source-only review
+Snapshot: 2026-10-11 19:56:27 -03:00
+Scope: inspect existing candidate/control sources and classify legal ways to
+exercise the two required completion orders. No build, observer import,
+emulator launch, probe, RAM write, or timing experiment was performed.
+
+Decision
+--------
+The current approved controls do not provide a deterministic way to force
+either completion order independently, and therefore cannot guarantee both.
+Keep both required orders as an unresolved acceptance gate. Natural runs can
+show which order the ordinary candidate produces; an observed natural order is
+useful evidence, but is not proof that both required forced scenarios passed.
+No missing order may be waived or inferred from a plan.
+
+What existing execution can vary
+-------------------------------
+An in-scope diagnostic attempt can use ordinary credit/start and two genuine
+enemy-contact deaths/replacements, with monitor input only for normal gameplay
+and no input accepted during automated entry. This naturally reaches the three
+life-marker columns. `marker_entry_begin` chooses its HUD start from the current
+life count and seeds the existing 80-tick pad (`main.s:905-920`); that legal
+route-length variation may change whether cue 6 or the final FRONT commit
+arrives first. It is a bounded natural-order observation, not a force: the
+source does not establish that the three columns straddle both outcomes.
+
+A real pre-entry music item can be produced through normal gameplay, then
+allowed to drain through audio service before a replacement entry. The source
+puts death/replacement in `ENTRY_WAIT_STAGE` while published music is busy and
+only opens the entry after it becomes idle (`main.s:901-905, 4253-4262`). This
+is suitable for the separate prior-music-drain case; it cannot independently
+extend the newly admitted cue 6 after entry starts.
+
+The audio and entrant share ordinary foreground progression. Nonadaptive entry
+does its entry tick, audio service, and render in one main-loop path
+(`main.s:768-783`); adaptive work runs elapsed-audio service before the logical
+batch, and entry uses the same scheduler tick (`adaptive_active.s:22-29,
+150-171`; `adaptive_audio_service.s:15-21, 82-111`). VBlank IRQ publication is
+the only FRONT publication path (source contract in `main.s:43`). A legal
+order receipt must distinguish:
+
+* `music-first`: identify cue-6-owned terminal tone/output from the same mix
+  service, observe its actual `SND_DATA` store, run through the shared
+  `audio_mix_write_done` tail and busy publication, then observe the final
+  entrant pose actually committed in FRONT by the IRQ.
+* `front-first`: observe that same actual final-pose FRONT commit while the
+  published music-busy state is still set, then observe cue 6's terminal
+  output, shared post-write tail, and published idle state. Only after both
+  commit and tail proofs may entry release count as correct.
+
+Enqueue/slot-0 ID 6, the first arbitrary `audio_write` (which may be a credit
+or effect), `PLAYER_CELL_Y=18`, a render request, cleared pending, or busy=0
+alone is not either order marker. `audio_mix_write` calls `audio_write` for
+actual PSG stores and `audio_mix_write_done` calls `audio_music_busy` before
+publishing `AUDIO_MUSIC_PUBLISHED_BUSY` (`audio_runtime.s:693-780`). The future
+observer must resolve labels/addresses from the integrated build maps and
+qualify authored, staged, and live bytes before interpreting breakpoints.
+
+Why the present observer cannot force the orders
+------------------------------------------------
+The XRoar monitor exposes run/pause, instruction-step, breakpoints/watchpoints,
+read-only memory/register/cycle reads, and keyboard injection. `pause` changes
+the emulated CPU run state to halted; `step_instruction` is accepted only
+while halted and executes a bounded count of that same CPU's instructions
+(`docs/reference/xroar/src/monitor.c:508-559, 827-854, 1308-1330`). It has no
+control that advances audio/IRQ time while holding entry simulation, or holds
+audio while allowing the entry/IRQ path to proceed. Breakpoints and watchpoints
+observe normal execution; they do not schedule an independent owner clock.
+`inject_key` only queues ordinary input (`monitor.c:1606-1638`), and
+`read_cycles` only samples the shared event clock (`monitor.c:847-854`). The
+wiki also prohibits simultaneous GDB and monitor control (`wiki/internal/tooling/xroar.html:160`).
+
+The shared `Run.go` helper uses the monitor's whole-CPU run/stop boundary and
+contains memory-write helpers (`repro/bugpass-20261010/luna122-qa-plan/runtime.py:10-14, 17-18`). Its current audio watch only records enqueue IDs 3/6 at
+`audio_enqueue_impl` (`runtime.py:194-220`), while `Run.start` waits for state 4
+and `trace_entry` samples only while state 4 (`runtime.py:246-275`). Neither
+proves state-2 onset, cue-13 absence, cue-6-owned PSG output, terminal tail,
+actual FRONT pixels, nor either completion order. It needs a narrow observer
+adaptation before a later authorized execution. The corrected guarded
+BUG-121 adapter exists at
+`repro/bug122-parent/luna121-replacement-qa/verify_replacement.py`; it does not
+add independent scheduler/audio control. `repro/bugpass-20261010/observe.py`
+launches XRoar at import time and is not safe to import. No helper was imported
+or executed here.
+
+Allowed and disallowed alternatives
+-----------------------------------
+Within current scope: add observation-only event ordinals and use the legal
+natural life-index/marker-column variation above to determine which order the
+current scheduler produces. Name separate order-attempt phases, each with a
+45-second hard deadline and monitor stop waits no longer than 10 seconds. The
+success marker is the complete ordered evidence defined above. Timeout means
+that this legal scenario did not produce its required order before the probe
+boundary; it does not prove target code is slow. A natural result may guide
+the next discriminating decision, but cannot replace the required forced-order
+acceptance.
+
+Not available within this assignment: debugger pauses/steps as a timing shim,
+synthetic key patterns during entry, cue/audio dwell edits, writes to clocks,
+entry state, owner/sequence or framebuffer control bytes, or direct audio
+service invocation. These either halt all emulated progress, are ignored by
+the automatic-entry owner, alter state outside ordinary game paths, or bypass
+the tested scheduler. A selective audio/clock gate or a game-side test seam
+would add a new control/ownership mechanism; it also crosses the approved
+no-protocol/no-control-write boundary and needs a changed design/verification
+approval. Replacing “force both” with “observe both if naturally encountered”
+would relax the accepted criterion and also needs renewed approval. Do not
+extend the deferred monitor protocol as part of this ticket.
+
+Remaining Ready execution gate
+------------------------------
+After measured fit and parent integration, first pin the combined build/maps
+and prove staged/live bytes. A guarded adapter may then attempt the natural
+legal variations and record event order. Unless both distinct forced-order
+receipts are obtained using an approved legal mechanism, report the missing
+order and stop BUG-117 acceptance. No order was observed or passed in this
+source-only planning step.
+
+Source snapshot hashes
+----------------------
+These are the bytes inspected at the timestamp above; `main.s` changed during
+concurrent fit work and must be requalified again at execution:
+
+* Candidate `src/main.s`: D14C6BB2BAD7AAC784EA6EF9D04ECEC23274D9FBD4E85E5E2B379D484911FA14
+* Candidate `src/audio_runtime.s`: 1BC5D94712684EBC3B57B8135265BC933006C5B430E44C8B59F8D5D3097CA9CA
+* Candidate `src/adaptive_audio_service.s`: AEF4EB0EEB280F2D9EAA01287D5518D691CE825A87F9E3F7F2F97EED4E4904A3
+* Candidate `src/adaptive_active.s`: AF39BC47CD753F35831E828D747ECD7776A71CF61D52F4402FF1B1096D6FD1EC
+* XRoar `docs/reference/xroar/src/monitor.c`: 30C0D8F4FF69963EEC0439C191E3993335D241FEFC04DA6950DA5C4A7709DE65
