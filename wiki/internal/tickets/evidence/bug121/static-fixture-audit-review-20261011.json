@@ -1,0 +1,66 @@
+{
+  "artifact": {
+    "resident_sha256": "16af307da88b0bab6f38bb00be77bdaf0ddd87e7f588cc4b42f84c390a2cf653",
+    "map_sha256": "2f2ab6975570db160ee2412049dc8228cd553fa4652cb0437ff8d638afcab42c",
+    "boot_rom_sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+    "source_build_receipt_sha256": "d96f7d586e53ddcc5b357e483044c1ca9b864f24a4bc1c29cbcaa898c90af12c",
+    "main_source_sha256": "cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc",
+    "symbols": {
+      "maze_nav": "F0FA",
+      "maze_gate_owner": "F33A",
+      "maze_gates": "F57A"
+    },
+    "gate_table_sha256": "5c0e2b937a7b10553013069f3f86eb1384b4febde3935aa29d503d1ed328cb4c"
+  },
+  "adapter_sha256": "bc703ccee2ee0d6d7483f94396039233af0c1fa6a06ba7131a433401cb915ad5",
+  "audit_script_sha256": "8dfd8a8e566ecae727c29f86cfea1636fecb34725acc65752744ce8d30eea5d5",
+  "source_contract_checks": {
+    "cm_admit_steps_before_owner_lookup": true,
+    "entry_mask_table_is_N_E_S_W_reciprocal": true,
+    "read_joystick_latches_direction_want_face": true,
+    "pt_advance_uses_N_E_S_W_byte_strides": true,
+    "pt_advance_wraps_after_four_two_pixel_steps": true,
+    "late_turn_tests_current_then_next_center_before_commit": true,
+    "gate_commit_queues_animation_id_mode_style": true,
+    "gate_owner_one_decodes_to_gate_zero": true,
+    "west_endpoint_south_action_is_state_one_style_zero": true,
+    "queue_gate_render_uses_first_slot_then_second": true,
+    "gate0_initial_state_is_third_gate_record_byte": true,
+    "runtime_fixture_uses_two_pixel_direction_stride": true,
+    "runtime_real_input_waits_for_latched_direction": true,
+    "adapter_gate_purity_checks_only_dedicated_gate_state_and_queues": true,
+    "legacy_corner_selector_uses_reciprocal_masks_and_destination_owners": true,
+    "evidence_lines": {
+      "cm_admit_from_test": 3117,
+      "cm_step_test": 3271,
+      "cm_entry_masks": 3268,
+      "player_tick_late_turn": 2884,
+      "pt_advance": 2998,
+      "read_joystick_request": 2733,
+      "cm_commit": 3255,
+      "queue_gate_render": 3627,
+      "init_gate_state": 2572
+    }
+  },
+  "observer_correction": {
+    "prior_failed_expectation": "nav[(3,2)] == 0E",
+    "artifact_actual": "nav[(3,2)]=0A",
+    "source_derived_actual_expectation": "nav[(3,2)] == 0A; next-center nav[(4,2)] == 0E",
+    "current_request_destination": "(3,3) nav=00 owner=0",
+    "gate_endpoint": "(4,3) nav=15 owner=1",
+    "adapter_corrected_only_for_observed_table_mismatch": true
+  },
+  "limitations": [
+    "Static resident/source audit only; it establishes no movement behavior.",
+    "Both runtime failures remain retained; no rerun is authorized by this step.",
+    "No production acceptance or timing acceptance is implied."
+  ],
+  "all_checks_pass": true,
+  "full_receipt_sha256": "6375ffa2a0a58c96090af50ffc41992af23ef61612a0d89881c8dc62f4e6dca3",
+  "counts": {
+    "cells": 36,
+    "gate_entries": 20,
+    "source_checks": 15
+  },
+  "parent_review": "Current hashes and AST match; independent static audit rerun passes; source admission checks destination after cm_step_test."
+}
