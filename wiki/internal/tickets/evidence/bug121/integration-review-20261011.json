@@ -1,0 +1,70 @@
+{
+  "source_commit": "7cdc53f6f15a1696ef838efb0569c0d3074cca43",
+  "verdict": "Verification; movement cases absent; timing target missed",
+  "inputs": {
+    "build": {
+      "path": "repro/bug122-parent/bug121-combined-build.json",
+      "sha256": "379c1bcd6c60bfd5ce11f60e83058c51be16c2e1d05c7bf0af4bf5f96ac5b1fd"
+    },
+    "gdb": {
+      "path": "repro/bug122-parent/bug121-gdb/receipt.json",
+      "sha256": "7e43b36c5e86354cabb6b37feb7c586fb5767152f66fb6116d65190d52ce00bd"
+    },
+    "runtime_failure": {
+      "path": "repro/bug122-parent/luna121-replacement-qa/receipt.json",
+      "sha256": "d7a406a39f61a183329ee5d1bf8daf7ba081e248280c06a2befc0a03f5cd0e3d"
+    },
+    "worklists": {
+      "path": "repro/bug122-parent/bug121-worklists-current.json",
+      "sha256": "81e5b6bf31d421e5b2423634d669726882f2760134ec32bb5b3c70ab8e4fca1b"
+    }
+  },
+  "build": {
+    "command": "LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "exit_code": 0,
+    "source_commit": "7cdc53f6f15a1696ef838efb0569c0d3074cca43",
+    "log": "/mnt/e/projects/ladybug/repro/bug122-parent/bug121-combined-build.log",
+    "source_raw_sha256": {
+      "src/main.s": "cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc",
+      "scripts/source_reference.json": "d367a1117ffe1407ec055bf15052376352bc56c67da0dc2fa421cf6b4bc7b0e2",
+      "wiki/internal/implementation/routine-catalog.html": "ad68dc66d15e7f2f1ad516a2daeb29d678fad6405151acd205e66ba0d50af0cd"
+    },
+    "artifact_sha256": {
+      "ladybug.rom": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+      "ladybug-runtime.rom": "16af307da88b0bab6f38bb00be77bdaf0ddd87e7f588cc4b42f84c390a2cf653",
+      "ladybug.map": "2f2ab6975570db160ee2412049dc8228cd553fa4652cb0437ff8d638afcab42c"
+    }
+  },
+  "gdb": {
+    "source_commit": "7cdc53f6f15a1696ef838efb0569c0d3074cca43",
+    "rom_sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+    "marker": "raw C116",
+    "PAR_pages": "38 30 31 32 33 34 3e 3f",
+    "resident_bytes": 15872,
+    "live_sha256": "d7f0a9a38bf6fb37fcab5dc5df4502dc5343a0a5f6dfb861f4ba33b8862492cd",
+    "artifact_span_sha256": "d7f0a9a38bf6fb37fcab5dc5df4502dc5343a0a5f6dfb861f4ba33b8862492cd",
+    "resident_match": true,
+    "handshake_correction": "set remote supported-packets-packet off; known qSupported negotiation failure",
+    "scope": "resident delivery only; gameplay owner delivery independently qualified in runtime receipt",
+    "deadline_seconds": 45
+  },
+  "runtime_failure": {
+    "phase": "natural cold/start/full-entry",
+    "failure": "AssertionError('N>E: ordinary corner unexpectedly has gate owner 1')",
+    "result": "FAIL",
+    "player_marker_proofs": {},
+    "natural_entry_samples": 33
+  },
+  "worklists": {
+    "rom_sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+    "maxima": {
+      "ordinary north input": 42541,
+      "one roaming enemy plus popup and nest animation": 54539
+    },
+    "target_cycles": 27000,
+    "target_met": false,
+    "measurement": "AD_WORK_EXEC entry to mainloop return; sampled maxima, includes interrupts during work, excludes prior SYNC",
+    "sample_count": 44,
+    "harness_result_is_not_acceptance": "PASS"
+  }
+}
