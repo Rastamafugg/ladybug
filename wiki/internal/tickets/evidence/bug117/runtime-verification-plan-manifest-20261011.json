@@ -1,0 +1,136 @@
+{
+  "ticket": "BUG-117",
+  "step": "independent runtime verification plan",
+  "date": "2026-10-11",
+  "status": "Ready planning only",
+  "classification": "High-risk",
+  "execution_started": false,
+  "runtime_execution_ready": false,
+  "owned_outputs": [
+    "repro/bug122-parent/luna117-runtime-plan-20261011/runtime-plan.txt",
+    "repro/bug122-parent/luna117-runtime-plan-20261011/runtime-plan.json"
+  ],
+  "candidate_address_policy": "Resolve all symbols and watched destinations from the integrated candidate maps after live-byte identity. Do not reuse historical raw $C116.",
+  "approved_entry_contract": {
+    "music_wait_sentinel": 1,
+    "padding_seed": "DEATH_TIMER=80 before HUD rendering",
+    "endpoint_state": 4,
+    "release_requires": [
+      "cue-6 final PSG output and shared post-PSG tail publish idle",
+      "final starting pose is visible in the actual FRONT image after IRQ/owner commit"
+    ],
+    "late_arrival_allowed": true,
+    "preserve_all_two_pixel_poses": true,
+    "do_not_reintroduce": [
+      "HUD_X sampled after HUD rendering",
+      "entry states 5/6",
+      "game-side saved-sequence storage",
+      "new actor guard"
+    ]
+  },
+  "reuse": {
+    "preferred_base": "Text-level reuse of repro/bugpass-20261010/luna122-qa-plan/runtime.py Run and artifact-delivery/read mechanics; guarded candidate CLI adaptation required.",
+    "reuse_mechanics": [
+      "candidate map and artifact identity",
+      "45-second phase deadlines and 10-second monitor waits",
+      "natural lifecycle pose sampling",
+      "audio enqueue watch",
+      "physical framebuffer-owner readback"
+    ],
+    "required_narrow_adaptation": "Parameterize candidate maps/hashes/watched addresses; stop at state 2 before cue admission; watch cue-13 enqueue, cue-owned audio_write, terminal post-PSG tail, and IRQ/FRONT publication. Existing startup waits through state 4 and existing audio watch sees only enqueue IDs 3/6. Add only a guarded bug117-entry CLI scenario and receipt fields; do not extend the monitor protocol."
+  },
+  "observer_side_effects": {
+    "verify_replacement.py": "Exists at repro/bug122-parent/luna121-replacement-qa/verify_replacement.py; guarded parent-reviewed adapter is a reuse candidate after audit.",
+    "current_bug121_script": "repro/bugpass-20261010/verify_movement.py calls receipt at module top level; do not import.",
+    "observe.py": "Launches XRoar and runs a scenario at module top level; do not import.",
+    "call_probe.py": "Launches XRoar and runs a probe at module top level; do not import.",
+    "verify_bug122.py": "Treat as CLI-only. Existing flow uses old scenarios/hashes, waits through state 4, samples entry only there, and its audio watch sees enqueue IDs 3/6 but not cue 13 or PSG. Do not import it as a BUG-117 acceptance module.",
+    "runtime.py": "Class definitions are safe to inspect as text; constructing Run launches the monitor."
+  },
+  "delivery_mechanics": {
+    "workflow": "GDB-MCP round trip in its own XRoar process, followed by a separate monitor-only scenario process.",
+    "gdb_commands": [
+      "show architecture",
+      "target remote :65520",
+      "printf \"PC=%04x\\n\", $pc; read only explicit supported registers",
+      "dump binary memory <gdb-host-path> $C000 $FE00"
+    ],
+    "identity_before_symbols": [
+      "Compare live $C000-$FDFF to the integrated candidate resident artifact.",
+      "Resolve each banked module span from candidate maps and prove its live bank mapping plus bytes before setting symbolic watches."
+    ],
+    "monitor_constraint": "Never use -gdb and -monitor simultaneously on the same XRoar process; do not extend the monitor protocol."
+  },
+  "phases": [
+    {
+      "name": "delivery identity",
+      "deadline_seconds": 45,
+      "success_marker": "Current ROM identity plus resident/staged/live byte equality; current maps resolve the watched routines and destinations.",
+      "timeout_meaning": "Identity/control boundary absent; not evidence that game code is slow.",
+      "risk": "Loader, mapping, or observer misidentification."
+    },
+    {
+      "name": "natural life chain",
+      "deadline_seconds_per_wait": 45,
+      "monitor_stop_seconds_max": 10,
+      "success_marker": "Natural credited start, watches armed before state-2 cue admission, one initial entry, and two genuine enemy-contact replacements through marker columns x=33/35/37; one life decrement and cue-6 admission per entry.",
+      "timeout_meaning": "Named lifecycle marker absent; no missing path counts as pass.",
+      "risk": "Life accounting, marker-column padding, visible route, and replacement onset."
+    },
+    {
+      "name": "cue-first and automatic-control gates",
+      "deadline_seconds_per_wait": 45,
+      "monitor_stop_seconds_max": 10,
+      "success_marker": "Cue-6-owned first actual SND_DATA output, attributed to the same service's mixed stream, precedes entrant FRONT publication; held input causes no accepted player-control change or input-caused automatic-route/facing deviation; no contact/death or new cue-13 enqueue.",
+      "timeout_meaning": "Cue-owned output or expected entry marker absent; slot ID/enqueue/busy state is insufficient evidence.",
+      "risk": "Audio onset order, accidental control, or death-event reentry."
+    },
+    {
+      "name": "prior-music and completion orders",
+      "deadline_seconds_per_run": 45,
+      "monitor_stop_seconds_max": 10,
+      "success_marker": "Qualified prior music drains before cue-6 entry; both music-first and final-pose-commit-first orders release only after post-PSG idle publication and actual final FRONT pose.",
+      "timeout_meaning": "Required active prior music or a gate order was not reached; scenario is absent and fails.",
+      "risk": "Cross-phase audio and persistent-framebuffer handoff."
+    },
+    {
+      "name": "HUD and row rendering",
+      "deadline_seconds_per_wait": 45,
+      "monitor_stop_seconds_max": 10,
+      "success_marker": "Fit/static contract already proves all 24 row identities; runtime top/bottom destinations and pixels match through each isolated owner; natural alternating FRONT sequence; part/vegetable HUD output at stages 1/10/100/255 matches pinned pre-BUG-117 baseline.",
+      "timeout_meaning": "Expected destination or output evidence absent; no owner or stage case may be inferred from another.",
+      "risk": "Shared row arithmetic, adjacent coordinate stores, register clobber, and persistent owner rendering."
+    },
+    {
+      "name": "independent worklist timing",
+      "deadline_seconds_per_worklist": 45,
+      "success_marker": "Current integrated required worklists meet 27000 cycles.",
+      "timeout_meaning": "Measurement did not return in the bounded phase; record the probe boundary and last proven marker, not an inference that target code is slow.",
+      "risk": "Existing independent performance acceptance. Historical 42541/54539 maxima remain failed, not waived."
+    }
+  ],
+  "remaining_execution_gates": [
+    "Approved all-profile fit passes measured capacity targets.",
+    "Parent integrates the exact fit patch and builds the combined current source.",
+    "Parent pins the combined build maps, baseline identity, and byte manifest.",
+    "The guarded observer receives the narrow fields/scenario above; no legacy observer is imported.",
+    "Parent assigns Ready execution and an evidence destination.",
+    "Specify valid concrete scheduling/queue mechanics to force both completion orders; no clock/framebuffer-owner/terminal-status writes may manufacture a pass."
+  ],
+  "evidence_retention": "Concise hashes, phase markers, actual PSG/FRONT observations, event order, and failing boundary only. No probes were run for this planning step.",
+  "parent_review": {
+    "original_report_sha256": "f4a6c1801b0a1f1eb9860d5b749143a54cfda4c28b4a76272531d9809fd717f5",
+    "corrected_observer_path": true,
+    "current_pad_remainders": [
+      52,
+      60,
+      68
+    ],
+    "register_command_correction": true,
+    "automatic_motion_preserved": true,
+    "force_order_mechanics_resolved": false,
+    "runtime_executed": false
+  },
+  "retained_report_path": "wiki/internal/tickets/evidence/bug117/runtime-verification-plan-20261011.txt",
+  "retained_report_sha256": "552a8d3a3894d010d66f0a744ac88c7250484c59d10cf44e6404f66cbb5e86a4"
+}
