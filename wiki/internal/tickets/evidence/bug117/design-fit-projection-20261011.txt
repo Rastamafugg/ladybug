@@ -1,0 +1,150 @@
+BUG-117 design and fit resumption
+Source-only design report
+2026-10-11
+
+Disposition
+
+BUG-117 remains High-risk and Proposed. The user-approved outcome is preserved: cue 6 is audible before the first visible automatic life-entry pose; input, player movement, collision and new death admission stay suppressed through the full automatic sequence; the existing visible route and two-pixel cadence are preserved; column-specific hidden padding aligns maze walk-on; control remains locked until music completion has been written to PSG and the final pose has committed through the framebuffer IRQ. Late arrival is allowed. No timing or memory limit waiver is proposed.
+
+This was a read-only design refinement. Production source, canonical wiki, build outputs, emulator state and Git state were not changed. The only owned output is this report. An isolated fit cannot be assigned as Ready because the viable source plan has a projected resident overflow in all three required profiles.
+
+Classification and scope
+
+Objective: refine the source order for both initial and replacement life entry, then determine whether the exact candidate fits before an isolated fit assignment.
+
+In scope: src/main.s, src/audio_runtime.s, src/adaptive_audio_service.s, src/adaptive_active.s, src/enemy_runtime.s, and existing required source-contract metadata. Out of scope: production integration, source or wiki edits, builds, runtime probes, emulator use, new modules, loader/MMU changes, external placement, RNG or maze behavior, BUG-121 movement, capacity changes, timing waivers, and queue preemption.
+
+The canonical ticket is BUG-117, High-risk, Proposed. This design-refinement step is Ready for parent inspection. The next role after a viable fit is direct bounded implementation only after the parent records an exact Ready assignment. The current fit gate fails, so that assignment must wait.
+
+The smallest eventual fit set is the three ticket-required complete builds: adaptive keyboard covers the adaptive scheduler and keyboard profile; adaptive joystick covers the joystick profile's distinct resident placement and cap; nonadaptive keyboard covers the separate foreground publication order and nonadaptive cap. After source fit, natural initial and replacement entry need separate onset checks because replacement starts inside death_tick; final release needs a forced late-music and delayed-IRQ-commit ordering check because either completion can occur first. These paths cover different risks and are not a Cartesian mode matrix.
+
+Artifact identities
+
+Current integrated source baseline: commit 7cdc53f6f15a1696ef838efb0569c0d3074cca43. Current documentation HEAD: 3075660417b01774bd58e7f087f3072ed9e0db7c. The source baseline and documentation HEAD are stated separately because the latter contains later records.
+
+Current ROM SHA-256: 283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5. Current map SHA-256: 2f2ab6975570db160ee2412049dc8228cd553fa4652cb0437ff8d638afcab42c. The current combined-build receipt is repro/bug122-parent/bug121-combined-build.json, SHA-256 379c1bcd6c60bfd5ce11f60e83058c51be16c2e1d05c7bf0af4bf5f96ac5b1fd. Its src/main.s hash matches the current source.
+
+Current source SHA-256 values:
+
+src/main.s: cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc
+src/audio_runtime.s: aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc
+src/adaptive_audio_service.s: 1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34
+src/adaptive_active.s: 2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a
+src/enemy_runtime.s: d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd
+scripts/source_reference.json: d367a1117ffe1407ec055bf15052376352bc56c67da0dc2fa421cf6b4bc7b0e2
+
+The retained parent-reviewed source-order report is wiki/internal/tickets/evidence/bug117/late-arrival-design-review-20261011.txt, SHA-256 6aa990d8ac9b0932a460d741d549e1e1db49f54af63a8e8cf525791f7acfd4cf. It is the design input, not current runtime or fit evidence.
+
+Current measured capacity baseline from the parent-reviewed combined source: adaptive keyboard resident 8131/8192 bytes, adaptive joystick resident 8167/8192, and nonadaptive keyboard resident 8192/8192. Remaining resident headroom is respectively 61, 25 and 0 bytes. Audio engine is 731/920 bytes. The keybinding/audio page-$3D payload is 6655/6656 bytes, leaving one byte. The bank-3 enemy runtime is a separate low-RAM copy with a $0800-$17FF destination limit of 4096 bytes; retained profile outputs are 4091 bytes in each of the three configurations, leaving five bytes. These values are measured current-source build results, not projections.
+
+Current measured active worklist maxima are 42,541 and 54,539 CPU cycles against the 27,000-cycle target. Both miss the target. This design adds instructions and has no measured cycle result; the timing target remains failed and unchanged.
+
+Exact design and pseudodiff
+
+1. Status storage and writer
+
+Use one byte at $02D4 as AUDIO_MUSIC_PUBLISHED_BUSY. Boot's descriptor table occupies $0287-$02E9 only until boot_streams_retired; its last consumer is before audio_init_impl installs runtime state. Current audio runtime use is $02C0-$02D3, $02DC-$02DD and $02DE-$02EF; $02D4 has no current reference. Add a separate source ownership audit for this byte: audio owns it after boot retirement, main is a read-only client, initialization is audio_init_impl, and its lifetime spans installed gameplay audio.
+
+At audio_mix_write_done, after the final conditional SND_DATA write, perform:
+
+    jsr audio_music_busy
+    sta AUDIO_MUSIC_PUBLISHED_BUSY
+    rts
+
+This is the only runtime writer. audio_init_impl already resets the music queue and all slots before its neutral audio_mix_write call, so the shared tail publishes idle before AUDIO_INSTALLED becomes active. audio_music_busy is the existing music-specific predicate: music queue nonempty or slot 0 active. Do not use audio_drain_busy; it also waits for unrelated effects and credits.
+
+The end-of-stream state can become idle inside audio_advance_slot before audio_mix/audio_mix_write emits the terminal PSG state. Therefore consumers must read only the published byte, never call audio_music_busy as a completion test before output.
+
+2. Cue admission and same-service dispatch
+
+Change only the entry-state edge operand from 4 to 2 in audio_tick and aas_admit. Preserve the existing previous-state byte AUDIO_LAST_MODE. State 2 is set only when the hidden wait has ended and automatic animation is about to begin. The transition 1-to-2 on an initial life and 5-to-2 on a drained replacement both enqueue cue 6 once. Repeated state 2 does not enqueue again.
+
+On normal audio_tick, this edge runs before audio_poll_gameplay, then the normal queue process, music dispatch, slot advance, mixer and PSG writes all occur in the same service. On adaptive A=1, the edge also runs before semantic polling. Parent source inspection confirms aas_dirty checks audio_music_count before semantic fields, so a new cue-6 queue entry forces dispatch in that same A=1 service even when audio_poll_valid was already true and gameplay fields are unchanged. A=0 may retire prior music, but cannot update the published byte; A=2 emits and then publishes the new status.
+
+3. Conditional prior-music drain and shared initial/replacement states
+
+Add ENTRY_WAIT_MUSIC=5 and ENTRY_FINAL_PENDING=6 in the existing main.s and enemy_runtime.s state aliases. Do not add a state byte.
+
+Initial path: keep ENTRY_WAIT_STAGE=1 through the stage image. At the existing committed-stage boundary, decrement LIVES exactly once. If AUDIO_MUSIC_PUBLISHED_BUSY is zero, fall through to marker_entry_begin, which sets state 2. If it is one, set state 5 and return with the marker and player hidden. State 5 checks the published byte on later callbacks; while busy it returns without changing position or life count; when idle it calls marker_entry_begin. The resulting 5-to-2 edge admits cue 6 in that callback's audio service.
+
+Replacement path: in dt_finish_blank, retain its one life decrement and owner-ledger invalidation. Before clearing DEATH_STATE, inspect the published music byte. If idle, call marker_entry_begin directly. If busy, set state 5 and do not call the helper yet. Clear DEATH_STATE and return as today. Clearing death from nonzero to zero is not a death-cue admission edge. This is a conditional hold only when actual prior music remains queued or active; it is not an unconditional delay and does not preempt cue 13.
+
+Normal nonadaptive publication order: the current initial branch calls initial_entry_tick, renders BACK and arms FB_RENDER_PENDING, then services audio. Move the entry branch's one AUDIO_ENGINE_EXEC service to a shared main_entry_render label before render_frame. That helper renders and returns to mainloop, bypassing the common audio call at main_entry_audio. In main_death, immediately after death_tick, test INITIAL_ENTRY_STATE. If dt_finish_blank selected state 2 or 5 in this same callback, branch to main_entry_render. Otherwise retain the current main_render path. Thus both initial and replacement onset service audio exactly once before render_frame can arm pending publication. Entry paths continue to bypass read_joystick and gameplay movement/collision work.
+
+Adaptive order remains A0, entry callback, A1, BACK render, A2 PSG output, then framebuffer_finish_back. The entry callback already precedes A1, and A2 still precedes publication arming. In adaptive_tick_binding, replace the post-entry unconditional branch to atb_barrier with an unconditional one-callback return value: after player_animation_tick and initial_entry_tick, set A=1 and branch to atb_done. This preserves the existing no-catch-up barrier when the final-pending handler clears state 6 to state 0; it does not create a new interface or persistent flag.
+
+State 5 renderer suppression: add a state-5 early exit to actor_closure_draw alongside WAIT_STAGE and OFFSCREEN. Without it, the generic player branch can call draw_player when PLAYER_BG_VALID is clear and compose an unintended live player during the hidden wait. Initial startup clears PLAYER_BG_VALID; replacement death finish clears it and both owner ledgers. actor_closure_restore therefore has no player save-under to restore during state 5. No additional restore guard is required.
+
+4. Column padding, sequential route and commit-gated release
+
+Keep the current automatic visible cadence and all intermediate two-pixel positions. On the transition from HUD walkout to x=320 / ENTRY_OFFSCREEN, set DEATH_TIMER to 52 + 4*(HUD_X-33). For the source-supported HUD_X values 33, 35 and 37, this yields 52, 60 and 68 logical PLAYER_TICK_PENDING events. Count down only on that existing logical event, never from FRAMES. Continue checking both FB_META_A and FB_META_B player-valid ledgers. Call init_player only when the pad is zero and both owner ledgers are invalid.
+
+The source-derived sequence remains: HUD x33/35/37 walks off in 28/20/12 logical steps; corresponding projected visible walk-off durations are 56/40/24 frames; hidden offscreen durations are 104/120/136 frames, represented by pads 52/60/68 logical ticks; maze walk-on begins at projected tick 160; all 16 two-pixel maze steps continue sequentially to projected tick 192. These are source projections, not new measurements or timing gates. If an owner retires later than the pad, wait without skipping a pose.
+
+On the 16th maze step, before rendering, save the current word FB_COMMIT_SEQ into TURN_SNAP:TURN_OLD with STD TURN_SNAP and change state 4 to ENTRY_FINAL_PENDING=6. Render RF_PLAYER as today. State 6 does not move or expose input. Release to state 0 only when all three are true: AUDIO_MUSIC_PUBLISHED_BUSY is zero; FB_RENDER_PENDING is clear; and current FB_COMMIT_SEQ differs from the saved word. Clear TURN_SNAP when releasing; TURN_OLD is ignored whenever TURN_SNAP is zero and the next late-turn admission overwrites TURN_OLD before using it.
+
+This proves actual final-pose publication. frame_render / framebuffer_finish_back only arms pending; framebuffer_irq_impl clears pending and increments FB_COMMIT_SEQ when the BACK image becomes FRONT. A different sequence value plus pending clear ties release to the final render transaction. The order permits audio to finish before pose commit or vice versa. A release check runs before that callback's normal/adaptive audio output, so if the stream becomes idle in the current output service, control waits for the next callback.
+
+Source call traces
+
+Initial, normal nonadaptive: stage image commit; entry callback changes 1 to 2 or observes state 5 and a published idle byte; main_entry_render calls AUDIO_ENGINE_EXEC once; audio_tick admits and dispatches cue 6, writes PSG, and publishes busy; render_frame then composes BACK and arms pending; IRQ may publish only after this service. Automatic entry callbacks continue using the existing cadence. State 6 later observes both post-output idle and the final IRQ sequence change before clearing state.
+
+Replacement, normal nonadaptive: ordinary death_tick enters dt_finish_blank inside main_death; it decrements LIVES once, clears player ownership, and chooses state 5 or calls marker_entry_begin for state 2; the main_death state check branches to main_entry_render in the same callback; one audio service runs before render_frame. The normal tail audio service is bypassed. Subsequent entry callbacks again run one service each.
+
+Initial or replacement, adaptive: A=0 ages prior notes; AD_BATCH invokes adaptive_tick_binding and initial_entry_tick, or death_tick selects state 5/2 in that binding; the mandatory entry callback returns one barrier; A=1 observes 5-to-2 or 1-to-2, admits and dispatches cue 6; the renderer composes BACK; A=2 mixes, writes PSG and publishes the busy byte; AD_COMPLETE_EXEC and framebuffer_finish_back then arm publication. The IRQ is the only visible commit. State 6's release also returns a one-callback barrier.
+
+Input and collision suppression: nonzero entry state takes the entry branch before the normal player/enemy/input path; read_joystick is not called there. For a replacement finishing within main_death, player_tick and enemy_collect were already bypassed because DEATH_STATE was nonzero at their gates; after death_tick, the state check also bypasses joystick. Adaptive entry state calls the entry-only branch and barrier rather than enemy_tick/player_tick; a death-finish callback reaches the barrier before ordinary catch-up. The only death music admission is the existing zero-to-nonzero DEATH_STATE edge; death_finish's nonzero-to-zero clear cannot enqueue cue 13. The receipt must still record music IDs and death fields to detect any other admission path.
+
+Source-level fit ledger
+
+All figures below are static projections from the current source and known 6809 instruction widths. They are not assembled candidate measurements. The profile baselines and hard limits above are measured current-build observations. No new resident state bytes are allocated.
+
+Common main.s resident growth is projected at 97 bytes after the explicitly listed local branch reduction. The breakdown is: state-5 short dispatch 4; state-6 long dispatch 6; initial published-busy gate 10; state-5 drain handler 9; column-pad initialization 10; walkout pending local-return form 1; offscreen logical countdown 16; saved commit sequence 4; final-pending check 25; replacement conditional drain 11; current WAIT_STAGE long branch rewritten as a nearby short branch plus RTS saves 1; the existing state-4 dispatch branch grows from short to long because the handler additions push its target outside relative range, adding 2. Sum: 97 bytes.
+
+Adaptive-only resident deltas: adaptive_active.s replaces BRA atb_barrier (2 bytes) with LDA #1 / BRA atb_done (4 bytes), adding 2. src/main.s has no added normal-main-loop pre-render helper in adaptive builds because adaptive order already puts A2 output before finish_backpending. One common LBSR save_player to BSR save_player recovers 1 resident byte; retained profile listings show displacement +124 in adaptive keyboard, adaptive joystick and nonadaptive keyboard, and all earlier inserted resident code shifts this call and target together. Net adaptive resident growth is 97 + 2 - 1 = 98 bytes.
+
+The enemy guard is outside the resident image and consumes the separate 4096-byte low-RAM enemy runtime. Its six added bytes are recovered by two verified short-range branch encodings: the common LBSR player_entry_width to BSR saves 1 byte at displacement +126 in all three retained profile listings; adaptive keyboard and joystick also change LBRa sparse_blit_stage to BRA, saving 1 byte at displacement -82. Those offsets remain unchanged because the guard is before both call sites and targets. Projected enemy runtime sizes are adaptive keyboard 4091 + 6 - 1 - 1 = 4095/4096, adaptive joystick 4095/4096, and nonadaptive keyboard 4091 + 6 - 1 = 4096/4096. The nonadaptive copy would have zero spare bytes. These are static projections, not assembled results.
+
+Nonadaptive-only resident deltas: main_entry_render becomes JSR AUDIO_ENGINE_EXEC / LBSR render_frame / BRA mainloop, replacing LBSR render_frame / BRA main_entry_audio for a net 3 bytes. The main_death state check adds 4 bytes. The existing LBRa main_render in main_popup_render can be BRA main_render, saving 2 bytes; its retained nonadaptive displacement is +73 and grows by 8 from the replacement check, staying in range. The common LBSR-to-BSR conversion saves 1 resident byte. Net nonadaptive resident growth is 97 + 3 + 4 - 2 - 1 = 101 bytes.
+
+Projected resident outcomes, with projected overflow shown as used bytes beyond the hard limit:
+
+Adaptive keyboard: 8131 + 98 = 8229/8192, projected 37 bytes over.
+Adaptive joystick: 8167 + 98 = 8265/8192, projected 73 bytes over.
+Nonadaptive keyboard: 8192 + 101 = 8293/8192, projected 101 bytes over.
+
+These projections assume the explicitly named local short branches remain in range after the change. The state-4 edge is explicitly long. Full assembly is required to confirm branch relaxation and final profile values. Even before that confirmation, the shortfall is far larger than uncertainty in a few branch bytes.
+
+Audio-page delta is separately projected: the post-PSG tail costs 6 bytes. Five short-reachable existing audio LBSR calls become BSR, saving 5 bytes total; four are inside the copied audio engine and one is outside it. Engine projection is 727/920, down four bytes. Page-$3D payload projection is 6656/6656, with zero margin. Existing state-edge operand changes from 4 to 2 and adaptive_aas comparisons add no instruction bytes. The payload projection is only valid if all five calls assemble short and no other content moves the fixed keybinding boundary. This is not an assembled fit.
+
+Resident recovery candidates that are exact and behavior-neutral are already included above: shorten the common save_player call by one byte; shorten the existing WAIT_STAGE exit by one byte; shorten main_popup_render's main_render branch by two bytes in nonadaptive. Even with those reductions, resident projections remain 37/73/101 bytes over. No other source-local recovery was proven in the assigned resident code that approaches the required bound without moving into excluded movement behavior or changing module/ownership boundaries. The separate enemy runtime reaches 4096/4096 in nonadaptive after its two applicable local short-branch recoveries.
+
+Verification and capacity gate
+
+No build, test, runtime probe or emulator experiment was run at this source-design gate. The current combined ROM, profile capacities, current source hashes and current worklist JSON are read-only baselines only. The design does not claim assembled fit, measured onset, live IRQ ordering, or acceptance.
+
+If a separately approved fit becomes viable, use a clean scratch capsule and full scripts/build.sh build for complete adaptive keyboard, complete adaptive joystick, and complete nonadaptive keyboard; retain source-contract checks and every existing capacity guard. Fit acceptance requires all three resident images at or below 8192, the bank-3 enemy runtime at or below 4096, engine at or below 920, and each compiled page-$3D payload at or below its actual fixed boundary. No limit or alignment margin is waived. After fit, natural initial and natural real-death replacement runs must each prove exactly one cue-6 admission and first PSG write before first visible entrant publication; force a residual prior music case, verify no duplicate/new cue 13 and no control/input/collision during entry; retain the x33/x35/x37 schedule and every intermediate visible pose; force music-first and pose-commit-first completion orders; require state release after terminal output publication and the final IRQ sequence increment. Use existing verifiers/harnesses and retain concise hashes, maxima and failing evidence. Current 42,541/54,539 cycle maxima remain independent FAIL results against 27,000 until new measured worklists pass.
+
+Rejected alternatives
+
+A pre-output or decode-state busy check is invalid because audio_music_busy may already report idle after stream end and before terminal PSG publication. The one-byte post-write status is required.
+
+A normal-only state-2 trigger misses the replacement path: dt_finish_blank selects state 2 inside death_tick in the normal main_death branch. The same callback must service audio before render and bypass the later common service.
+
+Keeping the old normal-mode render-before-audio order is rejected because Vbord can publish between framebuffer_finish_back and the audio call. The first visible pose could precede cue output.
+
+A forced cue-6 queue insertion while prior music is active is rejected: active cue 13 can occupy slot 0 and delay cue-6 output. Conditional state-5 drain handles the observed residual without preempting or redesigning the queue.
+
+Using audio_drain_busy is rejected because it waits for effects and credits outside cue 6's music queue/slot ownership.
+
+Using framebuffer_finish_back or pending-clear alone as final-pose evidence is rejected. They do not prove that the final intended pose was the transaction that reached FRONT. The saved sequence and IRQ increment are required.
+
+Accelerating the maze route from FRAMES, skipping poses to chase an audio milestone, changing the cue, adding a timeout, changing movement/maze/RNG behavior, or raising any capacity/timing limit is rejected. These alter the approved outcome or violate scope.
+
+Fit decision and concrete next proposal
+
+The control-flow design is internally coherent at source level, subject to parent inspection of the exact short-branch placements and the existing source-contract audit. The fit is not viable within current resident headroom: projected misses are 37 keyboard-adaptive, 73 joystick-adaptive and 101 nonadaptive bytes even after exact local recoveries. The separate enemy runtime projects to 4096/4096 in nonadaptive, with no spare bytes. Do not issue the isolated fit assignment or label production Ready from these projections.
+
+Concrete next proposal: prepare a separate parent-owned source-only architecture/fit review that identifies at least 101 resident bytes of behavior-preserving recovery across all three source configurations, plus a measured assembly margin, while preserving the separate enemy-runtime cap and current byte guards. Do not change hard caps or touch BUG-121 movement, RNG, maze behavior, loader/mapping or new-life acceptance. Any wider resident reorganization, bank placement, memory ownership change or architectural refactor returns BUG-117 to Proposed for explicit user approval before implementation. If no compliant recovery is identified, retain BUG-117 Proposed and return a smaller viable design or a scoped approval proposal; do not ask the user to accept a capacity waiver.
+
+Current reports, manifests and profile logs are retained in place; no new large traces were created. No rejected runtime experiment was run in this step.
