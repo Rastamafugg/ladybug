@@ -1,0 +1,120 @@
+{
+  "ticket": "BUG-117",
+  "date": "2026-10-11",
+  "status": "Approved; Luna Extra High isolated fit interrupted by usage limit; production not Ready",
+  "capsule": "E:/projects/ladybug/repro/bug122-parent/luna117-approved-fit-20261011",
+  "source_snapshot": {
+    "src/main.s": {
+      "baseline_sha256": "cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc",
+      "candidate_sha256": "d14c6bb2bad7aac784ea6ef9d04ecec23274d9fbd4e85e5e2b379d484911fa14"
+    },
+    "src/audio_runtime.s": {
+      "baseline_sha256": "aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc",
+      "candidate_sha256": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca"
+    },
+    "src/adaptive_active.s": {
+      "baseline_sha256": "2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a",
+      "candidate_sha256": "af39bc47cd753f35831e828d747ecd7776a71cf61d52f4402ff1b1096d6fd1ec"
+    },
+    "src/adaptive_audio_service.s": {
+      "baseline_sha256": "1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34",
+      "candidate_sha256": "aef4eb0eeb280f2d9eaa01287d5518d691ce825a87f9e3f7f2f97eed4e4904a3"
+    },
+    "scripts/source_reference.json": {
+      "baseline_sha256": "d367a1117ffe1407ec055bf15052376352bc56c67da0dc2fa421cf6b4bc7b0e2",
+      "candidate_sha256": "b84ab0ccc83f210998de2a14b048a8271df9ef9171dbfdad8a1f2eb189373e07"
+    },
+    "scripts/verify_arcade_fidelity.py": {
+      "baseline_sha256": "0bcf8cc7c01b338a5007370f5bff9bcd6579ba29a8adf0b207dd185a044bb478",
+      "candidate_sha256": "3a263390bd3b2de0a60b0e5210a8c74ef37ce42f7a951f7eb0c49eaf444a0194"
+    },
+    "scripts/verify_bug017_perimeter_vertical_stride.py": {
+      "baseline_sha256": "d74add135893f92da7d5a199a6140f65aa4b4985b6c2885144c6c2d3c106e23b",
+      "candidate_sha256": "cf908de88f191cd3a28f7b501bb24ae8ca57c53f57951af322a68314a3e5acc6"
+    },
+    "wiki/internal/implementation/source-structure.html": {
+      "baseline_sha256": "7ebac53a097de35fd225e7dde78b546539a93078047b3c9a5f30bdc7cb76a728",
+      "candidate_sha256": "fc6e15c994ed39a97083ffdf486f0461449cf42d6d90b2cf7956da82ceecdefb"
+    },
+    "wiki/internal/implementation/routine-catalog.html": {
+      "baseline_sha256": "ad68dc66d15e7f2f1ad516a2daeb29d678fad6405151acd205e66ba0d50af0cd",
+      "candidate_sha256": "451a6c52175c526a974043199b625ecc21a4c1f5e85f3c354470ed1b0f152cdd"
+    }
+  },
+  "snapshot_patch": "fit-restart-source-20261011.patch",
+  "patch_sha256": "8cdaf714c014641a23945f748bf200f839b5d828d6291888eb72f295053bdd73",
+  "patch_apply_check": {
+    "exit_code": 1,
+    "stderr": "error: patch failed: src/main.s:265\nerror: src/main.s: patch does not apply\nerror: patch failed: src/audio_runtime.s:67\nerror: src/audio_runtime.s: patch does not apply\nerror: patch failed: src/adaptive_active.s:167\nerror: src/adaptive_active.s: patch does not apply\nerror: patch failed: src/adaptive_audio_service.s:78\nerror: src/adaptive_audio_service.s: patch does not apply\nerror: patch failed: scripts/source_reference.json:234\nerror: scripts/source_reference.json: patch does not apply\nerror: patch failed: scripts/verify_bug017_perimeter_vertical_stride.py:121\nerror: scripts/verify_bug017_perimeter_vertical_stride.py: patch does not apply\nerror: patch failed: wiki/internal/implementation/source-structure.html:202\nerror: wiki/internal/implementation/source-structure.html: patch does not apply\nerror: patch failed: wiki/internal/implementation/routine-catalog.html:438\nerror: wiki/internal/implementation/routine-catalog.html: patch does not apply\n"
+  },
+  "assembly_receipt_state": "complete",
+  "receipt_hash_checks": {
+    "inputs": {
+      "checked": 265,
+      "mismatches": []
+    },
+    "artifacts": {
+      "checked": 87,
+      "mismatches": []
+    },
+    "generated_inputs": {
+      "checked": 4,
+      "mismatches": []
+    }
+  },
+  "artifact_hashes": {
+    "ladybug.rom": "039a4f6d622ff979e1a46e4c651d1940573c3ef2be7346b908435ba9a8244b68",
+    "ladybug-runtime.rom": "d21f241f052fd77ac2b44299fc6c73ffc78cf3534f40569cfe77d78ad6ba3473",
+    "ladybug.map": "179db1c42dd47c4403c36339848fc011e8fe0e74fe26ffac5afc199571526ad9",
+    "ladybug-audio-runtime.bin": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+    "ladybug-audio-runtime.map": "89d06c1383189e791c9f7e29401c71d261c1132b7778e225adf203774746b569",
+    "ladybug-enemy-runtime.rom": "5f36b093bcc4c93d44b1fb40e74651ccbd84694c2d31ff610b41102c45412519",
+    "source-build-receipt.json": "26120b2faf5fa4c4e43117665578c6be9cd51230a4927a90c5dd6171ce9dcffc"
+  },
+  "keyboard_adaptive_measured": {
+    "resident_used": 8082,
+    "resident_limit": 8192,
+    "resident_free": 110,
+    "minimum_free_target": 32,
+    "audio_engine_used": 727,
+    "audio_engine_limit": 920,
+    "audio_page_used": 6656,
+    "audio_page_limit": 6656,
+    "enemy_used": 4091,
+    "enemy_limit": 4096
+  },
+  "parent_source_documentation_check": {
+    "exit_code": 0,
+    "provenance_enabled": true,
+    "output": "PASS:16 modules,319/319 routines,5053/5053 labels",
+    "command": "python3 scripts/verify_source_documentation.py --config build/source-reference-adaptive.json --source-root . --artifact-root build --generated-root build/source-reference --wiki-root wiki --all"
+  },
+  "full_build_exit": "Not delivered by stopped agent; assembly receipt is not a full command pass",
+  "missing": [
+    "current keyboard/adaptive full command exit",
+    "joystick/adaptive and keyboard/nonadaptive full builds",
+    "targeted static checks and emitted branch/call review",
+    "agent final evidence commit",
+    "completion-order execution Ready mechanics",
+    "production integration/build/GDB and runtime verification"
+  ],
+  "failed_attempts": [
+    "undefined resident status alias",
+    "two branch-range errors (+4 bytes correction)",
+    "audio6658 vs6656; barrier path reuse corrects2",
+    "dead dhu_stage_done catalog guard; unused zero-byte label removed",
+    "provenance-disabled diagnostic rejected"
+  ],
+  "production_changed": false,
+  "runtime_probes": 0,
+  "timing": "historical42541/54539 vs27000 remains failed",
+  "resume_commands": [
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build"
+  ],
+  "patch_apply_check_ignore_space_change": {
+    "exit_code": 0,
+    "stderr": ""
+  }
+}
