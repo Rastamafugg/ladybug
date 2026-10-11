@@ -1,0 +1,87 @@
+{
+  "ticket": "BUG-117",
+  "source_revision": "ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+  "status": "Proposed",
+  "class": "High-risk",
+  "evidence_kind": "parent-inspected source facts and corrected Luna interim findings; no runtime or prototype fit",
+  "source_hashes": {
+    "src/main.s": "dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b",
+    "src/shared_text_runtime.inc": "92db435ac61a4bb6b734bdd6d15bef81813a64a57c2b2dc90518ff382a0392d0",
+    "src/adaptive_active.s": "2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a",
+    "src/audio_runtime.s": "aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc",
+    "src/adaptive_audio_service.s": "1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34",
+    "assets/arcade/audio/gmc_sound_data.inc": "e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36"
+  },
+  "cue6": {
+    "encoded_wait_commands": 31,
+    "encoded_wait_ticks": 192,
+    "nominal_tick_rate_hz": 60,
+    "nominal_seconds": 3.2,
+    "effective_runtime_duration_measured": false
+  },
+  "column_schedule": [
+    {
+      "slot_modulo_3": 0,
+      "hud_tile_x": 33,
+      "walkoff_2px_steps": 28,
+      "projected_walkoff_ticks": 56,
+      "projected_offscreen_ticks": 104,
+      "relative_extra_ticks": 0
+    },
+    {
+      "slot_modulo_3": 1,
+      "hud_tile_x": 35,
+      "walkoff_2px_steps": 20,
+      "projected_walkoff_ticks": 40,
+      "projected_offscreen_ticks": 120,
+      "relative_extra_ticks": 16
+    },
+    {
+      "slot_modulo_3": 2,
+      "hud_tile_x": 37,
+      "walkoff_2px_steps": 12,
+      "projected_walkoff_ticks": 24,
+      "projected_offscreen_ticks": 136,
+      "relative_extra_ticks": 32
+    }
+  ],
+  "common_schedule": {
+    "projected_maze_walkon_2px_steps": 16,
+    "projected_maze_walkon_ticks": 32,
+    "projected_walkon_start_tick": 160,
+    "projected_terminal_tick": 192,
+    "projection_limits": "Assumes uninterrupted effective two-tick motion intervals. First visible sprite publication differs from init_player at offscreen Y22; audio, render, ledger retirement, initial service and final PSG publication boundaries remain unmeasured."
+  },
+  "required_behavior": [
+    "Cue6 first output coincides with first automatic animation boundary",
+    "Preserve visible movement cadence and geometric route",
+    "Pad shorter departures in existing offscreen phase",
+    "First visible maze entrant occurs at same cue-relative time for all three columns",
+    "Final pose, final note and manual-control handoff coincide",
+    "No new death or death-music admission during automatic entry"
+  ],
+  "confirmed_current_behavior": [
+    "Both entry branches bypass normal player and collision work",
+    "read_joystick rejects manual state mutation while INITIAL_ENTRY_STATE nonzero",
+    "Current entry releases on position Y18 independently of music completion",
+    "Generic audio_music_busy includes any queued/active music and is not a cue6 progress API"
+  ],
+  "remaining_design_work": [
+    "Define cue-specific effective-progress/completion transport from audio owner to entry owner",
+    "Preserve delayed-note semantics and distinguish elapsed encoded dwell from raw FRAMES",
+    "Define first visible pose and final PSG/framebuffer commit ordering; reject milestone overshoot/step skipping",
+    "Prove exact all-three-profile capacity; adaptive audio margin1 byte, nonadaptive resident margin4 bytes",
+    "Prepare concrete implementation scope and renewed approval before production Ready"
+  ],
+  "delegation_result": {
+    "agent": "/root/proposal120_review",
+    "requested_model": "gpt-6-luna",
+    "requested_reasoning": "xhigh",
+    "final_architecture_report_completed": false,
+    "failure": "Reported usage limit during remote compaction; no completed handoff report or fit proof",
+    "interim_slot_label_correction": "Use explicit slot0/1/2 mapping above; reversed slot labels in an interim message were rejected."
+  },
+  "production_changes": false,
+  "runtime_probes": 0,
+  "builds": 0
+}
