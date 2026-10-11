@@ -1,0 +1,214 @@
+BUG-117 bounded resident-memory recovery plan
+Source-only architecture and fit review
+2026-10-11
+
+Disposition
+
+The bounded source-local point estimate recovers 69 resident bytes if both HUD helper calls remain short; reserving for both possible BSR-to-LBSR relaxations leaves 67 bytes. The point estimate still projects 32 bytes over the nonadaptive resident cap and four bytes over the adaptive joystick cap; the branch-risk-reserved projection is 34 and six bytes over. Neither establishes positive assembly margin. Do not assign isolated fit or implementation from this report. A wider source-residency review is required before the fit gate can be retried.
+
+BUG-117 remains High-risk and Proposed. This report refines the already authorized outcome and does not change its target: cue 6 must reach PSG before the first visible automatic entrant pose; initial and replacement entry must preserve the existing route and two-pixel cadence; input, player movement, collision and new-death admission stay suppressed through entry; control is released only after terminal music output and final-pose display commit. Late arrival is allowed. No memory, cycle, queue-preemption or behavior waiver is proposed.
+
+Ownership and limits
+
+This is read-only design work. The only new artifact is this report and its small JSON manifest under repro/bug122-parent/luna117-resident-recovery-20261011. No production source, wiki, build output, Git state, emulator state or verifier was changed or executed. No build was run. No executable verifier was imported.
+
+The design boundary is src/main.s, src/audio_runtime.s, src/adaptive_audio_service.s, src/adaptive_active.s, src/enemy_runtime.s, and source-contract metadata already required for source changes. Allowed source-local recovery covers entry handlers, marker/life HUD address preparation, death-to-entry handoff, ordinary audio/render ordering, adaptive entry barrier, and nearby branch/call forms. Excluded are BUG-121 movement, RNG, maze or cue changes; new modules; banking, loader or MMU changes; new persistent render ownership; cap changes; and timing waivers.
+
+Artifact identities
+
+The current source baseline remains 7cdc53f6f15a1696ef838efb0569c0d3074cca43. Current documentation HEAD at inspection is 268e757193100909bb102a89461c8640153e7522. Working-tree changes outside the owned scratch directory were present before this task and were left untouched.
+
+Current ROM SHA-256 is 283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5. The retained combined-build receipt is repro/bug122-parent/bug121-combined-build.json, SHA-256 379c1bcd6c60bfd5ce11f60e83058c51be16c2e1d05c7bf0af4bf5f96ac5b1fd. The parent-reviewed source-order report is wiki/internal/tickets/evidence/bug117/late-arrival-design-review-20261011.txt, SHA-256 6aa990d8ac9b0932a460d741d549e1e1db49f54af63a8e8cf525791f7acfd4cf. The earlier local fit report is repro/bug122-parent/luna117-design-fit-resume-20261011/design-fit-20261011.txt.
+
+Current source SHA-256 values are:
+
+src/main.s: cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc
+src/audio_runtime.s: aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc
+src/adaptive_audio_service.s: 1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34
+src/adaptive_active.s: 2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a
+src/enemy_runtime.s: d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd
+scripts/source_reference.json: d367a1117ffe1407ec055bf15052376352bc56c67da0dc2fa421cf6b4bc7b0e2
+
+Measured current capacity is adaptive keyboard 8131/8192 resident bytes, adaptive joystick 8167/8192, and nonadaptive keyboard 8192/8192. Current headroom is 61, 25 and 0 bytes. The audio engine is 731/920 bytes. The page-$3D payload is 6655/6656 bytes. The separate bank-3 enemy runtime is 4091/4096 bytes in each retained profile. These are current-build measurements, not candidate results.
+
+Measured active worklist maxima remain 42,541 and 54,539 cycles against the 27,000-cycle target. Both are FAIL. The candidate does not claim cycle improvement or compliance. Any future fit build must retain this independent timing failure until a measured worklist passes.
+
+Smallest coherent source candidate
+
+Keep the existing audio design from the parent-reviewed report: publish the music-busy byte only after the final PSG write; admit cue 6 on the transition into WALKOUT; service audio before render in the same normal-mode callback; and preserve adaptive A0, logical callback, A1, BACK render, A2 PSG output, then pending publication. `aas_dirty` checks `audio_music_count` before semantic fields, so a fresh cue-6 enqueue forces the same A1 dispatch even when `audio_poll_valid` is already true and gameplay values did not change.
+
+Normal-mode ordering must cover both start paths. Initial entry selects the entry branch at `main_game_tick`. Replacement entry is selected inside `death_tick` from the ordinary `main_death` branch. After `death_tick`, test `INITIAL_ENTRY_STATE`; when `dt_finish_blank` has armed an entry wait or WALKOUT, use the same pre-render audio path in that callback. The path renders once and bypasses the ordinary post-render audio call and joystick read. This avoids a Vbord commit between first entrant render and first cue output. Keep all live-entry code behind its current high-score-test conditional assembly guards.
+
+Reuse ENTRY_WAIT_STAGE as the hidden prior-music wait. The existing actor restore and draw paths already suppress the player for ENTRY_WAIT_STAGE, so this avoids a new enemy-runtime guard. Use the existing DEATH_TIMER byte as a short-lived sentinel before marker_entry_begin changes it to the offscreen pad count.
+
+Initial trace: ENTRY_WAIT_STAGE remains set through RF_STAGE publication. On the first callback after the committed stage, DEATH_TIMER is zero, so decrement LIVES once. If published music is busy, set DEATH_TIMER to 1 and remain in ENTRY_WAIT_STAGE. Later callbacks with nonzero DEATH_TIMER do not decrement LIVES again; they wait for published idle and then call marker_entry_begin. If music is idle at the first boundary, call marker_entry_begin immediately.
+
+Replacement trace: dt_finish_blank reaches its blank timer at zero, decrements LIVES once, and invalidates PLAYER_BG_VALID plus both owner-ledger valid bytes as today. If published music is busy, set DEATH_TIMER to 1 and ENTRY_WAIT_STAGE, then clear DEATH_STATE. If idle, call marker_entry_begin immediately. The next ENTRY_WAIT_STAGE callback recognizes the sentinel and does not repeat the life decrement. Nonzero-to-zero DEATH_STATE remains no music-admission edge. Entry state keeps the ordinary death callback out of player/enemy/input work.
+
+The sentinel proposal uses the following exact control shape; direct-page and extended widths are projections to be checked by assembly:
+
+    iet_wait_stage
+        clr PLAYER_TICK_PENDING
+        lda RENDER_FLAGS
+        bita #RF_STAGE
+        lbne iet_done
+        tst DEATH_TIMER
+        bne iet_wait_music
+        dec LIVES
+        tst AUDIO_MUSIC_PUBLISHED_BUSY
+        beq marker_entry_begin
+        inc DEATH_TIMER
+        rts
+    iet_wait_music
+        tst AUDIO_MUSIC_PUBLISHED_BUSY
+        bne iet_done
+        clr DEATH_TIMER
+        ; fall through to marker_entry_begin
+
+    dt_finish_blank
+        ; existing life decrement and owner invalidation
+        tst AUDIO_MUSIC_PUBLISHED_BUSY
+        beq dt_entry_now
+        inc DEATH_TIMER
+        lda #ENTRY_WAIT_STAGE
+        sta INITIAL_ENTRY_STATE
+        bra dt_entry_clear_death
+    dt_entry_now
+        lbsr marker_entry_begin
+    dt_entry_clear_death
+        clr DEATH_STATE
+        rts
+
+The exact replacement delta is not counted as a resident saving until a Ready fit assembly verifies it. The estimate counts only two resident bytes recovered against the prior state-5 design; this deliberately avoids crediting uncertain branch rearrangement. It removes the six-byte actor_closure_draw ENTRY_WAIT_MUSIC guard from the separate enemy runtime. Existing ENTRY_WAIT_STAGE suppression is already present in actor_closure_restore and actor_closure_draw. Verify the high-score profile still excludes the replacement marker handoff.
+
+Seed the offscreen countdown without reading HUD scratch after rendering. `life_marker_position` writes HUD_X and HUD_Y, then life and HUD rendering helpers mutate those fields. Therefore, initializing a column-derived pad at the end of WALKOUT from HUD_X is invalid. At marker_entry_begin, immediately after life_marker_position and before any drawing call, store 80 in DEATH_TIMER. Decrement it once for each accepted WALKOUT PLAYER_TICK_PENDING step and once for each accepted OFFSCREEN logical tick. The authored routes require 28, 20 and 12 walkout steps, leaving counts 52, 60 and 68; these preserve the common planned onset at logical tick 160. Never decrement from FRAMES. When the count reaches zero, continue waiting for both owner ledgers to invalidate; do not skip any maze-entry pose. DEATH_TIMER ownership is: death sequence through blank countdown; entry sentinel while waiting for prior music; 80-count route pad after marker_entry_begin; zero after offscreen handoff; next death setup resets it before use.
+
+Final-pose gate: retain ENTRY_MAZE_ENTRY through the final Y=18 pose and its committed display transaction. `init_player` establishes Y=22 and STEP=0. Only the maze-entry handler mutates Y while state 4 is active. On the 16th northward two-pixel step, keep state 4 and set RF_PLAYER as today. On later dispatches, test Y=18 before checking the next pending tick. If the endpoint is reached, remain in state 4 while AUDIO_MUSIC_PUBLISHED_BUSY is nonzero; clear the state only when it is zero.
+
+This removes the saved FB_COMMIT_SEQ snapshot and the separate state-6 handler. The proof depends on the existing publication barrier: both mainloop variants refuse a new logical dispatch while FB_RENDER_PENDING is set; framebuffer_finish_back sets pending after BACK composition when FB_INIT_STATE is active; the IRQ writes GIME_VOFF1, swaps FRONT/BACK, clears pending and advances FB_COMMIT_SEQ. The current source clears FB_INIT_STATE in init_game_state and sets it during stage setup; the source search found no later clear. It therefore remains active through live entry. RF_PLAYER on the final movement callback reaches the ordinary BACK render and arms pending. Thus the next state-4 callback that sees Y=18 cannot run until the final RF_PLAYER render has passed the actual FRONT commit. In adaptive mode the final movement callback remains an entry callback and already arms the one-callback barrier; release also retains the explicit adaptive barrier. Do not remove that release barrier: adaptive input is acquired before the entry callback, `rj_request` suppresses control publication while entry state is nonzero, and without a barrier the same AD_BATCH could continue with stale/default direction before a new input sample is latched.
+
+The new final gate is shown below with the complete movement tail. The final movement callback always returns through `iet_done` after setting RF_PLAYER. It cannot fall through to `iet_final_wait` before the renderer and IRQ publish that pose; only the next entry callback can take the endpoint branch.
+
+The replaced current-source endpoint tail is `lda PLAYER_CELL_Y; cmpa #18; bne iet_maze_render; lda #ENTRY_INACTIVE; sta INITIAL_ENTRY_STATE`, ten bytes. The new top check plus release block is fourteen bytes, including the explicit RTS, so the net source growth is four bytes.
+
+    iet_maze_entry
+        lda PLAYER_CELL_Y
+        cmpa #18
+        beq iet_final_wait
+        tst PLAYER_TICK_PENDING
+        beq iet_done
+        clr PLAYER_TICK_PENDING
+        ldx PLAYER_FB
+        leax -320,x
+        stx PLAYER_FB
+        inc PLAYER_STEP
+        lda PLAYER_STEP
+        cmpa #4
+        blo iet_maze_render
+        clr PLAYER_STEP
+        dec PLAYER_CELL_Y
+    iet_maze_render
+        lda RENDER_FLAGS
+        ora #RF_PLAYER
+        sta RENDER_FLAGS
+    iet_done
+        rts
+    iet_final_wait
+        tst AUDIO_MUSIC_PUBLISHED_BUSY
+        bne iet_done
+        clr INITIAL_ENTRY_STATE
+        rts
+
+No new sequence storage is used. TURN_SNAP and TURN_OLD retain their existing movement ownership. The top endpoint check is 6 bytes; the final-wait block is 8 bytes. This replaces the existing 10-byte endpoint compare/branch/state-clear path, for a net 4-byte increase versus current source. Relative to the prior candidate's 35-byte state-6 dispatch, saved sequence and final-pending-check projection, the revised final gate recovers 31 bytes before a 2-byte branch-relaxation reserve, or 29 bytes booked. On the callback that clears state, the nonadaptive top-level entry dispatch has already selected the entry-only route and still bypasses joystick acquisition. Adaptive retains one full release barrier callback; the next work acquisition can publish current controls.
+
+Share framebuffer HUD address construction without narrowing the HUD coordinate domain. Replace the repeated coordinate code in clear_life_marker, draw_hud_tile and marker_entry_begin with a local helper that computes the same 16-bit address for all current HUD_X/HUD_Y values and returns X. Do not assume HUD_X is less than 64. Keep the full carry-preserving shift sequence from draw_hud_tile:
+
+    hud_fb_address
+        lda HUD_Y
+        ldb #5
+        mul
+        tfr b,a
+        clrb
+        addd #FB_VIRT
+        tfr d,x
+        clra
+        ldb HUD_X
+        lslb
+        rola
+        lslb
+        rola
+        leax d,x
+        rts
+
+Place this helper after clear_life_marker and before draw_life_marker. The helper is 23 bytes: DP LDA 2, immediate LDB 2, MUL 1, TFR 2, CLRB 1, ADDD immediate 3, TFR 2, CLRA 1, DP LDB 2, two LSLB/ROLA pairs 4, LEAX D,X 2, RTS 1. Replace the 22-byte calculation in clear_life_marker and draw_hud_tile by `bsr hud_fb_address` (two bytes each). In marker_entry_begin replace its 16-byte address-plus-STD fragment with `lbsr hud_fb_address` plus two-byte direct `stx PLAYER_FB` (five bytes total). Static net recovery is (22 - 2) + (22 - 2) + (16 - 5) - 23 = 28 bytes. The clear helper call's remaining clear routine is about 23 bytes; the draw helper call is about 66 bytes from its target in either profile, so both BSR displacements are projected within the signed 8-bit range. The marker helper call is long by design. These are source-width/displacement projections, not assembled addresses. `life_marker_position` immediately precedes the entry address calculation, and no render helper has yet mutated HUD_X/HUD_Y. clear_life_marker and draw_hud_tile already clobber A/B/D/X and flags before their next use. marker_entry_begin overwrites flags and A/B after storing PLAYER_FB. No persistent storage is added. Update only the existing source-contract metadata for the new local helper when implementation is eventually assigned.
+
+Shorten the existing draw_hud_tile tile offset without changing its full byte domain. Current code loads DRAW_TILE, clears A and shifts the 16-bit D value left five times to form DRAW_TILE*32. Replace it with `lda DRAW_TILE; ldb #32; mul; leay screen_tiles,pcr; leay d,y`. Since DRAW_TILE is one byte, the largest product is 255*32=8160, which fits 16 bits. Existing code clobbers A/B and flags before the blit call; the new form has the same caller-visible register ownership. Static width falls from 19 to 11 bytes, an eight-byte recovery. The MUL path is projected to take 9 fewer 6809 cycles than five LSLB/ROLA pairs after the same two loads; no total worklist cycle claim follows from that local comparison.
+
+An equivalent four-byte dispatcher reduction is available without merging pending-tick gates or moving OFFSCREEN owner-ledger work. Replace the four `CMPA #ENTRY_*; BEQ handler` pairs with this ordered decrement chain:
+
+    lda INITIAL_ENTRY_STATE
+    deca
+    beq iet_wait_stage
+    deca
+    beq iet_walkout
+    deca
+    beq iet_offscreen
+    deca
+    beq iet_maze_entry
+    rts
+
+The current dispatcher is 19 bytes (DP LDA 2, four CMPA/BEQ pairs at four bytes each, RTS 1). The chain is 15 bytes (DP LDA 2, four DECA/short-BEQ pairs at three bytes each, RTS 1), recovering four bytes if all four existing destination branches remain short. State zero and any unknown byte value decrement through without matching and return, matching current no-handler behavior. Each handler reloads A before using semantic data; callers do not preserve A or CC across the entry dispatcher. Every destination already has a corresponding current short BEQ. The rewritten dispatch shrinks the code before each target, so its source-level branch distances do not increase; assembler listing inspection must still confirm encodings. Do not count the prior report's one-byte WAIT_STAGE and two-byte main_popup_render short-branch changes again; they are already included in the previous +97/+98/+101 deltas.
+
+Register, storage and caller proof summary
+
+The entry routines already have undefined A/B/D/X/CC outputs, and their top-level callers do not retain these registers. `hud_fb_address` takes only HUD_X/HUD_Y, clobbers A/B/D/CC, returns X, and does not modify the HUD coordinates. Each caller stores or consumes the returned X before loading its next values. `MUL` tile indexing clobbers A/B/D/CC, which are already consumed by the current shift calculation and blit call. DEATH_TIMER is the existing direct-page byte at $003A; it is not a new owner. INITIAL_ENTRY_STATE at $00A0 remains the sole lifecycle gate. HUD_X/HUD_Y at $0027/$0028 remain renderer scratch. No new persistent framebuffer or render-owner field is introduced. AUDIO_MUSIC_PUBLISHED_BUSY at the previously reviewed unused $02D4 byte remains audio-owned after boot table retirement; only the post-PSG writer updates it, and main reads it.
+
+Candidate byte ledger
+
+All values below are static projections against the prior source-order candidate, not assembled results. Positive recovery means fewer bytes than that prior candidate. No row is measured.
+
+Final state-4 endpoint gate removes the prior 35-byte state-6 dispatch, saved-sequence and final-pending-check projection. The source-level replacement adds 14 bytes for the 6-byte top endpoint check, the 8-byte published-music release and its explicit RTS, while removing the existing 10-byte endpoint compare/branch and state-clear path. Differential recovery is projected at 31 bytes. Reserve two bytes for branch relaxation and book 29.
+
+Shared HUD destination helper: 28 bytes recovered if the two planned local BSR calls remain short, as their source placement projects. If either displacement relaxes to LBSR, deduct one byte for each relaxed call; assembly must confirm both. Source widths are 22 bytes for each replaced coordinate calculation, 16 bytes for marker address plus STD, five bytes for marker LBSR plus STX, and 23 bytes for the helper.
+
+DEATH_TIMER=80 route pad: replace the earlier 10-byte column formula with a four-byte immediate seed, then add a two-byte DEC to the WALKOUT logical-step path. Net projected recovery: 4 bytes. OFFSCREEN countdown logic is retained and no HUD scratch read is added.
+
+ENTRY_WAIT_STAGE sentinel reuse: book zero resident bytes. Reusing state 1 removes the state-5 actor draw guard and avoids a new state owner, but the initial sentinel test and replacement state assignment trade against the removed dispatch/wait code; their exact net needs an assembled diff. Separately, removing the state-5 actor draw guard saves six bytes from the enemy-runtime image.
+
+DRAW_TILE multiply: 8 resident bytes recovered.
+
+The source-width point estimate is 29 final-gate + 28 HUD helper + 4 route pad + 8 tile multiply + 0 sentinel reuse = 69 bytes, assuming both helper BSRs remain short. The final-gate component already reserves two bytes for branch relaxation. The risk-reserved ledger subtracts one byte for each possible BSR-to-LBSR widening, for 67 bytes. The possible sentinel byte saving and all previously included short-branch savings are excluded.
+
+The optional decrement-chain dispatcher adds four bytes to the candidate only if its four branches remain short. With both HUD BSRs short, this gives 73 total projected recovery and capacities of adaptive keyboard 8156/8192 (36 bytes spare), adaptive joystick 8192/8192 (zero spare), and nonadaptive keyboard 8220/8192 (28 bytes over). If both HUD BSRs widen, recovery is 71 bytes and projections are 8158/8192 (34 spare), 8194/8192 (two over), and 8222/8192 (30 over). The alternative that moves the OFFSCREEN owner check behind the shared pending-tick gate is rejected: it delays owner-ledger evaluation and maze-entry handoff, so it does not preserve the current callback scheduling. The four-byte dispatcher point estimate is separate from the conservative booked recovery and is not fit-ready.
+
+The prior candidate projected resident growth was +98 bytes in each adaptive profile and +101 in nonadaptive. Applying the 69-byte short-BSR point estimate gives adaptive growth +29 and nonadaptive growth +32, for adaptive keyboard 8160/8192 (32 bytes spare), adaptive joystick 8196/8192 (four bytes over), and nonadaptive 8224/8192 (32 bytes over). Reserving both BSR relaxations reduces recovery to 67 and projects 8162/8192 (30 spare), 8198/8192 (six over), and 8226/8192 (34 over). These remain source-width projections. Adaptive joystick and nonadaptive fail in either ledger, and no profile has a verified assembled margin. No fit or acceptance claim is made.
+
+Separate bounds remain material. The old enemy-runtime estimate was 4095/4096 adaptive and 4096/4096 nonadaptive after its six-byte state-5 guard plus previously credited local branch recoveries. State1 suppression removes that six-byte guard, projecting 4089 adaptive and 4090 nonadaptive, subject to assembly. The audio engine/page-$3D projections from the earlier report remain 727/920 and 6656/6656 respectively; the latter has zero spare byte. This report does not alter or re-credit those savings.
+
+Branch and cycle risks
+
+The helper placement is chosen so the clear and draw BSR calls can be short, but neither final displacement is measured. The entry call is LBSR by design. The existing state-dispatch branch to iet_maze_entry may cross the short-branch boundary after surrounding edits; no relaxation value is assumed. The replacement death branch to main_entry_render, the WAIT_STAGE waiter branches, and all adaptive callback branches also require assembler inspection. Any relaxed branch changes the byte ledger and must be deducted, not absorbed by a cap waiver.
+
+The route-count seed costs six cycles once (`LDA #80`, `STA direct`) and the new DEC costs six cycles on each accepted WALKOUT step and each OFFSCREEN logical tick. This does not change event cadence, but adds foreground work on entry callbacks. The final Y=18 guard is projected as a four-cycle direct LDA, two-cycle immediate CMP and three-cycle short branch per maze-entry callback; the release check adds a direct TST, short branch and direct CLR only after the endpoint. The HUD helper adds its call/return cost to three existing address users; it is a code-size trade that may slightly lengthen those paths. The tile MUL itself is projected to save nine cycles against the current ten register shifts, not counting identical address loads/stores. These are instruction-level estimates, not worklist measurements. Both existing full worklist maxima already exceed 27,000 cycles; the candidate cannot be accepted on cycle performance without new measurements.
+
+Rejected or deferred local options
+
+Reading HUD_X at WALKOUT completion is rejected because draw_lives and HUD tile helpers mutate HUD_X/HUD_Y after marker_entry_begin. The count-80 seed avoids that stale-scratch dependency.
+
+Using a HUD_X < 64 shortcut in address construction is rejected for this plan. The helper preserves the existing 16-bit coordinate arithmetic and therefore needs no unproven global caller bound.
+
+Dropping the adaptive release barrier is rejected. Input acquisition precedes the entry callback; rj_request ignores held input while INITIAL_ENTRY_STATE is nonzero. Clearing state and continuing AD_BATCH could cause a normal tick to use stale/default control state.
+
+Using only FB_RENDER_PENDING without tracing the render transaction is rejected. Here the source proof is specific: state 4 sets RF_PLAYER on the final movement callback, BACK composition arms pending, mainloop blocks another callback, and the IRQ changes GIME_VOFF1/owners before clearing pending. The proof must be rechecked after implementation.
+
+The common decrement dispatcher remains conditional because short/long branch growth and handler control flow are unmeasured; its 12-byte point estimate is not booked. Moving code to another module, using new banking, changing loader placement, or drawing on persistent ownership to chase the remaining resident gap is outside this authorization.
+
+Fit decision and next proposal
+
+The bounded source-local plan is not fit-ready. Without the optional decoder rewrite, the point estimate projects nonadaptive +32 bytes and adaptive joystick +4 bytes beyond capacity; reserving both possible BSR widenings projects +34 and +6 bytes over. The four-byte decoder point estimate reduces those overruns to +28 and +0 bytes if both BSRs stay short, or +30 and +2 if they widen. No case proves positive assembly margin in all profiles.
+
+Concrete next scope: parent-owned architecture review of resident source placement and existing module boundaries, before implementation. Baseline is the measured 8131/8192, 8167/8192 and 8192/8192 resident images plus the no-dispatch point estimate 8160/8192, 8196/8192 and 8224/8192, and risk-reserved estimate 8162/8192, 8198/8192 and 8226/8192. With the optional decrement chain, corresponding short-BSR point capacities are 8156/8192, 8192/8192 and 8220/8192; widening both BSRs gives 8158/8192, 8194/8192 and 8222/8192. A future engineering proposal may use 8160/8192 or less in all three profiles as a 32-byte resident-margin objective; that is a proposed engineering margin, not an approved acceptance target. The review must identify at least 62 additional resident bytes beyond the decoder-plus-BSR-risk candidate, 60 beyond the decoder short-BSR point estimate, 66 beyond the no-dispatch BSR-risk candidate, or 64 beyond the no-dispatch short-BSR point estimate, then assemble exact sources to measure branch relaxation and capacity. Retain the 4096-byte enemy runtime cap, 920-byte engine cap and 6656-byte page-$3D boundary. Evaluate only code already present in resident text and existing callable runtime modules; any module ownership, bank placement, loader/MMU or persistent-framebuffer proposal is a separate material scope requiring BUG-117 to return to Proposed for user approval. Main risks are cross-profile assembly conditionals, call displacement, enemy-runtime capacity, and shifted foreground cycles. Exclude behavior changes, new modules, new state bytes, BUG-121/RNG/maze changes, memory or timing waivers, and implementation until a new exact Ready assignment is reviewed.
+
+If that wider source-only review identifies a candidate, the next fit gate should build exactly adaptive keyboard, adaptive joystick and nonadaptive keyboard from a clean scratch capsule; retain source-contract checks and all existing capacity guards; inspect final listings for every short branch and BSR; and record bytes and cycle worklists separately. The cycle pass target remains 27,000 and is currently failed. Runtime checks remain later: initial and real-death replacement onset, same-callback cue-6 PSG output before visible pose, no duplicate cue-13 admission, preserved x33/x35/x37 route and every two-pixel pose, music-first and commit-first completion ordering, then input eligibility only after both gates.
+
+No implementation, fit, runtime acceptance or ticket lifecycle transition is requested by this report.

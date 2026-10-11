@@ -1,0 +1,95 @@
+{
+  "ticket": "BUG-117",
+  "step": "source-only bounded resident recovery design",
+  "date": "2026-10-11",
+  "classification": "High-risk",
+  "ticket_status": "Proposed",
+  "fit_ready": false,
+  "implementation_authorized_by_this_report": false,
+  "source_baseline": "7cdc53f6f15a1696ef838efb0569c0d3074cca43",
+  "documentation_head_at_inspection": "268e757193100909bb102a89461c8640153e7522",
+  "source_sha256": {
+    "src/main.s": "cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc",
+    "src/audio_runtime.s": "aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc",
+    "src/adaptive_audio_service.s": "1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34",
+    "src/adaptive_active.s": "2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a",
+    "src/enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+    "scripts/source_reference.json": "d367a1117ffe1407ec055bf15052376352bc56c67da0dc2fa421cf6b4bc7b0e2"
+  },
+  "measured_current_resident_bytes": {
+    "adaptive_keyboard": { "used": 8131, "limit": 8192, "headroom": 61 },
+    "adaptive_joystick": { "used": 8167, "limit": 8192, "headroom": 25 },
+    "nonadaptive_keyboard": { "used": 8192, "limit": 8192, "headroom": 0 }
+  },
+  "prior_candidate_projected_growth_bytes": {
+    "adaptive_keyboard": 98,
+    "adaptive_joystick": 98,
+    "nonadaptive_keyboard": 101
+  },
+  "booked_recovery_projection_bytes": 67,
+  "bounded_candidate_projected_resident_bytes": {
+    "adaptive_keyboard": { "used": 8162, "limit": 8192, "headroom": 30 },
+    "adaptive_joystick": { "used": 8198, "limit": 8192, "over_limit": 6 },
+    "nonadaptive_keyboard": { "used": 8226, "limit": 8192, "over_limit": 34 }
+  },
+  "short_bsr_point_estimate_projected_resident_bytes": {
+    "adaptive_keyboard": { "used": 8160, "limit": 8192, "headroom": 32 },
+    "adaptive_joystick": { "used": 8196, "limit": 8192, "over_limit": 4 },
+    "nonadaptive_keyboard": { "used": 8224, "limit": 8192, "over_limit": 32 }
+  },
+  "recovery_components_bytes": {
+    "final_state4_endpoint_gate_conservative": 29,
+    "shared_hud_address_helper": 28,
+    "death_timer_80_pad": 4,
+    "draw_tile_multiply": 8,
+    "wait_state_reuse": 0
+  },
+  "risk_reserves_bytes": {
+    "final_gate_branch_relaxation_already_deducted": 2,
+    "possible_two_hud_bsr_widenings_deducted_from_conservative_projection": 2
+  },
+  "conditional_decrement_dispatcher_point_estimate": {
+    "additional_recovery_bytes_if_all_branches_stay_short": 4,
+    "total_recovery_bytes": 73,
+    "projected_resident_bytes": {
+      "adaptive_keyboard": { "used": 8156, "limit": 8192, "headroom": 36 },
+      "adaptive_joystick": { "used": 8192, "limit": 8192, "headroom": 0 },
+      "nonadaptive_keyboard": { "used": 8220, "limit": 8192, "over_limit": 28 }
+    },
+    "included_in_booked_recovery": false,
+    "status": "unmeasured conditional source-width projection; not fit-ready"
+  },
+  "conditional_decrement_dispatcher_with_both_helper_calls_widened_bytes": {
+    "total_recovery_bytes": 71,
+    "projected_resident_bytes": {
+      "adaptive_keyboard": { "used": 8158, "limit": 8192, "headroom": 34 },
+      "adaptive_joystick": { "used": 8194, "limit": 8192, "over_limit": 2 },
+      "nonadaptive_keyboard": { "used": 8222, "limit": 8192, "over_limit": 30 }
+    },
+    "assumes_compact_dispatcher_branches_remain_short": true,
+    "included_in_booked_recovery": false
+  },
+  "separate_bounds": {
+    "enemy_runtime_current_measured": 4091,
+    "enemy_runtime_limit": 4096,
+    "audio_engine_current_measured": 731,
+    "audio_engine_limit": 920,
+    "page_3d_current_measured": 6655,
+    "page_3d_limit": 6656,
+    "worklist_cycle_target": 27000,
+    "worklist_current_measured_maxima": [42541, 54539]
+  },
+  "verification": {
+    "builds_run": 0,
+    "runtime_probes_run": 0,
+    "emulator_used": false,
+    "executable_verifiers_imported": false,
+    "production_files_changed": false,
+    "wiki_changed": false
+  },
+  "report": {
+    "path": "repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-plan-20261011.txt",
+    "sha256": "c19b26e34e47a8d793e95a8de99dce40ee2ccf514ce1642d845572e0ed663561"
+  },
+  "decision": "branch-risk-reserved bounded source-local projection remains over resident cap by 6 adaptive joystick bytes and 34 nonadaptive bytes; short-BSR point estimate remains 4 and 32 bytes over; optional decrement-chain dispatch with short BSRs remains 28 bytes over nonadaptive; parent-owned wider source-residency review needed before fit assignment"
+}
