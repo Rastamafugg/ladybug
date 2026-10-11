@@ -2885,7 +2885,28 @@ pt_try_late_turn
         lda     PLAYER_WANT
         lbsr    can_move         ; test from the last aligned cell; may turn gate
         bcs     pt_begin_late_turn
-        lbra    pt_draw          ; blocked perpendicular input holds exact position
+        ; A rejected current-cell turn may be legal at the next center.  Keep
+        ; the preview read-only until the old-axis move reaches step 3.
+        lda     PLAYER_CELL_X
+        sta     TEST_X
+        lda     PLAYER_CELL_Y
+        sta     TEST_Y
+        lda     PLAYER_DIR
+        sta     TEST_DIR
+        lbsr    cm_step_test
+        lda     PLAYER_WANT
+        sta     TEST_DIR
+        lbsr    cm_admit_from_test
+        lbcc    pt_draw
+        pshs    b
+        ldb     PLAYER_STEP
+        cmpb    #3
+        puls    b
+        lbne    pt_advance
+        tsta
+        lbeq    pt_advance
+        lbsr    cm_commit
+        lbra    pt_advance
 pt_begin_late_turn
         lda     PLAYER_DIR
         sta     TURN_OLD
@@ -3075,22 +3096,26 @@ can_move
         sta     TEST_X
         lda     PLAYER_CELL_Y
         sta     TEST_Y
-        ldb     TEST_DIR
-        beq     cm_north
-        cmpb    #DIR_EAST
-        beq     cm_east
-        cmpb    #DIR_SOUTH
-        beq     cm_south
-        dec     TEST_X
-        bra     cm_bounds
-cm_north
-        dec     TEST_Y
-        bra     cm_bounds
-cm_east
-        inc     TEST_X
-        bra     cm_bounds
-cm_south
-        inc     TEST_Y
+
+        bsr     cm_admit_from_test
+        bcc     cm_adapter_done
+        tsta
+        beq     cm_adapter_done
+        lbsr    cm_commit
+        orcc    #$01            ; queue_gate_render does not preserve carry
+cm_adapter_done
+        rts
+
+;==============================================================================
+; cm_admit_from_test
+;
+; Inputs: TEST_X/Y is an origin cell center; TEST_DIR is a cardinal request.
+; Returns: C set when admitted; A=0 means no gate action, A=1..4 means the
+;          new gate state is A-1; B is animation style when A is nonzero.
+; Side effects: TEST_*, GATE_ID, GATE_X and GATE_Y scratch only.
+;==============================================================================
+cm_admit_from_test
+        lbsr    cm_step_test
 cm_bounds
         lda     TEST_X
         cmpa    #MAZE_WIDTH
@@ -3123,91 +3148,70 @@ cm_bounds
         lda     TEST_X
         cmpa    GATE_X
         bne     cm_try_rotate
-        lda     GATE_Y
-        deca
-        cmpa    TEST_Y
-        beq    cm_pass_horizontal
-        adda    #2
-        cmpa    TEST_Y
-        beq    cm_pass_horizontal
-        bra     cm_try_rotate
+        lda     TEST_Y
+        suba    GATE_Y
+        cmpa    #1
+        beq     cm_pass_horizontal
+        cmpa    #$FF
+        bne     cm_try_rotate
+        bra     cm_pass_horizontal
 cm_check_vertical_passages
         lda     TEST_Y
         cmpa    GATE_Y
         bne     cm_try_rotate
-        lda     GATE_X
-        deca
-        cmpa    TEST_X
-        beq    cm_pass_vertical
-        adda    #2
-        cmpa    TEST_X
-        beq    cm_pass_vertical
-        bra     cm_try_rotate
+        lda     TEST_X
+        suba    GATE_X
+        cmpa    #1
+        beq     cm_pass_vertical
+        cmpa    #$FF
+        bne     cm_try_rotate
+        bra     cm_pass_vertical
 
 cm_pass_horizontal
-        ldb     TEST_DIR
-        cmpb    #DIR_EAST
-        lbeq    cm_allowed
-        cmpb    #DIR_WEST
-        lbeq    cm_allowed
-        bra     cm_try_rotate
+        lda     TEST_DIR
+        lsra
+        bcc     cm_try_rotate
+        lbra    cm_allowed
 
 cm_pass_vertical
-        ldb     TEST_DIR
-        cmpb    #DIR_NORTH
-        lbeq    cm_allowed
-        cmpb    #DIR_SOUTH
-        lbeq    cm_allowed
-        bra     cm_try_rotate
+        lda     TEST_DIR
+        lsra
+        bcs     cm_try_rotate
+        lbra    cm_allowed
 
 cm_try_rotate
-        ; A horizontal bar rotates only when a vertical move pushes an end.
+        ; Rotation requires a perpendicular push on a gate endpoint.
         ldx     #GATE_STATE
         ldb     GATE_ID
         lda     b,x
+        tfr     a,b
+        eorb    TEST_DIR
+        bitb    #1
+        bne     cm_blocked
         bita    #1
         bne     cm_vertical_bar
-        ldb     TEST_DIR
-        cmpb    #DIR_NORTH
-        beq     cm_h_endpoint
-        cmpb    #DIR_SOUTH
-        lbne    cm_blocked
-cm_h_endpoint
         lda     TEST_Y
         cmpa    GATE_Y
-        lbne    cm_blocked
+        bne     cm_blocked
         lda     TEST_X
         cmpa    GATE_X
         blo     cm_set_west
         bhi     cm_set_east
         bra     cm_blocked
 cm_set_west
-        clr     GATE_ANIM_STYLE
         ldb     TEST_DIR
-        cmpb    #DIR_NORTH
-        bne     cm_west_style_done
-        inc     GATE_ANIM_STYLE
-cm_west_style_done
-        lda     #1
-        bra     cm_rotate
+        lsrb
+        eorb    #1
+        lda     #2              ; committed state 1, encoded as action 2
+        bra     cm_admitted
 cm_set_east
-        clr     GATE_ANIM_STYLE
         ldb     TEST_DIR
-        cmpb    #DIR_SOUTH
-        bne     cm_east_style_done
-        inc     GATE_ANIM_STYLE
-cm_east_style_done
-        lda     #3
-        bra     cm_rotate
+        lsrb
+        lda     #4              ; committed state 3, encoded as action 4
+        bra     cm_admitted
 
         ; A vertical bar rotates only when a horizontal move pushes an end.
 cm_vertical_bar
-        ldb     TEST_DIR
-        cmpb    #DIR_EAST
-        beq     cm_v_endpoint
-        cmpb    #DIR_WEST
-        bne     cm_blocked
-cm_v_endpoint
         lda     TEST_X
         cmpa    GATE_X
         bne     cm_blocked
@@ -3217,32 +3221,16 @@ cm_v_endpoint
         bhi     cm_set_south
         bra     cm_blocked
 cm_set_north
-        clr     GATE_ANIM_STYLE
         ldb     TEST_DIR
-        cmpb    #DIR_WEST
-        bne     cm_north_style_done
-        inc     GATE_ANIM_STYLE
-cm_north_style_done
-        clra
-        bra     cm_rotate
+        lsrb
+        lda     #1              ; committed state 0, encoded as action 1
+        bra     cm_admitted
 cm_set_south
-        clr     GATE_ANIM_STYLE
         ldb     TEST_DIR
-        cmpb    #DIR_EAST
-        bne     cm_south_style_done
-        inc     GATE_ANIM_STYLE
-cm_south_style_done
-        lda     #2
-cm_rotate
-        ldx     #GATE_STATE
-        ldb     GATE_ID
-        sta     b,x
-        lda     GATE_ID
-        inca
-        sta     GATE_ANIM_ID
-        clr     GATE_COMPOSE_MODE
-        lbsr    queue_gate_render
-        bra     cm_allowed
+        lsrb
+        eorb    #1
+        lda     #3              ; committed state 2, encoded as action 3
+        bra     cm_admitted
 
 cm_regular
         bsr    test_cell_offset
@@ -3253,14 +3241,50 @@ cm_regular
         andb    a,x             ; target must admit the reciprocal direction
         beq     cm_blocked
 cm_allowed
+        clra
+cm_admitted
         orcc    #$01
         rts
 cm_blocked
         andcc   #$FE
         rts
 
+; Inputs: A=deferred gate action (new state + 1), B=animation style,
+;         GATE_ID=gate index.
+; Side effects: commits gate state/style and queues the existing redraw.
+cm_commit
+        stb     GATE_ANIM_STYLE
+        deca
+        ldx     #GATE_STATE
+        ldb     GATE_ID
+        sta     b,x
+        lda     GATE_ID
+        inca
+        sta     GATE_ANIM_ID
+        clr     GATE_COMPOSE_MODE
+        lbra    queue_gate_render
+
 cm_entry_masks
         fcb     $04,$08,$01,$02 ; requested N/E/S/W enters through S/W/N/E
+
+; Move TEST_X/Y one cell along TEST_DIR without inspecting world state.
+cm_step_test
+        ldb     TEST_DIR
+        lsrb
+        bcs     cm_step_horizontal
+        bne     cm_step_south
+        dec     TEST_Y
+        rts
+cm_step_south
+        inc     TEST_Y
+        rts
+cm_step_horizontal
+        bne     cm_step_west
+        inc     TEST_X
+        rts
+cm_step_west
+        dec     TEST_X
+        rts
 
 ;==============================================================================
 ; test_cell_offset
@@ -5001,3 +5025,21 @@ pickup_prepare_nest
 asset_end
 
         end
+
+; DOC-002 source-contract mirror contract cm_admit_from_test profile=movement-admission: Classify one candidate cell against ordinary navigation or current gate state without committing gameplay or render state.
+; DOC-002 source-contract mirror contract cm_commit profile=state: Commit the deferred gate-state action, animation metadata, and existing gate redraw.
+; DOC-002 source-contract mirror contract cm_step_test profile=movement-step: Advance the probe origin by one cardinal cell using TEST_DIR without reading world state.
+; DOC-002 source-contract mirror profile movement-step Inputs: TEST_X/Y origin coordinates and cardinal TEST_DIR
+; DOC-002 source-contract mirror profile movement-step Outputs: TEST_X/Y advanced by one cell along TEST_DIR
+; DOC-002 source-contract mirror profile movement-step Clobbers: B and condition codes; A, X, Y, and U are preserved
+; DOC-002 source-contract mirror profile movement-step Reads: TEST_DIR and the current TEST_X/Y scratch coordinates
+; DOC-002 source-contract mirror profile movement-step Writes: Only the selected TEST_X or TEST_Y probe coordinate
+; DOC-002 source-contract mirror profile movement-step Side effects: Advances the probe coordinate without reading maze, gate, actor, or rendering state
+; DOC-002 source-contract mirror profile movement-step Invariants: Exactly one cardinal coordinate changes by one cell; authoritative actor coordinates, gate state, and rendering remain untouched
+; DOC-002 source-contract mirror profile movement-admission Inputs: TEST_X/Y origin coordinates, cardinal TEST_DIR, maze navigation and gate tables, and current GATE_STATE
+; DOC-002 source-contract mirror profile movement-admission Outputs: C set on admission; A=0 for ordinary or no-action admission, or A=1..4 for a deferred gate-state action; B is the animation style only when A is nonzero
+; DOC-002 source-contract mirror profile movement-admission Clobbers: A, B, D, X, and condition codes; TEST_X/Y and GATE_ID/X/Y are probe scratch
+; DOC-002 source-contract mirror profile movement-admission Reads: TEST_DIR, TEST_X/Y, maze_nav, maze_gate_owner, maze_gates, and GATE_STATE
+; DOC-002 source-contract mirror profile movement-admission Writes: TEST_X/Y and GATE_ID/X/Y probe scratch only; never GATE_STATE, GATE_ANIM_STYLE, GATE_ANIM_ID, GATE_COMPOSE_MODE, actor records, or render surfaces
+; DOC-002 source-contract mirror profile movement-admission Side effects: Classifies a move and any endpoint rotation action without committing a gate or queueing a redraw
+; DOC-002 source-contract mirror profile movement-admission Invariants: A=0 means ordinary/no-action admission; A=1..4 encodes new gate state A-1 and B carries the requested style; authoritative world and visible rendering remain unchanged

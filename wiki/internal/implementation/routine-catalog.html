@@ -79,6 +79,26 @@
         <p><strong>Side effects:</strong> May change authoritative gameplay state and queue later composition.</p>
         <p><strong>Invariants:</strong> Movement remains on legal semantic cells and does not write framebuffer pixels directly.</p>
       </section>
+      <section id="profile-movement-step">
+        <h3>Movement probe-coordinate step</h3>
+        <p><strong>Inputs:</strong> TEST_X/Y origin coordinates and cardinal TEST_DIR.</p>
+        <p><strong>Outputs:</strong> TEST_X/Y advanced by one cell along TEST_DIR.</p>
+        <p><strong>Clobbers:</strong> B and condition codes; A, X, Y, and U are preserved.</p>
+        <p><strong>Reads:</strong> TEST_DIR and the current TEST_X/Y scratch coordinates.</p>
+        <p><strong>Writes:</strong> Only the selected TEST_X or TEST_Y probe coordinate.</p>
+        <p><strong>Side effects:</strong> Advances the probe coordinate without reading maze, gate, actor, or rendering state.</p>
+        <p><strong>Invariants:</strong> Exactly one cardinal coordinate changes by one cell; authoritative actor coordinates, gate state, and rendering remain untouched.</p>
+      </section>
+      <section id="profile-movement-admission">
+        <h3>Movement admission classification</h3>
+        <p><strong>Inputs:</strong> TEST_X/Y origin coordinates, cardinal TEST_DIR, maze navigation and gate tables, and current GATE_STATE.</p>
+        <p><strong>Outputs:</strong> C set on admission; A=0 for ordinary or no-action admission, or A=1..4 for a deferred gate-state action; B is the animation style only when A is nonzero.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, and condition codes; TEST_X/Y and GATE_ID/X/Y are probe scratch.</p>
+        <p><strong>Reads:</strong> TEST_DIR, TEST_X/Y, maze_nav, maze_gate_owner, maze_gates, and GATE_STATE.</p>
+        <p><strong>Writes:</strong> TEST_X/Y and GATE_ID/X/Y probe scratch only; never GATE_STATE, GATE_ANIM_STYLE, GATE_ANIM_ID, GATE_COMPOSE_MODE, actor records, or render surfaces.</p>
+        <p><strong>Side effects:</strong> Classifies a move and any endpoint rotation action without committing a gate or queueing a redraw.</p>
+        <p><strong>Invariants:</strong> A=0 means ordinary/no-action admission; A=1..4 encodes new gate state A-1 and B carries the requested style; authoritative world and visible rendering remain unchanged.</p>
+      </section>
       <section id="profile-copy">
         <h3>Bounded copy, cache, and address transformation</h3>
         <p><strong>Inputs:</strong> Source and destination identities, bounded count or stream metadata, and any required mapped page.</p>
@@ -139,6 +159,9 @@
           <tr id="routine-resident-runtime-cache-entity-operation"><td><code>cache_entity_operation</code></td><td>Cache entity operation.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-cache-entity-overlay"><td><code>cache_entity_overlay</code></td><td>Cache entity overlay.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-can-move"><td><code>can_move</code></td><td>Determine whether move.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-cm-admit-from-test"><td><code>cm_admit_from_test</code></td><td>Classify one candidate cell against ordinary navigation or current gate state without committing gameplay or render state.</td><td><a href="#profile-movement-admission">Movement admission classification</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-cm-commit"><td><code>cm_commit</code></td><td>Commit the deferred gate-state action, animation metadata, and existing gate redraw.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-cm-step-test"><td><code>cm_step_test</code></td><td>Advance the probe origin by one cardinal cell using TEST_DIR without reading world state.</td><td><a href="#profile-movement-step">Movement probe-coordinate step</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-check-entity-pickup"><td><code>check_entity_pickup</code></td><td>Check entity pickup.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-check-stage-clear"><td><code>check_stage_clear</code></td><td>Check stage clear.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-clear-life-marker"><td><code>clear_life_marker</code></td><td>Clear life marker.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>

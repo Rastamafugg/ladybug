@@ -804,6 +804,24 @@
           "purpose": "Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-reset-bonus-colour"
+        },
+        {
+          "name": "cm_admit_from_test",
+          "profile": "movement-admission",
+          "purpose": "Classify one candidate cell against ordinary navigation or current gate state without committing gameplay or render state.",
+          "reasons": []
+        },
+        {
+          "name": "cm_commit",
+          "profile": "state",
+          "purpose": "Commit the deferred gate-state action, animation metadata, and existing gate redraw.",
+          "reasons": []
+        },
+        {
+          "name": "cm_step_test",
+          "profile": "movement-step",
+          "purpose": "Advance the probe origin by one cardinal cell using TEST_DIR without reading world state.",
+          "reasons": []
         }
       ],
       "relocations": [
@@ -1000,6 +1018,11 @@
           "name": "primary_preserve_table",
           "kind": "data",
           "reason": "52-byte immutable preserve-mask table; Y base plus cached value AND $33, reviewed primary-mask-table ownership contract"
+        },
+        {
+          "name": "cm_bounds",
+          "kind": "boundary",
+          "reason": "Internal branch target that rejects TEST_X/Y outside the authored maze bounds; it is not a public routine or data owner."
         }
       ],
       "basic_blocks": [
@@ -5567,6 +5590,24 @@
       "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
       "side_effects": "Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.",
       "invariants": "The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage."
+    },
+    "movement-step": {
+      "inputs": "TEST_X/Y origin coordinates and cardinal TEST_DIR",
+      "outputs": "TEST_X/Y advanced by one cell along TEST_DIR",
+      "clobbers": "B and condition codes; A, X, Y, and U are preserved",
+      "reads": "TEST_DIR and the current TEST_X/Y scratch coordinates",
+      "writes": "Only the selected TEST_X or TEST_Y probe coordinate",
+      "side_effects": "Advances the probe coordinate without reading maze, gate, actor, or rendering state",
+      "invariants": "Exactly one cardinal coordinate changes by one cell; authoritative actor coordinates, gate state, and rendering remain untouched"
+    },
+    "movement-admission": {
+      "inputs": "TEST_X/Y origin coordinates, cardinal TEST_DIR, maze navigation and gate tables, and current GATE_STATE",
+      "outputs": "C set on admission; A=0 for ordinary or no-action admission, or A=1..4 for a deferred gate-state action; B is the animation style only when A is nonzero",
+      "clobbers": "A, B, D, X, and condition codes; TEST_X/Y and GATE_ID/X/Y are probe scratch",
+      "reads": "TEST_DIR, TEST_X/Y, maze_nav, maze_gate_owner, maze_gates, and GATE_STATE",
+      "writes": "TEST_X/Y and GATE_ID/X/Y probe scratch only; never GATE_STATE, GATE_ANIM_STYLE, GATE_ANIM_ID, GATE_COMPOSE_MODE, actor records, or render surfaces",
+      "side_effects": "Classifies a move and any endpoint rotation action without committing a gate or queueing a redraw",
+      "invariants": "A=0 means ordinary/no-action admission; A=1..4 encodes new gate state A-1 and B carries the requested style; authoritative world and visible rendering remain unchanged"
     }
   },
   "ownership_audit": {
