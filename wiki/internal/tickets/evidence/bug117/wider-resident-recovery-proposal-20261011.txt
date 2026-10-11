@@ -1,0 +1,147 @@
+BUG-117 wider resident recovery proposal
+Date: 2026-10-11
+Status: Ready source-only design; no production changes or verification run
+
+Decision
+-------
+Recommend a bounded, source-only package projecting 69 additional resident bytes of recovery across the three current complete-profile builds. This exceeds the 66-byte assignment threshold by 3 bytes. The proposal is not an assembled measurement or runtime result. BUG-117 remains High-risk Proposed; this report does not approve implementation.
+
+Baseline and projection
+-----------------------
+Current production source reference: 7cdc53f6f15a1696ef838efb0569c0d3074cca43. Current checkout HEAD during inspection: 8fed06455f70cd0bb41fdbc34a8a0c733b091993. The measured current resident baseline and 8192-byte cap are from the retained 2026-10-11 manifest. “Prior candidate” and “proposed package” values below are arithmetic projections, not assembled sizes.
+
+Profile                         Measured baseline   Prior candidate after booked 67 B   After this proposed 69 B   Projected free
+complete keyboard adaptive      8131 / 8192         8162 / 8192                       8093 / 8192                99 B
+complete joystick adaptive      8167 / 8192         8198 / 8192                       8129 / 8192                63 B
+complete keyboard nonadaptive   8192 / 8192         8226 / 8192                       8157 / 8192                35 B
+
+Arithmetic: keyboard-adaptive 8131 + 98 growth - 67 booked recovery - 69 proposed recovery = 8093; joystick-adaptive 8167 + 98 - 67 - 69 = 8129; nonadaptive 8192 + 101 - 67 - 69 = 8157. The proposed minimum margin is 32 bytes; the limiting projection leaves 35 bytes, only 3 bytes above that proposed margin. Assembly must confirm all sizes and branch encodings before claiming the margin.
+
+Candidate 1: calculate the framebuffer row address
+--------------------------------------------------
+Current `build/ladybug.lst` places the lookup at D435 and its 24-word table at D45C..D48B. The listing encodes the current lookup as 11 bytes:
+
+```asm
+        clra                            ; 1 byte
+        ldb     TEST_Y                  ; 2 bytes, direct
+        lslb                            ; 1 byte
+        rola                            ; 1 byte
+        leay    cell_row_addresses,pcr ; 4 bytes
+        ldx     d,y                     ; 2 bytes
+```
+
+Replace it with 12 bytes:
+
+```asm
+        lda     TEST_Y                  ; 2 bytes, direct
+        lsla                            ; 1 byte
+        lsla                            ; 1 byte
+        adda    TEST_Y                  ; 2 bytes, direct
+        clrb                            ; 1 byte
+        addd    #FB_VIRT                ; 3 bytes, immediate
+        tfr     d,x                     ; 2 bytes
+```
+
+For valid Y=0..23, A becomes 5*Y (0..115), B is cleared, and D is 1280*Y; X therefore becomes `FB_VIRT + Y*1280`, exactly the authored row address. The authored table runs from $2000 through $9300 and contains all 24 such bases. The table removal saves 48 bytes; the one-byte code growth makes the net recovery **47 bytes**, not 48. This is independent of and must not double-count the previously booked `DRAW_TILE*32` change.
+
+Bounds evidence for the audited call paths:
+
+- The perimeter path derives `TEST_Y` from `BOX_INDEX` 0..91 through `perimeter_box_coordinates`; the perimeter maps only the 24 authored rows 0..23.
+- Gate rendering calls `draw_cell_tile`/`draw_cell_overlay` through the gate and background restoration paths. The authored maze metadata has 20 gate footprints inside the 24x24 grid; pivot plus authored tile offsets remains within rows 1..23. `maze-format.html` records that generator constraint.
+- Entity placement chooses among bit-7 dots in `assets/arcade/maze.json`. Static inspection of the hashed 24x24 source data finds 117 placement dots, all with x/y in 2..22. `restore_entity_footprint` draws y-1 and y, hence rows 1..22, and x-1/x, hence columns 1..22. The source generator also guards the 117-dot count.
+
+The routine stores input B to `DRAW_TILE` before the calculation. Its next use of Y is loading the tile-source pointer; A is overwritten from `TEST_X`, B is restored from `DRAW_TILE`, and D is recomputed for tile selection. The caller-visible contract leaves A/B/D/CC undefined, while the returned X/Y pointers remain identical and U is unaffected. No state, storage, movement, RNG, maze data, or runtime owner changes. Repository-wide source/reference search found `cell_row_addresses` only in `src/main.s`, one source-label classification in `scripts/source_reference.json`, the literal lookup assertion in `scripts/verify_bug017_perimeter_vertical_stride.py`, and the source-structure wiki description; no code import/export or cross-module reference.
+
+Instruction-cycle estimate for the row calculation: about 27 cycles for the listed lookup and 24 for the shift/add sequence, a projected 3-cycle reduction per call. This is an instruction-level estimate from the local 6809 cycle reference, not a measured frame or worklist result.
+
+Candidate 2: omit the complete-profile dead stage converter
+-----------------------------------------------------------
+In `draw_hud`, complete builds call `asset_draw_part_value`, then execute a short BRA over the emitted legacy converter. The complete listing has an 11-byte skipped block at C45A..C464: `CMPA` (2), `BLO` (2), `SUBA` (2), `BRA` (2), and `JSR draw_hud_digit` (3). The BRA itself is 2 bytes. Put that converter and its digit call in the noncomplete conditional arm:
+
+```asm
+        lda     STAGE
+        ifne    COMPLETE_PROFILE
+        jsr     asset_draw_part_value
+        else
+ dhu_mod10
+        cmpa    #10
+        blo     dhu_stage_digit
+        suba    #10
+        bra     dhu_mod10
+ dhu_stage_digit
+        lbsr    draw_hud_digit
+        endc
+ dhu_stage_done
+```
+
+In complete builds, the helper returns to the same following `dhu_stage_done` work that the BRA previously reached. Noncomplete builds retain the old converter path. The emitted complete-profile recovery is 11 + 2 = **13 bytes**; the skipped converter did not execute, and the taken BRA removal projects 3 cycles saved per `draw_hud` invocation. Source scan found no external references to `dhu_mod10` or `dhu_stage_digit`; `scripts/verify_arcade_fidelity.py` parses this source region and requires an assertion update while preserving its semantic coverage.
+
+Candidate 3: pair adjacent coordinate stores
+--------------------------------------------
+Each two-immediate-byte-store sequence is 8 bytes. Replace it with `LDD #word` (3 bytes) plus direct-page `STD address` (2 bytes), saving 3 bytes per site:
+
+```asm
+; draw_vegetable_hud: HUD_X=$27, HUD_Y=$28
+        ldd     #$230D                  ; 35,13
+        std     HUD_X                   ; 5 bytes total, saves 3
+
+; draw_hud: retain profile-dependent X coordinate, common Y=11
+        ifne    COMPLETE_PROFILE
+        ldd     #$250B                  ; 37,11
+        else
+        ldd     #$260B                  ; 38,11
+        endc
+        std     HUD_X                   ; HUD_X=$27, HUD_Y=$28
+
+; init_player: PLAYER_CELL_X=$09, PLAYER_CELL_Y=$0A
+        ldd     #$0C16                  ; 12,22
+        std     PLAYER_CELL_X           ; 5 bytes total, saves 3
+```
+
+The original forms are `LDA #x; STA x; LDA #y; STA y` (2+2+2+2=8 bytes). The paired form is 3+2=5 bytes, so each saves 3 and the three sites save **9 bytes**. (Cycles are approximately 12 old versus 8 new, saving 4 cycles per execution.) This plus candidates 1 and 2 gives 47+13+9 = **69 bytes**.
+
+Register, flags, and side-effect proof
+--------------------------------------
+`LDA`/`LDD` set N/Z/V and preserve C; the old final byte loads and proposed word loads all produce a positive, nonzero value at these sites, so both forms leave N=0, Z=0, V=0 and preserve carry. STA/STD set N/Z from the stored value and clear V while preserving C; the same positive nonzero constants therefore give identical N/Z/V after the old final STA and proposed STD. The new B values are overwritten before any semantic consumer: the HUD digit helper initializes B before its multiply, the part-value helper clears B, and `init_player` proceeds through its existing setup and final `LDD #$89EC`, so D does not escape with the temporary coordinate word. Existing routine contracts leave registers undefined. The HUD scratch pair is not consumed by the IRQ; each foreground renderer writes the pair before its draw helper reads it. The player coordinate pair is initialized as the same values and does not alter movement logic. No partial-write observer or asynchronous reader is introduced.
+
+Branch reserve and timing scope
+-------------------------------
+The proposed changes add no branches, calls, or data. They remove one short branch, shrink three stores, and replace an 11-byte row lookup with 12 bytes while deleting its 48-byte table. No extra branch reserve is booked in the 69-byte package. The row instruction replacement grows by one byte before its table is deleted; net shrink alone does not prove every intervening displacement. Final listings must inspect all spanning branches/calls and fixed-address PCR references in the combined candidate. Any additional relaxation is deducted from the projected 35-byte limiting headroom; more than three extra bytes would miss the proposed 32-byte minimum. The prior 67-byte recovery already reserves the two HUD-call widenings and final-gate branch allowance; do not count those reserves twice. Timing estimates above cover only these local instruction sequences. Prior measured worklists (42,541 and 54,539 cycles against a 27,000-cycle budget) remain failures and are unaffected as measured results; this package does not establish full-worklist compliance.
+
+Rejected or excluded alternatives
+---------------------------------
+- A multiply-based row formula is not selected: the 12-byte shift/add version is one byte smaller and has a lower estimated cycle cost than the 13-byte `MUL` version. Do not count both alternatives.
+- The optional decrement-chain change saves only 4 bytes, is unnecessary for this target, and is not included. Historical “12-byte dispatcher” wording is not supported by the current listing.
+- Code excluded only from `!COMPLETE_PROFILE` does not count toward these three complete-profile builds.
+- Broad HUD loop sharing and resident relocation are excluded from this package. Relocation remains a separate alternative requiring explicit destination capacity, call encoding, and ownership proof.
+- Enemy and audio images are separate constrained regions and are not borrowed. Their limits and the page-3D limit are unchanged by this package.
+
+Integration and verification required if separately approved
+------------------------------------------------------------
+The production implementation would be limited to the row calculation/table deletion, stage conditional, and three coordinate pairs. Integrator-owned follow-up artifacts include `src/main.s`, source-label metadata in `scripts/source_reference.json`, `scripts/verify_bug017_perimeter_vertical_stride.py` (currently asserts the lookup spelling), `scripts/verify_arcade_fidelity.py` (currently asserts separate HUD_Y spellings), and the source-structure wiki text that documents the table tradeoff. Preserve semantic checks; do not merely delete the verifier assertions.
+
+Use a clean root-local scratch capsule and `scripts/build.sh build` for exactly these complete profiles: `LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1`, `LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1`, and `LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0`. TOOL009's hardcoded source-reference path remains a constraint. Inspect emitted listings and all resident/module capacity guards. For runtime lifecycle evidence use the existing `gdb-mcp` round trip documented at `wiki/internal/tooling/xroar.html#gdb-mcp-round-trip`; do not extend deferred XRoar `-monitor`. The historical monitor harness is scenario reference only and does not establish the new BUG-117 onset/final gating. All three profiles, lifecycle markers, and the ticket's existing behavior checks remain future verification; none ran for this proposal.
+
+Evidence and hashes
+-------------------
+SHA-256 values below identify the inspected current artifacts; the source reference hash agrees with the retained production baseline. The listing is retained evidence, not regenerated during this task.
+
+- `src/main.s`: CF21EAC087D6FD1F221A422CCD942561F7696C7CBE7AA6418C74515209109FFC
+- `build/ladybug.lst`: 2B775DDA14CAEF6243AF56E47FD8CC895BA8C850DFA8D6376390F9DBE2E56A6E
+- `build/ladybug.rom`: 283084F3571A3BB25CCE4452EF79ECE11A3ED5B4085E6F3A3931BACFA7F6C0A5
+- `scripts/source_reference.json`: D367A1117FFE1407EC055BF15052376352BC56C67DA0DC2FA421CF6B4BC7B0E2
+- `assets/arcade/maze.json`: 76361237A90A555F2B78731C3975A209F569A53CB04705EB90D0AAD427856048
+- `scripts/derive_maze.py`: B1387C37227169245204AFE03ACA275F74B8A56DB3CDBEFE6ABBA2997D0F2FBE
+- `scripts/verify_bug017_perimeter_vertical_stride.py`: D74ADD135893F92DA7D5A199A6140F65AA4B4985B6C2885144C6C2D3C106E23B
+- `scripts/verify_arcade_fidelity.py`: 0BCF8CC7C01B338A5007370F5BFF9BCD6579BA29A8ADF0B207DD185A044BB478
+- `wiki/internal/implementation/maze-format.html`: FA5C900D646453C0FE13BD2E4B4FE7E4F03A913ED2D2598A3162BA44665BED32
+- `wiki/internal/implementation/source-structure.html`: 7EBAC53A097DE35FD225E7DDE78B546539A93078047B3C9A5F30BDC7CB76A728
+- `wiki/internal/implementation/memory-map.html`: CA1105F43D747A95FFC787246FE14C05FE97FF26BAC8C3B60E45429DEED294C4
+- `wiki/internal/tooling/lwtools.html`: 015BB4CD026823AADEEAE2BA90EFE232B21CE0E0B729AAEA6D0E68E9222EE9B2
+- Retained plan: `repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-plan-20261011.txt`, SHA-256 `C19B26E34E47A8D793E95A8DE99DCE40EE2CCF514CE1642D845572E0ED663561`
+- Retained manifest: `repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-manifest-20261011.json`, SHA-256 `F4D2B5F04932B8A46C4FDF1A87AA722606059A2DBCBAA5DDBA1D9CD7532C66F8`
+
+No production, wiki, registry, verifier, Git, build, or emulator files were changed or run. Only this scratch report and its manifest are written by this task.
+
+
+Parent review: corrected two recorded input hashes, store condition-code wording, explicit X/Y/U contract and branch-range uncertainty. Width ledger remains 69 additional bytes. Source arithmetic compared all24 row bases exactly; no assembly/runtime evidence.

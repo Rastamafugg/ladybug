@@ -1,0 +1,142 @@
+{
+  "artifact": "BUG-117 wider resident recovery proposal",
+  "date": "2026-10-11",
+  "status": {
+    "proposal_step": "Ready source-only design",
+    "ticket": "High-risk Proposed",
+    "fit_ready": false,
+    "production_ready": false,
+    "implementation_approved": false
+  },
+  "scope": {
+    "scratch_directory": "repro/bug122-parent/luna117-wider-recovery-20261011",
+    "written_files": [
+      "report.txt",
+      "manifest.json"
+    ],
+    "production_wiki_registry_git_build_emulator_writes": false,
+    "verifier_import_or_execution": false
+  },
+  "baseline": {
+    "source_revision": "7cdc53f6f15a1696ef838efb0569c0d3074cca43",
+    "checkout_head_at_inspection": "8fed06455f70cd0bb41fdbc34a8a0c733b091993",
+    "resident_capacity_bytes": 8192,
+    "current_measured_resident_bytes": {
+      "complete_keyboard_adaptive": 8131,
+      "complete_joystick_adaptive": 8167,
+      "complete_keyboard_nonadaptive": 8192
+    },
+    "prior_candidate_growth_projection_bytes": {
+      "complete_keyboard_adaptive": 98,
+      "complete_joystick_adaptive": 98,
+      "complete_keyboard_nonadaptive": 101
+    },
+    "prior_booked_recovery_projection_bytes": 67
+  },
+  "proposal": {
+    "required_additional_recovery_bytes": 66,
+    "selected_candidates_net_bytes": {
+      "shift_add_row_address_and_remove_table": 47,
+      "exclude_complete_profile_dead_stage_converter": 13,
+      "pair_three_adjacent_coordinate_stores": 9
+    },
+    "total_additional_recovery_projection_bytes": 69,
+    "projected_resident_bytes": {
+      "complete_keyboard_adaptive": 8093,
+      "complete_joystick_adaptive": 8129,
+      "complete_keyboard_nonadaptive": 8157
+    },
+    "projected_free_bytes": {
+      "complete_keyboard_adaptive": 99,
+      "complete_joystick_adaptive": 63,
+      "complete_keyboard_nonadaptive": 35
+    },
+    "proposed_minimum_headroom_bytes": 32,
+    "limiting_profile_extra_over_proposed_margin_bytes": 3,
+    "measurement_note": "All post-change sizes and headroom are arithmetic projections. No assembly was run."
+  },
+  "proof_summary": {
+    "row_formula": "X = FB_VIRT + 1280*TEST_Y; valid TEST_Y 0..23 yields A=5*Y <=115 and matches all 24 authored row bases",
+    "row_encoding_widths_bytes": {
+      "current_lookup": 11,
+      "proposed_shift_add": 12,
+      "deleted_table": 48,
+      "net_recovery": 47
+    },
+    "stage_block_complete_profile_recovery_bytes": {
+      "skipped_converter": 11,
+      "short_bra": 2,
+      "total": 13
+    },
+    "coordinate_store_recovery_bytes": {
+      "per_site": 3,
+      "sites": 3,
+      "total": 9
+    },
+    "register_flags_callers_and_bounds": "Documented in report.txt; no new state or runtime ownership. Perimeter rows 0..23; gate and entity restoration remain within rows 1..23 based on authored metadata and hashed maze data.",
+    "projected_local_cycles": "Row calculation about 27 to 24 cycles per call; each coordinate pair about 12 to 8 cycles; complete-profile HUD branch removal about 3 cycles per draw_hud call. Estimates only.",
+    "branch_reserve": "No extra reserve booked in69-byte package; final displacement/encoding audit required. Prior67-byte ledger reserves retained. Proposed32-byte margin has3 projected bytes above it; additional relaxation is deducted."
+  },
+  "integration_files_if_approved": [
+    "src/main.s",
+    "scripts/source_reference.json",
+    "scripts/verify_bug017_perimeter_vertical_stride.py",
+    "scripts/verify_arcade_fidelity.py",
+    "wiki/internal/implementation/source-structure.html"
+  ],
+  "required_future_build_profiles": [
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1",
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1",
+    "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0"
+  ],
+  "verification_note": "No build, verifier, or runtime test was executed. Future runtime evidence must use the existing gdb-mcp round trip; the historical monitor harness does not prove new onset/final gates.",
+  "source_hashes_sha256": {
+    "src/main.s": "CF21EAC087D6FD1F221A422CCD942561F7696C7CBE7AA6418C74515209109FFC",
+    "build/ladybug.lst": "2B775DDA14CAEF6243AF56E47FD8CC895BA8C850DFA8D6376390F9DBE2E56A6E",
+    "build/ladybug.rom": "283084F3571A3BB25CCE4452EF79ECE11A3ED5B4085E6F3A3931BACFA7F6C0A5",
+    "scripts/source_reference.json": "D367A1117FFE1407EC055BF15052376352BC56C67DA0DC2FA421CF6B4BC7B0E2",
+    "assets/arcade/maze.json": "76361237A90A555F2B78731C3975A209F569A53CB04705EB90D0AAD427856048",
+    "scripts/derive_maze.py": "B1387C37227169245204AFE03ACA275F74B8A56DB3CDBEFE6ABBA2997D0F2FBE",
+    "scripts/verify_bug017_perimeter_vertical_stride.py": "D74ADD135893F92DA7D5A199A6140F65AA4B4985B6C2885144C6C2D3C106E23B",
+    "scripts/verify_arcade_fidelity.py": "0BCF8CC7C01B338A5007370F5BFF9BCD6579BA29A8ADF0B207DD185A044BB478",
+    "wiki/internal/implementation/maze-format.html": "FA5C900D646453C0FE13BD2E4B4FE7E4F03A913ED2D2598A3162BA44665BED32",
+    "wiki/internal/implementation/source-structure.html": "7EBAC53A097DE35FD225E7DDE78B546539A93078047B3C9A5F30BDC7CB76A728",
+    "wiki/internal/implementation/memory-map.html": "CA1105F43D747A95FFC787246FE14C05FE97FF26BAC8C3B60E45429DEED294C4",
+    "wiki/internal/tooling/lwtools.html": "015BB4CD026823AADEEAE2BA90EFE232B21CE0E0B729AAEA6D0E68E9222EE9B2",
+    "repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-plan-20261011.txt": "C19B26E34E47A8D793E95A8DE99DCE40EE2CCF514CE1642D845572E0ED663561",
+    "repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-manifest-20261011.json": "F4D2B5F04932B8A46C4FDF1A87AA722606059A2DBCBAA5DDBA1D9CD7532C66F8"
+  },
+  "report_sha256": "9f8786e6438f498e00552b4d38c21d1fbf80c32760e7a4c23153eef93ab956fd",
+  "rejected_options": [
+    "MUL row formula: larger and slower than selected shift/add projection.",
+    "Optional decrement chain: only 4 bytes and not needed for the target; excluded from count.",
+    "!COMPLETE_PROFILE-only reductions: do not count toward the three complete builds.",
+    "Broad HUD sharing or resident relocation: outside this bounded package; relocation requires separate destination capacity, call encoding, and ownership proof.",
+    "Borrowing enemy/audio images: excluded separate constrained regions."
+  ],
+  "parent_review": {
+    "original_report_sha256": "f1e3843ee04af74a192158a5bc6f274411230ebc4c529bde68f75b8d9d951535",
+    "corrected_hash_records": {
+      "wiki/internal/implementation/maze-format.html": {
+        "agent_record": "FA5C900D646453C0FE13BD2E4BFE7E4F03A913ED2D2598A3162BA44665BED32",
+        "parent_current_raw_sha256": "fa5c900d646453c0fe13bd2e4b4fe7e4f03a913ed2d2598a3162ba44665bed32"
+      },
+      "repro/bug122-parent/luna117-resident-recovery-20261011/resident-recovery-manifest-20261011.json": {
+        "agent_record": "F4D2B5F04932B8A46C4FDF1A87AA722606059A2DBCBAA5DDDBA1D9CD7532C66F8",
+        "parent_current_raw_sha256": "f4d2b5f04932b8a46c4fdf1a87aa722606059a2dbcbaa5ddba1d9cd7532c66f8"
+      }
+    },
+    "corrections": [
+      "STA/STD set N/Z/V; matching positive nonzero constants preserve result equivalence",
+      "prepare_cell_tile returns X/Y and leaves U unchanged, clobbers A/B/D/CC",
+      "net source shrink alone does not prove every displacement; fit requires at least32 actual spare bytes",
+      "normalized report heading underlines to avoid Git conflict-marker false positive"
+    ],
+    "current_input_hashes_verified": true,
+    "row_arithmetic_comparisons": 24,
+    "row_arithmetic_result": "PASS source-only",
+    "builds_run": 0,
+    "runtime_probes_run": 0
+  },
+  "retained_report_path": "wiki/internal/tickets/evidence/bug117/wider-resident-recovery-proposal-20261011.txt"
+}
