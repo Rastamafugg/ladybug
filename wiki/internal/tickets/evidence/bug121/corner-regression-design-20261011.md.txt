@@ -1,0 +1,54 @@
+# BUG-121 upcoming-corner preview: bounded architecture proposal
+
+## Disposition
+
+Use one same-file pure admission classifier shared by the existing `can_move` adapter and the late-turn lookahead. The classifier must report passability and a deferred gate action; only the adapter or the step-3 lookahead may commit that action. This is source-viable without a new DP byte, module, loader, or runtime owner. It is not fit-qualified, and this design-only assignment authorizes no production edit, build, or runtime probe.
+
+## Source and data identity
+
+- Current source revision `ce6d07d28bf80a9588c15e1cc873e7a767d10514`; `src/main.s` SHA-256 `dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b`.
+- Current build receipt records that same revision/source input, maze input `76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048`, generated `ladybug_maze.inc` `1f1742e3813df3b673f5e68abb6fb7dc101935737aab10b9c8771d58aedfbb3e`, and ROM `73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81`.
+- Read-only parsing found exact equality between the asset and generated include for all 576 `maze_nav` bytes, all 576 `maze_gate_owner` bytes, and all 60 `maze_gates` bytes. Gate 0 is `[5,3,0]` in both. The earlier `b18fcc...` value was a rejected identity for `maze.json`; it is the SHA-256 of `assets/arcade/movement_snap_reference.json`.
+- This qualifies fixture coordinates against the recorded source/build artifacts. It does not prove live ROM bytes or reproduce the user report.
+
+## Source-level contract
+
+Current `player_tick` reaches `pt_try_late_turn` only for an active, partial move with a buffered perpendicular request: `src/main.s:2847-2858`. The current-cell request is checked at `:2884-2888`; a pass preserves the existing `pt_begin_late_turn` path, and a failure currently jumps directly to `pt_draw`. `PLAYER_CELL_X/Y` remain the last aligned origin until `pt_advance` reaches the next center (`:2997-3018`).
+
+The `can_move` body (`:3072-3260`) combines read-only admission with gate effects. It stores the requested target in `TEST_X/Y`, checks `maze_gate_owner`, tests current `GATE_STATE` and regular reciprocal masks, then writes `GATE_ANIM_STYLE` in the four `cm_set_*` blocks and changes `GATE_STATE`/queues rendering in `cm_rotate` (`:3184-3245`). `test_cell_offset` already indexes the current candidate through shared scratch (`:3271-3277`); `cm_entry_masks` holds reciprocal N/E/S/W bits (`:3262-3263`).
+
+Factor a private `cm_admit_from_test` classifier in `src/main.s`. Input: `TEST_X/Y` is an origin cell center and `TEST_DIR` is a cardinal request. It performs the existing target-offset, bounds, dynamic-gate, passage, endpoint, and regular reciprocal-mask checks. Output on pass: C set; A=`0` means open with no gate action, A=`1..4` means a gate rotation whose committed state is A−1, and B is the existing animation style. On blocked: C clear and A/B are unspecified. `TEST_*` and `GATE_ID/X/Y` remain scratch outputs. The classifier must not write `GATE_STATE`, `GATE_ANIM_STYLE`, `GATE_ANIM_ID`, `GATE_COMPOSE_MODE`, render flags, or the render queue.
+
+Move all gate-visible writes into one `cm_commit` routine consuming A/B plus the already selected `GATE_ID`. Keep `can_move` as the current-origin adapter: it copies `PLAYER_CELL_X/Y` to `TEST_X/Y`, sets `TEST_DIR` from A, calls the classifier, and commits a reported gate action immediately. It then restores the established carry-only public result. This preserves current-cell admission and gate timing. Do not encode preview mode in a high bit of `TEST_DIR`: raw direction values index `cm_entry_masks` at `:3251-3254` and are compared throughout the gate path.
+
+After the existing current-origin check rejects the request, the caller projects the upcoming center into `TEST_X/Y` from `PLAYER_CELL_X/Y + PLAYER_DIR`; it does not change `PLAYER_CELL`. It sets `TEST_DIR=PLAYER_WANT` and calls only the pure classifier. C clear uses the current `pt_draw` hold. C set at `PLAYER_STEP=1` or `2` advances along the old direction without committing a gate action. C set at step 3 commits only when A is nonzero, then advances. On arrival, the existing centered `can_move` path admits the buffered direction. The active partial-move path implies the old-axis move was admitted when movement began; it must be tested against a reachable cell, and must not be replaced by a static-only check.
+
+This keeps gate endpoint rotation at the former lookahead boundary (step 3), while a step-1/2 preview can recognize a reachable endpoint without changing state, style, or render intent early. The direct current-cell `can_move` path retains its existing immediate gate behavior.
+
+## Byte-backed discriminators
+
+The following four non-gate fixtures are qualified against the source-identified generated tables. Directions are N=0/E=1/S=2/W=3; masks are hexadecimal `maze_nav` bytes; entry masks are the reciprocal bits above.
+
+- N→E: current `(6,3)`; upcoming `(6,2)` mask `$0E` admits the N approach `$04`; current E target `(7,3)` mask `$00`; upcoming E target `(7,2)` mask `$0A` admits `$08`.
+- S→W: current `(6,5)`; upcoming `(6,6)` mask `$0F` admits S `$01`; current W target `(5,5)` mask `$00`; upcoming W target `(5,6)` mask `$0A` admits `$02`.
+- E→S: current `(5,4)`; upcoming `(6,4)` mask `$0D` admits E `$08`; current S target `(5,5)` mask `$00`; upcoming S target `(6,5)` mask `$05` admits `$01`.
+- W→N: current `(9,4)`; upcoming `(8,4)` mask `$07` admits W `$02`; current N target `(9,3)` mask `$00`; upcoming N target `(8,3)` mask `$05` admits `$04`.
+
+One byte-backed dynamic-gate case separates preview from commit: from current `(3,2)`, move E and request S. Forward target/upcoming center `(4,2)` has mask `$0E` and admits E; the current S target `(3,3)` has mask `$00`. From upcoming `(4,2)`, S targets `(4,3)`, mask `$15`, `gate_owner=1`. Gate 0 has pivot `(5,3)` and initial horizontal state 0. The existing endpoint rule accepts this west-end push and sets state 1/style 0. At offsets 2 and 4 pixels, the preview must advance without changing gate state, animation style/ID, compose mode, or gate-redraw intent; ordinary player rendering may continue. At offset 6 pixels (`PLAYER_STEP=3`), it commits one state-0→1 rotation, then advances; the centered S request must remain admitted in the new orientation.
+
+The matched no-exit controls are `(12,16)` moving N/request W and `(12,15)` moving S/request E. Current and upcoming row cells have mask `$05`; requested-side target cells `(11,16)/(11,15)` and `(13,15)/(13,16)` have mask `$00`. Steps 1/2/3 must hold exact pose and step while retaining requested facing. These controls detect the unconditional drift in the removed block.
+
+## Fit and verification consequences
+
+Current recorded resident margins are 65 bytes (default), 29 bytes (joystick), and 4 bytes (nonadaptive). The former unconditional block was 65 bytes and is not a valid implementation: it advanced even when the upcoming request was blocked. The pure classifier and deferred commit introduce result plumbing, an upcoming-origin projection, and conditional step-3 commit. Moving style calculation to B may recover bytes; the two paired direction checks in `cm_pass_horizontal` and `cm_pass_vertical` can also use direction parity (`TEST_DIR & 1`) instead of four explicit direction comparisons. The current source-identified listing shows each paired passage block occupies 16 bytes; a short-branch parity form projects at most about 12 bytes combined savings, subject to assembly branch ranges. These savings do not establish that the new plumbing fits. No exact net byte count can be claimed without an authorized assembly fit experiment in all three profiles; 4 bytes of nonadaptive headroom makes the current design unqualified for implementation Ready.
+
+If separately approved, extend the existing `verify_movement.py` rather than creating a new harness. Verify each four-way ordinary fixture at steps 1/2/3 through existing real `player_tick` and `pt_done` markers, both no-exit controls at steps 1/2/3, one current-cell legal-corner and current-cell gate control, and the upcoming gate case at steps 1/2/3 with state/style/render-intent checks. Preserve the existing 45-second phase and 10-second marker bounds. Then run exact default, joystick, and nonadaptive builds/capacity audits. These cases cover upcoming-corner discrimination, blocked hold, direct-path compatibility, deferred gate effects, and each hard resident profile; no full owner/mode Cartesian matrix is needed.
+
+## Rejected alternatives and handoff
+
+- Do not restore the old unconditional 65-byte approach/probe block; it causes no-exit movement and ignores the probe carry.
+- Do not use static `maze_nav` only for all admission. Runtime gates consult `GATE_STATE`, and an endpoint can be a legal deferred push even though the shared static mask alone does not prove the current dynamic passage.
+- Do not call effectful `can_move` for step-1/2 upcoming probes; endpoint tests can write style/state and queue a render before the historical step-3 boundary.
+- Do not use a high-bit `TEST_DIR` preview marker; it breaks existing direction-table indexing unless masking is added at every consumer.
+
+This design is bounded enough for a separate, explicitly approved fit experiment, but it has no demonstrated fit and does not authorize implementation. The ticket remains Proposed until renewed approval fixes this behavior and its target profile limits. Parent owns any canonical ticket update, fit experiment, source integration, and runtime verification.

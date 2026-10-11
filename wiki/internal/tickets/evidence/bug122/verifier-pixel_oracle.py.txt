@@ -1,0 +1,311 @@
+"""Independent host oracle for the three BUG-122 16x16 letter slots.
+
+This module is intentionally side-effect free outside its caller's scratch
+directory.  It rebuilds the authored level-start underlay with the twelve
+generic marker cells removed, then composites the selected compiled object
+masks through the retained pre-fix Blue3 table while preserving each
+transparent nibble from the clean underlay. Candidate tables are inspected
+separately so the expected image cannot mirror a wrong lookup table.
+"""
+
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import tempfile
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[3]
+BASELINE_DIR = Path(__file__).resolve().parent / "baseline"
+BASELINE_CHARS = BASELINE_DIR / "chars.json"
+BASELINE_SOURCE_MANIFEST = BASELINE_DIR / "source-manifest.json"
+MASK_COUNT = 12
+MASK_BYTES = 64
+SLOT_CELLS = tuple(
+    (x + dx, 17 + dy)
+    for x in (17, 19, 21)
+    for dy in range(2)
+    for dx in range(2)
+)
+MARKER_GID = {(0, 0): 264, (1, 0): 228, (0, 1): 486, (1, 1): 468}
+SLOT_BYTE_COLS = (68, 76, 84)
+PANEL_MAP = ROOT / "tiled/coco-level-start-screen.tmx"
+CHARS = BASELINE_CHARS
+CURRENT_CHARS = ROOT / "assets/arcade/chars.json"
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def parse_asm_data(path: Path, label: str, size: int) -> bytes:
+    text = path.read_text(encoding="utf-8")
+    match = re.search(rf"(?m)^{re.escape(label)}\s*$", text)
+    if not match:
+        raise AssertionError(f"{path}: missing exported data label {label}")
+    tail = text[match.end():]
+    values: list[int] = []
+    for line in tail.splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith(";"):
+            continue
+        if not line[0].isspace():
+            break
+        if not re.match(r"\s*fcb\b", line, re.I):
+            continue
+        for value in re.findall(r"\$([0-9A-Fa-f]{2})", line):
+            values.append(int(value, 16))
+            if len(values) == size:
+                return bytes(values)
+    if len(values) != size:
+        raise AssertionError(f"{path}: {label} has {len(values)} bytes; expected {size}")
+    return bytes(values)
+
+
+def artifact_data(build_dir: Path, label: str, size: int) -> bytes:
+    """Read immutable resident bytes from a retained build and its own map."""
+    from verify_bug011_runtime import symbols
+
+    symbols_by_name = symbols(build_dir / "ladybug.map")
+    if label not in symbols_by_name:
+        raise AssertionError(f"{build_dir}: missing resident symbol {label}")
+    address = symbols_by_name[label]
+    resident = (build_dir / "ladybug-runtime.rom").read_bytes()
+    offset = address - 0xC000
+    if offset < 0 or offset + size > len(resident):
+        raise AssertionError(f"{label}=${address:04X} is outside resident artifact")
+    return resident[offset:offset + size]
+
+
+def expected_blue_pair_map(baseline_build: Path) -> bytes:
+    """Use the retained pre-fix renderer table as an independent color oracle."""
+    table = artifact_data(baseline_build, "sprite_blue_pairs", 16)
+    foreground = set()
+    for category in (1, 2, 3):
+        foreground.add(table[category] & 0x0F)
+        foreground.add(table[category << 2] >> 4)
+    foreground.discard(0)
+    if foreground != {3}:
+        raise AssertionError(
+            f"retained baseline sprite_blue_pairs is not a Blue3 oracle: {foreground}"
+        )
+    return table
+
+
+def clean_underlay(scratch: Path, baseline_dir: Path) -> tuple[bytes, dict[str, object]]:
+    """Compile frozen original art after verifying candidate map cell edits."""
+    import build_presentation as bp
+    import build_screen as bs
+
+    baseline_map = baseline_dir / "coco-level-start-screen.tmx"
+    retained_map = baseline_dir / "retention.json"
+    if not retained_map.is_file():
+        raise AssertionError(f"retained baseline manifest is missing: {retained_map}")
+    retained_manifest = json.loads(retained_map.read_text(encoding="utf-8"))
+    retained_hash = retained_manifest.get("files", {}).get(baseline_map.name)
+    if retained_hash != sha(baseline_map.read_bytes()):
+        raise AssertionError("retained baseline TMX does not match retention.json")
+    source_manifest = json.loads(BASELINE_SOURCE_MANIFEST.read_text(encoding="utf-8"))
+    if source_manifest.get("map_sha256") != retained_hash:
+        raise AssertionError("retained baseline TMX differs from the qualified QA source manifest")
+    chars_hash = sha(CHARS.read_bytes())
+    if source_manifest.get("chars_sha256") != chars_hash:
+        raise AssertionError("frozen chars.json differs from its qualified QA source manifest")
+    original = ET.parse(baseline_map).getroot()
+    current = ET.parse(PANEL_MAP).getroot()
+    baseline_layers = {item.get("name"): item for item in original.findall("layer")}
+    current_layers = {item.get("name"): item for item in current.findall("layer")}
+    if set(baseline_layers) != set(current_layers):
+        raise AssertionError("candidate TMX changed authored layer names")
+    mutations: list[dict[str, object]] = []
+    allowed = {y * bp.SCREEN_WIDTH + x: MARKER_GID[(x - (17 + 2 * ((x - 17) // 2)), y - 17)]
+               for x, y in SLOT_CELLS}
+    for name, before_layer in baseline_layers.items():
+        after_layer = current_layers[name]
+        before_data, after_data = before_layer.find("data"), after_layer.find("data")
+        if before_data is None or after_data is None:
+            if ET.tostring(before_layer, encoding="unicode") != ET.tostring(after_layer, encoding="unicode"):
+                raise AssertionError(f"candidate TMX changed non-CSV layer {name}")
+            continue
+        before_cells = bp.parse_csv(before_data, name or "")
+        after_cells = bp.parse_csv(after_data, name or "")
+        if len(before_cells) != len(after_cells):
+            raise AssertionError(f"candidate TMX changed cell count in layer {name}")
+        for index, (before_gid, after_gid) in enumerate(zip(before_cells, after_cells)):
+            if before_gid == after_gid:
+                continue
+            x, y = index % bp.SCREEN_WIDTH, index // bp.SCREEN_WIDTH
+            if (name != "Level Start Panel" or index not in allowed or
+                    (before_gid & bp.GID_MASK) != allowed[index] or
+                    (after_gid & bp.GID_MASK) != 0):
+                raise AssertionError(
+                    f"candidate TMX has out-of-contract change in {name} ({x},{y}): "
+                    f"{before_gid}->{after_gid}"
+                )
+            mutations.append({"layer": name, "x": x, "y": y,
+                              "baseline_gid": before_gid, "candidate_gid": after_gid})
+    expected_mutations = {("Level Start Panel", x, y) for x, y in SLOT_CELLS}
+    actual_mutations = {(item["layer"], item["x"], item["y"]) for item in mutations}
+    if actual_mutations != expected_mutations:
+        missing = sorted(expected_mutations - actual_mutations)
+        extra = sorted(actual_mutations - expected_mutations)
+        raise AssertionError(
+            f"candidate must clear exactly all 12 letter-slot cells; missing={missing}, extra={extra}"
+        )
+    layer = next((item for item in original.findall("layer")
+                  if item.get("name") == "Level Start Panel"), None)
+    if layer is None:
+        raise AssertionError("level-start map lacks Level Start Panel")
+    data = layer.find("data")
+    if data is None:
+        raise AssertionError("Level Start Panel lacks CSV data")
+    cells = bp.parse_csv(data, layer.get("name", "Level Start Panel"))
+    removed: list[dict[str, int]] = []
+    for x, y in SLOT_CELLS:
+        index = y * bp.SCREEN_WIDTH + x
+        prior = cells[index]
+        slot_x = 17 + 2 * ((x - 17) // 2)
+        expected = MARKER_GID[(x - slot_x, y - 17)]
+        if (prior & bp.GID_MASK) != expected:
+            raise AssertionError(
+                f"authored slot cell ({x},{y}) GID {prior} != baseline marker {expected}"
+            )
+        cells[index] = 0
+        removed.append({"x": x, "y": y, "gid": prior})
+    data.text = "\n" + ",".join(map(str, cells)) + "\n"
+
+    # Keep tileset resolution rooted at the authored files while writing only
+    # this sanitized copy inside the caller-owned scratch directory.
+    for node in original.findall("tileset"):
+        rel = node.get("source")
+        if rel:
+            node.set("source", str((ROOT / "tiled" / rel).resolve()))
+    scratch.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="underlay-", dir=scratch) as temp:
+        clean_path = Path(temp) / PANEL_MAP.name
+        ET.ElementTree(original).write(clean_path, encoding="utf-8", xml_declaration=True)
+        chars = bs.load_chars(CHARS)
+        tiles: list[bytes] = []
+        tile_ids: dict[bytes, int] = {}
+        tile_map, metadata = bp.compile_map(clean_path, chars, tiles, tile_ids)
+
+    if len(tile_map) != 40 * 24:
+        raise AssertionError(f"compiled map contains {len(tile_map)} cells")
+    framebuffer = bytearray(320 * 192 // 2)
+    for cell, tile_id in enumerate(tile_map):
+        x, y = cell % 40, cell // 40
+        tile = tiles[tile_id]
+        for row in range(8):
+            dest = (y * 8 + row) * 160 + x * 4
+            framebuffer[dest:dest + 4] = tile[row * 4:row * 4 + 4]
+    return bytes(framebuffer), {
+        "baseline_map": str(baseline_map),
+        "baseline_map_sha256": sha(baseline_map.read_bytes()),
+        "candidate_map": str(PANEL_MAP),
+        "candidate_map_sha256": sha(PANEL_MAP.read_bytes()),
+        "candidate_map_cell_mutations": mutations,
+        "candidate_cell_mutation_count": len(mutations),
+        "retention_manifest_sha256": sha(retained_map.read_bytes()),
+        "qualified_source_manifest_sha256": sha(BASELINE_SOURCE_MANIFEST.read_bytes()),
+        "removed_generic_marker_cells": removed,
+        "removed_cell_count": len(removed),
+        "baseline_chars_sha256": sha(CHARS.read_bytes()),
+        "candidate_chars_sha256": sha(CURRENT_CHARS.read_bytes()),
+        "underlay_sha256": sha(bytes(framebuffer)),
+        "screen_role": metadata["role"],
+        "atlas_tiles": len(tiles),
+    }
+
+
+def compile_masks() -> list[bytes]:
+    import build_screen as bs
+
+    masks = bs.compile_object_masks(CHARS)
+    if len(masks) != MASK_COUNT or any(len(mask) != MASK_BYTES for mask in masks):
+        raise AssertionError("compile_object_masks dimensions differ from 12x64")
+    return masks
+
+
+def mask_categories(mask: bytes, y: int, x: int) -> int:
+    """Return one 2-bit source category from the 16x16 packed mask."""
+    packed = mask[y * 4 + x // 4]
+    shift = 6 - 2 * (x % 4)
+    return (packed >> shift) & 3
+
+
+def crop_slot(framebuffer: bytes, slot: int) -> bytes:
+    if slot not in range(3) or len(framebuffer) != 30720:
+        raise ValueError("expected one of three slots and a 320x192 packed frame")
+    byte_col = SLOT_BYTE_COLS[slot]
+    return b"".join(
+        framebuffer[y * 160 + byte_col:y * 160 + byte_col + 8]
+        for y in range(136, 152)
+    )
+
+
+def compose_slot(underlay: bytes, slot: int, mask: bytes, pair_map: bytes) -> bytes:
+    """Composite a mask independently, retaining clean underlay transparent nibbles."""
+    if len(underlay) != 30720 or len(mask) != MASK_BYTES or len(pair_map) != 16:
+        raise ValueError("invalid underlay, mask, or sprite pair-map dimensions")
+    expected = bytearray(crop_slot(underlay, slot))
+    for y in range(16):
+        for x in range(0, 16, 2):
+            c0 = mask_categories(mask, y, x)
+            c1 = mask_categories(mask, y, x + 1)
+            mapped = pair_map[(c0 << 2) | c1]
+            row_byte = y * 8 + x // 2
+            background = expected[row_byte]
+            high = (mapped >> 4) or (background >> 4)
+            low = (mapped & 0x0F) or (background & 0x0F)
+            expected[row_byte] = (high << 4) | low
+    return bytes(expected)
+
+
+def compare_crop(actual: bytes, expected: bytes) -> dict[str, object]:
+    if len(actual) != 128 or len(expected) != 128:
+        raise ValueError("each 16x16 packed crop must contain 128 bytes")
+    first = next((i for i, (a, e) in enumerate(zip(actual, expected)) if a != e), None)
+    diff_pixel = None
+    if first is not None:
+        row, col_byte = divmod(first, 8)
+        differing = actual[first] ^ expected[first]
+        nibble = 0 if differing & 0xF0 else 1
+        diff_pixel = {"x": col_byte * 2 + nibble, "y": row,
+                      "actual_byte": actual[first], "expected_byte": expected[first]}
+    return {
+        "pass": actual == expected,
+        "actual_sha256": sha(actual),
+        "expected_sha256": sha(expected),
+        "first_differing_packed_byte": first,
+        "first_differing_pixel": diff_pixel,
+        "bytes": len(actual),
+    }
+
+
+def compare_letter_slots(
+        published_frame: bytes, underlay: bytes, variants: list[int],
+        masks: list[bytes], pair_map: bytes,
+) -> dict[str, object]:
+    if len(variants) != 3:
+        raise AssertionError(f"expected three letter variants, got {variants}")
+    rows = []
+    for slot, variant in enumerate(variants):
+        if not 0 <= variant < len(masks):
+            raise AssertionError(f"variant {variant} is outside compiled masks")
+        expected = compose_slot(underlay, slot, masks[variant], pair_map)
+        actual = crop_slot(published_frame, slot)
+        rows.append({"slot": slot + 1, "variant": variant,
+                     "actual_crop": actual.hex(),
+                     "comparison": compare_crop(actual, expected)})
+    return {
+        "expected_foreground_pen": 3,
+        "expected_foreground_role": "Blue3 from retained pre-fix sprite_blue_pairs",
+        "mask_source": "scripts/build_screen.py::compile_object_masks(chars.json)",
+        "expected_palette_source": "retained baseline sprite_blue_pairs",
+        "transparent_nibbles_preserve_clean_underlay": True,
+        "slots": rows,
+        "all_slots_match": all(row["comparison"]["pass"] for row in rows),
+    }

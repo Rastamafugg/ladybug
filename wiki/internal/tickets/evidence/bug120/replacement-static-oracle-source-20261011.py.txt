@@ -1,0 +1,270 @@
+"""Scratch-only BUG-120 table-flag and geometry oracle; no build or emulator."""
+from __future__ import annotations
+
+import hashlib
+import json
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+sys.dont_write_bytecode = True
+ROOT = Path(__file__).resolve().parents[3]
+sys.path.insert(0, str(ROOT / "scripts"))
+import build_presentation as presentation  # noqa: E402
+from build_screen import (  # noqa: E402
+    BLACK, FLIP_H, FLIP_V, GID_MASK, GREEN, PINK, PURPLE, WHITE,
+    compile_player_sprites, load_chars, recolor, rotate_ccw, tileset_ranges,
+    transform,
+)
+
+MAP = ROOT / "tiled/coco-enter-high-score-screen.tmx"
+SPRITES = ROOT / "assets/arcade/sprites.json"
+CHARS = ROOT / "assets/arcade/chars.json"
+DIRS = ((0, -1), (1, 0), (0, 1), (-1, 0))
+BITS = (1, 2, 4, 8)
+OPP = (4, 8, 1, 2)
+PAIR_BIT = {frozenset((0, 1)): 0x10, frozenset((1, 2)): 0x20,
+            frozenset((2, 3)): 0x40, frozenset((3, 0)): 0x80}
+ORIGIN_Y = 1
+ACTIONS = ({(3, 4), (8, 4), (12, 4), (16, 4), (19, 4),
+            (3, 20), (7, 20), (11, 20), (15, 20), (19, 20)} |
+           {(x, y) for x in (4, 8, 12, 16, 20)
+            for y in range(6, 19, 2)})
+
+
+def sha(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def idx(cell: tuple[int, int]) -> int:
+    return cell[1] * 24 + cell[0]
+
+
+def main() -> None:
+    expected_head = "ce6d07d28bf80a9588c15e1cc873e7a767d10514"
+    import subprocess
+    head = subprocess.check_output(["git", "rev-parse", "HEAD"],
+                                   cwd=ROOT, text=True).strip()
+    if head != expected_head:
+        raise SystemExit(f"unexpected HEAD {head}; source pins are stale")
+
+    inputs = [
+        "src/main.s", "src/shared_text_stage.inc", "src/shared_text_ranking.inc",
+        "scripts/build_presentation.py", "scripts/verify_presentation.py",
+        "scripts/build_screen.py", "scripts/build_sparse_sprites.py",
+        "scripts/verify_feat003_highscore_test.py",
+        "tiled/coco-enter-high-score-screen.tmx", "tiled/coco-screen.tmx",
+        "assets/arcade/sprites.json", "assets/arcade/chars.json",
+        "assets/arcade/maze.json", "tiled/chars_raw2bpp.tsx",
+        "tiled/sprites_raw2bpp.tsx",
+        "repro/bugpass-20261010/luna120-rules/rules-diagnosis.json",
+        "repro/bugpass-20261010/luna120-rules/architecture-review.json",
+        "repro/bugpass-20261010/luna120-geometry/geometry-diagnosis.json",
+    ]
+    hashes = {item: sha(ROOT / item) for item in inputs}
+
+    root = ET.parse(MAP).getroot()
+    overlay = next(layer for layer in root.findall("layer")
+                   if layer.get("name") == "Enter High Score Overlay")
+    cells = presentation.parse_csv(overlay.find("data"), overlay.get("name", ""))
+    ranges = tileset_ranges(root, MAP)
+    chars = [rotate_ccw(tile) for tile in load_chars(CHARS)]
+    wall_cells: set[tuple[int, int]] = set()
+    wall_pixels: set[tuple[int, int]] = set()
+    for y in range(24):
+        for sx in range(8, 32):
+            gid = cells[y * 40 + sx]
+            if not gid or presentation.raw_char_code(root, MAP, gid & GID_MASK) != 49:
+                continue
+            x = sx - 8
+            wall_cells.add((x, y))
+            tileset = next(item for item in ranges
+                           if int(item["firstgid"]) <= (gid & GID_MASK)
+                           <= int(item["lastgid"]))
+            sheet = (gid & GID_MASK) - int(tileset["firstgid"])
+            code = (sheet % 16) * 32 + (31 - sheet // 16)
+            tile = transform(chars[code], bool(gid & FLIP_H), bool(gid & FLIP_V))
+            pen_map = ((BLACK, PINK, PURPLE, GREEN)
+                       if x not in (0, 23) and y not in (0, 23)
+                       else (BLACK, PINK, WHITE, PINK))
+            tile = recolor(tile, pen_map)
+            for dy in range(8):
+                for dx in range(8):
+                    if tile[dy][dx]:
+                        wall_pixels.add((x * 8 + dx, y * 8 + dy))
+
+    frames = compile_player_sprites(SPRITES)
+    opaque_by_face: list[set[tuple[int, int]]] = []
+    for face in range(4):
+        opaque: set[tuple[int, int]] = set()
+        for frame in frames[face * 4:(face + 1) * 4]:
+            for y in range(16):
+                for x in range(16):
+                    if (frame[y * 4 + x // 4] >> (6 - 2 * (x % 4))) & 3:
+                        opaque.add((x, y))
+        opaque_by_face.append(opaque)
+
+    base = presentation.enter_high_score_full_edge_masks(MAP)
+    if len(base) != 576:
+        raise AssertionError(f"base table size={len(base)}, expected 576")
+    table = bytearray(base)
+    overhang = {(x - 1, y) for x, y in wall_cells
+                if 0 < x < 23 and 0 < y < 23}
+    for x, y in overhang:
+        table[idx((x, y))] = 0
+        for direction, (dx, dy) in enumerate(DIRS):
+            neighbor = (x + dx, y + dy)
+            if 0 <= neighbor[0] < 24 and 0 <= neighbor[1] < 24:
+                table[idx(neighbor)] &= ~OPP[direction]
+    edge_graph = bytes(table)
+
+    def reachable() -> set[tuple[int, int]]:
+        seen = {(11, 22)}
+        todo = list(seen)
+        while todo:
+            x, y = todo.pop()
+            for d, (dx, dy) in enumerate(DIRS):
+                neighbor = (x + dx, y + dy)
+                if (edge_graph[idx((x, y))] & BITS[d] and
+                        0 <= neighbor[0] < 24 and 0 <= neighbor[1] < 24 and
+                        neighbor not in seen):
+                    seen.add(neighbor)
+                    todo.append(neighbor)
+        return seen
+
+    def positions(cell: tuple[int, int], old: int, want: int,
+                  offset: int) -> list[tuple[int, int]]:
+        dx, dy = DIRS[old]
+        wx, wy = DIRS[want]
+        px = cell[0] * 8 + offset * dx
+        py = (cell[1] - 1) * 8 + ORIGIN_Y + offset * dy
+        result = [(px, py)]
+        for _ in range(offset // 2):
+            px += 2 * (wx - dx)
+            py += 2 * (wy - dy)
+            result.append((px, py))
+        return result
+
+    def intersects(pos: tuple[int, int], face: int) -> bool:
+        px, py = pos
+        return any((px + sx, py + sy) in wall_pixels
+                   for sx, sy in opaque_by_face[face])
+
+    active_cells = {(x, y) for y in range(24) for x in range(24)
+                    if edge_graph[idx((x, y))] & 0x0F}
+    nodes = reachable()
+    if active_cells != nodes:
+        raise AssertionError(("active and reachable graph differ",
+                              len(active_cells), len(nodes),
+                              sorted(active_cells - nodes)[:8]))
+    centers = sum(any(intersects((x * 8, (y - 1) * 8 + ORIGIN_Y), face)
+                      for face in range(4)) for x, y in nodes)
+    straight_bad = 0
+    for cell in nodes:
+        for direction in range(4):
+            if not edge_graph[idx(cell)] & BITS[direction]:
+                continue
+            dx, dy = DIRS[direction]
+            for offset in (2, 4, 6):
+                pos = (cell[0] * 8 + offset * dx,
+                       (cell[1] - 1) * 8 + ORIGIN_Y + offset * dy)
+                straight_bad += sum(intersects(pos, face) for face in range(4))
+
+    tuple_counts = {2: 0, 4: 0, 6: 0}
+    tuple_collisions = {2: 0, 4: 0, 6: 0}
+    symmetry_checks = 0
+    hazard_outcomes: dict[tuple[tuple[int, int], int], bool] = {}
+    for cell in sorted(nodes):
+        mask = edge_graph[idx(cell)]
+        for old in range(4):
+            for want in range(4):
+                if ((old - want) % 2 == 0 or not mask & BITS[old] or
+                        not mask & BITS[want]):
+                    continue
+                for offset in (2, 4, 6):
+                    path = positions(cell, old, want, offset)
+                    reverse_path = positions(cell, want, old, offset)
+                    symmetry_checks += 1
+                    if set(path) != set(reverse_path):
+                        raise AssertionError(("turn path symmetry", cell, old,
+                                              want, offset, path, reverse_path))
+                    collision = any(intersects(pos, face)
+                                    for pos in path for face in range(4))
+                    tuple_counts[offset] += 1
+                    tuple_collisions[offset] += int(collision)
+                    if offset == 6:
+                        pair_bit = PAIR_BIT[frozenset((old, want))]
+                        key = (cell, pair_bit)
+                        if key in hazard_outcomes and hazard_outcomes[key] != collision:
+                            raise AssertionError(("unordered-pair mismatch", key))
+                        hazard_outcomes[key] = collision
+
+    for (cell, pair_bit), collision in hazard_outcomes.items():
+        if collision:
+            table[idx(cell)] |= pair_bit
+    encoded = bytes(table)
+    for cell in nodes:
+        mask = edge_graph[idx(cell)]
+        for old in range(4):
+            for want in range(4):
+                if ((old - want) % 2 == 0 or not mask & BITS[old] or
+                        not mask & BITS[want]):
+                    continue
+                bit = PAIR_BIT[frozenset((old, want))]
+                flagged = bool(encoded[idx(cell)] & bit)
+                expected = hazard_outcomes[(cell, bit)]
+                if flagged != expected:
+                    raise AssertionError(("flag oracle mismatch", cell, old,
+                                          want, flagged, expected))
+    if any((encoded[i] & 0x0F) != edge_graph[i] for i in range(576)):
+        raise AssertionError("hazard flags changed directional edge bits")
+    for y in range(24):
+        for x in range(24):
+            if edge_graph[idx((x, y))] == 0 and encoded[idx((x, y))] & 0xF0:
+                raise AssertionError(("flag on inactive cell", x, y))
+
+    actions_reachable = len(nodes & ACTIONS)
+    if (len(ACTIONS) != 45 or actions_reachable != 45 or centers or
+            straight_bad or tuple_counts != {2: 400, 4: 400, 6: 400} or
+            tuple_collisions != {2: 0, 4: 0, 6: 200}):
+        raise AssertionError({"actions": (len(ACTIONS), actions_reachable),
+                              "unsafe_centers": centers,
+                              "straight_bad_face_states": straight_bad,
+                              "tuple_counts": tuple_counts,
+                              "tuple_collisions": tuple_collisions})
+
+    result = {
+        "status": "PASS",
+        "scope": "scratch-only static source-compiler pixel oracle; no build, assembly fit, emulator, or live acceptance",
+        "head": head,
+        "input_sha256": hashes,
+        "table_bytes": len(encoded),
+        "origin_y_pixels": ORIGIN_Y,
+        "active_graph_cells": len(active_cells),
+        "overhang_graph_nodes": len(nodes),
+        "action_cells": len(ACTIONS),
+        "reachable_action_cells": actions_reachable,
+        "unsafe_reachable_centers_any_face": centers,
+        "straight_face_states_with_intersection": straight_bad,
+        "turn_tuples_by_offset": tuple_counts,
+        "turn_tuples_with_any_face_or_animation_intersection": tuple_collisions,
+        "path_symmetry_checks": symmetry_checks,
+        "offset_6_unordered_cell_pair_flags": len(hazard_outcomes),
+        "offset_6_rejected_pairs": sum(hazard_outcomes.values()),
+        "offset_6_safe_pairs": sum(not value for value in hazard_outcomes.values()),
+        "encoded_high_bits": sum(bool(value & 0xF0) for value in encoded),
+        "checks": [
+            "all compiled animation-frame opaque pixels tested for each facing",
+            "each set/clear unordered pair flag compared against direct authored-pixel intersections",
+            "all directed 2/4/6-pixel snap paths checked under swapped-direction symmetry",
+            "low-nibble edge graph preserved and all 45 action cells remain reachable",
+        ],
+    }
+    out = Path(__file__).with_name("static-oracle.json")
+    out.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({k: v for k, v in result.items()
+                      if k not in ("input_sha256", "checks")}, indent=2))
+
+
+if __name__ == "__main__":
+    main()

@@ -1,0 +1,58 @@
+{
+  "ticket": "BUG-120",
+  "step": "replacement-diagnosis-ready-20261010",
+  "status": "Production remains Proposed; read-only source diagnosis only",
+  "base_commit": "ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+  "supported_profiles": "Parent confirmed complete adaptive keyboard/joystick and nonadaptive keyboard; all use shared text. Separate release/development/highscore-test legacy owners are out of this repair pass unless a generator regression is demonstrated.",
+  "source_hashes": {
+    "src/main.s": "SHA256 dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b; blob 4934b4c541a81b5761cd2cae3aec94ce9940ecf5",
+    "src/shared_text_stage.inc": "SHA256 f958e01212158cba5359e6ad2f9b67bb02314abb9c8e27c2907f014cbdef82ad; blob 9aa9c1fab9dca4e660691964c1920f41dcad62da",
+    "src/shared_text_ranking.inc": "SHA256 3a418ca424587424f71edca4bd6917fcbdd80dbc9abb8ebce7208f409b23d9d0; blob 0ce4754db134eab5ef9d7e25b472489834ed4f2d",
+    "scripts/build_presentation.py": "SHA256 167f9abdcaaa65540cb208d7f68d52d1f9cd98dc44b69f11ab97a3cd62097fd6; blob 02f13adf73d6bc8f5b26c79d0d705fa69c77d572",
+    "tiled/coco-enter-high-score-screen.tmx": "SHA256 805edeb75362428044c87a8020843aa6d26714cef36b59db61aac44b7ab5aeca; blob b777c57dde2aafdb8a3f0922dc6a8ac70871d91d",
+    "scripts/verify_feat003_highscore_test.py": "SHA256 a328e67c625b9413e3974ed6a4b6fad2bbd8b49ce2da2c13bef4a0d2c4fa311f; blob 2b37abf60ea050b74a185f175326f41742a702ce",
+    "scripts/verify_presentation.py": "SHA256 4e7aebc612ad247efd517d9953fefeaf90cb48f8b26cf148f9ac8849ed9058a4; blob 6fb045a2bc492a2aa01b959dbd17fb1c36757eab"
+  },
+  "confirmed_source_facts": [
+    {
+      "refs": "src/main.s:2733-2741, 2884-2888",
+      "fact": "read_joystick stores each non-neutral cardinal request into JOY_DIR, PLAYER_WANT, PLAYER_FACE before collision. Main pt_try_late_turn calls can_move; rejection branches to pt_draw, holding position and step while facing reflects the request."
+    },
+    {
+      "refs": "src/shared_text_stage.inc:1602-1664; src/shared_text_ranking.inc:846-908; src/main.s:4862-4897",
+      "fact": "Both shared-text name_tick variants call name_late_turn. When name_can_move rejects a perpendicular request during a partial cell, the helper returns A=0; the tick interprets zero as continue and advances the existing PLAYER_DIR. The cursor therefore advances on the old trajectory while the main player holds. This is a confirmed source-level behavioral mismatch."
+    },
+    {
+      "refs": "src/main.s:2858-2898, 2936-2975; src/shared_text_stage.inc:1608-1647; src/shared_text_ranking.inc:853-891",
+      "fact": "Reversal and admitted perpendicular turns use inverse counters: PLAYER_STEP is elapsed 0..3; PRES_NAME_STEPS at $DE is remaining 4..1. Both reverse by complementing the counter and rebasing PLAYER_CELL; admitted turns store elapsed progress in TURN_SNAP and perform two-axis correction per movement tick. Static source structure is equivalent under that mapping; runtime equivalence is not measured."
+    },
+    {
+      "refs": "src/main.s:2843-2848, 845; src/shared_text_stage.inc:1602-1607; src/shared_text_ranking.inc:846-851",
+      "fact": "Manual neutral input is checked before pending snap processing in both paths; position/snap and buffered direction are retained. Name redraws; main marks the player render. Main samples after render, while name samples inside name_tick, so exact input/render phase differs."
+    },
+    {
+      "refs": "src/main.s:2910-2926; src/shared_text_stage.inc:1648-1664; src/shared_text_ranking.inc:892-908",
+      "fact": "At aligned start, main clears PLAYER_DIR after a blocked request; name remains idle but leaves the prior PLAYER_DIR value. Since name step is zero, no movement results and the next legal start overwrites it. No user-visible consequence is established; it is a hidden state mismatch if strict state-level parity is required."
+    },
+    {
+      "refs": "src/main.s:3247-3262; src/shared_text_stage.inc:1729-1765; src/shared_text_ranking.inc:973-1000; scripts/build_presentation.py:552-618",
+      "fact": "DIR_N/E/S/W are 0/1/2/3. Main regular-cell can_move tests the target reciprocal entrance bit. Name tests current outgoing bits 1/2/4/8. Generator blocks authored wall/perimeter/top-right anchor cells and clears both sides of every adjacent blocked edge, so ordinary remaining edges are reciprocal. Static edge-bit semantics align; name geometry has no rotating-gate owner."
+    }
+  ],
+  "unconfirmed": [
+    "Whether the confirmed blocked-perpendicular movement mismatch causes opaque player pixels to intersect authored wall pixels.",
+    "Whether any main-legal partial turn at the current authored walls is pixel-safe. No exact reported route, current published artifact, staged/live identity, or runtime reproduction was captured in this source-only step.",
+    "Whether the reported pixels instead include geometry or framebuffer publication/restoration effects."
+  ],
+  "proposed_bounded_design": {
+    "smallest_behavioral_change": "In src/main.s:name_late_turn, route a failed name_can_move result to existing nlt_yes (nonzero). Existing shared-text callers interpret nonzero as name_idle redraw/hold, matching main's blocked partial turn. No new state, helper, owner, allocation, caller API, or shared-text edits. This is insufficient alone to establish zero wall-pixel intersections.",
+    "geometry_change_if_audit_requires_it": "If the pixel audit finds main-equivalent legal turns crossing authored wall pixels, narrowly update name-specific generated geometry/mask construction to reject or correct only those unsafe transitions while preserving the 576-byte table, wall art, 45 action cells, and main-equivalent movement elsewhere. Exact target depends on geometry results.",
+    "rejected": "Do not add the superseded name-only four-pixel window or facing restriction."
+  },
+  "verification_oracle": {
+    "behavior": "Reuse scripts/verify_feat003_highscore_test.py. Compare equivalent aligned and partial states for blocked perpendicular hold, admitted corner snap, reversal, neutral/resume, and aligned blocked input; use shared-text profiles and name/map-relative geometry.",
+    "pixels": "Use actual compiled directional opaque sprite pixels and authored wall code 49. Sweep straight paths and all main-legal partial-turn offsets at both inner-wall ends; require zero intersections and preserve all 45 action-cell reachability.",
+    "natural": "One natural qualifying-score name-entry route through row crossing, character selection, CL, and END; keep separate from forced branch evidence."
+  },
+  "disposition": "High-risk remains due to hard capacity pressure. Source confirms the blocked-partial-turn mismatch, not the cause of the reported visual overlap. No production, wiki, build, runtime, Git index, or commit changes were made; BUG-120 remains Proposed."
+}

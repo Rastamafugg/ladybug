@@ -1,0 +1,47 @@
+# BUG-122 stage-19 release comparison: bounded source diagnosis
+
+## Scope and result
+
+Source-only diagnosis against the current candidate artifacts. No runtime probe was run and no production, wiki, build, or QA files were changed. The comparison failure does not establish that entity selection rerolled: the retained failure combines table equality and RNG equality, while the evidence omits both expected values. The source exposes two stronger questions to discriminate first: whether the observed state-4 entry can be reached through the context-2 release path, and whether RNG equality spans normal gameplay ticks before the entry trace begins.
+
+## Artifact identity
+
+- `src/main.s` SHA-256: `dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b`
+- `src/presentation_runtime.s` SHA-256: `5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c`
+- `src/shared_text_stage.inc` SHA-256: `f958e01212158cba5359e6ad2f9b67bb02314abb9c8e27c2907f014cbdef82ad`
+- Build receipt `build/source-build-receipt.json` SHA-256: `dcce5e6e5ac7652b91bae3b285c8ef6643586bf67ed58dd76b234ac5faf8194b`; revision `ce6d07d28bf80a9588c15e1cc873e7a767d10514`, complete profile.
+- Candidate ROM `build/ladybug.rom` SHA-256: `73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81`.
+- Relevant retained verifier `verify_bug122.py` SHA-256: `b87816e60bb507b87a7001b8bdbd79ffaaa78dde51f938736d72307eaee4c2a1`; runtime helper `runtime.py`: `03dbdb71e3a5b0059fbd498cf4b806b0aa78ad09e66408c333990593fc7d2d50`.
+- Failure JSON `evidence/next-stage-historical-release-reroll-20261011.json` SHA-256: `a0e65adcdb7b37b0eba8a7e4acff79855e806562b834f185cf5d226677193c08` (the `bug122-next-stage.json` alias has the same hash).
+
+The current receipt selects adaptive rendering (`ADAPTIVE_RENDERING=1`, `COMPLETE_PROFILE=1`); the nonadaptive main loop is not the path to use for interpreting gameplay RNG. The current maps place presentation runtime in physical page `$38`, with `level_tick=$1CAC`, `live_begin=$1CEF`, `init_gameplay=$1CF9`; resident labels include `next_stage=$C270`, `init_entities=$C5C9`, `init_player=$CAE5`, `rng_next=$C6B0`, `install_phase_tiles_for_screen=$DF1C`; adaptive labels include normal/live split `$04BA` / `$04AE`. These are source/map addresses only; the release PCs and live bytes still require qualification against the candidate runtime before attributing execution.
+
+## Source-qualified order
+
+1. `src/presentation_runtime.s:365-392` (`normal_stage`) handles `STAGE_PENDING`. If `$51` is clear it calls `PRES_MAIN_NEXT_STAGE`, writes `PRES_CONTEXT_NEXT_STAGE` (value 2), and starts the level-start screen.
+2. `src/main.s:1024-1046` (`next_stage`) consumes pending, increments stage, initializes maze/gates/color, calls `init_entities`, `init_player`, and `init_enemy`, then sets `RF_STAGE`. This is the expected entity-table initialization for advancing to stage 19.
+3. `src/main.s:1747-1884` (`init_entities` and `place_entity`) clears `ENTITY_TOTAL`, chooses entities, and uses `rng_next` at lines 1793, 1806, 1819, and 1843. It writes entity records at lines 1873-1883. A second call is a credible cause of both changed table and RNG.
+4. With this build profile, `src/presentation_runtime.s:400-429` routes `start_screen` through `init_gameplay`. At `src/presentation_runtime.s:872-883`, the LEVEL_START path returns early when `PRES_CONTEXT_NEXT_STAGE` is set. Consequently it skips both `gameplay_reentry` and `PRES_MAIN_INSTALL_PHASE_TILES` for this context-2 next-stage screen.
+5. `install_phase_tiles_for_screen` at `src/main.s:4799-4809` calls `init_game_state`, which clears `INITIAL_ENTRY_STATE` to zero (`main.s:969-1001`), then initializes maze/gates/entities/player/enemy. That installer is gated behind the `init_gameplay` path skipped above; it does not set entry state 4.
+6. At `src/presentation_runtime.s:801-813`, `level_tick` sees context 2, clears context and mode, and returns. It does not call `live_begin`. The only visible current-profile writer that starts entry at state 1 is `live_begin` (`presentation_runtime.s:865-883`); it sets `ENTRY_WAIT_STAGE=1` and clears mode. The later source state chain is `main.s:862-963`: state 1 to 2 (`:901`), state 2 to 3 (`:918`), state 3 to 4 after offscreen ledgers/player setup (`:934`), and state 4 to 0 on entry completion (`:957`).
+7. A repository-wide source search for `INITIAL_ENTRY_STATE` found no other store in active renderer, enemy, adaptive, or generated presentation installer sources. Enemy/adaptive routines read it only. `init_game_state` clears it; entry state machine updates it; `live_begin` starts it. The obsolete duplicate presentation implementation is inactive under `COMPLETE_PROFILE=1`.
+8. Adaptive loop ordering matters for RNG interpretation. `src/adaptive_active.s:165-171` handles nonzero entry state and branches to its barrier; the normal path calls `rng_next` at `adaptive_active.s:203-204`. `verify_bug122.py:1420-1424` first waits for mode 0 and entry state 4. `runtime.py:163-176` implements that wait by repeatedly running `q.go()`. Therefore normal gameplay ticks may call RNG during the pre-trace wait if execution is in state 0. The later `trace_entry` (`runtime.py:179-188`) runs while entry state is nonzero and skips the normal RNG path. RNG equality measured from publication through wait and trace can fail legitimately even if the entry trace itself has no RNG tick.
+
+## What the evidence establishes
+
+The verifier captures a published baseline at `verify_bug122.py:1405-1408`, checks three holds at `:1416-1419`, waits for mode 0/state 4 at `:1420-1424`, then asserts combined direct-table and RNG equality with the message “later-stage release rerolled entity selection.” It reads the table directly from physical page `$34` (`:308-319`) and RNG from physical page `$38` (`:322-323`). The failure JSON records the actual end table hash `32414d1cd37b4e38cb2fb81cbfbe7551b53c818b1cf7949329d2dce89630c7b1` and stage-19 context-0 end state (player cell 12,18; DOTS_LEFT 105; BONUS_LEFT 6; 12 records). It does not retain expected table/RNG separately or final RNG, so it cannot say which comparator failed.
+
+There is also a source/path discrepancy: if `PRES_CONTEXT` is 2 at the level-start `init_gameplay` and remains so through the `level_tick` release, current source skips `live_begin`, while the verifier later requires state 4. The retained evidence is insufficient to show the exact execution path that produced state 4. This does not prove a product defect; the executed branch/context or observation boundary may differ from the assumed one. Release-prefix bytes and actual transitions have not been qualified from a live PC.
+
+## Ranked causes
+
+1. **Boundary/path mismatch (leading).** The assumed context-2 release reaches state 4, but the current source’s context-2 branch clears mode/context and returns without starting entry. Qualify branch/context and live bytes at release before interpreting later state.
+2. **Legitimate RNG advance during `q.wait`.** If wait includes normal state-0 ticks after release and before state 4, the active adaptive normal loop advances RNG. The existing combined assertion cannot distinguish this from a reroll.
+3. **Unexpected duplicate initialization.** If context gating differs in execution, an unexpected `init_gameplay`, `install_phase_tiles_for_screen`, `next_stage`, or `init_entities` call can rewrite table and RNG. Current source says the normal context-2 path should not do this after stage setup.
+4. **Capture/helper/render clobber.** Lower-ranked: the table and RNG are separately read from direct physical pages, and reviewed rendering/entry-state code has no other entry-state store. Still unresolved because expected values and live release bytes are absent.
+
+## One minimal discriminating probe (not run)
+
+Use the existing next-stage verifier scenario only. Keep its existing 10-second monitor boundary; allow at most 45 seconds from the stage-19 published snapshot to the state-0 completion marker. Before wait, retain both expected table bytes/hash and expected RNG bytes. Qualify the live presentation bytes at `$1CAC` and `$1CEF` against the current page-$38 module, plus relevant resident/adaptive bytes before interpreting PCs. During `q.wait` and entry, record context/mode/entry-state transitions and hits for `level_tick`, `live_begin`, `init_gameplay`, `next_stage`, `init_entities`, `install_phase_tiles_for_screen`, and `rng_next`; sample physical page `$34` table and page `$38` RNG at published baseline, first state 4, and state-0 completion.
+
+Success marker: a byte-qualified stage-19 state-0 completion with retained before/after table and RNG values and the above hit/order trace. Unchanged table plus `rng_next` hits only during state-0 pre-trace wait identifies legitimate RNG advance; an `init_entities` hit explains table/RNG rewrite; no init hit with changed physical bytes leaves capture/helper/mapping unresolved. If state 4 is not reached within 45 seconds, timeout means the required marker was absent inside this probe boundary, not that target code is slow. Do not extend this phase without reassessing the bug class and approval.

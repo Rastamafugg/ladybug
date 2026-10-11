@@ -1,0 +1,2528 @@
+#!/usr/bin/env python3
+"""Bounded current-artifact QA for BUG-122; writes receipts only to this tree.
+
+Run one parent-authorized scenario at a time against its named stable artifact.
+Each runtime phase is capped at 45 s, with monitor stops no longer than 10 s.
+"""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import os
+import sys
+import time
+from collections import deque
+from pathlib import Path
+
+
+HERE = Path(__file__).resolve().parent
+ROOT = next(p for p in HERE.parents if (p / "scripts/build.sh").is_file())
+for import_path in (ROOT / "scripts", HERE):
+    if str(import_path) not in sys.path:
+        sys.path.insert(0, str(import_path))
+BASELINE_SHA256 = "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300"
+DEFAULT_BASELINE = ROOT / "repro/bug122-parent/baseline"
+DEFAULT_NONADAPTIVE_BUILD = ROOT / "repro/bug122-parent/nonadaptive-build"
+NONADAPTIVE_ROM_SHA256 = "db3129613949c47da163e62139ad4475e3c20da0e8505c98eddd93395c3e29b0"
+ENTITY_PHYS = 0x34 * 8192 + 0x0380
+ENTITY_BYTES = 48
+RESIDENT_PROVEN_BYTES = 0x3E00  # C000-FDFF; excludes FF00 hardware I/O and vectors.
+LIVE_ENTRY_MODE = 0
+MODE_LEVEL = 6
+LEVEL_START_SCREEN = 2
+ENTRY_WAIT_STAGE = 1
+ENTRY_WALKOUT = 2
+ENTRY_OFFSCREEN = 3
+ENTRY_MAZE_ENTRY = 4
+RF_STAGE = 0x40
+FB_RENDER_ACTIVE = 0x0098
+LETTER_GROUPS = {
+    "X/T/R": {11, 10, 8},
+    "S/P/C/I/L": {9, 7, 3, 5, 6},
+    "E/A": {4, 2},
+}
+LETTER_NAMES = {2: "A", 3: "C", 4: "E", 5: "I", 6: "L",
+                7: "P", 8: "R", 9: "S", 10: "T", 11: "X"}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def qualified_maze_snapshot(q, label: str) -> tuple[bytes, dict[str, object]]:
+    """Read the writable maze only after PAR5 and logical/physical identity agree."""
+    import verify_bug011_runtime as low
+
+    address = q.ms.get("MAZE_STATE")
+    if address != 0xA000:
+        raise AssertionError(f"{label}: MAZE_STATE map address is {address!r}, expected $A000")
+    par5_raw = low.read_bytes(q.c, 0xFFA5, 1)[0]
+    par5_page = par5_raw & 0x3F
+    if par5_page != 0x34:
+        raise AssertionError(f"{label}: MAZE_STATE logical window uses PAR5 page ${par5_page:02X}, expected $34")
+    physical = q.phys(0x34 * 8192, 576)
+    logical = low.read_bytes(q.c, address, 576)
+    if logical != physical:
+        raise AssertionError(f"{label}: logical $A000 maze bytes differ from physical page-$34 bytes")
+    proof = {"label": label, "symbol_address": address,
+             "PAR5_raw": par5_raw, "PAR5_page": par5_page,
+             "physical_page": 0x34, "byte_count": len(physical),
+             "sha256": sha(physical), "logical_matches_physical": True}
+    return physical, proof
+
+
+def attach_failure_evidence(exc: Exception, q) -> None:
+    evidence: dict[str, object] = {"last_boundaries": q.trace[-12:]}
+    if getattr(q, "selection_diagnostic", None):
+        evidence["selection_diagnostic"] = q.selection_diagnostic
+    if getattr(q, "call_watch_records", None):
+        evidence["page23_alias_reader_calls"] = q.call_watch_records
+    if getattr(q, "call_watch_other_bank_hit_counts", None):
+        evidence["page23_watch_other_bank_hits"] = {
+            "counts_by_raw_pc_and_PAR5_page": dict(q.call_watch_other_bank_hit_counts),
+            "first_samples": [dict(item) for item in q.call_watch_other_bank_hits]}
+    if getattr(q, "audio_events", None):
+        evidence["audio_events_tail"] = q.audio_events[-12:]
+    context = getattr(q, "qa_failure_context", None)
+    if callable(context):
+        try:
+            evidence["scenario_state"] = context()
+        except Exception as context_error:
+            evidence["scenario_state_capture_error"] = repr(context_error)
+    try:
+        exc.qa_evidence = evidence
+    except Exception:
+        pass
+
+
+def verify_retained_baseline(baseline_dir: Path) -> dict[str, object]:
+    """Validate the frozen pre-fix artifact and its retained source inputs."""
+    import pixel_oracle as oracle
+
+    manifest_path = baseline_dir / "retention.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("rom_sha256", "").lower() != BASELINE_SHA256:
+        raise AssertionError("retention.json identifies a different baseline ROM")
+    required = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map",
+                "ladybug_screen.inc", "coco-level-start-screen.tmx",
+                "ladybug-presentation-runtime.bin", "ladybug-presentation-cold.bin",
+                "source-build-receipt.json")
+    checked = {}
+    for name in required:
+        expected = manifest.get("files", {}).get(name)
+        path = baseline_dir / name
+        if not expected or not path.is_file():
+            raise AssertionError(f"retained baseline manifest/file is missing: {name}")
+        actual = sha(path.read_bytes())
+        if actual.lower() != expected.lower():
+            raise AssertionError(f"retained baseline file differs from retention.json: {name}")
+        checked[name] = actual
+    source = json.loads(oracle.BASELINE_SOURCE_MANIFEST.read_text(encoding="utf-8"))
+    source_checks = {
+        "coco-level-start-screen.tmx": sha((baseline_dir / "coco-level-start-screen.tmx").read_bytes()),
+        "chars.json": sha(oracle.CHARS.read_bytes()),
+    }
+    if source.get("map_sha256", "").lower() != source_checks["coco-level-start-screen.tmx"].lower():
+        raise AssertionError("frozen baseline TMX differs from the Luna source manifest")
+    if source.get("chars_sha256", "").lower() != source_checks["chars.json"].lower():
+        raise AssertionError("frozen chars.json differs from the Luna source manifest")
+    return {"retention_manifest_sha256": sha(manifest_path.read_bytes()),
+            "retained_files_sha256": checked,
+            "qa_source_manifest_sha256": sha(oracle.BASELINE_SOURCE_MANIFEST.read_bytes()),
+            "qa_source_inputs_sha256": source_checks}
+
+
+def verify_retained_nonadaptive(build_dir: Path) -> dict[str, object]:
+    """Pin the one nonadaptive artifact used for direct-render handoff coverage."""
+    manifest_path = build_dir / "retention.json"
+    if not manifest_path.is_file():
+        raise AssertionError(f"nonadaptive build is missing its retained identity manifest: {manifest_path}")
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    if manifest.get("profile") != "nonadaptive keyboard":
+        raise AssertionError(f"retained build profile is not nonadaptive keyboard: {manifest.get('profile')!r}")
+    if manifest.get("files", {}).get("ladybug.rom", "").lower() != NONADAPTIVE_ROM_SHA256:
+        raise AssertionError("retained nonadaptive manifest names an unexpected ROM")
+    checked: dict[str, str] = {}
+    for name, expected in manifest.get("files", {}).items():
+        if Path(name).name != name:
+            raise AssertionError(f"unsafe retained nonadaptive manifest filename {name!r}")
+        path = build_dir / name
+        if not path.is_file():
+            raise AssertionError(f"retained nonadaptive artifact is missing: {path}")
+        actual = sha(path.read_bytes())
+        if actual.lower() != str(expected).lower():
+            raise AssertionError(f"retained nonadaptive artifact hash mismatch: {name}")
+        checked[name] = actual
+    if checked.get("ladybug.rom", "").lower() != NONADAPTIVE_ROM_SHA256:
+        raise AssertionError("retained nonadaptive ROM bytes do not match the qualified hash")
+    if (build_dir / "ladybug-adaptive-active.bin").exists():
+        raise AssertionError("retained nonadaptive build unexpectedly contains adaptive active code")
+    return {"directory": str(build_dir.resolve()), "profile": manifest["profile"],
+            "rom_sha256": NONADAPTIVE_ROM_SHA256, "files": checked,
+            "scope": manifest.get("scope")}
+
+
+def highscore_helper_summary(build_dir: Path, require_preview_reader: bool) -> dict[str, object]:
+    """Qualify the authored page-$23 helper and the mapped writer symbols."""
+    import verify_bug011_runtime as low
+
+    helper_path = build_dir / "ladybug-highscore-helper.bin"
+    map_path = build_dir / "ladybug-highscore-helper.map"
+    layout_path = build_dir / "ladybug-sparse-layout.json"
+    if not all(path.is_file() for path in (helper_path, map_path, layout_path)):
+        raise AssertionError(f"{build_dir}: page-$23 helper artifact/map/layout is incomplete")
+    helper = helper_path.read_bytes()
+    layout = json.loads(layout_path.read_text(encoding="utf-8"))
+    staged = layout.get("highscore_helper", {})
+    start, length = staged.get("stage_address"), staged.get("bytes")
+    page = staged.get("stage_page")
+    if (page != 0x23 or start != 0xAC40 or length != len(helper) or
+            staged.get("sha256", "").lower() != sha(helper).lower() or
+            start + length > 0xB880):
+        raise AssertionError("highscore helper source bytes differ from its page-$23 sparse layout")
+    symbols = low.symbols(map_path)
+    entry = symbols.get("stage_panel_read_letters")
+    stage_panel_symbols = {name: address for name, address in symbols.items()
+                           if name.startswith("stage_panel_")}
+    writer_symbols = {name: address for name, address in stage_panel_symbols.items()
+                      if "letter" in name}
+    if require_preview_reader:
+        if entry != 0xB062:
+            raise AssertionError(
+                f"stage_panel_read_letters map entry is {entry!r}; expected $B062"
+            )
+        if "stage_panel_read_letters" not in writer_symbols:
+            raise AssertionError("preview letter reader is absent from the helper map")
+    start, end = int(start), int(start) + int(length)
+    for name, address in stage_panel_symbols.items():
+        if not start <= address < end:
+            raise AssertionError(f"{name}=${address:04X} is outside the staged helper span")
+    entry_offset = entry - start if entry is not None else 0
+    return {"helper_path": str(helper_path), "helper_map_path": str(map_path),
+            "helper_sha256": sha(helper), "helper_bytes": len(helper),
+            "sparse_layout": {"stage_page": page, "stage_address": start,
+                              "end_address": end, "sha256": staged.get("sha256")},
+            "stage_panel_read_letters": entry,
+            "writer_symbols": writer_symbols,
+            "stage_panel_symbols": stage_panel_symbols,
+            "entry_bytes_16": helper[entry_offset:entry_offset + 16].hex()
+            if entry is not None else None,
+            "entry_bytes_sha256": sha(helper[entry_offset:entry_offset + 16])
+            if entry is not None else None}
+
+
+def load_runtime(build_dir: Path):
+    os.environ["LADYBUG_TEST_BUILD"] = str(build_dir.resolve())
+    sys.path.insert(0, str(HERE))
+    import runtime as rt
+    rt.B = build_dir.resolve()
+    return rt
+
+
+def build_summary(build_dir: Path, require_candidate_masks: bool = True) -> dict[str, object]:
+    """Verify authored, generated, staged, and ROM-resident data offline."""
+    sys.path.insert(0, str(ROOT / "scripts"))
+    sys.path.insert(0, str(HERE))
+    import pixel_oracle as oracle
+    import verify_bug011_runtime as low
+
+    build_dir = build_dir.resolve()
+    required = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map",
+                "ladybug-presentation-runtime.bin", "ladybug-presentation-cold.bin",
+                "ladybug_screen.inc", "ladybug-highscore-helper.bin",
+                "ladybug-highscore-helper.map", "ladybug-sparse-layout.json")
+    missing = [name for name in required if not (build_dir / name).is_file()]
+    if missing:
+        raise AssertionError(f"{build_dir}: missing candidate build artifacts {missing}")
+    rom = (build_dir / "ladybug.rom").read_bytes()
+    resident = (build_dir / "ladybug-runtime.rom").read_bytes()
+    symbols = low.symbols(build_dir / "ladybug.map")
+    if symbols.get("ENTITY_TABLE") != 0xA380:
+        raise AssertionError(f"{build_dir}: ENTITY_TABLE must remain mapped at $A380")
+    helper = highscore_helper_summary(build_dir, require_candidate_masks)
+    for name, size in (("mainloop", 1), ("init_entities", 1),
+                       ("object_masks", 12 * 64), ("sprite_attr0_pairs", 16),
+                       ("sprite_blue_pairs", 16)):
+        if name not in symbols:
+            if name in ("mainloop", "init_entities", "object_masks") and require_candidate_masks:
+                raise AssertionError(f"{build_dir}: required resident symbol {name} is absent")
+            continue
+        address = symbols[name]
+        if address < 0xC000 or address + size > 0xC000 + RESIDENT_PROVEN_BYTES:
+            raise AssertionError(
+                f"{build_dir}: {name}=${address:04X}+{size} is outside proven resident C000-FDFF"
+            )
+    generated = b"".join(oracle.compile_masks())
+    include_masks = oracle.parse_asm_data(build_dir / "ladybug_screen.inc",
+                                          "object_masks", len(generated))
+    if include_masks != generated:
+        raise AssertionError("generated include object_masks differ from chars.json oracle")
+    for label, reference in (("object_masks", generated),):
+        if label not in symbols:
+            if require_candidate_masks:
+                raise AssertionError(f"{build_dir}: required exported symbol {label} is absent")
+            continue
+        offset = symbols[label] - 0xC000
+        if resident[offset:offset + len(reference)] != reference:
+            raise AssertionError(f"resident {label} differs from generated object masks")
+    attr = None
+    if "sprite_attr0_pairs" in symbols:
+        offset = symbols["sprite_attr0_pairs"] - 0xC000
+        attr = resident[offset:offset + 16]
+        if len(attr) != 16:
+            raise AssertionError("sprite_attr0_pairs is not fully resident")
+    blue = None
+    if "sprite_blue_pairs" in symbols:
+        offset = symbols["sprite_blue_pairs"] - 0xC000
+        blue = resident[offset:offset + 16]
+        if len(blue) != 16:
+            raise AssertionError("sprite_blue_pairs is not fully resident")
+    return {
+        "build_directory": str(build_dir),
+        "rom_sha256": sha(rom),
+        "rom_bytes": len(rom),
+        "resident_sha256": sha(resident),
+        "presentation_module_sha256": sha((build_dir / "ladybug-presentation-runtime.bin").read_bytes()),
+        "cold_payload_sha256": sha((build_dir / "ladybug-presentation-cold.bin").read_bytes()),
+        "authored_map_sha256": sha(oracle.PANEL_MAP.read_bytes()),
+        "character_source_sha256": sha(oracle.CURRENT_CHARS.read_bytes()),
+        "oracle_baseline_chars_sha256": sha(oracle.CHARS.read_bytes()),
+        "workspace_source_sha256_at_inspection": {
+            rel: sha((ROOT / rel).read_bytes()) for rel in
+            ("src/main.s", "src/presentation_runtime.s", "src/shared_text_stage.inc")
+        },
+        "screen_include_sha256": sha((build_dir / "ladybug_screen.inc").read_bytes()),
+        "object_masks_sha256": sha(generated),
+        "object_masks_match_generated_include_and_resident": "object_masks" in symbols,
+        "object_masks_symbol": symbols.get("object_masks"),
+        "sprite_attr0_pairs_sha256": sha(attr) if attr is not None else None,
+        "sprite_blue_pairs_sha256": sha(blue) if blue is not None else None,
+        "resident_symbols": {name: symbols.get(name) for name in
+                              ("mainloop", "init_entities", "object_masks",
+                               "sprite_attr0_pairs", "sprite_blue_pairs")},
+        "page23_highscore_helper": helper,
+    }
+
+
+def direct_table(q) -> tuple[int, bytes]:
+    if q.ms.get("ENTITY_TABLE") != 0xA380:
+        raise AssertionError("current map does not identify ENTITY_TABLE at $A380")
+    count = q.val("ENTITY_COUNT")
+    if not 0 <= count <= 12:
+        raise AssertionError(f"ENTITY_COUNT={count} outside 0..12")
+    # The address $A380 is a logical alias whose backing page depends on live
+    # PAR5. During presentation that register can select a different bank.
+    # Acceptance state is read from the declared physical page-$34 table;
+    # alias correctness is checked at the actual page-$23 wrapper call below.
+    direct = q.phys(ENTITY_PHYS, count * 4)
+    return count, direct
+
+
+def rng_state(q) -> bytes:
+    return q.low("RNG_STATE", 2)
+
+
+def unpack_records(count: int, raw: bytes) -> list[list[int]]:
+    if len(raw) != count * 4:
+        raise AssertionError(f"active entity bytes={len(raw)}; count={count}")
+    return [list(raw[i:i + 4]) for i in range(0, len(raw), 4)]
+
+
+def letter_variants(count: int, raw: bytes) -> tuple[list[int], dict[str, object]]:
+    records = unpack_records(count, raw)
+    letters = [rec for rec in records if rec[2] == 3]
+    grouped = {}
+    variants = []
+    for name, allowed in LETTER_GROUPS.items():
+        matches = [rec for rec in letters if rec[3] in allowed]
+        grouped[name] = [{"x": rec[0], "y": rec[1], "type": rec[2],
+                          "variant": rec[3], "letter": LETTER_NAMES.get(rec[3], "?")}
+                         for rec in matches]
+        if len(matches) != 1:
+            raise AssertionError(f"letter group {name} has {len(matches)} active records")
+        variants.append(matches[0][3])
+    if len(letters) != 3:
+        raise AssertionError(f"expected 3 active letters, observed {len(letters)}")
+    return variants, {"records": records, "letter_records": grouped}
+
+
+def mapping_snapshot(q) -> dict[str, object]:
+    import runtime as rt
+
+    regs = q.c.call("read_registers")
+    raw = rt.r.read_bytes(q.c, 0xFFA4, 2)
+    return {"PAR4_PAR5_raw": raw.hex(), "register_cc": regs.get("cc", regs.get("ccr")),
+            "PC": regs.get("pc")}
+
+
+def arm_audio_enqueue_watch(q, build_dir: Path) -> dict[str, object]:
+    """Pin the immutable page-$3D enqueue code before watching cue arguments."""
+    import verify_bug011_runtime as low
+
+    audio_path = build_dir / "ladybug-audio-runtime.bin"
+    map_path = build_dir / "ladybug-audio-runtime.map"
+    if not audio_path.is_file() or not map_path.is_file():
+        raise AssertionError(f"{build_dir}: audio runtime artifact/map is incomplete")
+    image = audio_path.read_bytes()
+    symbols = low.symbols(map_path)
+    engine_end = symbols.get("audio_engine_end")
+    enqueue = symbols.get("audio_enqueue_impl")
+    code_length = engine_end - 0xA000 if engine_end is not None else -1
+    if code_length != 731:
+        raise AssertionError(f"immutable audio engine code span is {code_length} bytes, expected 731")
+    if enqueue != 0xA0F4 or not 0xA000 <= enqueue < engine_end:
+        raise AssertionError(f"audio enqueue entry is {enqueue!r}, expected page-$3D logical $A0F4")
+    if len(image) < code_length:
+        raise AssertionError("audio runtime artifact is shorter than the immutable engine code span")
+    entry_offset = enqueue - 0xA000
+    expected_entry = image[entry_offset:entry_offset + 16]
+    if len(expected_entry) != 16:
+        raise AssertionError("audio enqueue entry bytes extend beyond the immutable engine code")
+    if q.au.get("audio_enqueue_impl") != enqueue or q.au.get("audio_engine_end") != engine_end:
+        raise AssertionError("runtime audio map differs from the map used to qualify the enqueue watch")
+    q.audio_watch_entry = enqueue
+    q.audio_watch_bytes = image
+    q.audio_watch_expected_entry_bytes = expected_entry
+    q.audio_watch_physical_start = 0x3D * 8192
+    q.audio_watch_page = 0x3D
+    return {"artifact_sha256": sha(image), "map_sha256": sha(map_path.read_bytes()),
+            "immutable_code_bytes": code_length, "immutable_code_sha256": sha(image[:code_length]),
+            "entry": enqueue, "entry_bytes": expected_entry.hex(),
+            "entry_bytes_sha256": sha(expected_entry), "expected_PAR5_page": 0x3D}
+
+
+def verify_live_artifacts(q, build_dir: Path, artifact: dict[str, object],
+                          require_candidate_masks: bool = True) -> dict[str, object]:
+    """Prove control/staged/live bytes before reading candidate symbols."""
+    import runtime as rt
+    import pixel_oracle as oracle
+
+    syms = q.ms
+    resident = (build_dir / "ladybug-runtime.rom").read_bytes()
+    presentation = (build_dir / "ladybug-presentation-runtime.bin").read_bytes()
+    cold = (build_dir / "ladybug-presentation-cold.bin").read_bytes()
+    helper = highscore_helper_summary(build_dir, require_candidate_masks)
+    helper_bytes = (build_dir / "ladybug-highscore-helper.bin").read_bytes()
+    enemy_path = build_dir / "ladybug-enemy-runtime.rom"
+    enemy = enemy_path.read_bytes() if enemy_path.exists() else b""
+    if len(resident) < RESIDENT_PROVEN_BYTES:
+        raise AssertionError("resident artifact is shorter than the proven C000-FDFF image")
+    resident_image = resident[:RESIDENT_PROVEN_BYTES]
+    logical = rt.r.read_bytes(q.c, 0xC000, RESIDENT_PROVEN_BYTES)
+    physical = q.phys(0x3E * 8192, RESIDENT_PROVEN_BYTES)
+    if logical != resident_image or physical != resident_image:
+        raise AssertionError("resident authored/loaded/live bytes do not match candidate")
+    live_module = q.phys(0x38 * 8192 + 0x1900, len(presentation))
+    live_cold = q.phys(0x3A * 8192, len(cold))
+    if live_module != presentation or live_cold != cold:
+        raise AssertionError("staged presentation module/cold payload differs from build")
+    audio_watch = arm_audio_enqueue_watch(q, build_dir)
+    audio_code = (build_dir / "ladybug-audio-runtime.bin").read_bytes()[:audio_watch["immutable_code_bytes"]]
+    live_audio_code = q.phys(0x3D * 8192, len(audio_code))
+    if live_audio_code != audio_code:
+        raise AssertionError("immutable page-$3D audio engine code differs from the candidate artifact")
+    enqueue_offset = int(audio_watch["entry"]) - 0xA000
+    if live_audio_code[enqueue_offset:enqueue_offset + 16] != bytes.fromhex(audio_watch["entry_bytes"]):
+        raise AssertionError("live page-$3D audio enqueue entry differs from the qualified artifact bytes")
+    q.audio_watch_live_code_verified = True
+    if enemy:
+        if q.phys(0x38 * 8192 + 0x800, len(enemy)) != enemy:
+            raise AssertionError("staged enemy helper differs from candidate build")
+    helper_address = 0x23 * 8192 + (0xAC40 - 0xA000)
+    live_helper = q.phys(helper_address, len(helper_bytes))
+    if live_helper != helper_bytes:
+        raise AssertionError("page-$23 staged high-score helper differs from candidate artifact")
+    if helper["stage_panel_read_letters"] is not None:
+        entry_offset = int(helper["stage_panel_read_letters"]) - 0xAC40
+        if live_helper[entry_offset:entry_offset + 16] != bytes.fromhex(helper["entry_bytes_16"]):
+            raise AssertionError("live stage_panel_read_letters entry bytes differ from mapped helper")
+    live_tables = {}
+    generated = b"".join(oracle.compile_masks())
+    for name, size in (("object_masks", len(generated)),
+                       ("sprite_attr0_pairs", 16), ("sprite_blue_pairs", 16)):
+        if name not in syms:
+            if name == "object_masks" and require_candidate_masks:
+                raise AssertionError("candidate map does not export object_masks")
+            continue
+        offset = syms[name] - 0xC000
+        expected = resident[offset:offset + size]
+        live = q.phys(0x3E * 8192 + offset, size)
+        if live != expected:
+            raise AssertionError(f"live {name} differs from candidate resident bytes")
+        if name == "object_masks" and expected != generated:
+            raise AssertionError("candidate live object masks differ from authored masks")
+        live_tables[name] = {"symbol": syms[name], "bytes": size, "sha256": sha(live),
+                             "matches_resident": True}
+    if syms.get("ENTITY_TABLE") != 0xA380:
+        raise AssertionError(f"ENTITY_TABLE symbol changed unexpectedly: {syms.get('ENTITY_TABLE')!r}")
+    return {
+        "resident_proven_span": "$C000-$FDFF (15872 bytes); $FE00-$FFFF excluded",
+        "resident_logical_matches_artifact": True,
+        "resident_physical_pages_3e_3f_match_artifact": True,
+        "presentation_module_live_matches_artifact": True,
+        "presentation_module_artifact_sha256": sha(presentation),
+        "presentation_module_live_sha256": sha(live_module),
+        "presentation_cold_live_matches_artifact": True,
+        "audio_runtime_live_matches_artifact": True,
+        "audio_enqueue_watch": audio_watch,
+        "enemy_helper_live_matches_artifact": bool(enemy),
+        "page23_helper_source_staged_live_matches": True,
+        "page23_helper_entry_bytes_live_match": helper["stage_panel_read_letters"] is not None,
+        "page23_helper": helper,
+        "live_render_tables": live_tables,
+        "mapping_at_observation": mapping_snapshot(q),
+    }
+
+
+def wait_for_artifact_delivery(q, build_dir: Path,
+                               require_candidate_masks: bool = True) -> dict[str, object]:
+    """Use only mainloop as a raw stop address until candidate bytes are resident."""
+    import runtime as rt
+
+    q.candidate_build_dir = build_dir
+    mainloop = q.ms.get("mainloop")
+    if mainloop is None or not 0xC000 <= mainloop < 0xFE00:
+        raise AssertionError(f"candidate mainloop control address is outside resident span: {mainloop!r}")
+    resident = (build_dir / "ladybug-runtime.rom").read_bytes()[:RESIDENT_PROVEN_BYTES]
+    presentation = (build_dir / "ladybug-presentation-runtime.bin").read_bytes()
+    cold = (build_dir / "ladybug-presentation-cold.bin").read_bytes()
+    helper = (build_dir / "ladybug-highscore-helper.bin").read_bytes()
+    helper_physical = 0x23 * 8192 + (0xAC40 - 0xA000)
+    deadline = time.monotonic() + 45
+    attempts: list[dict[str, object]] = []
+    boundary_count = 0
+    ids = rt.m.setup(q.c, [mainloop])
+    try:
+        while time.monotonic() < deadline:
+            q.c.call("run")
+            wait_ms = max(1, min(10000, int((deadline - time.monotonic()) * 1000)))
+            stop = q.c.call("wait_for_stop", {"timeout_ms": wait_ms},
+                            timeout=wait_ms / 1000 + 2)
+            if stop.get("reason") != "breakpoint" or stop.get("pc") != mainloop:
+                raise AssertionError(f"raw mainloop delivery boundary stop differed: {stop}")
+            boundary_count += 1
+
+            # Read only fixed hardware addresses and raw resident/staged bytes
+            # until identity matches. Do not inspect state through candidate labels.
+            pages = bytes(value & 0x3F for value in rt.r.read_bytes(q.c, 0xFFA6, 2))
+            logical = rt.r.read_bytes(q.c, 0xC000, RESIDENT_PROVEN_BYTES)
+            physical = q.phys(0x3E * 8192, RESIDENT_PROVEN_BYTES)
+            live_presentation = q.phys(0x38 * 8192 + 0x1900, len(presentation))
+            live_cold = q.phys(0x3A * 8192, len(cold))
+            live_helper = q.phys(helper_physical, len(helper))
+            observation = {
+                "pc": f"${stop['pc']:04X}",
+                "PAR6_PAR7_pages": pages.hex(),
+                "resident_logical_matches": logical == resident,
+                "resident_logical_sha256": sha(logical),
+                "resident_physical_matches": physical == resident,
+                "resident_physical_sha256": sha(physical),
+                "presentation_module_matches": live_presentation == presentation,
+                "presentation_module_sha256": sha(live_presentation),
+                "cold_payload_matches": live_cold == cold,
+                "cold_payload_sha256": sha(live_cold),
+                "page23_helper_matches": live_helper == helper,
+                "page23_helper_sha256": sha(live_helper),
+            }
+            observation["all_primary_bytes_match"] = (
+                pages == bytes((0x3E, 0x3F)) and logical == resident and
+                physical == resident and live_presentation == presentation and
+                live_cold == cold and live_helper == helper
+            )
+            if observation["all_primary_bytes_match"]:
+                delivered = verify_live_artifacts(q, build_dir, {}, require_candidate_masks)
+                q.verified_live_artifacts = delivered
+                return {
+                    "result": "delivered",
+                    "control_boundary": f"${mainloop:04X}",
+                    "attempts": boundary_count,
+                    "preceding_nonmatching_boundaries": attempts,
+                    "final_boundary": observation,
+                    "candidate_live_identity": delivered,
+                    "deadline_seconds": 45,
+                    "monitor_stop_seconds": 10,
+                }
+            if len(attempts) < 8:
+                attempts.append(observation)
+
+            # The stop address may have been reached before loader delivery.
+            # Advance one raw instruction with no candidate-state inspection,
+            # then watch for the same boundary again within this phase.
+            ident = ids.pop()
+            rt.m.clear(q.c, [ident])
+            q.c.call("step_instruction", {"n": 1})
+            stepped = q.c.call("wait_for_stop", {"timeout_ms": 1000}, timeout=3)
+            if stepped.get("reason") != "step":
+                raise AssertionError(f"could not advance past pre-delivery control PC: {stepped}")
+            ids.extend(rt.m.setup(q.c, [mainloop]))
+
+        raise TimeoutError(
+            "candidate resident/helper delivery did not match at the raw mainloop boundary "
+            f"within 45s; no runtime speed inference; first mismatches={json.dumps(attempts, separators=(',', ':'))}"
+        )
+    finally:
+        rt.m.clear(q.c, ids)
+
+
+def arm_alias_reader_watch(q, build_dir: Path) -> dict[str, object]:
+    """Observe only helper execution after PAR5 and staged/live bytes qualify it."""
+    helper = highscore_helper_summary(build_dir, True)
+    q.call_watch_entry = int(helper["stage_panel_read_letters"])
+    q.call_watch_helper_bytes = (build_dir / "ladybug-highscore-helper.bin").read_bytes()
+    q.call_watch_expected_entry_bytes = bytes.fromhex(helper["entry_bytes_16"])
+    q.call_watch_stage_address = int(helper["sparse_layout"]["stage_address"])
+    q.call_watch_stage_page = int(helper["sparse_layout"]["stage_page"]) & 0x3F
+    q.call_watch_physical_start = (int(helper["sparse_layout"]["stage_page"]) * 8192 +
+                                   int(helper["sparse_layout"]["stage_address"]) - 0xA000)
+    if q.call_watch_stage_page != 0x23:
+        raise AssertionError("page-$23 helper metadata does not identify physical page $23")
+    return helper
+
+
+def check_alias_reader_watch(q, contexts: list[int]) -> list[dict[str, object]]:
+    records = list(q.call_watch_records)
+    for context in contexts:
+        matches = [item for item in records if item["context"] == context]
+        if not matches:
+            raise AssertionError(f"stage-panel alias reader was not executed for context {context}")
+    if not records:
+        raise AssertionError("stage-panel alias reader had no delivered helper entry/return observations")
+    for item in records:
+        if (item["entry_PC"] != q.call_watch_entry or
+                item.get("PAR5_page") != q.call_watch_stage_page or
+                bytes.fromhex(item["entry_bytes"]) != q.call_watch_expected_entry_bytes or
+                item.get("entry_physical_bytes_match") is not True or
+                item.get("entry_logical_bytes_match") is not True or
+                item.get("return_PAR5_page") != q.call_watch_stage_page or
+                item.get("return_physical_bytes_match") is not True or
+                item.get("return_logical_bytes_match") is not True or
+                item.get("PAR4_physical_page_restored") is not True or
+                item.get("PAR4_compare_mask") != 0x3F or
+                item.get("cc_if_bits_restored") is not True or
+                item.get("cc_compare_mask") != 0x50):
+            raise AssertionError(f"stage-panel alias reader delivery/restore evidence is invalid: {item}")
+    # Freeze the checked list so later raw-PC hits in another bank cannot mutate
+    # a previously validated acceptance record.
+    return [dict(item, return_state=dict(item["return_state"])) for item in records]
+
+
+def other_bank_watch_summary(q) -> dict[str, object]:
+    return {"page23_entry_counts_by_raw_pc_and_PAR5_page": dict(q.call_watch_other_bank_hit_counts),
+            "page23_entry_first_samples": [dict(item) for item in q.call_watch_other_bank_hits],
+            "all_qualified_watch_counts_by_site_pc_and_mapped_page":
+                dict(q.banked_watch_other_bank_hit_counts),
+            "all_qualified_watch_first_samples":
+                [dict(item) for item in q.banked_watch_other_bank_hits]}
+
+
+def framebuffer_commit(q) -> int:
+    return int.from_bytes(q.low(0x0092, 2), "big")
+
+
+def physical_owner_frame(q, owner: int) -> bytes:
+    if owner not in (0, 1):
+        raise ValueError(f"invalid framebuffer owner {owner}")
+    pages = range(0x30, 0x34) if owner == 0 else range(0x2C, 0x30)
+    return b"".join(q.phys(page * 8192, 8192) for page in pages)[:30720]
+
+
+def qualified_stage_convergence(q, label: str) -> dict[str, object]:
+    """Read stage-intent ownership only after PAR0/PAR5 mapping identity checks."""
+    import verify_bug011_runtime as low
+
+    expected_symbols = {"FB_META_A": 0xA900, "FB_META_B": 0xAA00,
+                        "FBM_PENDING_INTENTS": 160, "RENDER_FLAGS": 0x007F,
+                        "FB_FRONT_ID": 0x008F, "FB_RENDER_PENDING": 0x0091,
+                        "FB_COMMIT_SEQ": 0x0092, "INITIAL_ENTRY_STATE": 0x00A0,
+                        "PRES_MODE": 0x00A5}
+    for name, expected in expected_symbols.items():
+        if q.ms.get(name) != expected:
+            raise AssertionError(f"{label}: {name} map value {q.ms.get(name)!r}, expected ${expected:04X}")
+
+    par0_raw = low.read_bytes(q.c, 0xFFA0, 1)[0]
+    if par0_raw & 0x3F != 0x38:
+        raise AssertionError(f"{label}: PAR0 maps ${par0_raw & 0x3F:02X}, expected direct-page $38")
+    direct_logical = low.read_bytes(q.c, 0x007F, 0x00A6 - 0x007F)
+    direct_physical = q.phys(0x38 * 8192 + 0x007F, len(direct_logical))
+    if direct_logical != direct_physical:
+        raise AssertionError(f"{label}: logical direct-page state differs from physical page $38")
+
+    par5_raw = low.read_bytes(q.c, 0xFFA5, 1)[0]
+    if par5_raw & 0x3F != 0x34:
+        raise AssertionError(f"{label}: PAR5 maps ${par5_raw & 0x3F:02X}, expected framebuffer ledger page $34")
+    owners = {}
+    for owner, address in ((0, 0xA900), (1, 0xAA00)):
+        logical_address = address + 160
+        physical_address = 0x34 * 8192 + logical_address - 0xA000
+        physical = q.phys(physical_address, 1)
+        logical = low.read_bytes(q.c, logical_address, 1)
+        if logical != physical:
+            raise AssertionError(f"{label}: owner-{owner} pending-intent byte differs between logical and physical page $34")
+        owners[str(owner)] = {"ledger_address": address, "pending_intents_address": logical_address,
+                              "pending_intents_byte": physical[0],
+                              "RF_STAGE_pending": bool(physical[0] & RF_STAGE),
+                              "physical_logical_match": True}
+
+    return {"label": label, "PAR0_raw": par0_raw, "PAR0_page": par0_raw & 0x3F,
+            "direct_page_logical_physical_match": True,
+            "PAR5_raw": par5_raw, "PAR5_page": par5_raw & 0x3F,
+            "ledger_logical_physical_match": True,
+            "owners": owners,
+            "global_render_flags": direct_logical[0],
+            "global_RF_STAGE": bool(direct_logical[0] & RF_STAGE),
+            "front_id": direct_logical[0x008F - 0x007F],
+            "render_pending": direct_logical[0x0091 - 0x007F],
+            "commit_seq": int.from_bytes(direct_logical[0x0092 - 0x007F:0x0094 - 0x007F], "big"),
+            "entry_state": direct_logical[0x00A0 - 0x007F],
+            "mode": direct_logical[0x00A5 - 0x007F]}
+
+
+def first_frame_difference(frame: bytes, preview: bytes) -> dict[str, object] | None:
+    if len(frame) != len(preview):
+        return {"offset": None, "frame_length": len(frame), "preview_length": len(preview)}
+    offset = next((index for index, (actual, expected) in enumerate(zip(frame, preview))
+                   if actual != expected), None)
+    if offset is None:
+        return None
+    return {"offset": offset, "frame_byte": frame[offset], "preview_byte": preview[offset]}
+
+
+def confirm_selected_publication(q, mode: int, screen: int, context: int,
+                                 label: str) -> dict[str, object]:
+    """Bind the observed committed framebuffer to the selected screen context."""
+    target = lambda: (q.val("PRES_MODE") == mode and q.val(0xA6) == screen and
+                      q.val(0xA7) == context)
+    def sample() -> dict[str, int]:
+        return {"commit_seq": framebuffer_commit(q), "render_pending": q.val(0x0091),
+                "mode": q.val("PRES_MODE"), "screen": q.val(0xA6),
+                "context": q.val(0xA7)}
+
+    if not target():
+        raise AssertionError(f"{label}: selected mode/screen/context was not present at publication check")
+    samples = []
+    prior_clear = None
+    first = second = None
+    deadline = time.monotonic() + 45
+    previous_deadline = q.phase_deadline
+    q.phase_deadline = deadline
+    try:
+        while time.monotonic() < deadline:
+            current = sample()
+            if not target():
+                raise AssertionError(f"{label}: selected mode/screen/context changed before crop: {current}")
+            samples.append(current)
+            if current["render_pending"] == 0:
+                if prior_clear is not None and current["commit_seq"] == prior_clear["commit_seq"]:
+                    first, second = prior_clear, current
+                    break
+                prior_clear = current
+            else:
+                prior_clear = None
+            q.go()
+        if first is None or second is None:
+            raise TimeoutError(f"{label}: no two stable clear-pending selected-context boundaries within 45s; samples={samples}")
+    finally:
+        q.phase_deadline = previous_deadline
+    return {"selected_context_samples": samples,
+            "selection_boundaries": [first, second],
+            "published_commit_seq": second["commit_seq"],
+            "same_sequence_across_boundaries": True,
+            "crop_context": {"mode": mode, "screen": screen, "context": context}}
+
+
+def start_to_level_preview(q, configured_level: int | None = None,
+                           deterministic_demo_fixture: bool = False) -> dict[str, object]:
+    """Natural attract/credit/start path; only MENU_LEVEL is a qualified fixture."""
+    if not getattr(q, "audio_watch_live_code_verified", False):
+        raise AssertionError("audio cue watch cannot start before page-$3D artifact bytes are qualified")
+    if (q.audio_watch_entry != 0xA0F4 or q.audio_watch_page != 0x3D or
+            q.audio_watch_physical_start != 0x3D * 8192):
+        raise AssertionError("audio enqueue watch is not pinned to the qualified page-$3D entry")
+    q.capture_audio = True
+    q.wait(lambda: q.val("PRES_MODE") == 2, "cold attract complete")
+    if configured_level is None:
+        if q.val(0xEB) != 1:
+            raise AssertionError(f"natural first-start MENU_LEVEL default is {q.val(0xEB)}, expected 1")
+    else:
+        if not 1 <= configured_level <= 99:
+            raise ValueError("FEAT-005 starting level must be within 1..99")
+        q.dp(0xEB, [configured_level])
+        if q.val(0xEB) != configured_level:
+            raise AssertionError("MENU_LEVEL fixture did not reach physical $EB")
+    q.c.call("inject_key", {"key": 5, "action": "press"})
+    q.wait(lambda: q.val("PRES_MODE") == 5 and q.val(0xA8) > 0,
+           "physical credit reaches credited menu")
+    q.c.call("inject_key", {"key": 5, "action": "release"})
+    for _ in range(5):
+        q.go()
+    q.c.call("inject_key", {"key": 0x30, "action": "press"})
+    selection = None
+    if deterministic_demo_fixture:
+        selection = seed_entities_at_entry(q, configured_level or 1, None,
+                                           "initial live stage entity selection",
+                                           choose_distinct_seed=True)
+        q.demo_seed_fixture = selection["distinct_seed_fixture"]
+    q.wait(lambda: q.val("PRES_MODE") == MODE_LEVEL and
+           q.val(0xA6) == LEVEL_START_SCREEN and q.val(0xA7) == 1,
+           "initial live level-start screen selected")
+    q.c.call("inject_key", {"key": 0x30, "action": "release"})
+    publication = confirm_selected_publication(q, MODE_LEVEL, LEVEL_START_SCREEN, 1,
+                                                "initial live level-start publication")
+    return {
+        "configured_level_fixture": configured_level,
+        "fixture_address": "$00EB / MENU_LEVEL from FEAT-005" if configured_level else None,
+        "natural_default_level": configured_level is None,
+        "natural_credit_and_start_input": True,
+        "mode": q.val("PRES_MODE"), "screen": q.val(0xA6),
+        "context": q.val(0xA7), "commit_seq": framebuffer_commit(q),
+        "selected_publication": publication,
+        "entity_selection_seed_boundary": ({k: v for k, v in selection.items()
+                                            if k not in ("seed_bytes", "maze_bytes", "distinct_seed_fixture")}
+                                           if selection is not None else None),
+        "front_id": q.val("FB_FRONT_ID"),
+        "framebuffer": q.fb(),
+        "rng": rng_state(q),
+        "mapping": mapping_snapshot(q),
+        "audio_events_at_publication": list(q.audio_events),
+    }
+
+
+def without_slots(frame: bytes) -> bytes:
+    if len(frame) != 30720:
+        raise AssertionError("published framebuffer is not 320x192 packed 4bpp")
+    clean = bytearray(frame)
+    for byte_col in (68, 76, 84):
+        for y in range(136, 152):
+            start = y * 160 + byte_col
+            clean[start:start + 8] = bytes(8)
+    return bytes(clean)
+
+
+def compare_adjacent_preview_fields(candidate: bytes, baseline: bytes) -> dict[str, object]:
+    a, b = without_slots(candidate), without_slots(baseline)
+    differences = [(i, x, y) for i, (x, y) in enumerate(zip(a, b)) if x != y]
+    first = None
+    if differences:
+        offset = differences[0][0]
+        first = {"row": offset // 160, "byte_column": offset % 160,
+                 "baseline": b[offset], "candidate": a[offset]}
+    return {"pass": not differences, "outside_slot_differing_bytes": len(differences),
+            "first_difference": first, "baseline_sha256": sha(b),
+            "candidate_sha256": sha(a),
+            "rule": "same-config published panel outside 3 letter rectangles must match"}
+
+
+def offline_oracle(build_dir: Path, baseline_dir: Path, scratch: Path,
+                   frame: bytes, raw_table: bytes, count: int) -> dict[str, object]:
+    import pixel_oracle as oracle
+
+    variants, detail = letter_variants(count, raw_table)
+    underlay, underlay_info = oracle.clean_underlay(scratch, baseline_dir)
+    masks = oracle.compile_masks()
+    baseline_masks = oracle.artifact_data(baseline_dir, "object_masks", 12 * 64)
+    candidate_masks = oracle.artifact_data(build_dir, "object_masks", 12 * 64)
+    if b"".join(masks) != baseline_masks or b"".join(masks) != candidate_masks:
+        raise AssertionError("authored, retained-baseline, and candidate object masks differ")
+    pairs = oracle.expected_blue_pair_map(baseline_dir)
+    comparison = oracle.compare_letter_slots(frame, underlay, variants, masks, pairs)
+    return {"entity_selection": {"active_count": count, "active_table_bytes": len(raw_table),
+                                  "active_records": detail["records"],
+                                  "letter_groups": detail["letter_records"],
+                                  "selected_variants": variants},
+            "pixel_oracle": comparison,
+            "clean_underlay": underlay_info,
+            "palette_oracle": {"source_build": str(baseline_dir),
+                               "source_symbol": "sprite_blue_pairs",
+                               "mapped_foreground_pen": 3,
+                               "candidate_LUT_not_used_for_expected_pixels": True}}
+
+
+def pixel_mismatch_summary(oracle_result: dict[str, object]) -> list[dict[str, object]]:
+    rows = oracle_result["pixel_oracle"]["slots"]
+    return [{"slot": row["slot"], "variant": row["variant"],
+             "comparison": {key: row["comparison"][key] for key in
+                            ("actual_sha256", "expected_sha256",
+                             "first_differing_packed_byte", "first_differing_pixel")}}
+            for row in rows if not row["comparison"]["pass"]]
+
+
+def natural_initial(args, baseline_preview: bytes | None = None,
+                    expected_level: int = 1) -> dict[str, object]:
+    rt = load_runtime(args.candidate_build)
+    import pixel_oracle as oracle
+
+    q = rt.Run()
+    result: dict[str, object] = {"rom_sha256": sha((args.candidate_build / "ladybug.rom").read_bytes()),
+                                 "phase_deadline_seconds": 45,
+                                 "monitor_stop_seconds": 10,
+                                 "timeout_meaning": "required marker absent; no speed inference"}
+    try:
+        live = wait_for_artifact_delivery(q, args.candidate_build, True)
+        arm_alias_reader_watch(q, args.candidate_build)
+        start = start_to_level_preview(q, expected_level if expected_level != 1 else None)
+        if start["mode"] != MODE_LEVEL or start["context"] != 1:
+            raise AssertionError("preview is not the natural initial-live context")
+        if q.val("STAGE") != expected_level:
+            raise AssertionError(f"initial stage {q.val('STAGE')} != expected {expected_level}")
+        count, raw = direct_table(q)
+        expected_count = 8 if expected_level == 1 else 12
+        if count != expected_count or len(raw) != count * 4:
+            raise AssertionError(f"stage {expected_level} active entity count {count} != {expected_count}")
+        entry_rng, entry_table = rng_state(q), raw
+        pixel_result = offline_oracle(args.candidate_build, args.baseline_build,
+                                      args.output_dir, start["framebuffer"], raw, count)
+        if not pixel_result["pixel_oracle"]["all_slots_match"]:
+            raise AssertionError("published letter crops differ from independent Blue3 oracle: " +
+                                 json.dumps(pixel_mismatch_summary(pixel_result), separators=(",", ":")))
+        hold = []
+        q.mapping_trace = [mapping_snapshot(q)]
+        for _ in range(4):
+            q.go()
+            now_count, now_raw = direct_table(q)
+            now_rng = rng_state(q)
+            hold.append({"rng": now_rng.hex(), "entity_count": now_count,
+                         "entity_table_sha256": sha(now_raw),
+                         "commit_seq": framebuffer_commit(q)})
+            if (q.val("PRES_MODE") != MODE_LEVEL or q.val(0xA7) != 1 or
+                    now_count != count or now_raw != entry_table or now_rng != entry_rng):
+                raise AssertionError("initial preview hold rerolled entities/RNG or exited early")
+            mapped_now = mapping_snapshot(q)
+            # Retain phase samples as metadata. Raw register reads at unrelated
+            # PCs include changing upper bus bits, and cold-page ownership can
+            # vary. The wrapper-specific watch proves caller PAR4 page/I-F bits.
+            q.mapping_trace.append(mapped_now)
+        if any(e["mode"] == MODE_LEVEL and e["id"] in (3, 6) for e in q.audio_events):
+            raise AssertionError("cue 3/6 was admitted while the level preview owned the screen")
+        preview_frame = start["framebuffer"]
+        q.wait(lambda: q.val("PRES_MODE") == LIVE_ENTRY_MODE and
+               q.val("INITIAL_ENTRY_STATE") == 4,
+               "initial live-entry onset after natural presentation release")
+        entry_trace = q.trace_entry()
+        released_count, released_raw = direct_table(q)
+        released_rng = rng_state(q)
+        if q.val("STAGE") != expected_level:
+            raise AssertionError(f"natural first live stage {q.val('STAGE')} != {expected_level}")
+        if (released_count != count or released_raw != entry_table or
+                released_rng != entry_rng):
+            raise AssertionError("initial live release rerolled the prepared stage entities")
+        if len(q.cues) != 1 or q.cues[0]["mode"] != LIVE_ENTRY_MODE:
+            raise AssertionError(f"cue6 must be admitted exactly once at live entry: {q.cues}")
+        if any(e["id"] == 6 and e["mode"] == MODE_LEVEL for e in q.audio_events):
+            raise AssertionError("cue6 was admitted during preview")
+        alias_calls = check_alias_reader_watch(q, [1])
+        result.update({"candidate_live_identity": live,
+                       "page23_alias_reader_calls": alias_calls,
+                       "page23_watch_other_bank_hits": other_bank_watch_summary(q),
+                       "initial_preview": {k: v for k, v in start.items() if k != "framebuffer"},
+                       "preview_front_sha256": sha(preview_frame),
+                       "preview_selection_and_pixels": pixel_result,
+                       "preview_hold_samples": hold,
+                       "mapping_during_hold": q.mapping_trace,
+                       "release_entity_table_sha256": sha(released_raw),
+                       "release_rng": released_rng.hex(),
+                       "initial_entry_trace": entry_trace,
+                       "cue6_admissions": q.cues,
+                       "audio_events_3_6": q.audio_events,
+                       "no_preview_rng_or_audio_admission": True})
+        if baseline_preview is not None:
+            adjacent = compare_adjacent_preview_fields(preview_frame, baseline_preview)
+            result["adjacent_panel_fields"] = adjacent
+            if not adjacent["pass"]:
+                raise AssertionError(f"adjacent panel fields changed: {adjacent}")
+        result["result"] = "PASS"
+    except Exception as exc:
+        result["result"] = "FAIL"
+        result["failure"] = repr(exc)
+        result["last_boundaries"] = q.trace[-12:]
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+    return result
+
+
+def nonadaptive_initial_entry(args) -> dict[str, object]:
+    """Cover direct-render RF_STAGE replay and live-entry ordering once."""
+    rt = load_runtime(args.candidate_build)
+    q = rt.Run()
+    try:
+        live = wait_for_artifact_delivery(q, args.candidate_build, True)
+        arm_alias_reader_watch(q, args.candidate_build)
+        start = start_to_level_preview(q)
+        if (start["mode"] != MODE_LEVEL or start["screen"] != LEVEL_START_SCREEN or
+                start["context"] != 1 or q.val("STAGE") != 1):
+            raise AssertionError("nonadaptive scenario did not reach the natural default stage-1 preview")
+        count, table = direct_table(q)
+        if count != 8:
+            raise AssertionError(f"nonadaptive stage-1 preview entity count is {count}, expected 8")
+        preview_oracle = offline_oracle(args.candidate_build, args.baseline_build,
+                                        args.output_dir, start["framebuffer"], table, count)
+        if not preview_oracle["pixel_oracle"]["all_slots_match"]:
+            raise AssertionError("nonadaptive preview differs from the independent Blue3 oracle: " +
+                                 json.dumps(pixel_mismatch_summary(preview_oracle), separators=(",", ":")))
+        rng_before = rng_state(q)
+        lives_before = q.val("LIVES")
+        preview_hold = []
+        for _ in range(3):
+            if (q.val("PRES_MODE") != MODE_LEVEL or q.val(0xA7) != 1 or
+                    q.val("INITIAL_ENTRY_STATE") != 0 or q.val(FB_RENDER_ACTIVE) != 0):
+                raise AssertionError("gameplay became active while the natural preview still owned the screen")
+            q.go()
+            sample = {"mode": q.val("PRES_MODE"), "context": q.val(0xA7),
+                      "entry_state": q.val("INITIAL_ENTRY_STATE"),
+                      "render_active": q.val(FB_RENDER_ACTIVE),
+                      "lives": q.val("LIVES"), "render_flags": q.val("RENDER_FLAGS"),
+                      "commit_seq": framebuffer_commit(q)}
+            if (sample["mode"] != MODE_LEVEL or sample["context"] != 1 or
+                    sample["entry_state"] != 0 or sample["render_active"] != 0 or
+                    sample["lives"] != lives_before or direct_table(q) != (count, table) or
+                    rng_state(q) != rng_before):
+                raise AssertionError(f"nonadaptive preview hold changed gameplay state: {sample}")
+            preview_hold.append(sample)
+
+        preview_frame = start["framebuffer"]
+        preview_sha256 = sha(preview_frame)
+        gate_samples: list[dict[str, object]] = []
+        entry_samples: list[dict[str, object]] = []
+        post_preview_commits: list[dict[str, object]] = []
+        stage_visible_commit_by_owner: dict[int, dict[str, object]] = {}
+        diagnostic: dict[str, object] = {
+            "preview_sha256": preview_sha256,
+            "preview_commit_seq": int(start["selected_publication"]["published_commit_seq"]),
+            "prepared_entity_count": count,
+            "prepared_table_sha256": sha(table),
+            "lives_before_marker": lives_before,
+            "gate_samples": gate_samples,
+            "post_preview_commits": post_preview_commits,
+            "entry_samples": entry_samples,
+            "stage_visible_commit_by_owner": stage_visible_commit_by_owner,
+            "marker_consumption_observed": False,
+            "entry_states": [],
+            "final_convergence_sample": None,
+        }
+        q.qa_failure_context = lambda: diagnostic
+
+        def capture_commit(sample: dict[str, object], label: str,
+                           prior_seq: int) -> tuple[int, dict[str, object] | None]:
+            seq = int(sample["commit_seq"])
+            delta = (seq - prior_seq) & 0xFFFF
+            if not delta:
+                return prior_seq, None
+            owner = int(sample["front_id"])
+            frame = physical_owner_frame(q, owner)
+            frame_sha256 = sha(frame)
+            record: dict[str, object] = {
+                "label": label, "commit_seq": seq, "commit_delta": delta,
+                "front_id": owner, "frame_sha256": frame_sha256,
+                "preview_sha256": preview_sha256,
+                "first_difference_from_preview": first_frame_difference(frame, preview_frame),
+                "frame_differs_from_preview": frame_sha256 != preview_sha256,
+                "global_RF_STAGE": sample["global_RF_STAGE"],
+                "owner_RF_STAGE_pending": sample["owners"][str(owner)]["RF_STAGE_pending"],
+            }
+            post_preview_commits.append(record)
+            if record["frame_differs_from_preview"]:
+                stage_visible_commit_by_owner.setdefault(owner, record)
+            return seq, record
+
+        entry_pc = q.ms.get("initial_entry_tick")
+        if entry_pc is None:
+            raise AssertionError("nonadaptive resident map does not export initial_entry_tick")
+        preview_seq = int(start["selected_publication"]["published_commit_seq"])
+        last_observed_seq = preview_seq
+        first_stage_publication = None
+        deadline = time.monotonic() + 45
+        previous_deadline = q.phase_deadline
+        q.phase_deadline = deadline
+        try:
+            # Stop before each WAIT_STAGE body. RF_STAGE may be replayed for
+            # another owner, so continue until its committed work is complete.
+            q.go("initial_entry_tick")
+            while time.monotonic() < deadline:
+                sample_count, sample_table = direct_table(q)
+                qualified = qualified_stage_convergence(q, "nonadaptive-WAIT_STAGE")
+                render_flags = int(qualified["global_render_flags"])
+                sample = {"entry_state": q.val("INITIAL_ENTRY_STATE"),
+                          "mode": q.val("PRES_MODE"),
+                          "lives": q.val("LIVES"), "render_flags": render_flags,
+                          "stage_flag": bool(render_flags & RF_STAGE),
+                          "render_pending": qualified["render_pending"],
+                          "commit_seq": qualified["commit_seq"],
+                          "front_id": qualified["front_id"],
+                          "global_RF_STAGE": qualified["global_RF_STAGE"],
+                          "owners": qualified["owners"],
+                          "mapping_proof": {key: qualified[key] for key in
+                                             ("PAR0_page", "direct_page_logical_physical_match",
+                                              "PAR5_page", "ledger_logical_physical_match")},
+                          "stage": q.val("STAGE"), "entity_count": sample_count,
+                          "entity_table_sha256": sha(sample_table)}
+                if (sample["entry_state"] != ENTRY_WAIT_STAGE or
+                        sample["mode"] != LIVE_ENTRY_MODE or
+                        sample["stage"] != 1 or sample_count != count or sample_table != table):
+                    raise AssertionError(f"nonadaptive WAIT_STAGE boundary lost prepared state: {sample}")
+                if not gate_samples and not sample["stage_flag"]:
+                    raise AssertionError(f"nonadaptive entry did not hold the queued RF_STAGE at WAIT_STAGE: {sample}")
+                if sample["lives"] != lives_before:
+                    raise AssertionError(f"life marker was consumed before the entry gate: {sample}")
+                gate_samples.append(sample)
+                last_observed_seq, commit_record = capture_commit(
+                    sample, "first-stage-publication-gate", last_observed_seq)
+                if commit_record is not None and first_stage_publication is None:
+                    first_stage_publication = commit_record
+                    if not commit_record["frame_differs_from_preview"]:
+                        raise AssertionError("first committed stage publication retained the level-start preview")
+                if not sample["stage_flag"] and sample["render_pending"] == 0:
+                    if first_stage_publication is None:
+                        raise AssertionError("RF_STAGE cleared without a post-preview committed stage publication")
+                    break
+                q.go()
+                q.go("initial_entry_tick")
+            else:
+                raise TimeoutError("nonadaptive RF_STAGE first-commit/replay gate absent within 45s; no speed inference")
+            diagnostic["first_stage_publication"] = first_stage_publication
+            diagnostic["stage_gate_sample"] = gate_samples[-1]
+
+            # Execute the recorded clear-flag call. Marker consumption must
+            # follow the committed stage rebuild and decrement lives once.
+            q.go()
+            marker_state = qualified_stage_convergence(q, "nonadaptive-marker-consumption")
+            if (marker_state["entry_state"] != ENTRY_WALKOUT or
+                    q.val("LIVES") != lives_before - 1 or direct_table(q) != (count, table)):
+                raise AssertionError("nonadaptive marker consumption did not follow the committed stage rebuild exactly once")
+            diagnostic["marker_consumption_observed"] = True
+            diagnostic["marker_state"] = marker_state
+            states = [ENTRY_WALKOUT]
+            entry_deadline = time.monotonic() + 45
+            prior_deadline = q.phase_deadline
+            convergence_complete = False
+            q.phase_deadline = entry_deadline
+            try:
+                while time.monotonic() < entry_deadline:
+                    q.go("mainloop")
+                    qualified = qualified_stage_convergence(q, "nonadaptive-natural-entry")
+                    state = int(qualified["entry_state"])
+                    if state != states[-1]:
+                        states.append(state)
+                    if direct_table(q) != (count, table):
+                        raise AssertionError(f"nonadaptive entrant rerolled the prepared entity table at state {state}")
+                    if q.val("LIVES") != lives_before - 1:
+                        raise AssertionError("nonadaptive entry changed lives after its one marker consumption")
+                    sample = {"state": state, "mode": qualified["mode"],
+                              "commit_seq": qualified["commit_seq"],
+                              "front_id": qualified["front_id"],
+                              "render_pending": qualified["render_pending"],
+                              "global_render_flags": qualified["global_render_flags"],
+                              "global_RF_STAGE": qualified["global_RF_STAGE"],
+                              "owners": qualified["owners"],
+                              "mapping_proof": {key: qualified[key] for key in
+                                                 ("PAR0_page", "direct_page_logical_physical_match",
+                                                  "PAR5_page", "ledger_logical_physical_match")}}
+                    entry_samples.append(sample)
+                    last_observed_seq, _ = capture_commit(
+                        sample, "natural-entry-and-owner-convergence", last_observed_seq)
+                    diagnostic["entry_states"] = list(states)
+                    diagnostic["final_convergence_sample"] = sample
+                    stage_pending = [bool(qualified["owners"][str(owner)]["RF_STAGE_pending"])
+                                     for owner in (0, 1)]
+                    both_owners_published = all(owner in stage_visible_commit_by_owner
+                                                 for owner in (0, 1))
+                    if (state == 0 and states == [ENTRY_WALKOUT, ENTRY_OFFSCREEN, ENTRY_MAZE_ENTRY, 0]
+                            and both_owners_published and not any(stage_pending)
+                            and not qualified["global_RF_STAGE"]
+                            and qualified["render_pending"] == 0):
+                        convergence_complete = True
+                        break
+            finally:
+                q.phase_deadline = prior_deadline
+            if not convergence_complete:
+                raise TimeoutError(f"nonadaptive natural entry/owner-stage convergence marker absent within 45s: "
+                                   f"states={states}; last={entry_samples[-1] if entry_samples else None}; no speed inference")
+            if states != [ENTRY_WALKOUT, ENTRY_OFFSCREEN, ENTRY_MAZE_ENTRY, 0]:
+                raise TimeoutError(f"nonadaptive natural entry did not complete within 45s: states={states}; no speed inference")
+            if direct_table(q) != (count, table):
+                raise AssertionError("nonadaptive entry completed with a changed entity table")
+            final_state = qualified_stage_convergence(q, "nonadaptive-final-convergence")
+            if (final_state["global_RF_STAGE"] or final_state["render_pending"] or
+                    any(final_state["owners"][str(owner)]["RF_STAGE_pending"] for owner in (0, 1))):
+                raise AssertionError(f"nonadaptive entry ended before natural RF_STAGE intent convergence: {final_state}")
+            if not all(owner in stage_visible_commit_by_owner for owner in (0, 1)):
+                raise AssertionError("both framebuffer owners did not publish post-preview non-preview stage pixels")
+            if {item["front_id"] for item in post_preview_commits} != {0, 1}:
+                raise AssertionError("post-preview successful commits were not observed for both framebuffer owners")
+            diagnostic["final_convergence_sample"] = final_state
+            alias_calls = check_alias_reader_watch(q, [1])
+            return {"result": "PASS", "profile": "nonadaptive keyboard",
+                    "rom_sha256": sha((args.candidate_build / "ladybug.rom").read_bytes()),
+                    "candidate_live_identity": live, "page23_alias_reader_calls": alias_calls,
+                    "page23_watch_other_bank_hits": other_bank_watch_summary(q),
+                    "preview_publication": start["selected_publication"],
+                    "preview_oracle": preview_oracle, "preview_hold": preview_hold,
+                    "gameplay_inactive_during_preview": True,
+                    "prepared_entity_count": count, "prepared_table_sha256": sha(table),
+                    "entry_gate_samples": gate_samples,
+                    "first_stage_publication": first_stage_publication,
+                    "post_preview_successful_front_commits": post_preview_commits,
+                    "stage_visible_commit_by_owner": stage_visible_commit_by_owner,
+                    "final_stage_intent_convergence": final_state,
+                    "natural_entry_samples": entry_samples,
+                    "owners_full_frame_equality_asserted": False,
+                    "life_marker_consumption": {"before": lives_before,
+                                                "after": q.val("LIVES"),
+                                                "count": lives_before - q.val("LIVES")},
+                    "entry_states": states,
+                    "table_retained_through_entry": True}
+        finally:
+            q.phase_deadline = previous_deadline
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def baseline_preview(args, level: int = 1) -> dict[str, object]:
+    rt = load_runtime(args.baseline_build)
+    q = rt.Run()
+    try:
+        live = wait_for_artifact_delivery(q, args.baseline_build, False)
+        start = start_to_level_preview(q, level if level != 1 else None)
+        return {"framebuffer": start["framebuffer"],
+                "rom_sha256": sha((args.baseline_build / "ladybug.rom").read_bytes()),
+                "artifact_delivery": live,
+                "mode": start["mode"], "context": start["context"],
+                "commit_seq": start["commit_seq"]}
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def path_to_cell(q, destination: tuple[int, int],
+                 blocked_cells: set[tuple[int, int]] | None = None) -> list[tuple[int, tuple[int, int]]]:
+    import runtime as rt
+
+    nav = rt.r.read_bytes(q.c, q.ms["maze_nav"], 576)
+    blocked = blocked_cells or set()
+    start = tuple(q.pose()[:2])
+    todo = deque([start])
+    paths = {start: []}
+    while todo:
+        x, y = todo.popleft()
+        if (x, y) == destination:
+            return paths[x, y]
+        for d, (dx, dy) in enumerate(((0, -1), (1, 0), (0, 1), (-1, 0))):
+            nx, ny = x + dx, y + dy
+            if (0 <= nx < 24 and 0 <= ny < 24 and (nx, ny) not in blocked and
+                    nav[ny * 24 + nx] & (1 << ((d + 2) % 4)) and
+                    (nx, ny) not in paths):
+                paths[nx, ny] = paths[x, y] + [(d, (nx, ny))]
+                todo.append((nx, ny))
+    raise AssertionError(f"no natural route from {start} to entity cell {destination}")
+
+
+def move_route(q, path: list[tuple[int, tuple[int, int]]], marker: str,
+               stop_pending: bool = False,
+               expected_dots_after: list[int] | None = None) -> list[list[int]]:
+    if expected_dots_after is not None and len(expected_dots_after) != len(path):
+        raise ValueError("expected dot-counter trace length must match the planned route")
+    visited = []
+    q.route_progress = visited
+    q.route_plan = [[direction, list(cell)] for direction, cell in path]
+    for index, (direction, cell) in enumerate(path):
+        if stop_pending and q.stage_clear_event is not None:
+            break
+        if stop_pending and q.val("STAGE_PENDING") != 0:
+            break
+        q.key(direction)
+        q.wait(lambda cell=cell: ((tuple(q.pose()[:2]) == cell and q.val("PLAYER_STEP") == 0) or
+                                 (stop_pending and q.stage_clear_event is not None)),
+               f"{marker} reaches {cell}")
+        q.key(None)
+        visited.append([cell[0], cell[1]])
+        if (expected_dots_after is not None and
+                q.val("DOTS_LEFT") != expected_dots_after[index]):
+            raise AssertionError(
+                f"{marker}: DOTS_LEFT after {cell} is {q.val('DOTS_LEFT')}, "
+                f"expected {expected_dots_after[index]} from the qualified maze snapshot"
+            )
+        if stop_pending and q.stage_clear_event is not None:
+            break
+        if stop_pending and q.val("STAGE_PENDING") != 0:
+            break
+    q.key(None)
+    return visited
+
+
+def resident_label_identity(q, build_dir: Path, label: str, length: int = 16) -> dict[str, object]:
+    """Prove the current resident label bytes before interpreting its live state."""
+    pc = q.ms.get(label)
+    if pc is None:
+        raise AssertionError(f"{label} is absent from the current resident symbol map")
+    return resident_address_identity(q, build_dir, pc, label, length)
+
+
+def resident_address_identity(q, build_dir: Path, pc: int,
+                              label: str, length: int = 16) -> dict[str, object]:
+    """Prove an arbitrary resident PC's live bytes before interpreting it."""
+    if pc is None or not 0xC000 <= pc < 0xFE00:
+        raise AssertionError(f"{label} is not inside the proven resident code span: {pc!r}")
+    artifact = (build_dir / "ladybug-runtime.rom").read_bytes()[:RESIDENT_PROVEN_BYTES]
+    offset = pc - 0xC000
+    expected = artifact[offset:offset + length]
+    if len(expected) != length:
+        raise AssertionError(f"{label} expected bytes extend beyond the resident proof span")
+    page_index = (pc - 0xC000) // 0x2000
+    raw_pages = __import__("verify_bug011_runtime").read_bytes(q.c, 0xFFA6, 2)
+    pages = bytes(value & 0x3F for value in raw_pages)
+    expected_page = 0x3E + page_index
+    if pages[page_index] != expected_page:
+        raise AssertionError(f"{label} is mapped through page {pages[page_index]:02x}, expected {expected_page:02x}")
+    logical = __import__("verify_bug011_runtime").read_bytes(q.c, pc, length)
+    physical_address = expected_page * 8192 + (pc & 0x1FFF)
+    physical = q.phys(physical_address, length)
+    if logical != expected or physical != expected:
+        raise AssertionError(f"{label} current logical/physical bytes do not match the candidate resident artifact")
+    return {"label": label, "pc": pc, "PAR6_PAR7_pages": pages.hex(),
+            "expected_page": expected_page, "entry_bytes": expected.hex(),
+            "entry_bytes_sha256": sha(expected), "logical_match": True,
+            "physical_match": True}
+
+
+def code_address_identity(q, build_dir: Path, pc: int,
+                          label: str, length: int = 16) -> dict[str, object]:
+    """Prove a return address against its actual resident or presentation owner."""
+    if not isinstance(pc, int):
+        raise AssertionError(f"{label} has no integer live PC: {pc!r}")
+    if 0xC000 <= pc < 0xFE00:
+        return {"code_owner": "resident",
+                **resident_address_identity(q, build_dir, pc, label, length)}
+
+    artifact_path = build_dir / "ladybug-presentation-runtime.bin"
+    artifact = artifact_path.read_bytes()
+    start = 0x1900
+    end = start + len(artifact)
+    if not start <= pc < end:
+        raise AssertionError(
+            f"{label} is outside proven resident and presentation code spans: {pc!r}")
+    offset = pc - start
+    expected = artifact[offset:offset + length]
+    if len(expected) != length:
+        raise AssertionError(f"{label} expected bytes extend beyond the presentation artifact")
+
+    import verify_bug011_runtime as low
+    par0_raw = low.read_bytes(q.c, 0xFFA0, 1)[0]
+    par0_page = par0_raw & 0x3F
+    if par0_page != 0x38:
+        raise AssertionError(
+            f"{label} presentation-prefix address uses PAR0 page ${par0_page:02X}, expected $38")
+    delivery = getattr(q, "verified_live_artifacts", None)
+    if not delivery or not delivery.get("presentation_module_live_matches_artifact"):
+        raise AssertionError(f"{label} lacks the qualified presentation artifact delivery proof")
+    artifact_sha = sha(artifact)
+    if (delivery.get("presentation_module_artifact_sha256") != artifact_sha or
+            delivery.get("presentation_module_live_sha256") != artifact_sha):
+        raise AssertionError(f"{label} delivered presentation artifact identity differs from this build")
+    logical = low.read_bytes(q.c, pc, length)
+    physical = q.phys(0x38 * 8192 + pc, length)
+    if logical != expected or physical != expected:
+        raise AssertionError(
+            f"{label} presentation source/staged/logical/physical bytes do not agree")
+    return {"code_owner": "presentation_prefix", "label": label, "pc": pc,
+            "artifact_path": str(artifact_path.resolve()),
+            "artifact_start": start, "artifact_end_exclusive": end,
+            "artifact_sha256": artifact_sha, "artifact_offset": offset,
+            "PAR0_raw": par0_raw, "PAR0_page": par0_page,
+            "build_artifact_matches_staged_physical_module": True,
+            "entry_bytes": expected.hex(), "entry_bytes_sha256": sha(expected),
+            "logical_match": True, "physical_match": True}
+
+
+def qualified_logical_bytes(q, address: int, length: int,
+                            label: str) -> tuple[bytes, dict[str, object]]:
+    """Prove a logical data span matches its live PAR0-PAR3 physical mapping."""
+    import verify_bug011_runtime as low
+
+    if length < 1 or address < 0 or address + length > 0x8000:
+        raise AssertionError(f"{label} is outside the mapped PAR0-PAR3 data span")
+    page_index = address // 0x2000
+    page_offset = address & 0x1FFF
+    if page_offset + length > 0x2000:
+        raise AssertionError(f"{label} crosses a PAR page boundary")
+    par_raw = low.read_bytes(q.c, 0xFFA0 + page_index, 1)[0]
+    page = par_raw & 0x3F
+    physical = q.phys(page * 8192 + page_offset, length)
+    logical = low.read_bytes(q.c, address, length)
+    if logical != physical:
+        raise AssertionError(f"{label} logical bytes differ from physical PAR{page_index} page ${page:02X}")
+    return physical, {"label": label, "logical_address": address,
+                      "PAR_index": page_index, "PAR_raw": par_raw,
+                      "physical_page": page, "physical_address": page * 8192 + page_offset,
+                      "bytes_hex": physical.hex(), "logical_matches_physical": True}
+
+
+def qualified_entity_table(q, count: int, label: str) -> tuple[bytes, dict[str, object]]:
+    """Prove the logical $A380 table alias and physical page-$34 table agree."""
+    import verify_bug011_runtime as low
+
+    if q.ms.get("ENTITY_TABLE") != 0xA380 or not 0 <= count <= 12:
+        raise AssertionError(f"{label} has an invalid entity-table symbol or count {count}")
+    par5_raw = low.read_bytes(q.c, 0xFFA5, 1)[0]
+    par5_page = par5_raw & 0x3F
+    if par5_page != 0x34:
+        raise AssertionError(f"{label} entity table PAR5 page is ${par5_page:02X}, expected $34")
+    physical = q.phys(ENTITY_PHYS, count * 4)
+    logical = low.read_bytes(q.c, 0xA380, count * 4)
+    if logical != physical:
+        raise AssertionError(f"{label} logical $A380 table differs from physical page-$34 bytes")
+    return physical, {"label": label, "entity_count": count,
+                      "PAR5_raw": par5_raw, "PAR5_page": par5_page,
+                      "logical_address": 0xA380, "physical_address": ENTITY_PHYS,
+                      "table_hex": physical.hex(), "table_sha256": sha(physical),
+                      "logical_matches_physical": True}
+
+
+def arm_context2_release_watch(q, build_dir: Path) -> dict[str, object]:
+    """Arm only the copied context-2 release instruction before simulation resumes."""
+    import verify_bug011_runtime as low
+
+    base = 0x1900
+    artifact = (build_dir / "ladybug-presentation-runtime.bin").read_bytes()
+    symbols = low.symbols(build_dir / "ladybug-presentation-runtime.map")
+    level_tick = symbols.get("level_tick")
+    demo_check = symbols.get("level_tick_demo_check")
+    live_begin = symbols.get("live_begin")
+    release_pc = demo_check - 2 if demo_check is not None else None
+    if (level_tick != 0x1CAC or demo_check != 0x1CC3 or live_begin != 0x1CEF or
+            release_pc != 0x1CC1 or release_pc < base or release_pc + 2 > base + len(artifact) or
+            base + len(artifact) > 0x2000):
+        raise AssertionError("candidate presentation map does not match the inspected context-2 release boundaries")
+    offset = release_pc - base
+    marker = artifact[offset:offset + 2]
+    if marker != bytes.fromhex("4f39"):
+        raise AssertionError("context-2 release marker is not the inspected CLRA/RTS instruction pair")
+    watch = {"pc": release_pc, "base_address": base, "expected_page": 0x38,
+             "physical_start": 0x38 * 8192 + base, "entity_page": 0x34,
+             "artifact": artifact, "expected_marker": marker, "marker_length": len(marker)}
+    q.context2_release_watch = watch
+    q.context2_release_hit = None
+    return {"release_pc": release_pc, "release_marker_bytes": marker.hex(),
+            "level_tick": level_tick, "level_tick_demo_check": demo_check,
+            "live_begin": live_begin, "prefix_base": base, "prefix_page": 0x38,
+            "prefix_bytes": len(artifact), "prefix_sha256": sha(artifact),
+            "marker_source_offset": offset,
+            "release_semantics": "mode/context cleared; before CLRA/RTS and before normal game tick"}
+
+
+def capture_qualified_first_mainloop(q, build_dir: Path) -> dict[str, object]:
+    """Capture the first ordinary mainloop boundary after qualified release."""
+    import verify_bug011_runtime as low
+
+    site = resident_label_identity(q, build_dir, "mainloop")
+    par0_raw = low.read_bytes(q.c, 0xFFA0, 1)[0]
+    par5_raw = low.read_bytes(q.c, 0xFFA5, 1)[0]
+    par0_page, par5_page = par0_raw & 0x3F, par5_raw & 0x3F
+    if par0_page != 0x38 or par5_page != 0x34:
+        raise AssertionError(f"first mainloop data mapping is PAR0=${par0_page:02X}, PAR5=${par5_page:02X}; expected $38/$34")
+
+    def low_bytes(label: str | int, size: int) -> bytes:
+        address = q.ms.get(label) if isinstance(label, str) else label
+        if address is None or not 0 <= address < 0x2000 or address + size > 0x2000:
+            raise AssertionError(f"{label} is outside the mapped PAR0 low-memory window: {address!r}")
+        physical = q.phys(0x38 * 8192 + address, size)
+        logical = low.read_bytes(q.c, address, size)
+        if logical != physical:
+            raise AssertionError(f"{label} logical PAR0 bytes differ from physical page-$38 bytes")
+        return physical
+
+    values = {"PRES_MODE": low_bytes("PRES_MODE", 1)[0],
+              "STAGE": low_bytes("STAGE", 1)[0],
+              "ENTITY_COUNT": low_bytes("ENTITY_COUNT", 1)[0],
+              "INITIAL_ENTRY_STATE": low_bytes("INITIAL_ENTRY_STATE", 1)[0],
+              "RNG_STATE": low_bytes("RNG_STATE", 2),
+              "PLAYER_CELL": low_bytes("PLAYER_CELL_X", 2),
+              "PLAYER_STEP": low_bytes("PLAYER_STEP", 1)[0],
+              "PLAYER_FB": low_bytes("PLAYER_FB", 2),
+              "FRAMES": low_bytes("FRAMES", 2),
+              "screen": low_bytes("PRES_SCREEN", 1)[0] if "PRES_SCREEN" in q.ms else low_bytes(0x00A6, 1)[0],
+              "context": low_bytes("PRES_CONTEXT", 1)[0] if "PRES_CONTEXT" in q.ms else low_bytes(0x00A7, 1)[0]}
+    count = values["ENTITY_COUNT"]
+    if not 0 <= count <= 12:
+        raise AssertionError(f"first mainloop ENTITY_COUNT={count} outside 0..12")
+    if q.ms.get("ENTITY_TABLE") != 0xA380:
+        raise AssertionError("first mainloop ENTITY_TABLE map does not identify $A380")
+    table = q.phys(0x34 * 8192 + 0x0380, count * 4)
+    logical_table = low.read_bytes(q.c, 0xA380, count * 4)
+    if logical_table != table:
+        raise AssertionError("first mainloop logical $A380 entity table differs from physical page-$34 bytes")
+    return {"resident_mainloop_site": site,
+            "mapping": {"PAR0_raw": par0_raw, "PAR0_page": par0_page,
+                        "PAR5_raw": par5_raw, "PAR5_page": par5_page,
+                        "entity_table_logical_matches_physical": True},
+            "state": {"PRES_MODE": values["PRES_MODE"], "STAGE": values["STAGE"],
+                      "screen": values["screen"], "context": values["context"],
+                      "INITIAL_ENTRY_STATE": values["INITIAL_ENTRY_STATE"],
+                      "pose": [*values["PLAYER_CELL"], values["PLAYER_STEP"],
+                               int.from_bytes(values["PLAYER_FB"], "big")],
+                      "FRAMES_hex": values["FRAMES"].hex()},
+            "entity_count": count, "entity_table_hex": table.hex(),
+            "entity_table_sha256": sha(table), "RNG_STATE_hex": values["RNG_STATE"].hex()}
+
+
+def arm_final_heart_clear_watch(q, build_dir: Path, target_record: list[int],
+                                initial_table: bytes, entity_count: int) -> None:
+    """Stop at source-qualified final-heart stage-clear entry before pending is consumed."""
+    pc = q.ms.get("check_stage_clear")
+    if pc is None or not 0xC000 <= pc < 0xFE00:
+        raise AssertionError(f"candidate map omits resident check_stage_clear or places it outside C000-FDFF: {pc!r}")
+    if target_record[2] != 2:
+        raise AssertionError(f"selected final-collect target is not a heart record: {target_record}")
+    before_records = unpack_records(entity_count, initial_table)
+    if target_record not in before_records:
+        raise AssertionError("selected heart target is absent from the pre-route entity table")
+    row_index = before_records.index(target_record)
+    expected_after = bytearray(initial_table)
+    expected_after[row_index * 4 + 2] = 0
+
+    def capture() -> dict[str, object]:
+        site = resident_label_identity(q, build_dir, "check_stage_clear")
+        count = q.val("ENTITY_COUNT")
+        table = q.phys(ENTITY_PHYS, entity_count * 4)
+        player_cell = list(q.low("PLAYER_CELL_X", 2))
+        state = {"STAGE": q.val("STAGE"), "PRES_MODE": q.val("PRES_MODE"),
+                 "screen": q.val(0xA6), "context": q.val(0xA7),
+                 "BONUS_LEFT": q.val("BONUS_LEFT"), "DOTS_LEFT": q.val("DOTS_LEFT"),
+                 "STAGE_PENDING": q.val("STAGE_PENDING"),
+                 "ENTITY_TYPE": q.val("ENTITY_TYPE"), "ENTITY_COUNT": count,
+                 "player_cell": player_cell, "target_cell": target_record[:2],
+                 "target_table_type": table[row_index * 4 + 2],
+                 "target_record_cleared": table == bytes(expected_after),
+                 "table_sha256": sha(table),
+                 "frame": int.from_bytes(q.low("FRAMES", 2), "big")}
+        if state["BONUS_LEFT"] > 0:
+            return {"qualifies": False, "resident_site": site, **state}
+        if (state["STAGE"] != 18 or state["BONUS_LEFT"] != 0 or
+                state["DOTS_LEFT"] != 0 or state["STAGE_PENDING"] != 0 or
+                state["ENTITY_TYPE"] != 2 or player_cell != target_record[:2] or
+                count != entity_count or not state["target_record_cleared"]):
+            raise AssertionError("counter exhausted at a non-target or unqualified collectible: " +
+                                 json.dumps({"resident_site": site, **state}, separators=(",", ":")))
+        return {"qualifies": True, "resident_site": site, **state}
+
+    page_index = (pc - 0xC000) // 0x2000
+    expected_page = 0x3E + page_index
+    page_register = 0xFFA6 + page_index
+    q.stage_clear_observer = {"pc": pc, "capture": capture,
+                              "page_register": page_register,
+                              "page_register_name": f"PAR{6 + page_index}",
+                              "expected_page": expected_page}
+
+
+def replace_life_and_live_audio(q, source_table: bytes) -> dict[str, object]:
+    import verify_bug011_runtime as low
+
+    lives_before = q.val("LIVES")
+    music_id = q.phys(0x3D * 8192 + q.au["audio_slot0"] - 0xA000, 1)[0]
+    dots_before = q.val("DOTS_LEFT")
+    state = low.read_bytes(q.c, q.ms["MAZE_STATE"], 576)
+    nav = low.read_bytes(q.c, q.ms["maze_nav"], 576)
+    start = tuple(q.pose()[:2])
+    todo = deque([start])
+    paths = {start: []}
+    target = None
+    while todo:
+        x, y = todo.popleft()
+        if (x, y) != start and state[y * 24 + x] & 0x80:
+            target = (x, y)
+            break
+        for d, (dx, dy) in enumerate(((0, -1), (1, 0), (0, 1), (-1, 0))):
+            nx, ny = x + dx, y + dy
+            if (0 <= nx < 24 and 0 <= ny < 24 and
+                    nav[ny * 24 + nx] & (1 << ((d + 2) % 4)) and
+                    (nx, ny) not in paths):
+                paths[nx, ny] = paths[x, y] + [(d, (nx, ny))]
+                todo.append((nx, ny))
+    if target is None:
+        raise AssertionError("no reachable natural dot for live cue overlap")
+    before_audio = len(q.audio_events)
+    route = move_route(q, paths[target], "natural dot route")
+    if q.val("DOTS_LEFT") != dots_before - 1:
+        raise AssertionError("natural route did not collect exactly one live dot")
+    q.wait(lambda: any(e["id"] == 3 for e in q.audio_events[before_audio:]),
+           "natural dot cue enqueue while life music is active")
+    event = next(e for e in q.audio_events[before_audio:] if e["id"] == 3)
+    voices = q.phys(0x3D * 8192 + q.au["audio_slot0"] - 0xA000, 112)
+    active = list(voices[::28])
+    if event["music_slot0"] != 6 or 3 not in active or 6 not in active:
+        raise AssertionError(f"real dot effect did not overlap cue6: {event} / {active}")
+    q.wait(lambda: q.phys(0x3D * 8192 + q.au["audio_slot0"] - 0xA000, 1)[0] == 255,
+           "initial live-entry cue6 completion")
+    table_before = q.phys(ENTITY_PHYS, len(source_table))
+    if table_before != source_table:
+        raise AssertionError("active stage entity table changed before replacement life")
+    fb = q.low("PLAYER_FB", 2)
+    xy = q.low("PLAYER_CELL_X", 2)
+    q.put(0x34 * 8192 + 0x0470, bytes([1, *fb, 0, *xy, 1, 255]))
+    q.wait(lambda: q.val("DEATH_STATE") != 0, "real enemy contact/death")
+    q.wait(lambda: q.val("INITIAL_ENTRY_STATE") == 4 and q.val("DEATH_STATE") == 0,
+           "replacement live-entry onset")
+    replacement_trace = q.trace_entry()
+    lives_after = q.val("LIVES")
+    table_after = q.phys(ENTITY_PHYS, len(source_table))
+    if lives_after != lives_before - 1:
+        raise AssertionError(f"replacement decremented lives {lives_before}->{lives_after}")
+    if table_after != source_table:
+        raise AssertionError("replacement life rerolled active stage entities")
+    if len(q.cues) != 2 or any(item["mode"] != LIVE_ENTRY_MODE for item in q.cues):
+        raise AssertionError(f"cue6 must occur once per actual live entry: {q.cues}")
+    return {"natural_dot_route": route, "dot_cue": event,
+            "overlap_voice_ids": active, "lives_before": lives_before,
+            "lives_after": lives_after,
+            "replacement_trace": replacement_trace,
+            "entity_table_preserved": sha(table_after) == sha(source_table),
+            "cue6_admissions": q.cues,
+            "audio_events_3_6": q.audio_events,
+            "cue6_only_at_live_entry": all(item["mode"] == 0 for item in q.cues)}
+
+
+def natural_life(args) -> dict[str, object]:
+    rt = load_runtime(args.candidate_build)
+    q = rt.Run()
+    try:
+        live = wait_for_artifact_delivery(q, args.candidate_build, True)
+        arm_alias_reader_watch(q, args.candidate_build)
+        start = start_to_level_preview(q, 18)
+        count, raw = direct_table(q)
+        if count != 12:
+            raise AssertionError("life scenario requires configured level 18 with 12 entities")
+        q.wait(lambda: q.val("PRES_MODE") == 0 and q.val("INITIAL_ENTRY_STATE") == 4,
+               "first live-entry onset")
+        q.trace_entry()
+        if len(q.cues) != 1 or q.cues[0]["mode"] != 0:
+            raise AssertionError(f"first cue6 was not a single live-entry event: {q.cues}")
+        result = replace_life_and_live_audio(q, raw)
+        alias_calls = check_alias_reader_watch(q, [1])
+        result.update({"rom_sha256": sha((args.candidate_build / "ladybug.rom").read_bytes()),
+                       "candidate_live_identity": live,
+                       "page23_alias_reader_calls": alias_calls,
+                       "page23_watch_other_bank_hits": other_bank_watch_summary(q),
+                       "configured_level": 18, "entity_table_before": sha(raw),
+                       "preview_context": start["context"], "result": "PASS"})
+        return result
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def natural_next_stage(args) -> dict[str, object]:
+    rt = load_runtime(args.candidate_build)
+    q = rt.Run()
+    release_diagnostic: dict[str, object] | None = None
+    try:
+        live = wait_for_artifact_delivery(q, args.candidate_build, True)
+        arm_alias_reader_watch(q, args.candidate_build)
+        start = start_to_level_preview(q, 18)
+        q.wait(lambda: q.val("PRES_MODE") == 0 and q.val("INITIAL_ENTRY_STATE") == 4,
+               "first live-entry onset")
+        q.trace_entry()
+        count, initial_table = direct_table(q)
+        if count != 12:
+            raise AssertionError("stage-final-collect scenario requires 12 active records")
+        # Shorten only completion counters. The actual active heart remains in
+        # the entity table and is collected through ordinary player movement.
+        records = unpack_records(count, initial_table)
+        hearts = [rec for rec in records if rec[2] == 2]
+        if not hearts:
+            raise AssertionError("no actual active heart entity for last-bonus route")
+        active_cells = {(rec[0], rec[1]) for rec in records if rec[2] != 0}
+        paths = []
+        for rec in hearts:
+            target_cell = (rec[0], rec[1])
+            blocked = active_cells - {target_cell}
+            try:
+                candidate_path = path_to_cell(q, target_cell, blocked)
+            except AssertionError:
+                continue
+            paths.append((len(candidate_path), rec, candidate_path))
+        if not paths:
+            raise AssertionError("no reachable active heart has a route avoiding every other collectible")
+        _, target_record, path = min(paths, key=lambda item: item[0])
+        maze, maze_proof = qualified_maze_snapshot(q, "stage-18 final-heart route before counter fixture")
+        original_dots_left = q.val("DOTS_LEFT")
+        original_bonus_left = q.val("BONUS_LEFT")
+        start_cell = tuple(q.pose()[:2])
+        route_cells = [cell for _, cell in path]
+        if not path or route_cells[-1] != tuple(target_record[:2]):
+            raise AssertionError("selected natural path does not end at its actual heart record")
+        if start_cell in route_cells:
+            raise AssertionError("planned simple path unexpectedly revisits the initial player cell")
+        if len(set(route_cells)) != len(route_cells):
+            raise AssertionError("planned simple path repeats a movement destination")
+        target_offset = target_record[1] * 24 + target_record[0]
+        if maze[target_offset] & 0x80:
+            raise AssertionError("place_entity did not clear the dot bit beneath the selected heart")
+        dot_cells = [cell for cell in route_cells
+                     if maze[cell[1] * 24 + cell[0]] & 0x80]
+        remaining = len(dot_cells)
+        expected_dots_after = []
+        for cell in route_cells:
+            if maze[cell[1] * 24 + cell[0]] & 0x80:
+                remaining -= 1
+            expected_dots_after.append(remaining)
+        dots_before_heart = expected_dots_after[-2] if len(expected_dots_after) > 1 else len(dot_cells)
+        if dots_before_heart != 0:
+            raise AssertionError("route dots do not reach zero before the final heart cell")
+        route_dot_fixture = {
+            "maze_snapshot": maze_proof,
+            "maze_sha256": sha(maze),
+            "initial_player_cell_excluded": list(start_cell),
+            "target_heart_cell": list(target_record[:2]),
+            "target_heart_dot_bit_clear": True,
+            "route_cells": [list(cell) for cell in route_cells],
+            "dot_cells": [list(cell) for cell in dot_cells],
+            "dot_count": len(dot_cells),
+            "original_DOTS_LEFT": original_dots_left,
+            "original_BONUS_LEFT": original_bonus_left,
+            "fixture_DOTS_LEFT": len(dot_cells),
+            "fixture_BONUS_LEFT": 1,
+            "expected_DOTS_LEFT_after_each_cell": expected_dots_after,
+            "DOTS_LEFT_before_heart": dots_before_heart,
+        }
+        q.route_dot_fixture = route_dot_fixture
+        q.dp("DOTS_LEFT", [len(dot_cells)])
+        q.dp("BONUS_LEFT", [1])
+        if q.val("DOTS_LEFT") != len(dot_cells) or q.val("BONUS_LEFT") != 1:
+            raise AssertionError("counter fixture bytes did not retain the route-dot count and one bonus")
+        arm_final_heart_clear_watch(q, args.candidate_build, target_record,
+                                    initial_table, count)
+        def failure_context() -> dict[str, object]:
+            return {"target_record": target_record, "planned_route": q.route_plan,
+                    "visited_route": list(q.route_progress),
+                    "release_diagnostic": release_diagnostic,
+                    "qualified_release_state": (
+                        q.context2_release_hit.get("state")
+                        if getattr(q, "context2_release_hit", None) and
+                        q.context2_release_hit.get("state_qualified") else None),
+                    "route_dot_fixture": getattr(q, "route_dot_fixture", None),
+                    "qualified_final_heart_clear_event": q.stage_clear_event,
+                    "other_bank_watch_summary": other_bank_watch_summary(q)}
+        q.qa_failure_context = failure_context
+        route = move_route(q, path, "actual final heart collect", stop_pending=True,
+                           expected_dots_after=expected_dots_after)
+        q.stage_clear_observer = None
+        event = q.stage_clear_event
+        if event is None or not event.get("qualifies"):
+            raise AssertionError("natural route did not produce a byte-qualified final-heart stage-clear marker")
+        if not route or route[-1] != target_record[:2]:
+            raise AssertionError(f"final-heart marker did not end at its recorded movement target: {route}")
+        # STAGE_PENDING is transient: normal_stage consumes it through next_stage
+        # while selecting the later-stage screen. Wait for that durable result.
+        q.wait(lambda: q.val("PRES_MODE") == MODE_LEVEL and
+               q.val(0xA6) == LEVEL_START_SCREEN and q.val(0xA7) == 2 and
+               q.val("STAGE") == 19,
+               "natural final-heart handoff to stage-19 context-2 level-start")
+        publication = confirm_selected_publication(
+            q, MODE_LEVEL, LEVEL_START_SCREEN, 2,
+            "later-stage level-start publication")
+        if q.val("STAGE") != 19:
+            raise AssertionError(f"natural final collect advanced to {q.val('STAGE')}, expected 19")
+        next_count, next_table = direct_table(q)
+        if next_count != 12:
+            raise AssertionError(f"stage 19 active table count differs: {next_count}")
+        next_rng = rng_state(q)
+        frame = q.fb()
+        oracle = offline_oracle(args.candidate_build, args.baseline_build,
+                                args.output_dir, frame, next_table, next_count)
+        if not oracle["pixel_oracle"]["all_slots_match"]:
+            raise AssertionError("later-stage published letters differ from the independent pixel oracle: " +
+                                 json.dumps(pixel_mismatch_summary(oracle), separators=(",", ":")))
+        alias_calls = check_alias_reader_watch(q, [1, 2])
+        release_diagnostic = {
+            "stage19_preview_boundary": {
+                "STAGE": q.val("STAGE"), "PRES_MODE": q.val("PRES_MODE"),
+                "screen": q.val(0xA6), "context": q.val(0xA7),
+                "entity_count": next_count, "entity_table_hex": next_table.hex(),
+                "entity_table_sha256": sha(next_table), "RNG_STATE_hex": next_rng.hex(),
+                "mapping": mapping_snapshot(q)},
+            "preview_hold_samples": [], "release_watch": None,
+            "context2_release_boundary": None, "release_comparisons": None,
+            "trace_entry_result": {"invoked": False,
+                                    "reason": "context-2 release does not start a new-life entry animation"},
+            "first_gameplay_mainloop": None, "first_mainloop_comparisons": None}
+        q.next_stage_release_diagnostic = release_diagnostic
+        for hold_index in range(3):
+            q.go()
+            hold_count, hold_table = direct_table(q)
+            hold_rng = rng_state(q)
+            hold_sample = {"hold_index": hold_index + 1, "entity_count": hold_count,
+                           "entity_table_hex": hold_table.hex(),
+                           "entity_table_sha256": sha(hold_table),
+                           "RNG_STATE_hex": hold_rng.hex(),
+                           "entity_count_equal": hold_count == next_count,
+                           "entity_table_equal": hold_table == next_table,
+                           "RNG_STATE_equal": hold_rng == next_rng}
+            release_diagnostic["preview_hold_samples"].append(hold_sample)
+            if not all((hold_sample["entity_count_equal"], hold_sample["entity_table_equal"],
+                        hold_sample["RNG_STATE_equal"])):
+                raise AssertionError("later-stage preview hold changed a retained count/table/RNG field: " +
+                                     json.dumps(hold_sample, separators=(",", ":")))
+        release_diagnostic["release_watch"] = arm_context2_release_watch(q, args.candidate_build)
+        q.wait(lambda: q.context2_release_hit is not None,
+               "qualified context-2 release boundary before normal game tick")
+        release_boundary = q.context2_release_hit
+        release_diagnostic["context2_release_boundary"] = release_boundary
+        q.context2_release_watch = None
+        if not release_boundary.get("state_qualified"):
+            raise AssertionError("context-2 release reached the prefix marker without qualified game-state mapping: " +
+                                 json.dumps(release_boundary, separators=(",", ":")))
+        if release_boundary["state"].get("INITIAL_ENTRY_STATE") != 0:
+            release_diagnostic["trace_entry_result"]["observed_entry_state"] = \
+                release_boundary["state"].get("INITIAL_ENTRY_STATE")
+        release_count = release_boundary["entity_count"]
+        release_table = bytes.fromhex(release_boundary["entity_table_hex"])
+        release_rng = bytes.fromhex(release_boundary["RNG_STATE_hex"])
+        first_table_difference = next((index for index, (expected, actual) in
+                                       enumerate(zip(next_table, release_table))
+                                       if expected != actual), None)
+        release_comparisons = {
+            "entity_count_equal": release_count == next_count,
+            "entity_table_equal": release_table == next_table,
+            "entity_table_first_difference": first_table_difference,
+            "entity_table_expected_hex": next_table.hex(),
+            "entity_table_actual_hex": release_table.hex(),
+            "RNG_STATE_equal": release_rng == next_rng,
+            "RNG_STATE_expected_hex": next_rng.hex(),
+            "RNG_STATE_actual_hex": release_rng.hex()}
+        release_diagnostic["release_comparisons"] = release_comparisons
+        if release_boundary["state"].get("STAGE") != 19 or \
+                release_boundary["state"].get("PRES_MODE") != 0 or \
+                release_boundary["state"].get("screen") != LEVEL_START_SCREEN or \
+                release_boundary["state"].get("context") != 0:
+            raise AssertionError("qualified context-2 release marker has unexpected state: " +
+                                 json.dumps(release_boundary["state"], separators=(",", ":")))
+        if not all((release_comparisons["entity_count_equal"],
+                    release_comparisons["entity_table_equal"],
+                    release_comparisons["RNG_STATE_equal"])):
+            raise AssertionError("later-stage context-2 release differs from its pre-hold count/table/RNG snapshot: " +
+                                 json.dumps(release_comparisons, separators=(",", ":")))
+        q.go()
+        first_mainloop = capture_qualified_first_mainloop(q, args.candidate_build)
+        release_diagnostic["first_gameplay_mainloop"] = first_mainloop
+        first_table = bytes.fromhex(first_mainloop["entity_table_hex"])
+        first_count = first_mainloop["entity_count"]
+        first_rng = bytes.fromhex(first_mainloop["RNG_STATE_hex"])
+        first_mainloop_comparisons = {
+            "entity_count_retained": first_count == next_count,
+            "entity_table_retained": first_table == next_table,
+            "entity_table_first_difference": next((index for index, (expected, actual) in
+                                                     enumerate(zip(next_table, first_table))
+                                                     if expected != actual), None),
+            "entity_table_expected_length": len(next_table),
+            "entity_table_actual_length": len(first_table),
+            "RNG_STATE_after_one_normal_tick_expected_hex":
+                rng_step(int.from_bytes(release_rng, "big")).to_bytes(2, "big").hex(),
+            "RNG_STATE_after_first_mainloop_hex": first_rng.hex(),
+            "RNG_STATE_matches_one_normal_tick_step":
+                first_rng == rng_step(int.from_bytes(release_rng, "big")).to_bytes(2, "big")}
+        release_diagnostic["first_mainloop_comparisons"] = first_mainloop_comparisons
+        if not first_mainloop_comparisons["entity_count_retained"] or \
+                not first_mainloop_comparisons["entity_table_retained"]:
+            raise AssertionError("first gameplay mainloop changed the retained stage-19 entity count/table: " +
+                                 json.dumps(first_mainloop_comparisons, separators=(",", ":")))
+        if first_mainloop["state"].get("PRES_MODE") != LIVE_ENTRY_MODE or \
+                first_mainloop["state"].get("STAGE") != 19 or \
+                first_mainloop["state"].get("INITIAL_ENTRY_STATE") != 0:
+            raise AssertionError("first gameplay mainloop did not sample active stage-19 control state: " +
+                                 json.dumps(first_mainloop["state"], separators=(",", ":")))
+        return {"result": "PASS", "rom_sha256": sha((args.candidate_build / "ladybug.rom").read_bytes()),
+                "candidate_live_identity": live,
+                "page23_alias_reader_calls": alias_calls,
+                "page23_watch_other_bank_hits": other_bank_watch_summary(q),
+                "from_stage": 18, "to_stage": 19,
+                "counter_fixture": {"DOTS_LEFT": len(dot_cells), "BONUS_LEFT": 1,
+                                    "STAGE_PENDING_written_directly": False},
+                "route_dot_fixture": route_dot_fixture,
+                "actual_heart": target_record, "movement_route": route,
+                "later_stage_publication": publication,
+                "STAGE_PENDING_after_collect": q.val("STAGE_PENDING"),
+                "next_entity_count": next_count,
+                "next_entity_table_hex": next_table.hex(),
+                "next_entity_table_sha256": sha(next_table),
+                "next_rng": next_rng.hex(), "next_preview_oracle": oracle,
+                "release_diagnostic": release_diagnostic,
+                "table_and_rng_retained_through_release": True}
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def wait_pc(q, targets: set[int], label: str, phase_seconds: int = 45) -> dict[str, int]:
+    """Wait only at mainloop/targets, making every monitor wait <=10 s."""
+    import runtime as rt
+
+    mainloop = q.ms["mainloop"]
+    ids = rt.m.setup(q.c, [mainloop, *sorted(targets)])
+    end = time.monotonic() + phase_seconds
+    try:
+        while time.monotonic() < end:
+            q.c.call("run")
+            remaining_ms = max(1, min(10000, int((end - time.monotonic()) * 1000)))
+            stop = q.c.call("wait_for_stop", {"timeout_ms": remaining_ms},
+                            timeout=remaining_ms / 1000 + 2)
+            if stop.get("reason") != "breakpoint":
+                raise AssertionError(f"{label}: unexpected monitor stop {stop}")
+            if stop.get("pc") in targets:
+                return {"pc": stop["pc"], "stops": stop.get("stops", 0)}
+            if stop.get("pc") != mainloop:
+                raise AssertionError(f"{label}: unexpected PC ${stop.get('pc',0):04X}")
+        raise TimeoutError(f"{label}: target PC absent in {phase_seconds}s; no speed inference")
+    finally:
+        rt.m.clear(q.c, ids)
+
+
+def rng_step(state: int) -> int:
+    old_low_bit = state & 1
+    state >>= 1
+    return state ^ (0xB400 if old_low_bit else 0)
+
+
+def place_entity_rng(state: int, cells: bytearray) -> int:
+    """Mirror place_entity's bounded RNG search and dot-bit consumption."""
+    if len(cells) != 576:
+        raise ValueError("entity placement maze must contain 576 cells")
+    for _attempt in range(4096):
+        state = rng_step(state)
+        index = state % 576
+        if cells[index] & 0x80:
+            cells[index] &= 0x7F
+            return state
+    raise AssertionError("deterministic source-model placement exhausted its bounded retries")
+
+
+def predict_entity_letter_variants(stage: int, seed: bytes, maze: bytes) -> list[int]:
+    """Mirror init_entities placement draws to qualify a deterministic seed."""
+    if len(seed) != 2 or len(maze) != 576:
+        raise ValueError("seed/maze dimensions must be 16-bit and 576 cells")
+    state = int.from_bytes(seed, "big")
+    cells = bytearray(maze)
+    skulls = 2 if stage < 2 else 3 if stage < 5 else 4 if stage < 9 else 5 if stage < 18 else 6
+    for _ in range(skulls + 3):
+        state = place_entity_rng(state, cells)
+    variants = []
+    for options in ((11, 10, 8), (9, 7, 3, 5, 6), (4, 2)):
+        state = rng_step(state)
+        index = state & 0xFF
+        if len(options) == 3:
+            while index >= 3:
+                index -= 3
+        elif len(options) == 5:
+            while index >= 5:
+                index -= 5
+        else:
+            index &= 1
+        variants.append(options[index])
+        state = place_entity_rng(state, cells)
+    return variants
+
+
+def choose_deterministic_demo_seed(maze: bytes) -> dict[str, object]:
+    """Choose the first bounded seed whose stage-1 and stage-18 triples differ."""
+    base = 0xA5C3
+    for offset in range(4096):
+        value = (base + offset) & 0xFFFF
+        if value == 0:
+            continue
+        seed = value.to_bytes(2, "big")
+        player = predict_entity_letter_variants(18, seed, maze)
+        demo = predict_entity_letter_variants(1, seed, maze)
+        if player != demo:
+            return {"seed_bytes": seed, "seed_hex": seed.hex(),
+                    "maze_bytes": maze, "maze_sha256": sha(maze),
+                    "player_stage": 18, "player_predicted_variants": player,
+                    "demo_stage": 1, "demo_predicted_variants": demo,
+                    "search_start": f"{base:04x}", "search_offsets": offset + 1,
+                    "same_seed_produces_distinct_triples": True}
+    raise AssertionError("no deterministic distinct stage-1/stage-18 seed found in the bounded 4096-seed search")
+
+
+def seed_entities_at_entry(q, expected_stage: int, seed: bytes | None,
+                           label: str, choose_distinct_seed: bool = False) -> dict[str, object]:
+    """Write an explicit RNG seed at the shared init_entities call boundary."""
+    build_dir = getattr(q, "candidate_build_dir", None)
+    if build_dir is None:
+        raise AssertionError("candidate artifact directory was not pinned before seeded selection")
+    entry = q.ms.get("init_entities")
+    if entry is None:
+        raise AssertionError("current map does not export init_entities")
+    reached = wait_pc(q, {entry}, f"{label}: init_entities entry")
+    if reached.get("pc") != entry:
+        raise AssertionError(f"{label}: stop PC differs from mapped init_entities entry")
+    entry_identity = resident_label_identity(q, build_dir, "init_entities")
+    stage_raw, stage_proof = qualified_logical_bytes(
+        q, q.ms["STAGE"], 1, f"{label}: STAGE at init_entities entry")
+    if stage_proof["physical_page"] != 0x38:
+        raise AssertionError(f"{label}: STAGE is not mapped through resident page $38")
+    stage = stage_raw[0]
+    if stage != expected_stage:
+        raise AssertionError(f"{label}: init_entities stage {stage} != {expected_stage}")
+    maze, maze_proof = qualified_maze_snapshot(q, f"{label}: init_entities selection boundary")
+    distinct_fixture = None
+    if choose_distinct_seed:
+        if seed is not None or expected_stage != 18:
+            raise ValueError("distinct demo seed search is only valid at unseeded stage-18 selection")
+        distinct_fixture = choose_deterministic_demo_seed(maze)
+        seed = distinct_fixture["seed_bytes"]
+    if seed is None:
+        raise ValueError("an explicit selection seed is required")
+    predicted = predict_entity_letter_variants(stage, seed, maze)
+    if distinct_fixture is not None and predicted != distinct_fixture["player_predicted_variants"]:
+        raise AssertionError("seed search player prediction does not match the stage-18 selection boundary")
+    regs = q.c.call("read_registers")
+    stack = regs.get("s", regs.get("sp"))
+    if stack is None:
+        raise AssertionError(f"{label}: monitor omitted stack register at init_entities entry")
+    stack_raw, stack_proof = qualified_logical_bytes(
+        q, stack, 2, f"{label}: init_entities caller return address stack")
+    return_pc = int.from_bytes(stack_raw, "big")
+    q.selection_diagnostic = {
+        "label": label, "stage": stage, "seed_hex": seed.hex(),
+        "maze_sha256": sha(maze), "predicted_variants": list(predicted),
+        "init_entities_entry": entry, "entry_stop": reached,
+        "entry_identity": entry_identity, "stage_mapping_proof": stage_proof,
+        "maze_mapping_proof": maze_proof,
+        "caller_stack_address": stack, "caller_stack_proof": stack_proof,
+        "return_pc": return_pc,
+        "failure_boundary": "caller return code-owner identity pending"}
+    return_pc_identity = code_address_identity(
+        q, build_dir, return_pc, f"{label}: init_entities caller return PC")
+    rng_before, rng_before_proof = qualified_logical_bytes(
+        q, q.ms["RNG_STATE"], 2, f"{label}: RNG_STATE before seed")
+    if rng_before_proof["physical_page"] != 0x38:
+        raise AssertionError(f"{label}: RNG_STATE is not mapped through resident page $38")
+    par_entry = mapping_snapshot(q)
+    q.selection_diagnostic.update({
+        "return_pc_identity": return_pc_identity,
+        "rng_before_seed_hex": rng_before.hex(),
+        "rng_before_seed_mapping_proof": rng_before_proof,
+        "failure_boundary": "seed write and common init_entities return pending"})
+    q.dp("RNG_STATE", seed)
+    seeded_rng, seeded_rng_proof = qualified_logical_bytes(
+        q, q.ms["RNG_STATE"], 2, f"{label}: seeded RNG_STATE")
+    if seeded_rng_proof["physical_page"] != 0x38 or seeded_rng != seed:
+        raise AssertionError(f"{label}: explicit seed did not reach qualified resident RNG_STATE")
+    q.selection_diagnostic["seeded_rng_mapping_proof"] = seeded_rng_proof
+    returned = wait_pc(q, {return_pc}, f"{label}: init_entities return")
+    if returned.get("pc") != return_pc:
+        raise AssertionError(f"{label}: stop PC differs from the qualified init_entities return")
+    return_identity = code_address_identity(
+        q, build_dir, return_pc, f"{label}: init_entities return")
+    stage_after, stage_after_proof = qualified_logical_bytes(
+        q, q.ms["STAGE"], 1, f"{label}: STAGE after init_entities")
+    count_raw, count_proof = qualified_logical_bytes(
+        q, q.ms["ENTITY_COUNT"], 1, f"{label}: ENTITY_COUNT after init_entities")
+    rng_after, rng_after_proof = qualified_logical_bytes(
+        q, q.ms["RNG_STATE"], 2, f"{label}: RNG_STATE after init_entities")
+    if any(proof["physical_page"] != 0x38
+           for proof in (stage_after_proof, count_proof, rng_after_proof)):
+        raise AssertionError(f"{label}: selection state did not return to resident page $38")
+    if stage_after[0] != stage:
+        raise AssertionError(f"{label}: STAGE changed during init_entities: {stage} -> {stage_after[0]}")
+    count = count_raw[0]
+    q.selection_diagnostic.update({
+        "failure_boundary": "qualified init_entities return before entity-table parse",
+        "return_stop": returned, "return_identity": return_identity,
+        "stage_after_hex": stage_after.hex(), "stage_after_mapping_proof": stage_after_proof,
+        "entity_count": count, "entity_count_mapping_proof": count_proof,
+        "rng_after_hex": rng_after.hex(), "rng_after_mapping_proof": rng_after_proof})
+    table, table_proof = qualified_entity_table(q, count, f"{label}: init_entities result")
+    q.selection_diagnostic.update({"entity_table_hex": table.hex(),
+                                   "entity_table_sha256": sha(table),
+                                   "entity_table_mapping_proof": table_proof})
+    records = unpack_records(count, table)
+    raw_actual = [record[3] for record in records if record[2] == 3]
+    parse_error = None
+    try:
+        actual, letter_details = letter_variants(count, table)
+    except Exception as parse_exc:
+        actual, letter_details = raw_actual, None
+        parse_error = repr(parse_exc)
+    q.selection_diagnostic.update({
+        "failure_boundary": "qualified init_entities return before prediction assertion",
+        "return_stop": returned, "return_identity": return_identity,
+        "stage_after_hex": stage_after.hex(), "stage_after_mapping_proof": stage_after_proof,
+        "entity_count": count, "entity_count_mapping_proof": count_proof,
+        "entity_table_hex": table.hex(), "entity_table_sha256": sha(table),
+        "entity_table_mapping_proof": table_proof,
+        "rng_after_hex": rng_after.hex(), "rng_after_mapping_proof": rng_after_proof,
+        "predicted_variants": list(predicted), "actual_variants": list(actual),
+        "raw_letter_variants": raw_actual, "letter_parse_error": parse_error})
+    if parse_error is not None:
+        raise AssertionError(f"{label}: returned entity table has invalid letter records: {parse_error}")
+    if actual != predicted:
+        raise AssertionError(f"{label}: selected variants {actual} differ from source-model prediction {predicted}")
+    if count != (12 if stage >= 18 else 8):
+        raise AssertionError(f"{label}: entity count {count} is inconsistent with stage {stage}")
+    q.selection_diagnostic["result"] = "prediction_matches_qualified_return"
+    return {"seed_bytes": seed, "seed_hex": seed.hex(),
+            "maze_bytes": maze, "maze_sha256": sha(maze),
+            "maze_mapping_proof": maze_proof,
+            "stage": stage, "init_entities_entry": entry,
+            "entry_boundary": reached, "entry_identity": entry_identity,
+            "caller_stack_proof": stack_proof,
+            "return_pc": return_pc, "return_pc_identity": return_pc_identity,
+            "return_identity": return_identity, "return_boundary": returned,
+            "rng_before_seed": rng_before.hex(), "rng_after": rng_after.hex(),
+            "preselection_rng": seed.hex(), "predicted_variants": predicted,
+            "actual_variants": actual, "entity_count": count,
+            "active_table_sha256": sha(table), "letter_details": letter_details,
+            "active_records": records, "selection_diagnostic": q.selection_diagnostic,
+            "mapping_at_entry_raw": par_entry["PAR4_PAR5_raw"],
+            "selection_seeded_at_common_boundary": True,
+            "distinct_seed_fixture": distinct_fixture}
+
+
+def capture_seed_boundary(build_dir: Path, level: int) -> dict[str, object]:
+    rt = load_runtime(build_dir)
+    q = rt.Run()
+    try:
+        is_candidate = sha((build_dir / "ladybug.rom").read_bytes()) != BASELINE_SHA256
+        live = wait_for_artifact_delivery(q, build_dir, is_candidate)
+        q.wait(lambda: q.val("PRES_MODE") == 2, "cold attract complete")
+        q.dp(0xEA, [3])
+        q.dp(0xEB, [level])
+        q.c.call("inject_key", {"key": 5, "action": "press"})
+        q.wait(lambda: q.val("PRES_MODE") == 5 and q.val(0xA8) > 0,
+               "credited menu reached")
+        q.c.call("inject_key", {"key": 5, "action": "release"})
+        for _ in range(5):
+            q.go()
+        entry = q.ms.get("init_entities")
+        if entry is None:
+            raise AssertionError("candidate map does not export init_entities")
+        q.c.call("inject_key", {"key": 0x30, "action": "press"})
+        reached = wait_pc(q, {entry}, "common init_entities entry")
+        entry_identity = resident_label_identity(q, build_dir, "init_entities")
+        if reached.get("pc") != entry:
+            raise AssertionError("common init_entities stop PC differs from the mapped resident symbol")
+        regs = q.c.call("read_registers")
+        stack = regs.get("s", regs.get("sp"))
+        if stack is None:
+            raise AssertionError("monitor omitted stack register at selection boundary")
+        stack_raw, stack_proof = qualified_logical_bytes(
+            q, stack, 2, "common init_entities caller return address stack")
+        return_pc = int.from_bytes(stack_raw, "big")
+        q.selection_diagnostic = {
+            "label": "retained-build common seed boundary", "init_entities_entry": entry,
+            "entry_stop": reached, "entry_identity": entry_identity,
+            "caller_stack_address": stack, "caller_stack_proof": stack_proof,
+            "return_pc": return_pc,
+            "failure_boundary": "caller return code-owner identity pending"}
+        return_pc_identity = code_address_identity(
+            q, build_dir, return_pc, "common init_entities caller return PC")
+        stage_raw, stage_proof = qualified_logical_bytes(
+            q, q.ms["STAGE"], 1, "common init_entities STAGE")
+        rng_before, rng_before_proof = qualified_logical_bytes(
+            q, q.ms["RNG_STATE"], 2, "common init_entities RNG_STATE")
+        if stage_proof["physical_page"] != 0x38 or rng_before_proof["physical_page"] != 0x38:
+            raise AssertionError("common selection data is not mapped through resident page $38")
+        stage = stage_raw[0]
+        if q.ms.get("MAZE_STATE") is None:
+            raise AssertionError("map lacks MAZE_STATE for common-boundary qualification")
+        maze, maze_proof = qualified_maze_snapshot(q, "seed predictor init_entities boundary")
+        if stage != level:
+            raise AssertionError(f"selection boundary stage {stage} != configured {level}")
+        # Use the same explicit 16-bit seed after observing the actual common
+        # caller boundary; do not compare cold-start clocks or entropy seeds.
+        seed = bytes.fromhex("a5c3")
+        q.selection_diagnostic.update({
+            "label": "retained-build common seed boundary", "stage": stage,
+            "seed_hex": seed.hex(), "maze_sha256": sha(maze),
+            "init_entities_entry": entry, "entry_stop": reached,
+            "entry_identity": entry_identity, "stage_mapping_proof": stage_proof,
+            "maze_mapping_proof": maze_proof, "caller_stack_address": stack,
+            "caller_stack_proof": stack_proof, "return_pc": return_pc,
+            "return_pc_identity": return_pc_identity,
+            "rng_before_seed_hex": rng_before.hex(),
+            "rng_before_seed_mapping_proof": rng_before_proof,
+            "failure_boundary": "retained seed write and common selection return pending"})
+        q.dp("RNG_STATE", seed)
+        seeded_rng, seeded_rng_proof = qualified_logical_bytes(
+            q, q.ms["RNG_STATE"], 2, "common init_entities seeded RNG_STATE")
+        if seeded_rng != seed or seeded_rng_proof["physical_page"] != 0x38:
+            raise AssertionError("common selection seed did not reach qualified resident RNG_STATE")
+        q.selection_diagnostic["seeded_rng_mapping_proof"] = seeded_rng_proof
+        par_before = mapping_snapshot(q)
+        stopped = wait_pc(q, {return_pc}, "init_entities return")
+        return_identity = code_address_identity(
+            q, build_dir, return_pc, "common init_entities return")
+        stage_after, stage_after_proof = qualified_logical_bytes(
+            q, q.ms["STAGE"], 1, "common selection STAGE after init_entities")
+        count_raw, count_proof = qualified_logical_bytes(
+            q, q.ms["ENTITY_COUNT"], 1, "common selection ENTITY_COUNT after init_entities")
+        rng_after, rng_after_proof = qualified_logical_bytes(
+            q, q.ms["RNG_STATE"], 2, "common selection RNG_STATE after init_entities")
+        if stopped.get("pc") != return_pc or stage_after[0] != stage or any(
+                proof["physical_page"] != 0x38
+                for proof in (stage_after_proof, count_proof, rng_after_proof)):
+            raise AssertionError("common init_entities return boundary or resident state mapping is invalid")
+        count = count_raw[0]
+        q.selection_diagnostic.update({
+            "failure_boundary": "qualified common init_entities return before entity-table parse",
+            "return_stop": stopped, "return_identity": return_identity,
+            "stage_after_hex": stage_after.hex(), "stage_after_mapping_proof": stage_after_proof,
+            "entity_count": count, "entity_count_mapping_proof": count_proof,
+            "rng_after_hex": rng_after.hex(), "rng_after_mapping_proof": rng_after_proof})
+        table, table_proof = qualified_entity_table(q, count, "common init_entities result")
+        q.selection_diagnostic.update({"entity_table_hex": table.hex(),
+                                       "entity_table_sha256": sha(table),
+                                       "entity_table_mapping_proof": table_proof})
+        raw_records = unpack_records(count, table)
+        raw_actual = [record[3] for record in raw_records if record[2] == 3]
+        predicted = predict_entity_letter_variants(stage, seed, maze)
+        parse_error = None
+        try:
+            actual, letter_details = letter_variants(count, table)
+        except Exception as parse_exc:
+            actual, letter_details = raw_actual, None
+            parse_error = repr(parse_exc)
+        q.selection_diagnostic.update({
+            "failure_boundary": "qualified common init_entities return before comparison",
+            "return_stop": stopped, "return_identity": return_identity,
+            "stage_after_hex": stage_after.hex(), "stage_after_mapping_proof": stage_after_proof,
+            "entity_count": count, "entity_count_mapping_proof": count_proof,
+            "entity_table_hex": table.hex(), "entity_table_sha256": sha(table),
+            "entity_table_mapping_proof": table_proof,
+            "rng_after_hex": rng_after.hex(), "rng_after_mapping_proof": rng_after_proof,
+            "predicted_variants": list(predicted), "actual_variants": list(actual),
+            "raw_letter_variants": raw_actual, "letter_parse_error": parse_error})
+        if parse_error is not None:
+            raise AssertionError(f"common selection returned invalid letter records: {parse_error}")
+        if actual != predicted:
+            raise AssertionError(f"common seeded selection {actual} differs from corrected source model {predicted}")
+        par_after = mapping_snapshot(q)
+        if count != 12:
+            raise AssertionError(f"seeded stage-{level} selection count {count} != 12")
+        q.selection_diagnostic["result"] = "prediction_matches_qualified_return"
+        return {"build_dir": str(build_dir.resolve()),
+                "rom_sha256": sha((build_dir / "ladybug.rom").read_bytes()),
+                "artifact_delivery": live,
+                "phase_deadline_seconds": 45, "monitor_stop_seconds": 10,
+                "entry_stop": reached, "entry_identity": entry_identity,
+                "stack_proof": stack_proof, "return_pc_identity": return_pc_identity,
+                "return_stop": stopped, "return_identity": return_identity,
+                "init_entities_entry": entry, "return_pc": return_pc,
+                "configured_stage": stage, "seed_written_at_boundary": seed.hex(),
+                "preselection_maze_sha256": sha(maze),
+                "preselection_maze_mapping_proof": maze_proof,
+                "preselection_rng_observed": rng_before.hex(),
+                "rng_after": rng_after.hex(), "entity_count": count,
+                "active_record_bytes": len(table), "active_records": raw_records,
+                "predicted_variants": predicted, "actual_variants": actual,
+                "letter_details": letter_details,
+                "active_table_sha256": sha(table), "entity_table_mapping_proof": table_proof,
+                "selection_diagnostic": q.selection_diagnostic,
+                "raw_48_byte_table": q.phys(ENTITY_PHYS, ENTITY_BYTES).hex(),
+                "mapping_before_after": {"before": par_before, "after": par_after},
+                "selection_boundary_seeded": True}
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def seeded_comparison(args) -> dict[str, object]:
+    baseline = capture_seed_boundary(args.baseline_build, 18)
+    candidate = capture_seed_boundary(args.candidate_build, 18)
+    same_inputs = (baseline["seed_written_at_boundary"] == candidate["seed_written_at_boundary"] and
+                   baseline["configured_stage"] == candidate["configured_stage"] and
+                   baseline["preselection_maze_sha256"] == candidate["preselection_maze_sha256"])
+    same_output = (baseline["active_records"] == candidate["active_records"] and
+                   baseline["rng_after"] == candidate["rng_after"])
+    if not same_inputs or not same_output:
+        raise AssertionError(f"seeded common-boundary regression differs: inputs={same_inputs}, output={same_output}")
+    return {"result": "PASS", "baseline": baseline, "candidate": candidate,
+            "same_selection_inputs": same_inputs,
+            "active_records_and_terminal_rng_match": same_output,
+            "inactive_tail_ignored": True}
+
+
+def qualified_demo_phase_snapshot(q, build_dir: Path, phase: str) -> dict[str, object]:
+    """Capture compact demo phase state only after live code and data mappings qualify."""
+    import verify_bug011_runtime as low
+
+    regs = q.c.call("read_registers")
+    pc = regs.get("pc")
+    code_identity = code_address_identity(q, build_dir, pc,
+                                          f"demo {phase} control PC")
+    par0_raw = low.read_bytes(q.c, 0xFFA0, 1)[0]
+    par0_page = par0_raw & 0x3F
+    snapshot: dict[str, object] = {
+        "phase": phase, "pc": pc, "code_identity": code_identity,
+        "PAR0_raw": par0_raw, "PAR0_page": par0_page,
+        "frame": None, "state": {}, "cue_events": list(q.cues),
+        "audio_event_count": len(q.audio_events),
+    }
+    if par0_page != 0x38:
+        snapshot["state_capture_error"] = "PAR0 is not the proven resident data page $38"
+        return snapshot
+
+    state: dict[str, object] = {}
+    for label, length in (
+        ("PRES_MODE", 1), ("LIVES", 1), ("DEATH_STATE", 1),
+        ("PRES_CREDITS", 1), ("STAGE", 1), ("INITIAL_ENTRY_STATE", 1),
+        ("STAGE_PENDING", 1), ("BONUS_LEFT", 1), ("DOTS_LEFT", 1),
+        ("ENTITY_COUNT", 1), ("RNG_STATE", 2), ("PLAYER_CELL_X", 2),
+        ("PLAYER_STEP", 1), ("PLAYER_FB", 2), ("FRAMES", 2),
+    ):
+        address = q.ms.get(label)
+        if address is None:
+            continue
+        raw, proof = qualified_logical_bytes(
+            q, address, length, f"demo {phase} {label}")
+        state[label] = {"hex": raw.hex(), "proof": proof}
+    for label, address in (("screen", 0x00A6), ("context", 0x00A7)):
+        raw, proof = qualified_logical_bytes(
+            q, address, 1, f"demo {phase} {label}")
+        state[label] = {"hex": raw.hex(), "proof": proof}
+    snapshot["frame"] = state.get("FRAMES", {}).get("hex")
+    snapshot["state"] = state
+    return snapshot
+
+
+def demo_freshness(args) -> dict[str, object]:
+    """Drive a player table, then a natural game-over/attract demo transition."""
+    rt = load_runtime(args.candidate_build)
+    q = rt.Run()
+    try:
+        live = wait_for_artifact_delivery(q, args.candidate_build, True)
+        q.demo_phase_snapshots = []
+
+        def record_phase(phase: str) -> dict[str, object]:
+            sample = qualified_demo_phase_snapshot(q, args.candidate_build, phase)
+            q.demo_phase_snapshots.append(sample)
+            return sample
+
+        def failure_context() -> dict[str, object]:
+            result: dict[str, object] = {
+                "last_proven_boundary": (q.demo_phase_snapshots[-1]
+                                          if q.demo_phase_snapshots else None),
+                "phase_snapshots": list(q.demo_phase_snapshots[-8:]),
+                "trace_tail": list(q.trace[-8:]),
+            }
+            try:
+                result["exception_boundary"] = qualified_demo_phase_snapshot(
+                    q, args.candidate_build, "exception catch")
+            except Exception as capture_exc:
+                result["exception_boundary_capture_error"] = repr(capture_exc)
+            return result
+
+        q.qa_failure_context = failure_context
+        arm_alias_reader_watch(q, args.candidate_build)
+        start = start_to_level_preview(q, 18, deterministic_demo_fixture=True)
+        record_phase("player stage-18 preview published")
+        q.wait(lambda: q.val("PRES_MODE") == 0 and q.val("INITIAL_ENTRY_STATE") == 4,
+               "player live-entry onset")
+        record_phase("player live-entry onset")
+        q.trace_entry()
+        record_phase("player live-entry complete")
+        if len(q.cues) != 1 or q.cues[0]["mode"] != LIVE_ENTRY_MODE:
+            raise AssertionError(f"cue6 must be admitted only at the preceding live-entry boundary: {q.cues}")
+        player_count, player_table = direct_table(q)
+        player_variants, _ = letter_variants(player_count, player_table)
+        if player_count != 12:
+            raise AssertionError("stale-preview fixture requires the player stage-18 triplet")
+        seed_fixture = q.demo_seed_fixture
+        if player_variants != seed_fixture["player_predicted_variants"]:
+            raise AssertionError("player stage-18 triple differs from its common-boundary deterministic prediction")
+        record_phase("player stage-18 table verified before terminal-death fixture")
+        # The initial live entry consumes one marker. Zero remaining markers
+        # makes this next natural death terminal while retaining stage-18 data.
+        q.dp("LIVES", [0])
+        xy, fb = q.low("PLAYER_CELL_X", 2), q.low("PLAYER_FB", 2)
+        q.put(0x34 * 8192 + 0x0470, bytes([1, *fb, 0, *xy, 1, 255]))
+        record_phase("terminal contact fixture armed with zero spare lives")
+        q.wait(lambda: q.val("DEATH_STATE") != 0,
+               "terminal player death onset after setting zero spare lives")
+        record_phase("terminal DEATH_STATE observed")
+        q.wait(lambda: q.val("PRES_MODE") == 2 and q.val(0xA8) == 0,
+               "natural attract after game-over flow")
+        record_phase("natural attract after game-over flow")
+        demo_selection = seed_entities_at_entry(q, 1, seed_fixture["seed_bytes"],
+                                                 "natural demo stage-1 entity selection")
+        if demo_selection["maze_bytes"] != seed_fixture["maze_bytes"]:
+            raise AssertionError("natural demo did not reach the same maze state at the common selection boundary")
+        if demo_selection["predicted_variants"] != seed_fixture["demo_predicted_variants"]:
+            raise AssertionError("natural demo stage-1 deterministic prediction differs from the selected fixture")
+        if demo_selection["actual_variants"] != seed_fixture["demo_predicted_variants"]:
+            raise AssertionError("natural demo stage-1 table differs from the selected deterministic fixture")
+        q.wait(lambda: q.val("PRES_MODE") == MODE_LEVEL and
+               q.val(0xA6) == LEVEL_START_SCREEN and q.val(0xA7) == 0,
+               "fresh demo level-start screen selected")
+        publication = confirm_selected_publication(q, MODE_LEVEL, LEVEL_START_SCREEN, 0,
+                                                   "fresh demo level-start publication")
+        if q.val("STAGE") != 1:
+            raise AssertionError(f"fresh demo preview stage is {q.val('STAGE')}, expected 1")
+        demo_count, demo_raw = direct_table(q)
+        if demo_count != 8:
+            raise AssertionError(f"fresh stage-1 demo entity count is {demo_count}, expected 8")
+        frame = q.fb()
+        oracle = offline_oracle(args.candidate_build, args.baseline_build,
+                                args.output_dir, frame, demo_raw, demo_count)
+        if not oracle["pixel_oracle"]["all_slots_match"]:
+            raise AssertionError("fresh demo published letters differ from the independent pixel oracle: " +
+                                 json.dumps(pixel_mismatch_summary(oracle), separators=(",", ":")))
+        demo_variants = oracle["entity_selection"]["selected_variants"]
+        if demo_variants != seed_fixture["demo_predicted_variants"]:
+            raise AssertionError("demo-preview triple does not match its seeded init_entities boundary")
+        if demo_variants == player_variants:
+            raise AssertionError("demo stage-1 triple was not distinct from the prior player stage-18 triple")
+        if (len(q.cues) != 1 or q.cues[0]["mode"] != LIVE_ENTRY_MODE or
+                any(item["id"] == 6 and item["mode"] == MODE_LEVEL for item in q.audio_events)):
+            raise AssertionError("cue6 was admitted during level-start preview instead of live entry")
+        for _ in range(3):
+            q.go()
+            if direct_table(q) != (demo_count, demo_raw):
+                raise AssertionError("demo preview hold reused/rerolled a stale table")
+        q.wait(lambda: q.val("PRES_MODE") == 4, "natural demo gameplay begins")
+        if direct_table(q) != (demo_count, demo_raw):
+            raise AssertionError("demo release rerolled prepared entities")
+        alias_calls = check_alias_reader_watch(q, [1, 0])
+        return {"result": "PASS", "rom_sha256": sha((args.candidate_build / "ladybug.rom").read_bytes()),
+                "candidate_live_identity": live,
+                "page23_alias_reader_calls": alias_calls,
+                "page23_watch_other_bank_hits": other_bank_watch_summary(q),
+                "player_stage_variants": player_variants, "demo_stage": q.val("STAGE"),
+                "demo_context": q.val(0xA7), "demo_variants": demo_variants,
+                "demo_table_sha256": sha(demo_raw), "demo_preview_sha256": sha(frame),
+                "demo_publication": publication,
+                "common_selection_boundary_fixture": {
+                    "seed_hex": seed_fixture["seed_hex"],
+                    "player_maze_sha256": seed_fixture["maze_sha256"],
+                    "demo_maze_sha256": demo_selection["maze_sha256"],
+                    "player_selection": {k: v for k, v in start["entity_selection_seed_boundary"].items()
+                                          if k not in ("seed_bytes", "maze_bytes")},
+                    "demo_selection": {k: v for k, v in demo_selection.items()
+                                       if k not in ("seed_bytes", "maze_bytes", "distinct_seed_fixture")},
+                    "deterministic_triples_differ": demo_variants != player_variants},
+                "demo_pixel_oracle": oracle,
+                "demo_table_is_own_and_retained_through_mode4": True,
+                "natural_game_over_to_demo": True}
+    except Exception as exc:
+        attach_failure_evidence(exc, q)
+        raise
+    finally:
+        q.close()
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--candidate-build", type=Path, required=True,
+                        help="stable parent combined-build directory")
+    parser.add_argument("--baseline-build", type=Path, default=DEFAULT_BASELINE)
+    parser.add_argument("--output-dir", type=Path, default=HERE / "evidence")
+    parser.add_argument("--scenario", choices=("initial", "max-records", "life",
+                        "next-stage", "demo", "seed", "nonadaptive-entry"),
+                        required=True)
+    args = parser.parse_args()
+    args.candidate_build = args.candidate_build.resolve()
+    args.baseline_build = args.baseline_build.resolve()
+    args.output_dir = args.output_dir.resolve()
+    try:
+        args.output_dir.relative_to(HERE)
+    except ValueError as exc:
+        raise SystemExit(f"--output-dir must remain inside owned scratch tree {HERE}") from exc
+    args.output_dir.mkdir(parents=True, exist_ok=True)
+    report_path = args.output_dir / f"bug122-{args.scenario}.json"
+    report: dict[str, object] = {
+        "ticket": "BUG-122",
+        "scenario": args.scenario,
+        "candidate_build_directory": str(args.candidate_build),
+        "baseline_build_directory": str(args.baseline_build),
+        "baseline_rom_expected_sha256": BASELINE_SHA256,
+        "command": "python3 repro/bugpass-20261010/luna122-qa-plan/verify_bug122.py " +
+                   f"--candidate-build <stable-parent-build> --scenario {args.scenario}",
+        "scope": "focused accepted gates only; no other profile cross-product",
+    }
+    try:
+        report["baseline_retention"] = verify_retained_baseline(args.baseline_build)
+        if args.scenario == "nonadaptive-entry":
+            report["nonadaptive_retention"] = verify_retained_nonadaptive(args.candidate_build)
+        report["candidate"] = build_summary(args.candidate_build)
+        report["baseline"] = build_summary(args.baseline_build, require_candidate_masks=False)
+        baseline_rom = (args.baseline_build / "ladybug.rom").read_bytes()
+        if sha(baseline_rom) != BASELINE_SHA256:
+            raise AssertionError("retained BUG-122 baseline ROM does not match reviewed original artifact")
+        if args.scenario == "initial":
+            old = baseline_preview(args, 1)
+            candidate = natural_initial(args, old["framebuffer"], 1)
+            report["baseline_preview"] = {k: v for k, v in old.items() if k != "framebuffer"}
+            report["candidate_result"] = candidate
+        elif args.scenario == "max-records":
+            old = baseline_preview(args, 18)
+            candidate = natural_initial(args, old["framebuffer"], 18)
+            report["baseline_preview"] = {k: v for k, v in old.items() if k != "framebuffer"}
+            report["candidate_result"] = candidate
+        elif args.scenario == "life":
+            report["candidate_result"] = natural_life(args)
+        elif args.scenario == "next-stage":
+            report["candidate_result"] = natural_next_stage(args)
+        elif args.scenario == "demo":
+            report["candidate_result"] = demo_freshness(args)
+        elif args.scenario == "nonadaptive-entry":
+            old = baseline_preview(args, 1)
+            report["baseline_preview"] = {k: v for k, v in old.items() if k != "framebuffer"}
+            report["candidate_result"] = nonadaptive_initial_entry(args)
+        else:
+            report["candidate_result"] = seeded_comparison(args)
+        report["result"] = "PASS"
+    except Exception as exc:
+        report["result"] = "FAIL"
+        report["failure"] = repr(exc)
+        if hasattr(exc, "qa_evidence"):
+            report["scenario_failure_evidence"] = exc.qa_evidence
+        report_path.write_text(serialize_report(report), encoding="utf-8")
+        raise
+    report_path.write_text(serialize_report(report), encoding="utf-8")
+    print(json.dumps({"result": report["result"], "receipt": str(report_path)}, indent=2))
+    return 0
+
+
+def serialize_report(report: dict[str, object]) -> str:
+    """Serialize nested binary samples as bounded summaries and retain paths."""
+    binary_fields: list[dict[str, object]] = []
+
+    def compact(value: object, path: str) -> object:
+        if isinstance(value, bytes):
+            summary: dict[str, object] = {
+                "byte_length": len(value),
+                "sha256": sha(value),
+            }
+            binary_fields.append({"path": path, **summary})
+            if len(value) <= 16:
+                summary["hex"] = value.hex()
+            else:
+                summary["payload_omitted"] = True
+            return summary
+        if isinstance(value, dict):
+            return {key: compact(item, f"{path}.{key}")
+                    for key, item in value.items()}
+        if isinstance(value, (list, tuple)):
+            return [compact(item, f"{path}[{index}]")
+                    for index, item in enumerate(value)]
+        return value
+
+    safe = compact(report, "$")
+    assert isinstance(safe, dict)
+    safe["serialized_binary_fields"] = binary_fields
+    return json.dumps(safe, indent=2) + "\n"
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

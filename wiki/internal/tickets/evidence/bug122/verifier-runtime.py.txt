@@ -1,0 +1,319 @@
+from pathlib import Path
+import sys,time,json,hashlib,socket,os
+ROOT=next(p for p in Path(__file__).resolve().parents if (p/'scripts/build.sh').is_file());sys.path.insert(0,str(ROOT/'scripts'))
+import verify_bug011_runtime as r
+import verify_bug009_monitor_input as m
+B=Path(os.environ.get('LADYBUG_TEST_BUILD',str(ROOT/'build')))
+class Run:
+ def __init__(self):
+  self.ms=r.symbols(B/'ladybug.map');self.au=r.symbols(B/'ladybug-audio-runtime.map')
+  self.p,self.c=r.launch_fast(m,ROOT/'docs/reference/xroar/src/xroar',B/'ladybug.rom');self.held=None;self.cues=[];self.audio_events=[];self.trace=[];self.entry_traces=[];self.capture_audio=False;self.phase_deadline=None;self.call_watch_entry=None;self.call_watch_pending=None;self.call_watch_records=[];self.call_watch_other_bank_hits=[];self.call_watch_other_bank_hit_counts={};self.banked_watch_other_bank_hits=[];self.banked_watch_other_bank_hit_counts={};self.call_watch_helper_bytes=None;self.call_watch_stage_address=None;self.call_watch_stage_page=None;self.call_watch_physical_start=None;self.audio_watch_entry=None;self.audio_watch_bytes=None;self.audio_watch_expected_entry_bytes=None;self.audio_watch_physical_start=None;self.audio_watch_page=None;self.stage_clear_observer=None;self.stage_clear_event=None;self.stage_clear_rejected_events=[];self.context2_release_watch=None;self.context2_release_hit=None
+ def close(self):self.c.close();m.stop(self.p)
+ def phys(self,a,n):return bytes.fromhex(self.c.call('read_memory',{'space':'physical','addr':a,'length':n})['data'])
+ def put(self,a,b):self.c.call('write_memory',{'space':'physical','addr':a,'data':bytes(b).hex()})
+ def low(self,k,n=1):return self.phys(0x38*8192+(self.ms[k] if isinstance(k,str) else k),n)
+ def val(self,k):return self.low(k)[0]
+ def dp(self,k,b):self.put(0x38*8192+(self.ms[k] if isinstance(k,str) else k),b)
+ def _step_past_unqualified_hit(self,ids,breakpoint_ids,address,page,watch_site,page_register='PAR5'):
+  entry_bp=breakpoint_ids.pop(address)
+  m.clear(self.c,[entry_bp]);ids.remove(entry_bp)
+  self.c.call('step_instruction',{'n':1})
+  stepped=self.c.call('wait_for_stop',{'timeout_ms':1000},timeout=3)
+  if stepped.get('reason')!='step':raise TimeoutError('one-instruction continuation after unqualified bank hit did not complete')
+  key=f'{watch_site}:{address:04x}:{page:02x}'
+  self.banked_watch_other_bank_hit_counts[key]=self.banked_watch_other_bank_hit_counts.get(key,0)+1
+  if len(self.banked_watch_other_bank_hits)<32:self.banked_watch_other_bank_hits.append({'watch_site':watch_site,'raw_pc':address,'page_register':page_register,'mapped_page':page,'continuation':'one instruction; no logical bytes/registers/stack read'})
+  if watch_site=='page23_alias_reader':
+   legacy_key=f'{address:04x}:{page:02x}'
+   self.call_watch_other_bank_hit_counts[legacy_key]=self.call_watch_other_bank_hit_counts.get(legacy_key,0)+1
+   if len(self.call_watch_other_bank_hits)<32:self.call_watch_other_bank_hits.append({'raw_pc':address,'PAR5_page':page,'continuation':'one instruction; no logical bytes/registers/stack read'})
+  entry_ids=m.setup(self.c,[address]);ids.extend(entry_ids);breakpoint_ids[address]=entry_ids[0]
+ def go(self,k='mainloop'):
+  a=self.ms[k] if isinstance(k,str) else k
+  self.trace.append({'request':k,'pc':self.c.call('read_registers')['pc'],'pose':self.pose(),'mode':self.val('PRES_MODE'),'joy':self.val('JOY_DIR'),'popup':self.val('PICKUP_TIMER')})
+  watch_entry=self.call_watch_entry
+  watch_return=self.call_watch_pending['return_pc'] if self.call_watch_pending else None
+  points=[a]+([self.audio_watch_entry] if self.capture_audio and self.audio_watch_entry is not None else [])
+  if watch_entry is not None:points.append(watch_entry)
+  if watch_return is not None:points.append(watch_return)
+  if self.stage_clear_observer is not None:points.append(self.stage_clear_observer['pc'])
+  if self.context2_release_watch is not None:points.append(self.context2_release_watch['pc'])
+  ids=m.setup(self.c,list(dict.fromkeys(points)))
+  breakpoint_ids=dict(zip(list(dict.fromkeys(points)),ids))
+  try:
+   end=min(time.monotonic()+10,self.phase_deadline) if self.phase_deadline else time.monotonic()+10
+   while time.monotonic()<end:
+    self.c.call('run')
+    wait_ms=max(1,min(10000,int((end-time.monotonic())*1000)))
+    q=self.c.call('wait_for_stop',{'timeout_ms':wait_ms},timeout=wait_ms/1000+2)
+    assert q['reason']=='breakpoint',q
+    if self.call_watch_pending and q['pc']==self.call_watch_pending['return_pc']:
+     par5_raw_after=r.read_bytes(self.c,0xffa5,1)[0];par5_page_after=par5_raw_after&0x3f
+     entry=self.call_watch_pending;return_pc=entry['return_pc']
+     if par5_page_after!=self.call_watch_stage_page:
+      self._step_past_unqualified_hit(ids,breakpoint_ids,return_pc,par5_page_after,'page23_alias_return','PAR5')
+      continue
+     return_offset=return_pc-self.call_watch_stage_address
+     if return_offset<0 or return_offset+16>len(self.call_watch_helper_bytes):
+      raise AssertionError(f'qualified page-$23 return PC ${return_pc:04X} lies outside staged helper span')
+     expected_return=self.call_watch_helper_bytes[return_offset:return_offset+16]
+     physical_return=self.phys(self.call_watch_physical_start+return_offset,16)
+     logical_return=r.read_bytes(self.c,return_pc,16)
+     if physical_return!=expected_return or logical_return!=expected_return:
+      raise AssertionError('page-$23 return site failed staged/physical/logical byte identity')
+     regs=self.c.call('read_registers');cc=regs.get('cc',regs.get('ccr'))
+     if cc is None:raise AssertionError('monitor omitted CC at qualified alias-wrapper return')
+     par4_raw_after=r.read_bytes(self.c,0xffa4,1)[0]
+     after={'PAR4_raw':par4_raw_after,'PAR4_page':par4_raw_after&0x3f,'CC':cc}
+     if after['PAR4_page']!=entry['PAR4_page'] or (after['CC']&0x50)!=(entry['CC']&0x50):
+      raise AssertionError(f'page-$34 alias wrapper failed to restore PAR4/CC interrupt mask: {entry} -> {after}')
+     self.call_watch_records.append({**entry,'return_PC':q['pc'],'return_PAR5_raw':par5_raw_after,'return_PAR5_page':par5_page_after,'return_physical_bytes_match':True,'return_logical_bytes_match':True,'return_bytes_sha256':hashlib.sha256(logical_return).hexdigest(),'return_state':after,
+                                     'cc_compare_mask':0x50,'cc_if_bits_restored':True,
+                                     'PAR4_compare_mask':0x3f,'PAR4_physical_page_restored':True})
+     return_bp=entry.get('return_breakpoint_id')
+     if return_bp is not None:
+      m.clear(self.c,[return_bp])
+      ids.remove(return_bp)
+     self.call_watch_pending=None
+     if q['pc']==a:return
+     if watch_entry is not None:
+      entry_ids=m.setup(self.c,[watch_entry]);ids.extend(entry_ids)
+      breakpoint_ids[watch_entry]=entry_ids[0]
+     continue
+    if watch_entry is not None and q['pc']==watch_entry:
+     if self.call_watch_pending is not None:raise AssertionError('nested page-$23 alias wrapper entry')
+     par5_raw_before=r.read_bytes(self.c,0xffa5,1)[0];par5_page_before=par5_raw_before&0x3f
+     if par5_page_before!=self.call_watch_stage_page:
+      self._step_past_unqualified_hit(ids,breakpoint_ids,watch_entry,par5_page_before,'page23_alias_reader')
+      continue
+     logical=r.read_bytes(self.c,watch_entry,16)
+     entry_offset=watch_entry-self.call_watch_stage_address
+     if entry_offset<0 or entry_offset+16>len(self.call_watch_helper_bytes):
+      raise AssertionError('qualified page-$23 alias entry lies outside the staged helper span')
+     expected_entry=self.call_watch_helper_bytes[entry_offset:entry_offset+16]
+     physical_entry=self.phys(self.call_watch_physical_start+entry_offset,16)
+     if logical!=expected_entry or physical_entry!=expected_entry:
+      raise AssertionError('page-$23 alias entry failed staged/physical/logical byte identity')
+     regs=self.c.call('read_registers');cc=regs.get('cc',regs.get('ccr'));stack=regs.get('s',regs.get('sp'))
+     if cc is None or stack is None:raise AssertionError('monitor omitted CC/SP at qualified alias-wrapper entry')
+     return_pc=r.read_word(self.c,stack)
+     if not self.call_watch_stage_address<=return_pc<self.call_watch_stage_address+len(self.call_watch_helper_bytes):
+      raise AssertionError(f'qualified page-$23 wrapper return PC ${return_pc:04X} lies outside staged helper span')
+     par4_raw_before=r.read_bytes(self.c,0xffa4,1)[0]
+     before={'entry_PC':q['pc'],'return_pc':return_pc,'context':self.val(0xa7),
+             'PAR5_raw':par5_raw_before,'PAR5_page':par5_page_before,'entry_physical_bytes_match':True,'entry_logical_bytes_match':True,'entry_bytes_sha256':hashlib.sha256(logical).hexdigest(),
+             'PAR4_raw':par4_raw_before,'PAR4_page':par4_raw_before&0x3f,'CC':cc,
+             'entry_bytes':logical.hex()}
+     self.call_watch_pending=before
+     entry_bp=breakpoint_ids.pop(watch_entry)
+     m.clear(self.c,[entry_bp])
+     ids.remove(entry_bp)
+     return_ids=m.setup(self.c,[return_pc]);ids.extend(return_ids)
+     before['return_breakpoint_id']=return_ids[0]
+     continue
+    if self.stage_clear_observer is not None and q['pc']==self.stage_clear_observer['pc']:
+     observer=self.stage_clear_observer
+     mapped_page=r.read_bytes(self.c,observer['page_register'],1)[0]&0x3f
+     if mapped_page!=observer['expected_page']:
+      self._step_past_unqualified_hit(ids,breakpoint_ids,q['pc'],mapped_page,'resident_check_stage_clear',observer['page_register_name'])
+      continue
+     observed=self.stage_clear_observer['capture']()
+     if observed.get('qualifies'):
+      self.stage_clear_event=observed
+      return
+     stage_pc=self.stage_clear_observer['pc'];stage_bp=breakpoint_ids.pop(stage_pc)
+     m.clear(self.c,[stage_bp]);ids.remove(stage_bp)
+     self.c.call('step_instruction',{'n':1})
+     stepped=self.c.call('wait_for_stop',{'timeout_ms':1000},timeout=3)
+     if stepped.get('reason')!='step':raise TimeoutError('one-instruction continuation after non-final stage-clear entry failed')
+     stage_ids=m.setup(self.c,[stage_pc]);ids.extend(stage_ids);breakpoint_ids[stage_pc]=stage_ids[0]
+     continue
+    if self.context2_release_watch is not None and q['pc']==self.context2_release_watch['pc']:
+     watch=self.context2_release_watch
+     par0_raw=r.read_bytes(self.c,0xffa0,1)[0];par0_page=par0_raw&0x3f
+     if par0_page!=watch['expected_page']:
+      self._step_past_unqualified_hit(ids,breakpoint_ids,q['pc'],par0_page,'context2_release','PAR0')
+      continue
+     artifact=watch['artifact'];base=watch['base_address'];physical_start=watch['physical_start']
+     staged=self.phys(physical_start,len(artifact))
+     logical=r.read_bytes(self.c,base,len(artifact))
+     if staged!=artifact or logical!=artifact:
+      raise AssertionError('context2 release prefix failed staged/physical/logical artifact identity')
+     offset=q['pc']-base
+     expected_marker=artifact[offset:offset+watch['marker_length']]
+     physical_marker=self.phys(physical_start+offset,watch['marker_length'])
+     logical_marker=r.read_bytes(self.c,q['pc'],watch['marker_length'])
+     if (expected_marker!=watch['expected_marker'] or physical_marker!=expected_marker or
+         logical_marker!=expected_marker):
+      raise AssertionError('context2 release marker bytes differ from the pinned prefix artifact')
+     par5_raw=r.read_bytes(self.c,0xffa5,1)[0];par5_page=par5_raw&0x3f
+     event={'qualified_code':True,'pc':q['pc'],'PAR0_raw':par0_raw,'PAR0_page':par0_page,
+            'prefix_sha256':hashlib.sha256(artifact).hexdigest(),
+            'prefix_staged_physical_logical_match':True,'marker_bytes':expected_marker.hex(),
+            'marker_staged_physical_logical_match':True,'PAR5_raw':par5_raw,'PAR5_page':par5_page,
+            'state_qualified':False}
+     if par5_page==watch['entity_page']:
+      def qualified_low(label,n):
+       address=self.ms.get(label)
+       if address is None or not 0<=address<0x2000 or address+n>0x2000:
+        raise AssertionError(f'{label} is outside the mapped PAR0 low-memory window: {address!r}')
+       physical=self.phys(0x38*8192+address,n)
+       mapped=r.read_bytes(self.c,address,n)
+       if mapped!=physical:
+        raise AssertionError(f'{label} logical PAR0 bytes differ from physical page-$38 bytes')
+       return physical
+      for label,n in (('PRES_MODE',1),('STAGE',1),('ENTITY_COUNT',1),('INITIAL_ENTRY_STATE',1),('RNG_STATE',2)):
+       qualified_low(label,n)
+      for address,n in ((0x00a6,1),(0x00a7,1)):
+       physical=self.phys(0x38*8192+address,n)
+       if r.read_bytes(self.c,address,n)!=physical:
+        raise AssertionError(f'low-memory state ${address:04X} logical bytes differ from physical page-$38 bytes')
+      if self.ms.get('ENTITY_TABLE')!=0xa380:
+       raise AssertionError('ENTITY_TABLE map does not identify the logical PAR5 alias at $A380')
+      count=self.low(self.ms['ENTITY_COUNT'])[0]
+      if not 0<=count<=12:
+       raise AssertionError(f'context2 release ENTITY_COUNT={count} outside 0..12')
+      table=self.phys(watch['entity_page']*8192+0x0380,count*4)
+      logical_table=r.read_bytes(self.c,0xa380,count*4)
+      if logical_table!=table:
+       raise AssertionError('context2 release logical $A380 entity table differs from physical page-$34 bytes')
+      rng_address=self.ms['RNG_STATE']
+      rng=self.phys(0x38*8192+rng_address,2)
+      event.update({'state_qualified':True,
+                    'state':{'PRES_MODE':self.val(self.ms['PRES_MODE']),
+                             'screen':self.low(0x00a6)[0],'context':self.low(0x00a7)[0],
+                             'STAGE':self.val(self.ms['STAGE']),
+                             'INITIAL_ENTRY_STATE':self.val(self.ms['INITIAL_ENTRY_STATE'])},
+                    'entity_data_mapping':{'PAR5_page':par5_page,'logical_address':0xa380,
+                                           'physical_address':watch['entity_page']*8192+0x0380,
+                                           'logical_matches_physical':True},
+                    'entity_count':count,'entity_table_hex':table.hex(),
+                    'entity_table_sha256':hashlib.sha256(table).hexdigest(),
+                    'RNG_STATE_hex':rng.hex(),'RNG_STATE_logical_matches_physical':True})
+     else:
+      event['state_qualification_error']=f'PAR5 page ${par5_page:02X}, expected entity page ${watch["entity_page"]:02X}'
+     self.context2_release_hit=event
+     return
+    if q['pc']==a:return
+    assert self.capture_audio and q['pc']==self.audio_watch_entry,q
+    par5_audio_raw=r.read_bytes(self.c,0xffa5,1)[0];par5_audio_page=par5_audio_raw&0x3f
+    if par5_audio_page!=self.audio_watch_page:
+     self._step_past_unqualified_hit(ids,breakpoint_ids,q['pc'],par5_audio_page,'audio_enqueue_impl')
+     continue
+    audio_offset=q['pc']-0xa000
+    if audio_offset<0 or audio_offset+16>len(self.audio_watch_bytes):
+     raise AssertionError('qualified audio enqueue entry lies outside the staged audio-runtime artifact')
+    expected_audio=self.audio_watch_bytes[audio_offset:audio_offset+16]
+    if expected_audio!=self.audio_watch_expected_entry_bytes:
+     raise AssertionError('qualified audio enqueue symbol bytes differ from the pinned artifact entry')
+    logical_audio=r.read_bytes(self.c,q['pc'],16)
+    physical_audio=self.phys(self.audio_watch_physical_start+audio_offset,16)
+    if logical_audio!=expected_audio or physical_audio!=expected_audio:
+     raise AssertionError('audio enqueue entry failed staged/physical/logical byte identity')
+    regs=self.c.call('read_registers')
+    if regs['a'] in (3,6):
+     voices=self.phys(0x3d*8192+self.au['audio_slot0']-0xa000,112)
+     event={'id':regs['a'],'mode':self.val('PRES_MODE'),'entry':self.val('INITIAL_ENTRY_STATE'),'frame':int.from_bytes(self.low('FRAMES',2),'big'),'voices':list(voices[::28]),'audio_enqueue_entry_PC':q['pc'],'PAR5_raw':par5_audio_raw,'PAR5_page':par5_audio_page,'entry_bytes':logical_audio.hex(),'entry_bytes_sha256':hashlib.sha256(logical_audio).hexdigest(),'staged_bytes_match':logical_audio==expected_audio,'physical_bytes_match':physical_audio==expected_audio,'audio_artifact_sha256':hashlib.sha256(self.audio_watch_bytes).hexdigest()}
+     event['music_slot0']=event['voices'][0]
+     self.audio_events.append(event)
+     if regs['a']==6:self.cues.append(event)
+   raise TimeoutError('breakpoint callback boundary '+str(k))
+  except Exception:
+   # Existing private-monitor connection reset: retain stopped CPU/mapping/bytes.
+   addr=self.c.sock.getpeername();sock=socket.create_connection(addr,timeout=2)
+   other=m.MonitorClient(sock);hello=json.loads(other.file.readline())
+   other.call('pause');regs=other.call('read_registers')
+   self.trace.append({'timeout_pc':regs,'par':r.read_bytes(other,0xffa0,8).hex(),'live_pc_bytes':r.read_bytes(other,regs['pc'],16).hex()})
+   self.c.close();self.c=other
+   raise
+  finally:m.clear(self.c,ids)
+ def wait(self,pred,label):
+  end=time.monotonic()+45;previous=self.phase_deadline;self.phase_deadline=end
+  try:
+   while time.monotonic()<end:
+    if pred():return
+    self.go()
+    if pred():return
+   raise TimeoutError(label)
+  finally:self.phase_deadline=previous
+ def key(self,d):
+  # Gameplay directions N/E/S/W, plus neutral. Existing physical DSCAN keys.
+  if self.held is not None:self.c.call('inject_key',{'key':self.held,'action':'release'})
+  self.held=None if d is None else (0x2b,0x2e,0x2c,0x2d)[d]
+  if self.held is not None:self.c.call('inject_key',{'key':self.held,'action':'press'})
+ def entry_sample(self):
+  return {'entry':self.val('INITIAL_ENTRY_STATE'),'pose':self.pose(),'face':self.val('PLAYER_FACE'),'direction':self.val('PLAYER_DIR'),'animation':self.val('PLAYER_ANIM'),'frame':int.from_bytes(self.low('FRAMES',2),'big')}
+ def trace_entry(self):
+  samples=[self.entry_sample()];deadline=time.monotonic()+45;previous=self.phase_deadline;self.phase_deadline=deadline
+  try:
+   while self.val('INITIAL_ENTRY_STATE')==4:
+    assert time.monotonic()<deadline,'entry animation phase deadline'
+    self.go();samples.append(self.entry_sample())
+   assert self.val('INITIAL_ENTRY_STATE')==0,'entry did not reach control state'
+   return samples
+  finally:self.phase_deadline=previous
+ def start(self):
+  self.wait(lambda:self.val('PRES_MODE')==2,'cold attract complete')
+  assert r.read_bytes(self.c,0xc000,0x3e00)==(B/'ladybug-runtime.rom').read_bytes()[:0x3e00]
+  self.c.call('inject_key',{'key':5,'action':'press'})
+  self.wait(lambda:self.val('PRES_MODE')==5 and self.val(0xa8)>0,'credited menu')
+  self.c.call('inject_key',{'key':5,'action':'release'})
+  for _ in range(5):self.go()
+  self.c.call('inject_key',{'key':0x30,'action':'press'})
+  self.wait(lambda:self.val('PRES_MODE')==6,'new game screen')
+  self.c.call('inject_key',{'key':0x30,'action':'release'})
+  self.wait(lambda:self.val('PRES_MODE')==0 and self.val('INITIAL_ENTRY_STATE')==4,'natural life entry onset')
+  self.entry_traces.append(self.trace_entry())
+  enemy=(B/'ladybug-enemy-runtime.rom').read_bytes()
+  assert self.phys(0x38*8192+0x800,len(enemy))==enemy
+  presentation_path=B/'ladybug-presentation-runtime.bin'
+  presentation_retained=presentation_path.exists()
+  if presentation_retained:
+   presentation=presentation_path.read_bytes()
+   assert self.phys(0x38*8192+0x1900,len(presentation))==presentation
+  audio=(B/'ladybug-audio-runtime.bin').read_bytes()
+  # Code portion excludes initialized mutable audio data.
+  engine=self.au['audio_engine_end']-0xa000
+  assert self.phys(0x3d*8192,engine)==audio[:engine]
+  if 'audio_adaptive_api' in self.au:
+   api=self.au['audio_adaptive_api']-0xa000
+   end=self.au['audio_adaptive_last']-0xa000
+   assert self.phys(0x3d*8192+api,end-api)==audio[api:end]
+  if not (B/'ladybug-adaptive-active.bin').exists() and (B/'ladybug-highscore-runtime.bin').exists():
+   overlay=(B/'ladybug-highscore-runtime.bin').read_bytes()
+   assert self.phys(0x38*8192+0x300,len(overlay))==overlay,'retained nonadaptive overlay identity'
+  if (B/'ladybug-rate-helper.bin').exists():
+   rate=(B/'ladybug-rate-helper.bin').read_bytes()
+   assert self.phys(0x34*8192+0x3b0,len(rate))==rate
+  if (B/'ladybug-adaptive-active.bin').exists():
+   active=(B/'ladybug-adaptive-active.bin').read_bytes()
+   src=self.au['audio_adaptive_stage']-0xa000
+   assert self.phys(0x3d*8192+src,len(active))==active
+   assert self.phys(0x38*8192+0x38f,len(active))==active
+  return {'resident':True,'enemy_destination':True,'audio_destination_code':True,'presentation_runtime_artifact_retained':presentation_retained}
+ def fb(self):
+  pages=range(0x30,0x34) if self.val('FB_FRONT_ID')==0 else range(0x2c,0x30)
+  return b''.join(self.phys(p*8192,8192) for p in pages)[:30720]
+ def pose(self):return list(self.low('PLAYER_CELL_X',2))+[self.val('PLAYER_STEP'),int.from_bytes(self.low('PLAYER_FB',2),'big')]
+ def fixture(self,x,y,d,step):
+  fb=0x2000+(y*8-7)*160+(x*4+28)+( -320,1,320,-1)[d]*step
+  self.dp('PLAYER_CELL_X',[x,y]);self.dp('PLAYER_STEP',[step]);self.dp('PLAYER_FB',fb.to_bytes(2,'big'))
+  for k,v in [('PLAYER_DIR',d),('PLAYER_MANUAL',1),('TURN_SNAP',0),('PLAYER_ERASED',1),('PICKUP_TIMER',0),('DEATH_STATE',0)]:self.dp(k,[v])
+ def input_entry(self,d):
+  self.key(d)
+  end=time.monotonic()+45;previous=self.phase_deadline;self.phase_deadline=end
+  try:
+   while time.monotonic()<end:
+    self.go('player_tick')
+    if self.val('JOY_DIR')==d and self.val('PLAYER_WANT')==d:return
+    self.go('pt_done')
+   raise TimeoutError('mapped input/player_tick')
+  finally:self.phase_deadline=previous
+def receipt(out,fn):
+ run=Run();report={'rom_sha256':hashlib.sha256((B/'ladybug.rom').read_bytes()).hexdigest(),'deadline_seconds':45,'timeout_meaning':'required execution/publication marker absent; no speed inference'}
+ try:report.update(fn(run));report['result']='PASS'
+ except Exception as e:report['result']='FAIL';report['failure']=repr(e);report['last_boundaries']=run.trace[-15:]
+ finally:
+  run.close();dest=ROOT/'repro/bugpass-20261010'/out;dest.parent.mkdir(parents=True,exist_ok=True);dest.write_text(json.dumps(report,indent=2)+'\n')
+ print(json.dumps(report,indent=2))
+ if report['result']!='PASS':raise SystemExit(1)

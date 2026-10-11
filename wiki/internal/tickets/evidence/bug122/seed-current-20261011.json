@@ -1,0 +1,1289 @@
+{
+  "ticket": "BUG-122",
+  "scenario": "seed",
+  "candidate_build_directory": "/mnt/e/projects/ladybug/build",
+  "baseline_build_directory": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline",
+  "baseline_rom_expected_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+  "command": "python3 repro/bugpass-20261010/luna122-qa-plan/verify_bug122.py --candidate-build <stable-parent-build> --scenario seed",
+  "scope": "focused accepted gates only; no other profile cross-product",
+  "baseline_retention": {
+    "retention_manifest_sha256": "6718bf020e4d867f973b6aca49230bb8c554b403957fbe13e2c4b440dc5c7a90",
+    "retained_files_sha256": {
+      "ladybug.rom": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+      "ladybug-runtime.rom": "64e70ceacf27e9bcd00325017c5ab92b4a312abece60244e50a0b19a47ddc137",
+      "ladybug.map": "b6966f634ef41720f6caf2a262c633dbdc07f53f38f404797204903ec43de387",
+      "ladybug_screen.inc": "2baf62c52f57c12420703b471aaeef04934ef02b1682503b03b03f2a04367c45",
+      "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+      "ladybug-presentation-runtime.bin": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+      "ladybug-presentation-cold.bin": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+      "source-build-receipt.json": "20d611e285993f19938a5d4813c0a8dea61022460d91b6662b080441869ffb6e"
+    },
+    "qa_source_manifest_sha256": "45ae984f0a0f44283aedb4a2923648a325b3c1303451115cbc37e0d625535d2e",
+    "qa_source_inputs_sha256": {
+      "coco-level-start-screen.tmx": "d468223ab5706bf4e045e0fcc9dacfb2b59a21339a18436f3d1f4db1506b8b1b",
+      "chars.json": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7"
+    }
+  },
+  "candidate": {
+    "build_directory": "/mnt/e/projects/ladybug/build",
+    "rom_sha256": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+    "rom_bytes": 65536,
+    "resident_sha256": "870620d20da4b1edf1ee630e45cec143df086cad945beaf134c995bd584b85ac",
+    "presentation_module_sha256": "47148a1c579f756f7e90cd75fd52f709b082a328ad56596bfd2d0ad493a5286f",
+    "cold_payload_sha256": "7e20a94cb5a69f428e874dcf4ca1280fadada5576f680120e3dba9a5b0b0ab4b",
+    "authored_map_sha256": "c9789ca8d79605c67942ac51b9d60166df4ebb4b72f698c6b0361424caa9816d",
+    "character_source_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+    "oracle_baseline_chars_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+    "workspace_source_sha256_at_inspection": {
+      "src/main.s": "dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b",
+      "src/presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+      "src/shared_text_stage.inc": "f958e01212158cba5359e6ad2f9b67bb02314abb9c8e27c2907f014cbdef82ad"
+    },
+    "screen_include_sha256": "2baf62c52f57c12420703b471aaeef04934ef02b1682503b03b03f2a04367c45",
+    "object_masks_sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+    "object_masks_match_generated_include_and_resident": true,
+    "object_masks_symbol": 60346,
+    "sprite_attr0_pairs_sha256": "1357244a1da3914d18109b462c98faa9b072bac36c8c8eb5657828830502089e",
+    "sprite_blue_pairs_sha256": "cb85c439bfb999efd1183f9bc4c98b0069594ff2fed905c94229ca18ba22530a",
+    "resident_symbols": {
+      "mainloop": 49430,
+      "init_entities": 50633,
+      "object_masks": 60346,
+      "sprite_attr0_pairs": 64786,
+      "sprite_blue_pairs": 64834
+    },
+    "page23_highscore_helper": {
+      "helper_path": "/mnt/e/projects/ladybug/build/ladybug-highscore-helper.bin",
+      "helper_map_path": "/mnt/e/projects/ladybug/build/ladybug-highscore-helper.map",
+      "helper_sha256": "1e07f6ac0356659df8ab00b7094828382094439905b5334e70d7467c8f5771da",
+      "helper_bytes": 3136,
+      "sparse_layout": {
+        "stage_page": 35,
+        "stage_address": 44096,
+        "end_address": 47232,
+        "sha256": "1e07f6ac0356659df8ab00b7094828382094439905b5334e70d7467c8f5771da"
+      },
+      "stage_panel_read_letters": 45154,
+      "writer_symbols": {
+        "stage_panel_letter_loop": 45430,
+        "stage_panel_read_letters": 45154
+      },
+      "stage_panel_symbols": {
+        "stage_panel_char": 45649,
+        "stage_panel_draw": 45184,
+        "stage_panel_finish": 45356,
+        "stage_panel_good_luck": 45710,
+        "stage_panel_letter_loop": 45430,
+        "stage_panel_number": 45547,
+        "stage_panel_read_letters": 45154,
+        "stage_panel_records": 45719,
+        "stage_panel_regular_slice": 45220,
+        "stage_panel_slice": 45196,
+        "stage_panel_slice_entry": 45187,
+        "stage_panel_text": 45597
+      },
+      "entry_bytes_16": "34011a10b6ffa434028634b7ffa4bddf",
+      "entry_bytes_sha256": "dc33307c0c0fa2aa7ba1925c27c39d68a926493dd131fd4372bb056984f2e25c"
+    }
+  },
+  "baseline": {
+    "build_directory": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline",
+    "rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+    "rom_bytes": 65536,
+    "resident_sha256": "64e70ceacf27e9bcd00325017c5ab92b4a312abece60244e50a0b19a47ddc137",
+    "presentation_module_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+    "cold_payload_sha256": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+    "authored_map_sha256": "c9789ca8d79605c67942ac51b9d60166df4ebb4b72f698c6b0361424caa9816d",
+    "character_source_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+    "oracle_baseline_chars_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+    "workspace_source_sha256_at_inspection": {
+      "src/main.s": "dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b",
+      "src/presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+      "src/shared_text_stage.inc": "f958e01212158cba5359e6ad2f9b67bb02314abb9c8e27c2907f014cbdef82ad"
+    },
+    "screen_include_sha256": "2baf62c52f57c12420703b471aaeef04934ef02b1682503b03b03f2a04367c45",
+    "object_masks_sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+    "object_masks_match_generated_include_and_resident": true,
+    "object_masks_symbol": 60346,
+    "sprite_attr0_pairs_sha256": "1357244a1da3914d18109b462c98faa9b072bac36c8c8eb5657828830502089e",
+    "sprite_blue_pairs_sha256": "cb85c439bfb999efd1183f9bc4c98b0069594ff2fed905c94229ca18ba22530a",
+    "resident_symbols": {
+      "mainloop": 49430,
+      "init_entities": 50633,
+      "object_masks": 60346,
+      "sprite_attr0_pairs": 64794,
+      "sprite_blue_pairs": 64842
+    },
+    "page23_highscore_helper": {
+      "helper_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-highscore-helper.bin",
+      "helper_map_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-highscore-helper.map",
+      "helper_sha256": "5108aaeb9b4269600ad039656ccb7a9d9da4d7e432346fa807c680cd8daf6af7",
+      "helper_bytes": 3109,
+      "sparse_layout": {
+        "stage_page": 35,
+        "stage_address": 44096,
+        "end_address": 47205,
+        "sha256": "5108aaeb9b4269600ad039656ccb7a9d9da4d7e432346fa807c680cd8daf6af7"
+      },
+      "stage_panel_read_letters": null,
+      "writer_symbols": {},
+      "stage_panel_symbols": {
+        "stage_panel_char": 45616,
+        "stage_panel_draw": 45184,
+        "stage_panel_finish": 45358,
+        "stage_panel_good_luck": 45677,
+        "stage_panel_number": 45508,
+        "stage_panel_records": 45686,
+        "stage_panel_regular_slice": 45220,
+        "stage_panel_slice": 45196,
+        "stage_panel_slice_entry": 45187,
+        "stage_panel_text": 45561
+      },
+      "entry_bytes_16": null,
+      "entry_bytes_sha256": null
+    }
+  },
+  "candidate_result": {
+    "result": "PASS",
+    "baseline": {
+      "build_dir": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline",
+      "rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+      "artifact_delivery": {
+        "result": "delivered",
+        "control_boundary": "$C116",
+        "attempts": 1,
+        "preceding_nonmatching_boundaries": [],
+        "final_boundary": {
+          "pc": "$C116",
+          "PAR6_PAR7_pages": "3e3f",
+          "resident_logical_matches": true,
+          "resident_logical_sha256": "9ba58c414242c609873e2515342620ee51ef98f0aa45a8769eae74d3325135f6",
+          "resident_physical_matches": true,
+          "resident_physical_sha256": "9ba58c414242c609873e2515342620ee51ef98f0aa45a8769eae74d3325135f6",
+          "presentation_module_matches": true,
+          "presentation_module_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+          "cold_payload_matches": true,
+          "cold_payload_sha256": "66a68b006752a21f9e0d98c2b61638256fd3797c2525889b8a3450d66b6b1451",
+          "page23_helper_matches": true,
+          "page23_helper_sha256": "5108aaeb9b4269600ad039656ccb7a9d9da4d7e432346fa807c680cd8daf6af7",
+          "all_primary_bytes_match": true
+        },
+        "candidate_live_identity": {
+          "resident_proven_span": "$C000-$FDFF (15872 bytes); $FE00-$FFFF excluded",
+          "resident_logical_matches_artifact": true,
+          "resident_physical_pages_3e_3f_match_artifact": true,
+          "presentation_module_live_matches_artifact": true,
+          "presentation_module_artifact_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+          "presentation_module_live_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+          "presentation_cold_live_matches_artifact": true,
+          "audio_runtime_live_matches_artifact": true,
+          "audio_enqueue_watch": {
+            "artifact_sha256": "79c87e3c6c237354dd1ae64c8485fe2198db54d9712e9f68d929c086cf568051",
+            "map_sha256": "c26d2b886730dd1b06b0e2cf4366c0a95edddba88de4d2c7e3c2cff823dbc678",
+            "immutable_code_bytes": 731,
+            "immutable_code_sha256": "585d7d370e74c686c86fa20682cfab3df4ab76075bfe67d5741611c1d30d6993",
+            "entry": 41204,
+            "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+            "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+            "expected_PAR5_page": 61
+          },
+          "enemy_helper_live_matches_artifact": true,
+          "page23_helper_source_staged_live_matches": true,
+          "page23_helper_entry_bytes_live_match": false,
+          "page23_helper": {
+            "helper_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-highscore-helper.bin",
+            "helper_map_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-highscore-helper.map",
+            "helper_sha256": "5108aaeb9b4269600ad039656ccb7a9d9da4d7e432346fa807c680cd8daf6af7",
+            "helper_bytes": 3109,
+            "sparse_layout": {
+              "stage_page": 35,
+              "stage_address": 44096,
+              "end_address": 47205,
+              "sha256": "5108aaeb9b4269600ad039656ccb7a9d9da4d7e432346fa807c680cd8daf6af7"
+            },
+            "stage_panel_read_letters": null,
+            "writer_symbols": {},
+            "stage_panel_symbols": {
+              "stage_panel_char": 45616,
+              "stage_panel_draw": 45184,
+              "stage_panel_finish": 45358,
+              "stage_panel_good_luck": 45677,
+              "stage_panel_number": 45508,
+              "stage_panel_records": 45686,
+              "stage_panel_regular_slice": 45220,
+              "stage_panel_slice": 45196,
+              "stage_panel_slice_entry": 45187,
+              "stage_panel_text": 45561
+            },
+            "entry_bytes_16": null,
+            "entry_bytes_sha256": null
+          },
+          "live_render_tables": {
+            "object_masks": {
+              "symbol": 60346,
+              "bytes": 768,
+              "sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+              "matches_resident": true
+            },
+            "sprite_attr0_pairs": {
+              "symbol": 64794,
+              "bytes": 16,
+              "sha256": "1357244a1da3914d18109b462c98faa9b072bac36c8c8eb5657828830502089e",
+              "matches_resident": true
+            },
+            "sprite_blue_pairs": {
+              "symbol": 64842,
+              "bytes": 16,
+              "sha256": "cb85c439bfb999efd1183f9bc4c98b0069594ff2fed905c94229ca18ba22530a",
+              "matches_resident": true
+            }
+          },
+          "mapping_at_observation": {
+            "PAR4_PAR5_raw": "f3f4",
+            "register_cc": 68,
+            "PC": 49430
+          }
+        },
+        "deadline_seconds": 45,
+        "monitor_stop_seconds": 10
+      },
+      "phase_deadline_seconds": 45,
+      "monitor_stop_seconds": 10,
+      "entry_stop": {
+        "pc": 50633,
+        "stops": 0
+      },
+      "entry_identity": {
+        "label": "init_entities",
+        "pc": 50633,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "0f497fa89c8606973396248102251081",
+        "entry_bytes_sha256": "878b52b4f502dd8008692d34b1913372b80c2cc068c2d5a4e8afae8fadb90239",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "stack_proof": {
+        "label": "common init_entities caller return address stack",
+        "logical_address": 8184,
+        "PAR_index": 0,
+        "PAR_raw": 184,
+        "physical_page": 56,
+        "physical_address": 466936,
+        "bytes_hex": "1d07",
+        "logical_matches_physical": true
+      },
+      "return_pc_identity": {
+        "code_owner": "presentation_prefix",
+        "label": "common init_entities caller return PC",
+        "pc": 7431,
+        "artifact_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-presentation-runtime.bin",
+        "artifact_start": 6400,
+        "artifact_end_exclusive": 7666,
+        "artifact_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+        "artifact_offset": 1031,
+        "PAR0_raw": 56,
+        "PAR0_page": 56,
+        "build_artifact_matches_staged_physical_module": true,
+        "entry_bytes": "bdcae5bdd5120c9a8640977f398634b7",
+        "entry_bytes_sha256": "05fb62076d8f54c0506db7fa608f6ed390347b5d1955d244b532c212125760ff",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "return_stop": {
+        "pc": 7431,
+        "stops": 0
+      },
+      "return_identity": {
+        "code_owner": "presentation_prefix",
+        "label": "common init_entities return",
+        "pc": 7431,
+        "artifact_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-presentation-runtime.bin",
+        "artifact_start": 6400,
+        "artifact_end_exclusive": 7666,
+        "artifact_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+        "artifact_offset": 1031,
+        "PAR0_raw": 56,
+        "PAR0_page": 56,
+        "build_artifact_matches_staged_physical_module": true,
+        "entry_bytes": "bdcae5bdd5120c9a8640977f398634b7",
+        "entry_bytes_sha256": "05fb62076d8f54c0506db7fa608f6ed390347b5d1955d244b532c212125760ff",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "init_entities_entry": 50633,
+      "return_pc": 7431,
+      "configured_stage": 18,
+      "seed_written_at_boundary": "a5c3",
+      "preselection_maze_sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+      "preselection_maze_mapping_proof": {
+        "label": "seed predictor init_entities boundary",
+        "symbol_address": 40960,
+        "PAR5_raw": 244,
+        "PAR5_page": 52,
+        "physical_page": 52,
+        "byte_count": 576,
+        "sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+        "logical_matches_physical": true
+      },
+      "preselection_rng_observed": "dfdf",
+      "rng_after": "c6c6",
+      "entity_count": 12,
+      "active_record_bytes": 48,
+      "active_records": [
+        [
+          18,
+          4,
+          1,
+          0
+        ],
+        [
+          14,
+          6,
+          1,
+          0
+        ],
+        [
+          14,
+          10,
+          1,
+          0
+        ],
+        [
+          2,
+          22,
+          1,
+          0
+        ],
+        [
+          8,
+          12,
+          1,
+          0
+        ],
+        [
+          4,
+          6,
+          1,
+          0
+        ],
+        [
+          8,
+          16,
+          2,
+          1
+        ],
+        [
+          4,
+          20,
+          2,
+          1
+        ],
+        [
+          18,
+          2,
+          2,
+          1
+        ],
+        [
+          12,
+          4,
+          3,
+          10
+        ],
+        [
+          18,
+          20,
+          3,
+          5
+        ],
+        [
+          6,
+          8,
+          3,
+          2
+        ]
+      ],
+      "predicted_variants": [
+        10,
+        5,
+        2
+      ],
+      "actual_variants": [
+        10,
+        5,
+        2
+      ],
+      "letter_details": {
+        "records": [
+          [
+            18,
+            4,
+            1,
+            0
+          ],
+          [
+            14,
+            6,
+            1,
+            0
+          ],
+          [
+            14,
+            10,
+            1,
+            0
+          ],
+          [
+            2,
+            22,
+            1,
+            0
+          ],
+          [
+            8,
+            12,
+            1,
+            0
+          ],
+          [
+            4,
+            6,
+            1,
+            0
+          ],
+          [
+            8,
+            16,
+            2,
+            1
+          ],
+          [
+            4,
+            20,
+            2,
+            1
+          ],
+          [
+            18,
+            2,
+            2,
+            1
+          ],
+          [
+            12,
+            4,
+            3,
+            10
+          ],
+          [
+            18,
+            20,
+            3,
+            5
+          ],
+          [
+            6,
+            8,
+            3,
+            2
+          ]
+        ],
+        "letter_records": {
+          "X/T/R": [
+            {
+              "x": 12,
+              "y": 4,
+              "type": 3,
+              "variant": 10,
+              "letter": "T"
+            }
+          ],
+          "S/P/C/I/L": [
+            {
+              "x": 18,
+              "y": 20,
+              "type": 3,
+              "variant": 5,
+              "letter": "I"
+            }
+          ],
+          "E/A": [
+            {
+              "x": 6,
+              "y": 8,
+              "type": 3,
+              "variant": 2,
+              "letter": "A"
+            }
+          ]
+        }
+      },
+      "active_table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+      "entity_table_mapping_proof": {
+        "label": "common init_entities result",
+        "entity_count": 12,
+        "PAR5_raw": 244,
+        "PAR5_page": 52,
+        "logical_address": 41856,
+        "physical_address": 426880,
+        "table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+        "table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+        "logical_matches_physical": true
+      },
+      "selection_diagnostic": {
+        "label": "retained-build common seed boundary",
+        "init_entities_entry": 50633,
+        "entry_stop": {
+          "pc": 50633,
+          "stops": 0
+        },
+        "entry_identity": {
+          "label": "init_entities",
+          "pc": 50633,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "0f497fa89c8606973396248102251081",
+          "entry_bytes_sha256": "878b52b4f502dd8008692d34b1913372b80c2cc068c2d5a4e8afae8fadb90239",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "caller_stack_address": 8184,
+        "caller_stack_proof": {
+          "label": "common init_entities caller return address stack",
+          "logical_address": 8184,
+          "PAR_index": 0,
+          "PAR_raw": 184,
+          "physical_page": 56,
+          "physical_address": 466936,
+          "bytes_hex": "1d07",
+          "logical_matches_physical": true
+        },
+        "return_pc": 7431,
+        "failure_boundary": "qualified common init_entities return before comparison",
+        "stage": 18,
+        "seed_hex": "a5c3",
+        "maze_sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+        "stage_mapping_proof": {
+          "label": "common init_entities STAGE",
+          "logical_address": 36,
+          "PAR_index": 0,
+          "PAR_raw": 184,
+          "physical_page": 56,
+          "physical_address": 458788,
+          "bytes_hex": "12",
+          "logical_matches_physical": true
+        },
+        "maze_mapping_proof": {
+          "label": "seed predictor init_entities boundary",
+          "symbol_address": 40960,
+          "PAR5_raw": 244,
+          "PAR5_page": 52,
+          "physical_page": 52,
+          "byte_count": 576,
+          "sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+          "logical_matches_physical": true
+        },
+        "return_pc_identity": {
+          "code_owner": "presentation_prefix",
+          "label": "common init_entities caller return PC",
+          "pc": 7431,
+          "artifact_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-presentation-runtime.bin",
+          "artifact_start": 6400,
+          "artifact_end_exclusive": 7666,
+          "artifact_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+          "artifact_offset": 1031,
+          "PAR0_raw": 56,
+          "PAR0_page": 56,
+          "build_artifact_matches_staged_physical_module": true,
+          "entry_bytes": "bdcae5bdd5120c9a8640977f398634b7",
+          "entry_bytes_sha256": "05fb62076d8f54c0506db7fa608f6ed390347b5d1955d244b532c212125760ff",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "rng_before_seed_hex": "dfdf",
+        "rng_before_seed_mapping_proof": {
+          "label": "common init_entities RNG_STATE",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "dfdf",
+          "logical_matches_physical": true
+        },
+        "seeded_rng_mapping_proof": {
+          "label": "common init_entities seeded RNG_STATE",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "a5c3",
+          "logical_matches_physical": true
+        },
+        "return_stop": {
+          "pc": 7431,
+          "stops": 0
+        },
+        "return_identity": {
+          "code_owner": "presentation_prefix",
+          "label": "common init_entities return",
+          "pc": 7431,
+          "artifact_path": "/mnt/e/projects/ladybug/repro/bug122-parent/baseline/ladybug-presentation-runtime.bin",
+          "artifact_start": 6400,
+          "artifact_end_exclusive": 7666,
+          "artifact_sha256": "0f21d0a7b4b31afa8a4315ac6a3c35c6b6f6b2819d8cf140b6e3917a3cc5c942",
+          "artifact_offset": 1031,
+          "PAR0_raw": 56,
+          "PAR0_page": 56,
+          "build_artifact_matches_staged_physical_module": true,
+          "entry_bytes": "bdcae5bdd5120c9a8640977f398634b7",
+          "entry_bytes_sha256": "05fb62076d8f54c0506db7fa608f6ed390347b5d1955d244b532c212125760ff",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "stage_after_hex": "12",
+        "stage_after_mapping_proof": {
+          "label": "common selection STAGE after init_entities",
+          "logical_address": 36,
+          "PAR_index": 0,
+          "PAR_raw": 184,
+          "physical_page": 56,
+          "physical_address": 458788,
+          "bytes_hex": "12",
+          "logical_matches_physical": true
+        },
+        "entity_count": 12,
+        "entity_count_mapping_proof": {
+          "label": "common selection ENTITY_COUNT after init_entities",
+          "logical_address": 50,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458802,
+          "bytes_hex": "0c",
+          "logical_matches_physical": true
+        },
+        "rng_after_hex": "c6c6",
+        "rng_after_mapping_proof": {
+          "label": "common selection RNG_STATE after init_entities",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "c6c6",
+          "logical_matches_physical": true
+        },
+        "entity_table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+        "entity_table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+        "entity_table_mapping_proof": {
+          "label": "common init_entities result",
+          "entity_count": 12,
+          "PAR5_raw": 244,
+          "PAR5_page": 52,
+          "logical_address": 41856,
+          "physical_address": 426880,
+          "table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+          "table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+          "logical_matches_physical": true
+        },
+        "predicted_variants": [
+          10,
+          5,
+          2
+        ],
+        "actual_variants": [
+          10,
+          5,
+          2
+        ],
+        "raw_letter_variants": [
+          10,
+          5,
+          2
+        ],
+        "letter_parse_error": null,
+        "result": "prediction_matches_qualified_return"
+      },
+      "raw_48_byte_table": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+      "mapping_before_after": {
+        "before": {
+          "PAR4_PAR5_raw": "f3f4",
+          "register_cc": 196,
+          "PC": 50633
+        },
+        "after": {
+          "PAR4_PAR5_raw": "3334",
+          "register_cc": 196,
+          "PC": 7431
+        }
+      },
+      "selection_boundary_seeded": true
+    },
+    "candidate": {
+      "build_dir": "/mnt/e/projects/ladybug/build",
+      "rom_sha256": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+      "artifact_delivery": {
+        "result": "delivered",
+        "control_boundary": "$C116",
+        "attempts": 1,
+        "preceding_nonmatching_boundaries": [],
+        "final_boundary": {
+          "pc": "$C116",
+          "PAR6_PAR7_pages": "3e3f",
+          "resident_logical_matches": true,
+          "resident_logical_sha256": "61eed40387ae1a10acf04d13ada6c271d537c743543a210e31ffaba14b29e28b",
+          "resident_physical_matches": true,
+          "resident_physical_sha256": "61eed40387ae1a10acf04d13ada6c271d537c743543a210e31ffaba14b29e28b",
+          "presentation_module_matches": true,
+          "presentation_module_sha256": "47148a1c579f756f7e90cd75fd52f709b082a328ad56596bfd2d0ad493a5286f",
+          "cold_payload_matches": true,
+          "cold_payload_sha256": "7e20a94cb5a69f428e874dcf4ca1280fadada5576f680120e3dba9a5b0b0ab4b",
+          "page23_helper_matches": true,
+          "page23_helper_sha256": "1e07f6ac0356659df8ab00b7094828382094439905b5334e70d7467c8f5771da",
+          "all_primary_bytes_match": true
+        },
+        "candidate_live_identity": {
+          "resident_proven_span": "$C000-$FDFF (15872 bytes); $FE00-$FFFF excluded",
+          "resident_logical_matches_artifact": true,
+          "resident_physical_pages_3e_3f_match_artifact": true,
+          "presentation_module_live_matches_artifact": true,
+          "presentation_module_artifact_sha256": "47148a1c579f756f7e90cd75fd52f709b082a328ad56596bfd2d0ad493a5286f",
+          "presentation_module_live_sha256": "47148a1c579f756f7e90cd75fd52f709b082a328ad56596bfd2d0ad493a5286f",
+          "presentation_cold_live_matches_artifact": true,
+          "audio_runtime_live_matches_artifact": true,
+          "audio_enqueue_watch": {
+            "artifact_sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+            "map_sha256": "c26d2b886730dd1b06b0e2cf4366c0a95edddba88de4d2c7e3c2cff823dbc678",
+            "immutable_code_bytes": 731,
+            "immutable_code_sha256": "585d7d370e74c686c86fa20682cfab3df4ab76075bfe67d5741611c1d30d6993",
+            "entry": 41204,
+            "entry_bytes": "7ea6698112242597f9d7fad6eec10410",
+            "entry_bytes_sha256": "5953ea7f30e917422dcb6c5ce8d4f18a8300efc45b0a0c1df3a97a3490aba55f",
+            "expected_PAR5_page": 61
+          },
+          "enemy_helper_live_matches_artifact": true,
+          "page23_helper_source_staged_live_matches": true,
+          "page23_helper_entry_bytes_live_match": true,
+          "page23_helper": {
+            "helper_path": "/mnt/e/projects/ladybug/build/ladybug-highscore-helper.bin",
+            "helper_map_path": "/mnt/e/projects/ladybug/build/ladybug-highscore-helper.map",
+            "helper_sha256": "1e07f6ac0356659df8ab00b7094828382094439905b5334e70d7467c8f5771da",
+            "helper_bytes": 3136,
+            "sparse_layout": {
+              "stage_page": 35,
+              "stage_address": 44096,
+              "end_address": 47232,
+              "sha256": "1e07f6ac0356659df8ab00b7094828382094439905b5334e70d7467c8f5771da"
+            },
+            "stage_panel_read_letters": 45154,
+            "writer_symbols": {
+              "stage_panel_letter_loop": 45430,
+              "stage_panel_read_letters": 45154
+            },
+            "stage_panel_symbols": {
+              "stage_panel_char": 45649,
+              "stage_panel_draw": 45184,
+              "stage_panel_finish": 45356,
+              "stage_panel_good_luck": 45710,
+              "stage_panel_letter_loop": 45430,
+              "stage_panel_number": 45547,
+              "stage_panel_read_letters": 45154,
+              "stage_panel_records": 45719,
+              "stage_panel_regular_slice": 45220,
+              "stage_panel_slice": 45196,
+              "stage_panel_slice_entry": 45187,
+              "stage_panel_text": 45597
+            },
+            "entry_bytes_16": "34011a10b6ffa434028634b7ffa4bddf",
+            "entry_bytes_sha256": "dc33307c0c0fa2aa7ba1925c27c39d68a926493dd131fd4372bb056984f2e25c"
+          },
+          "live_render_tables": {
+            "object_masks": {
+              "symbol": 60346,
+              "bytes": 768,
+              "sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+              "matches_resident": true
+            },
+            "sprite_attr0_pairs": {
+              "symbol": 64786,
+              "bytes": 16,
+              "sha256": "1357244a1da3914d18109b462c98faa9b072bac36c8c8eb5657828830502089e",
+              "matches_resident": true
+            },
+            "sprite_blue_pairs": {
+              "symbol": 64834,
+              "bytes": 16,
+              "sha256": "cb85c439bfb999efd1183f9bc4c98b0069594ff2fed905c94229ca18ba22530a",
+              "matches_resident": true
+            }
+          },
+          "mapping_at_observation": {
+            "PAR4_PAR5_raw": "f3f4",
+            "register_cc": 68,
+            "PC": 49430
+          }
+        },
+        "deadline_seconds": 45,
+        "monitor_stop_seconds": 10
+      },
+      "phase_deadline_seconds": 45,
+      "monitor_stop_seconds": 10,
+      "entry_stop": {
+        "pc": 50633,
+        "stops": 0
+      },
+      "entry_identity": {
+        "label": "init_entities",
+        "pc": 50633,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "0f497fa89c8606973396248102251081",
+        "entry_bytes_sha256": "878b52b4f502dd8008692d34b1913372b80c2cc068c2d5a4e8afae8fadb90239",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "stack_proof": {
+        "label": "common init_entities caller return address stack",
+        "logical_address": 8177,
+        "PAR_index": 0,
+        "PAR_raw": 184,
+        "physical_page": 56,
+        "physical_address": 466929,
+        "bytes_hex": "df28",
+        "logical_matches_physical": true
+      },
+      "return_pc_identity": {
+        "code_owner": "resident",
+        "label": "common init_entities caller return PC",
+        "pc": 57128,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+        "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "return_stop": {
+        "pc": 57128,
+        "stops": 0
+      },
+      "return_identity": {
+        "code_owner": "resident",
+        "label": "common init_entities return",
+        "pc": 57128,
+        "PAR6_PAR7_pages": "3e3f",
+        "expected_page": 62,
+        "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+        "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+        "logical_match": true,
+        "physical_match": true
+      },
+      "init_entities_entry": 50633,
+      "return_pc": 57128,
+      "configured_stage": 18,
+      "seed_written_at_boundary": "a5c3",
+      "preselection_maze_sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+      "preselection_maze_mapping_proof": {
+        "label": "seed predictor init_entities boundary",
+        "symbol_address": 40960,
+        "PAR5_raw": 244,
+        "PAR5_page": 52,
+        "physical_page": 52,
+        "byte_count": 576,
+        "sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+        "logical_matches_physical": true
+      },
+      "preselection_rng_observed": "dfdf",
+      "rng_after": "c6c6",
+      "entity_count": 12,
+      "active_record_bytes": 48,
+      "active_records": [
+        [
+          18,
+          4,
+          1,
+          0
+        ],
+        [
+          14,
+          6,
+          1,
+          0
+        ],
+        [
+          14,
+          10,
+          1,
+          0
+        ],
+        [
+          2,
+          22,
+          1,
+          0
+        ],
+        [
+          8,
+          12,
+          1,
+          0
+        ],
+        [
+          4,
+          6,
+          1,
+          0
+        ],
+        [
+          8,
+          16,
+          2,
+          1
+        ],
+        [
+          4,
+          20,
+          2,
+          1
+        ],
+        [
+          18,
+          2,
+          2,
+          1
+        ],
+        [
+          12,
+          4,
+          3,
+          10
+        ],
+        [
+          18,
+          20,
+          3,
+          5
+        ],
+        [
+          6,
+          8,
+          3,
+          2
+        ]
+      ],
+      "predicted_variants": [
+        10,
+        5,
+        2
+      ],
+      "actual_variants": [
+        10,
+        5,
+        2
+      ],
+      "letter_details": {
+        "records": [
+          [
+            18,
+            4,
+            1,
+            0
+          ],
+          [
+            14,
+            6,
+            1,
+            0
+          ],
+          [
+            14,
+            10,
+            1,
+            0
+          ],
+          [
+            2,
+            22,
+            1,
+            0
+          ],
+          [
+            8,
+            12,
+            1,
+            0
+          ],
+          [
+            4,
+            6,
+            1,
+            0
+          ],
+          [
+            8,
+            16,
+            2,
+            1
+          ],
+          [
+            4,
+            20,
+            2,
+            1
+          ],
+          [
+            18,
+            2,
+            2,
+            1
+          ],
+          [
+            12,
+            4,
+            3,
+            10
+          ],
+          [
+            18,
+            20,
+            3,
+            5
+          ],
+          [
+            6,
+            8,
+            3,
+            2
+          ]
+        ],
+        "letter_records": {
+          "X/T/R": [
+            {
+              "x": 12,
+              "y": 4,
+              "type": 3,
+              "variant": 10,
+              "letter": "T"
+            }
+          ],
+          "S/P/C/I/L": [
+            {
+              "x": 18,
+              "y": 20,
+              "type": 3,
+              "variant": 5,
+              "letter": "I"
+            }
+          ],
+          "E/A": [
+            {
+              "x": 6,
+              "y": 8,
+              "type": 3,
+              "variant": 2,
+              "letter": "A"
+            }
+          ]
+        }
+      },
+      "active_table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+      "entity_table_mapping_proof": {
+        "label": "common init_entities result",
+        "entity_count": 12,
+        "PAR5_raw": 244,
+        "PAR5_page": 52,
+        "logical_address": 41856,
+        "physical_address": 426880,
+        "table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+        "table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+        "logical_matches_physical": true
+      },
+      "selection_diagnostic": {
+        "label": "retained-build common seed boundary",
+        "init_entities_entry": 50633,
+        "entry_stop": {
+          "pc": 50633,
+          "stops": 0
+        },
+        "entry_identity": {
+          "label": "init_entities",
+          "pc": 50633,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "0f497fa89c8606973396248102251081",
+          "entry_bytes_sha256": "878b52b4f502dd8008692d34b1913372b80c2cc068c2d5a4e8afae8fadb90239",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "caller_stack_address": 8177,
+        "caller_stack_proof": {
+          "label": "common init_entities caller return address stack",
+          "logical_address": 8177,
+          "PAR_index": 0,
+          "PAR_raw": 184,
+          "physical_page": 56,
+          "physical_address": 466929,
+          "bytes_hex": "df28",
+          "logical_matches_physical": true
+        },
+        "return_pc": 57128,
+        "failure_boundary": "qualified common init_entities return before comparison",
+        "stage": 18,
+        "seed_hex": "a5c3",
+        "maze_sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+        "stage_mapping_proof": {
+          "label": "common init_entities STAGE",
+          "logical_address": 36,
+          "PAR_index": 0,
+          "PAR_raw": 120,
+          "physical_page": 56,
+          "physical_address": 458788,
+          "bytes_hex": "12",
+          "logical_matches_physical": true
+        },
+        "maze_mapping_proof": {
+          "label": "seed predictor init_entities boundary",
+          "symbol_address": 40960,
+          "PAR5_raw": 244,
+          "PAR5_page": 52,
+          "physical_page": 52,
+          "byte_count": 576,
+          "sha256": "92f68bcf5b2327f2e4d16d2d1abdf7714394adaa735912bd2a4b8d4e985cbc82",
+          "logical_matches_physical": true
+        },
+        "return_pc_identity": {
+          "code_owner": "resident",
+          "label": "common init_entities caller return PC",
+          "pc": 57128,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+          "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "rng_before_seed_hex": "dfdf",
+        "rng_before_seed_mapping_proof": {
+          "label": "common init_entities RNG_STATE",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "dfdf",
+          "logical_matches_physical": true
+        },
+        "seeded_rng_mapping_proof": {
+          "label": "common init_entities seeded RNG_STATE",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "a5c3",
+          "logical_matches_physical": true
+        },
+        "return_stop": {
+          "pc": 57128,
+          "stops": 0
+        },
+        "return_identity": {
+          "code_owner": "resident",
+          "label": "common init_entities return",
+          "pc": 57128,
+          "PAR6_PAR7_pages": "3e3f",
+          "expected_page": 62,
+          "entry_bytes": "17ebba17f5e40c9a8640977f398e8377",
+          "entry_bytes_sha256": "5353b1f2280d2f2dc05e3765f79d1100dd8f195cc5c35e7432ec6f9c82473d68",
+          "logical_match": true,
+          "physical_match": true
+        },
+        "stage_after_hex": "12",
+        "stage_after_mapping_proof": {
+          "label": "common selection STAGE after init_entities",
+          "logical_address": 36,
+          "PAR_index": 0,
+          "PAR_raw": 120,
+          "physical_page": 56,
+          "physical_address": 458788,
+          "bytes_hex": "12",
+          "logical_matches_physical": true
+        },
+        "entity_count": 12,
+        "entity_count_mapping_proof": {
+          "label": "common selection ENTITY_COUNT after init_entities",
+          "logical_address": 50,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458802,
+          "bytes_hex": "0c",
+          "logical_matches_physical": true
+        },
+        "rng_after_hex": "c6c6",
+        "rng_after_mapping_proof": {
+          "label": "common selection RNG_STATE after init_entities",
+          "logical_address": 52,
+          "PAR_index": 0,
+          "PAR_raw": 56,
+          "physical_page": 56,
+          "physical_address": 458804,
+          "bytes_hex": "c6c6",
+          "logical_matches_physical": true
+        },
+        "entity_table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+        "entity_table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+        "entity_table_mapping_proof": {
+          "label": "common init_entities result",
+          "entity_count": 12,
+          "PAR5_raw": 244,
+          "PAR5_page": 52,
+          "logical_address": 41856,
+          "physical_address": 426880,
+          "table_hex": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+          "table_sha256": "933f2af2e8aa694a908f1eddcbcd4031d506af24efa982c1fb3b8f4ec25453ea",
+          "logical_matches_physical": true
+        },
+        "predicted_variants": [
+          10,
+          5,
+          2
+        ],
+        "actual_variants": [
+          10,
+          5,
+          2
+        ],
+        "raw_letter_variants": [
+          10,
+          5,
+          2
+        ],
+        "letter_parse_error": null,
+        "result": "prediction_matches_qualified_return"
+      },
+      "raw_48_byte_table": "120401000e0601000e0a010002160100080c0100040601000810020104140201120202010c04030a1214030506080302",
+      "mapping_before_after": {
+        "before": {
+          "PAR4_PAR5_raw": "eff4",
+          "register_cc": 196,
+          "PC": 50633
+        },
+        "after": {
+          "PAR4_PAR5_raw": "2f34",
+          "register_cc": 196,
+          "PC": 57128
+        }
+      },
+      "selection_boundary_seeded": true
+    },
+    "same_selection_inputs": true,
+    "active_records_and_terminal_rng_match": true,
+    "inactive_tail_ignored": true
+  },
+  "result": "PASS",
+  "serialized_binary_fields": []
+}

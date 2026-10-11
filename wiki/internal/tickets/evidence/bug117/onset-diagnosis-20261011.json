@@ -1,0 +1,198 @@
+{
+  "ticket": "BUG-117",
+  "task": "Read-only animation-onset diagnosis",
+  "classification": {
+    "cost_class": "High-risk",
+    "ticket_status": "Proposed",
+    "route": "project-management -> debugger",
+    "implementation_authority": false
+  },
+  "scope": "Diagnose the first safe new-life cue boundary, duplicate suppression, current music/effect arbitration, source-to-built identity, and byte-cost consequences. No source, wiki, build, emulator, or Git mutation.",
+  "current_identity": {
+    "git_revision": "ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+    "build_profile": "complete",
+    "build_state": "complete",
+    "source_build_receipt_sha256": "dcce5e6e5ac7652b91bae3b285c8ef6643586bf67ed58dd76b234ac5faf8194b",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "sha256": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+      "receipt_match": true
+    },
+    "compiled_objects": {
+      "audio_runtime": {
+        "path": "build/ladybug-audio-runtime.bin",
+        "sha256": "1e4cce396823e881fd6783fb83a62f6255d934fe71f98ed4eaaff433899f8f3e",
+        "receipt_match": true
+      },
+      "resident_runtime": {
+        "path": "build/ladybug-runtime.rom",
+        "sha256": "870620d20da4b1edf1ee630e45cec143df086cad945beaf134c995bd584b85ac",
+        "receipt_match": true
+      },
+      "adaptive_active": {
+        "path": "build/ladybug-adaptive-active.bin",
+        "sha256": "ee385900f53febac26a24dd70f8e6e708ba883169dac079ae0e7dd1b4cbfa6c1",
+        "receipt_match": true
+      }
+    },
+    "source_hashes": {
+      "src/main.s": "dded85c9a02dc846a9efb26a9909b1a1ff438dd0222c5083c45e5dcfbbabcd8b",
+      "src/audio_runtime.s": "aa7f1b303afa07cf5db1e60c001472898182394904d236cebb2a4e00aa1227bc",
+      "src/adaptive_audio_service.s": "1c3b017872cb6fafb9f9243c1d11207ce54fe1cac562d080b0461ee82887ea34",
+      "src/adaptive_active.s": "2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a",
+      "src/adaptive_audio_bindings.s": "f6b8c8c5f40e4314de36ce0c628892a92100ae92b28211d916fb29f8a8a17335",
+      "assets/arcade/audio/gmc_sound_data.inc": "e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36"
+    },
+    "source_hashes_match_build_receipt": {
+      "src/main.s": true,
+      "src/audio_runtime.s": true,
+      "src/adaptive_audio_service.s": true,
+      "src/adaptive_active.s": true,
+      "src/adaptive_audio_bindings.s": true,
+      "assets/arcade/audio/gmc_sound_data.inc": true
+    }
+  },
+  "emitted_byte_comparison": {
+    "method": "Parsed current assembler listing bytes and compared them with the corresponding compiled object offset; no symbols or PCs were interpreted without byte identity.",
+    "checks": [
+      {
+        "artifact": "build/ladybug-audio-runtime.bin",
+        "origin": "$A000",
+        "address": "$A027",
+        "bytes": "C104",
+        "source": "src/audio_runtime.s:107",
+        "meaning": "cmpb #4, previous sampled entry-state guard",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-audio-runtime.bin",
+        "origin": "$A000",
+        "address": "$A02B",
+        "bytes": "8104",
+        "source": "src/audio_runtime.s:109",
+        "meaning": "cmpa #4, current sampled entry-state check",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-audio-runtime.bin",
+        "origin": "$A000",
+        "address": "$B6C1",
+        "bytes": "C104",
+        "source": "src/adaptive_audio_service.s:81",
+        "meaning": "cmpb #4, previous sampled entry-state guard",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-audio-runtime.bin",
+        "origin": "$A000",
+        "address": "$B6C5",
+        "bytes": "8104",
+        "source": "src/adaptive_audio_service.s:83",
+        "meaning": "cmpa #4, current sampled entry-state check",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-runtime.rom",
+        "origin": "$C000",
+        "address": "$C1AF",
+        "bytes": "8602",
+        "source": "src/main.s:900",
+        "meaning": "lda #ENTRY_WALKOUT (2) in marker_entry_begin",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-adaptive-active.bin",
+        "origin": "$038F",
+        "address": "$0513",
+        "bytes": "8601",
+        "source": "src/adaptive_active.s:236",
+        "meaning": "A=1 semantic admission at atb_done",
+        "matches_compiled_object": true
+      },
+      {
+        "artifact": "build/ladybug-adaptive-active.bin",
+        "origin": "$038F",
+        "address": "$0515",
+        "bytes": "BD047C",
+        "source": "src/adaptive_active.s:237",
+        "meaning": "jsr adaptive_audio_binding immediately after tick callback",
+        "matches_compiled_object": true
+      }
+    ],
+    "candidate_predicate_delta": "Change four immediate operands (#4 to #2) across the existing two owners. Both CMP instructions retain the current two-byte immediate encoding: projected emitted-code delta 0 bytes. This is encoding-level projection, not a rebuilt candidate or fit receipt."
+  },
+  "observed_current_live_evidence": {
+    "path": "repro/bugpass-20261010/luna122-qa-plan/evidence/bug122-life.json",
+    "sha256": "830384042b15822b71b1e802129442c1715308e45b4cd807b7016845db52c547",
+    "rom_sha256": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+    "rom_matches_current_build": true,
+    "audio_live_identity_matches_artifact": true,
+    "current_contract_result": "cue6 admission was observed at entry state 4 for both initial and replacement life (frames 567 and 1099); slot0 was empty at those admission observations. Later, the current artifact showed cue6 in slot0 and voice state overlapping a dot effect. This is current-artifact admission/voice-state evidence only.",
+    "limits": "The receipt does not sample ENTRY_WALKOUT state 2, first PSG write, audible onset relative to the first HUD sprite/step, or slot0 occupancy at state 2. It cannot qualify the revised onset contract."
+  },
+  "confirmed_source_findings": [
+    {
+      "finding": "marker_entry_begin writes ENTRY_WALKOUT=2 before setting RF_LIVES|RF_PLAYER. The next state-2 dispatch is the walkout path, which advances PLAYER_FB only when PLAYER_TICK_PENDING is consumed. Thus state 2 is the earliest explicit life-animation boundary; state 4 occurs after HUD walkout/offscreen handling.",
+      "refs": [
+        "src/main.s:884-905",
+        "src/main.s:907-915"
+      ]
+    },
+    {
+      "finding": "Adaptive tick callback calls semantic audio admission A=1 at atb_done after initial_entry_tick/death_tick state handling. The callback that calls marker_entry_begin therefore samples state 2 before any later walkout tick. In the nonadaptive path, AUDIO_ENGINE_EXEC runs after render in main_entry_audio, so state 2 is sampled in that same frame before the following walkout update.",
+      "refs": [
+        "src/adaptive_active.s:166-168",
+        "src/adaptive_active.s:217-222",
+        "src/main.s:846-849",
+        "src/audio_runtime.s:92-131"
+      ]
+    },
+    {
+      "finding": "AUDIO_LAST_MODE is initialized to $FF. Each admission sample stores the current $00A0 state, compares the saved previous state, then compares the current state. Replacing both #4 comparisons with #2 admits on entry to walkout and prevents another admission while state 2 remains active.",
+      "refs": [
+        "src/audio_runtime.s:103-112",
+        "src/audio_runtime.s:141-147",
+        "src/adaptive_audio_service.s:77-89"
+      ]
+    },
+    {
+      "finding": "The replacement-life path calls marker_entry_begin when a reserve remains; final game over takes the other branch and does not set state 2. Stage-only transitions do not invoke marker_entry_begin. Both admission owners also retain PRES_MODE==0 gating, suppressing demo.",
+      "refs": [
+        "src/main.s:4208-4230",
+        "src/audio_runtime.s:107-112",
+        "src/adaptive_audio_service.s:81-89"
+      ]
+    }
+  ],
+  "arbitration_and_first_note": {
+    "death_music": "A 0-to-nonzero DEATH_STATE transition enqueues cue 13. Cue 13 descriptor is music with priority C0; cue 6 is music with priority A0. Music dispatch returns while slot0 is occupied and does not preempt it; if death cue 13 still owns slot0 when state 2 is sampled, cue 6 can remain queued until it releases. The source does not prove whether cue 13 remains active at the replacement walkout boundary.",
+    "duplicate_music": "Cue-6 enqueue returns when ID 6 is already in slot0 or already in the music queue. If the earlier life’s cue 6 is still active/pending at replacement state 2, no fresh cue-6 start is guaranteed by the predicate change.",
+    "pickup_effects": "Pickup/dot cues are nonmusic effects allocated from slots 1-3; they do not occupy slot0 or block music dispatch. Their mixing can overlap later music, but the current live receipt does not measure onset masking.",
+    "cue6_initial_stream": "The authored cue-6 stream begins with three tone writes: 10 40 01 04, 11 80 02 04, 12 80 02 04, then wait command 02 10. Decoder processes the three voice tuples before storing wait $10; the standard service then mixes/writes PSG, and adaptive admission primes the note before its output action. The receipt proves slot/voice state, not SND_DATA output time or audible output.",
+    "refs": [
+      "src/audio_runtime.s:415-472",
+      "src/audio_runtime.s:663-674",
+      "src/audio_runtime.s:1045-1078",
+      "src/audio_runtime.s:1108-1148",
+      "assets/arcade/audio/gmc_sound_data.inc:30-33",
+      "assets/arcade/audio/gmc_sound_data.inc: cue 13 descriptor and stream"
+    ]
+  },
+  "diagnosis": {
+    "earliest_safe_source_boundary": "ENTRY_WALKOUT=2 at marker_entry_begin, sampled in the same logical tick by adaptive A=1 admission and in the same rendered frame by nonadaptive audio_tick.",
+    "proposed_minimal_trigger_change": "Both previous-state and current-state tests change from ENTRY_MAZE_ENTRY=4 to ENTRY_WALKOUT=2 in src/audio_runtime.s and src/adaptive_audio_service.s.",
+    "predicate_change_sufficient": "Sufficient to request cue 6 once at the walkout transition when PRES_MODE is live. Not sufficient to guarantee audible cue-6 onset at that boundary if slot0 is occupied by music, or if cue 6 is already active/pending and coalesced. Current occupancy/PSG onset at state 2 is unmeasured.",
+    "byte_neutral": "Projected 0-byte instruction/code-growth delta; verify all profile bounds after any approved implementation.",
+    "status": "Diagnosis only. Revised outcome remains Proposed; no implementation, arbitration redesign, runtime acceptance, or physical sound claim."
+  },
+  "minimal_post_approval_verification": [
+    "On current identity-proven adaptive and nonadaptive candidates, timestamp state-2 entry, cue6 enqueue, slot0 cue ownership, decoded first cue6 voice tuple, and first PSG SND_DATA write against first HUD sprite/first walkout advance for initial and replacement life.",
+    "For replacement life, record whether cue13 still owns slot0 at state 2 and measure any delay/coalescing. If user-visible onset is later than the first animation boundary, the approved contract or arbitration scope requires reconsideration before claiming pass.",
+    "Retain existing stage-only, final-death and demo suppression controls; confirm one event at state 2 with no repeat while state 2 persists."
+  ],
+  "not_performed": [
+    "No assembly/build or profile-fit check of a changed predicate.",
+    "No emulator or physical-audio probe.",
+    "No source, canonical ticket/wiki, build artifact, or Git mutation."
+  ]
+}

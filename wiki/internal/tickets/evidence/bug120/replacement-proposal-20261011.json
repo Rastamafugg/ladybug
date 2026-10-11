@@ -1,0 +1,145 @@
+{
+  "ticket": "BUG-120",
+  "review": "replacement architecture proposal review",
+  "status": "PROPOSED; static design review complete; no implementation authority",
+  "cost_class": "High-risk",
+  "scope": {
+    "in": [
+      "Validate the replacement design against the current source and authored pixels.",
+      "Identify the exact production targets, fit gates, compatibility effects, and verification still required."
+    ],
+    "out": [
+      "Production source, canonical wiki, build artifacts, emulator, Git index, and commits.",
+      "Runtime acceptance or an exact assembly-fit claim."
+    ],
+    "scratch_owner": "repro/bugpass-20261010/luna120-proposal-review/"
+  },
+  "baseline": {
+    "source_revision": "ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+    "current_rom_sha256_parent_provided": "73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81",
+    "rom_meaning": "Current combined-build artifact identity only; no staged/live identity or BUG-120 runtime observation is claimed.",
+    "confirmed_behavior": "At a partial perpendicular request rejected by name_can_move, name_late_turn returns zero and the shared-text caller advances the old direction. The main movement path holds position and step after the equivalent blocked request. Attempted facing is updated before both decisions. Reversal counters are inverse encodings; neutral/resume paths otherwise align by source inspection.",
+    "visual_cause": "Not established by runtime evidence. Static authored-pixel evidence confirms unsafe base origin/geometry combinations, but does not prove which path caused the user-reported visible overlap."
+  },
+  "receipt_integrity": {
+    "architecture_receipt": "repro/bugpass-20261010/luna120-rules/architecture-review.json",
+    "json_validation": "json.loads fails: Extra data at line 79 column 2 because the file ends with a literal backslash-n after the closing brace.",
+    "hash_corrections": {
+      "scripts/build_screen.py": {
+        "receipt_value": "6d7b045523c772d16e4b856d961f60ffd6a0e6a303bf7a92cdf54200d083e78e1",
+        "actual_sha256": "6d7b045523c772d16e4b856d961fdb25f73c73299b0830dd77aedfac0afe13a0"
+      },
+      "scripts/build_sparse_sprites.py": {
+        "receipt_values": [
+          "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeae3053a2312f",
+          "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f"
+        ],
+        "actual_sha256": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+        "note": "The second value matches, but the slash and backslash keys name the same file and must be normalized to one entry."
+      }
+    },
+    "all_used_input_hashes": "Recorded from the current filesystem in static-oracle.json."
+  },
+  "proposed_design": {
+    "generator_and_origin": {
+      "target": "scripts/build_presentation.py:parse_enter_high_score_contract and the generated cursor/node destination contract",
+      "change": "Shift each sprite-origin destination by +160 bytes, one bitmap scanline: cursor_destination and every node_destinations entry. Keep framebuffer_destination, PLAYER_CELL, action coordinates, name text destinations, wall art, and the 576-byte table length unchanged.",
+      "reason": "The complete shared-text owner starts from cursor_destination. The legacy presentation name_draw_cursor path draws from node_destinations. Shifting only the initial cursor would create an owner-dependent one-scanline offset or a jump when legacy rendering snaps to a node.",
+      "callers": "build_presentation.py and verify_presentation.py already receive explicit --chars, --gameplay-chars, --gameplay-sprites, and TMX inputs. Compile the 16 directional animation frames from the existing --gameplay-sprites input for the pixel hazard oracle; add no asset or CLI input."
+    },
+    "edge_and_hazard_data": {
+      "target": "scripts/build_presentation.py:enter_high_score_full_edge_masks",
+      "change": "Retain low-nibble N/E/S/W edges and the 576-byte table. Apply the existing one-cell-left anchor overhang around authored code-49 inner-wall cells. Reuse the high nibble for four exact unordered perpendicular-pair flags at six-pixel offset: NE=$10, ES=$20, SW=$40, WN=$80.",
+      "semantics": "A set pair flag means some compiled animation-frame opaque pixel in any facing intersects an authored code-49 wall pixel along the complete current-position plus 2-pixel snap sweep. Swapping old and requested directions reverses the same position set, so four flags represent all eight directed tuples without directional false positives.",
+      "boundary": "Keep hazard flags zero on blocked/perimeter/top/right-anchor entries. Preserve low edge bits exactly after overhang processing and leave every aligned edge available unless the geometry mask itself blocks it."
+    },
+    "runtime_rule": {
+      "targets": [
+        "src/main.s:name_late_turn",
+        "src/shared_text_stage.inc:name_can_move",
+        "src/shared_text_ranking.inc:name_can_move"
+      ],
+      "change": "At a partial perpendicular turn, preserve the current low-edge test. For the six-pixel state ($DE==1), check the unordered direction-pair flag. A blocked requested edge or set hazard flag returns the existing handled/hold result; safe requests use the current snap path. A rejection leaves PLAYER_DIR, PLAYER_FB, PLAYER_CELL, and snap state unchanged. Preserve the existing attempted PLAYER_FACE update, neutral/resume, reversal, and accepted-turn behavior.",
+      "callback_contract": "name_can_move must keep its A zero/nonzero edge result and return the original full table byte in B to name_late_turn. The stage variant currently retains B. The ranking variant reuses B for its bit-selection loop; restoring the saved table byte after ANDA requires a projected +2 bytes in the copied name code, not an assembled result."
+    },
+    "verification_oracle_targets": [
+      "scripts/verify_presentation.py:compare cursor_destination explicitly in addition to its existing node_destinations comparison; independently compose code-49 wall pixels and compiled player-frame pixels for hazard checks.",
+      "scripts/verify_feat003_highscore_test.py:retain the existing generated-boundary/reachability, cursor-origin, movement, character, CL, END, timeout, and owner-render fixture; add focused blocked-partial and safe/unsafe offset-six assertions. Its existing cursor_destination-driven forced positions must use the shifted generated origin.",
+      "src/presentation_runtime.s name_draw_cursor reads PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS; keep this legacy consumer unchanged and verify both initial and node destinations shift together."
+    ]
+  },
+  "static_evidence": {
+    "artifact": "repro/bugpass-20261010/luna120-proposal-review/static-oracle.json",
+    "command": "python -B repro/bugpass-20261010/luna120-proposal-review/static_oracle.py",
+    "result": "PASS on source revision ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+    "scope": "Source compiler transforms and authored pixels only; no assembly, build, framebuffer runtime, emulator, or live acceptance.",
+    "measurements": {
+      "table_bytes": 576,
+      "one_scanline_origin_shift_bytes": 160,
+      "active_graph_cells_all_reachable": 291,
+      "reachable_cells_after_overhang": 291,
+      "action_cells_reachable": "45/45",
+      "unsafe_reachable_centers_any_face": 0,
+      "straight_face_states_with_intersection": 0,
+      "directed_perpendicular_snap_tuples_at_each_offset_2_4_6": 400,
+      "snap_tuples_with_intersection_at_offsets_2_4_6": [0, 0, 200],
+      "directed_path_symmetry_checks": 1200,
+      "unique_cell_pair_flags_at_offset_6": 200,
+      "unique_offset_6_flags_unsafe_safe": [100, 100],
+      "table_bytes_with_any_hazard_bit": 55
+    },
+    "limits": "The static proof validates exact flag encoding against direct source-pixel intersections and all 45 aligned routes. It does not validate runtime assembly, intermediate rendering, publication/restoration, or a natural name-entry flow."
+  },
+  "capacity_and_fit": {
+    "baseline_revision": "ce6d07d28bf80a9588c15e1cc873e7a767d10514",
+    "baseline_values_parent_provided": {
+      "copied_name_payload": "917/920 bytes; 3 bytes free",
+      "nonadaptive_resident": "8188/8192 bytes; 4 bytes free",
+      "mapped_helper": "3136 bytes, ending at $B880, reported with 0 bytes free"
+    },
+    "projected_only": [
+      "Ranking name_can_move full-mask return: +2 bytes projected; unassembled.",
+      "Origin shifts add no per-frame runtime code, but generator output and exact assembled layout are unmeasured.",
+      "name_late_turn hazard selection and hold branch size/cycles are unknown."
+    ],
+    "gate": "Exact source/listing/map fit in complete adaptive keyboard, complete adaptive joystick, and complete nonadaptive keyboard profiles is UNPROVEN. Preserve the 920-byte copied-name, 8192-byte resident, mapped-helper/source-package, stack, ROM/cold payload, and 27000-cycle active name-control limits. No waiver or larger allocation. Do not mark Ready until all exact fits and the new helper's placement are demonstrated."
+  },
+  "verification_plan": [
+    {
+      "risk": "Table flags or sprite origin disagree with actual authored pixels.",
+      "scenario": "Use an independent pixel oracle over the 576-byte graph, all animation frames/facings, all 400 directed perpendicular tuples at offsets 2, 4, and 6, and both wall ends; require exact hazard bits, 0 intersections for admitted tuples, and 45 reachable actions.",
+      "evidence": "Retain concise mask/source hashes, flag counts, and any failing tuple. Existing scratch oracle is diagnostic evidence, not a production verifier."
+    },
+    {
+      "risk": "Name behavior diverges from the main movement rule or rejects safe turns.",
+      "scenario": "In the existing high-score runtime verifier, compare equivalent aligned/partial blocked requests, a safe and an unsafe six-pixel corner, offset-two/four controls, reversal, neutral/resume, outer borders, action access, and both inner-wall ends. Keep direction/end coverage pairwise; static oracle covers the full tuple space.",
+      "evidence": "Position, step, facing, direction, snap, and visible opaque-pixel checks; missing required rare cases fail."
+    },
+    {
+      "risk": "Generated sprite origin breaks framebuffer-owner or legacy node drawing.",
+      "scenario": "Verify initial cursor and every node destination both receive +160, then execute natural A/B rendering through row crossing and check wall restoration after departure. Include the existing high-score fixture's cursor, character, CL, END, and ranking path.",
+      "evidence": "Generated manifest/include destination comparison, exact visible pixels per published owner, and current source/staged/live module identity."
+    },
+    {
+      "risk": "Hard allocation or timing boundary is exceeded.",
+      "scenario": "Run the three supported complete-profile fits and active name-control worklists after implementation is approved; compare exact copied-name, resident, helper/source-package, stack, cold payload, and cycle maxima with current limits.",
+      "evidence": "Current-revision build reports, listings/maps, artifact hashes, and measured maximum <=27000 cycles. A failed target blocks acceptance."
+    },
+    {
+      "risk": "Static forced states conceal failure in the delivered flow.",
+      "scenario": "From a cold current ROM, naturally qualify a score, enter name entry, travel along a character row, turn around an inner-wall end into the next row, select characters, use CL and END, and reach ranking/attract. Record forced fixtures separately.",
+      "evidence": "First visible output, actual row-to-row input sequence, score/name/rank result, screen pixels, and revision-identified source/staged/live bytes."
+    }
+  ],
+  "risks_and_exclusions": {
+    "high_risk_basis": "Hard-boundary headroom is only 3 copied-name bytes and 4 nonadaptive resident bytes; helper placement is reported at zero free bytes. Runtime owner, map, and origin integration need exact fit and live evidence.",
+    "rejected": [
+      "Universal four-pixel turn window: rejects geometry-safe six-pixel turns and changes the main movement rule.",
+      "Requested-facing-only collision test: misses all-face six-pixel trajectories caused by attempted facing.",
+      "Prune every edge with a six-pixel collision: loses all 45 action cells in the retained geometry audit.",
+      "Separate dense or sparse hazard allocation: exceeds the fixed data budget or introduces another lookup; the exact four-pair flags fit statically in the existing high nibble."
+    ],
+    "excluded_scope": "Ordinary gameplay behavior, new runtime owner/helper/module/protocol, loader/MMU changes, allocations or limits, wall art, name layout, action positions, input bindings, score/rank rules, and implementation before explicit renewed approval."
+  },
+  "lifecycle_gate": "Corrected architecture is a proposed design only. The static encoding proof passes, but exact assembled fit, runtime behavior, current ROM identity, and natural-flow acceptance remain unverified. Production BUG-120 stays Proposed and cannot become Ready or In Progress from this review."
+}
