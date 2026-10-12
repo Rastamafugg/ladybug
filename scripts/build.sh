@@ -175,6 +175,86 @@ print(
 PY
 }
 
+guard_enemy_init_target() {
+    local resident_map="$1"
+    local resident="$2"
+    local helper_map="$3"
+    local helper="$4"
+    python3 - "$resident_map" "$resident" "$helper_map" "$helper" <<'PY'
+import re
+import sys
+
+resident_map_path, resident_path, helper_map_path, helper_path = sys.argv[1:]
+
+def read_symbols(path, wanted, label):
+    symbols = {}
+    pattern = re.compile(
+        rf"^Symbol: ({'|'.join(map(re.escape, wanted))}) .* = ([0-9A-Fa-f]+)$"
+    )
+    with open(path, encoding="utf-8") as handle:
+        for line in handle:
+            match = pattern.match(line.rstrip())
+            if match:
+                symbols[match.group(1)] = int(match.group(2), 16)
+    missing = set(wanted) - symbols.keys()
+    if missing:
+        raise SystemExit(
+            f"build: {label} map is missing {', '.join(sorted(missing))}"
+        )
+    return symbols
+
+resident_symbols = read_symbols(resident_map_path, ("init_enemy",), "resident")
+helper_symbols = read_symbols(
+    helper_map_path,
+    ("rate_reset", "rate_enemy_init_shim", "rate_module_end"),
+    "rate helper",
+)
+resident = open(resident_path, "rb").read()
+helper = open(helper_path, "rb").read()
+
+entry = resident_symbols["init_enemy"]
+if not 0xC000 <= entry or entry + 3 > 0xE000:
+    raise SystemExit(
+        f"build: resident init_enemy bytes at ${entry:04X} are outside $C000-$DFFF"
+    )
+offset = entry - 0xC000
+if offset + 3 > len(resident):
+    raise SystemExit(
+        f"build: resident init_enemy JMP at ${entry:04X} exceeds the resident image"
+    )
+
+helper_start = helper_symbols["rate_reset"]
+helper_end = helper_symbols["rate_module_end"]
+target = helper_symbols["rate_enemy_init_shim"]
+if not 0xA000 <= helper_start < target < helper_end <= 0xC000:
+    raise SystemExit(
+        "build: rate helper symbols are outside their page-$34 image bounds"
+    )
+if helper_end - helper_start != len(helper):
+    raise SystemExit(
+        f"build: rate helper map span is {helper_end - helper_start} bytes; "
+        f"binary is {len(helper)} bytes"
+    )
+
+opcode = resident[offset]
+if opcode != 0x7E:
+    raise SystemExit(
+        f"build: resident init_enemy at ${entry:04X} has opcode ${opcode:02X}; "
+        "expected JMP opcode $7E"
+    )
+emitted_target = int.from_bytes(resident[offset + 1:offset + 3], "big")
+if emitted_target != target:
+    raise SystemExit(
+        f"build: resident init_enemy JMP at ${entry:04X} targets "
+        f"${emitted_target:04X}; expected rate_enemy_init_shim ${target:04X}"
+    )
+print(
+    f"build: init_enemy JMP ${entry:04X}->${target:04X} matches "
+    "rate_enemy_init_shim"
+)
+PY
+}
+
 pad_cart() {
     local rom="$1"
     python3 - "$rom" "$CART_BYTES" <<'PY'
@@ -1139,6 +1219,8 @@ PY
         --bootstrap "$BOOT_SRC" \
         --helper "$PERIMETER_HELPER"
     pad_cart "$BOOT_ROM"
+
+    guard_enemy_init_target "$MAP" "$RUNTIME_ROM" "$RATE_HELPER_MAP" "$RATE_HELPER"
 
     python3 - "$BOOT_ROM" "$SPARSE_BANK0" "$RUNTIME_ROM" "$ENEMY_ROM" "$SPARSE_BANK2" "$SPARSE_BANK3" "$SPARSE_MANIFEST" "$ROM" "$GMC_BYTES" <<'PY'
 import hashlib

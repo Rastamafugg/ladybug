@@ -4490,7 +4490,7 @@ pat_done
         rts
 
 init_enemy
-        jmp     $A463           ; approved rate reset shim tail-calls enemy init
+        jmp     $A469           ; approved rate reset shim tail-calls enemy init
 
 enemy_tick
         jsr     ENEMY_MODULE_TICK
