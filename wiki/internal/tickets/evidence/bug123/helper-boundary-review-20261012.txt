@@ -1,0 +1,25 @@
+BUG-123 helper-boundary reassessment — 2026-10-12
+
+Scope: explain the observed PLAYER_FB corruption at the natural demo initializer boundary by comparing authored, staged, and captured page-$34 bytes. This is not a natural level-2 or accepted-FRONT reproduction. No runtime, build, target write, source, wiki, evidence, or Git mutation was performed in this review.
+
+Qualified evidence
+
+- ROM SHA-256: `283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5`.
+- Captured `runtime-receipt.json` SHA-256 `05fb6b685bc5b18bd18ad6d2282565448bcd7a9866f6b6f567bed235286cb549`; `watch-window.bin` SHA-256 `76b5a9cc4f1b845faee650aa0bd312e2927f230dc657107b97da9491793c541a`. The 8192-byte watch window is PAR5 page `$34`, CPU window `$A000-$BFFF`.
+- Live resident (8192 bytes) and enemy module (4091 bytes) matched emitted artifacts in the retained runtime receipt. At the captured draw, DP=0, PAR0=`$38`, PAR1-PAR4=`$2C-$2F`, PAR5=`$34`; logical cell `(12,22)`, step 0, entry 0, mode 4, and `PLAYER_FB=$88D8`. This is natural demo drawing into BACK; `natural-demo-back.png` and `back.bin` are pre-publication evidence. FRONT acceptance and natural level 2 remain unobserved.
+
+Confirmed helper boundary
+
+- `src/main.s:223` defines `PLAYER_FB=$000B` as a 16-bit pointer. `src/main.s` `init_enemy` (map `D516`) still emits `JMP $A463`.
+- `src/prototype_rate_page34.s` starts the rate helper at `$A3B0`; its `rate_stage_offsets` table starts at `$A458`; `rate_enemy_init_shim` is at `$A469`. `build/ladybug-rate-helper.map` agrees: `$A458`, `$A469`, and module end `$A46F`. The shim bytes are `17 FF 44 7E 08 00` (`LBSR rate_reset; JMP $0800`).
+- `$A463` is table entry 11, not a routine entry. Authored, staged, and captured live bytes at `$A463` are `0A 0B 08 0C 0D 0E`. Executing them as code gives `DEC direct $0B` then `ASL direct $0C`: starting from the recorded valid seed `$89EC`, these operations produce `$88EC` then `$88D8` while logical cell `(12,22)` remains unchanged. The watch records the first post-store state `$88EC` at `$A465`; the later draw sees `$88D8`. This exactly accounts for the observed pointer corruption at this natural demo boundary.
+- The current staged rate segment is bank 0 source offset 5192, destination physical page `$34` address `$A3B0`, length 191. The page-$34 enemy helper is source offset 5383, destination `$34:$A8A0`, length 87. `src/enemy_helpers_page34.s` and its emitted helper begin at `$A8A0`, separate from the rate helper. The full captured page-$34 window matches both staged helpers byte-for-byte, including the correct rate shim at `$A469`; the page is not overwritten or shifted.
+- `scripts/build_sparse_sprites.py` emits these page-$34 descriptor destinations; `src/gmc_bootstrap.s` installs descriptors through `decompress_gmc_streams`/`dgs_descriptor`. `scripts/verify_sparse_sprites.py` checks staged target placement. Relevant identities: rate source `src/prototype_rate_page34.s` SHA-256 `a69fab1593dfabca5657773d0b98853cf32af2ee99fe6173dc87d1ad62986d22`; rate binary `build/ladybug-rate-helper.bin` `c90d80a2989e46c05dfeacd20a8a183a065b0348f914b5a876d149aae320d4dc`; rate map `feeb12a524135bb7ec042464de0e60fdee3b144a2946aab95acfd8a9eee00f53`; enemy helper binary `057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526`; sparse layout `e60188487cbf58bbd3d8edb8e533179b0a1b53bd9e5c1784921cb50e275117e8`.
+
+Finding and limit
+
+The helper/page contents and PAR5 mapping are correct. The confirmed local fault is the obsolete caller literal `$A463`: it enters the intact rate lookup table six bytes before the actual shim and executes table data against `PLAYER_FB`. This explains the captured logical/render-pointer disagreement and displaced BACK image in the demo run. It does not yet prove that the same call is the cause of the user's natural level-2 symptom, nor does it show the displaced pose in accepted FRONT. Do not treat BUG-123 as reproduced for its primary level-2 acceptance case yet.
+
+Next bounded runtime experiment, no repair
+
+On an unchanged, freshly launched ROM with source-qualified live main, resident, enemy, and page-$34 identities, use ordinary input to reach the natural level-1 clear. From the natural `next_stage` marker (`$C270`), allow at most 45 seconds to the first committed level-2 frame. Record the `init_player` post-store pointer at `$CB04`, then `init_enemy` at `$D516`, the actual post-JMP PC (`$A463` versus `$A469`), PAR5, and read-only watches of `$000B-$000C` with logical cell/step. At the first player draw, pair incoming X and pointer with the same commit's BACK pixels through the qualified virtual mapping; after the IRQ publication completion, record FRONT owner/GIME offset and pixels. Success requires the natural level-2 horizontal displacement to be visible in accepted FRONT and the captured call/pointer values to identify the active boundary. Timeout or failure to reach the natural marker means incomplete observation; do not substitute a forced stage fixture or extend the deadline. Stop after this one probe for parent reassessment.
