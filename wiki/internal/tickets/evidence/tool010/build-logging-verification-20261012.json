@@ -1,0 +1,240 @@
+{
+  "ticket": "TOOL-010",
+  "verdict": "PASS; Done",
+  "implementation_commit": "66cf8e3b7b95ebad769f0f7f4932ec2dbca929ac",
+  "scope": "Two-script output-only cleanup; no assembler argv/order/environment/guard change",
+  "profile": "complete keyboard/adaptive; 6809",
+  "baseline_qualification": {
+    "receipt_state": "complete",
+    "profile": "complete",
+    "revision": "920f4d15a4569e973fdcb86a6b503761d4a6e11e",
+    "input_count": 266,
+    "input_hashes_all_match_current": true,
+    "input_map_sha256": "debb7aefc68393d0a3029f1b47b4b757f79f9d36b4aff4fc6056b1cdc6aca210",
+    "all_selected_output_hashes_match_identity_record": true
+  },
+  "current_checks": {
+    "bash_n": "pass",
+    "python_py_compile": "pass",
+    "complete_keyboard_adaptive_build": "pass",
+    "source_reference": "source reference: 16 modules, 36618 source lines, coverage=pass",
+    "source_documentation": "source documentation: PASS: 16 modules, 318/318 routines, 5049/5049 labels",
+    "receipt": {
+      "state": "complete",
+      "profile": "complete",
+      "revision": "4a7f179f65bc70f248aa76ecb08a31094758fd9c",
+      "input_count": 266,
+      "current_input_hash_mismatches": 0,
+      "current_input_missing": 0
+    },
+    "manifest_revision_matches_receipt": true,
+    "delivered_output_count": 32,
+    "delivered_output_hash_mismatches": 0
+  },
+  "source_revision_note": "Baseline receipt920f4d1 and post-build receipt4a7f179 differ by documentation/evidence commits only; no authored production-code diff. Compare source hashes/artifact bytes, not identical Git revision. Two tooling scripts changed intentionally.",
+  "parent_checks": [
+    "Inspected implementation commit: exactly scripts/build.sh and scripts/build_adaptive_runtime.py",
+    "bash -n PASS",
+    "Python AST parse PASS; every subprocess.run expression unchanged versus pre-change source",
+    "Malformed log literals absent",
+    "Current standard combined-workspace build exit0; normal capacity and source-documentation guards pass",
+    "32 delivered ROM/runtime/module/payload sizes and SHA256 equal to qualified pre-change baseline",
+    "Current packaged ROM independently rehashed283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5"
+  ],
+  "capacity_observations": {
+    "adaptive_mapped": "198/220 bytes; 22 free",
+    "adaptive_banked": "696/698 bytes; 2 free",
+    "adaptive_active": "622/777 bytes; 155 free",
+    "resident": "8131/8192 bytes; 61 free",
+    "assets": "7663/7680 bytes; 17 free",
+    "audio_engine": "731/920 bytes; 189 free",
+    "audio_runtime": "6655/8192 bytes; 1537 free",
+    "enemy_sparse": "23005/24576 bytes; 1571 free",
+    "player_sparse": "2294/8192 bytes; 5898 free",
+    "cpu_readable_gmc_spare": "6172 bytes"
+  },
+  "sample_labels": [
+    "build: assemble [adaptive core generated module] build/ladybug-adaptive-mapped.s -> build/ladybug-adaptive-mapped.bin",
+    "build: assemble [adaptive core generated module] build/ladybug-adaptive-banked.s -> build/ladybug-adaptive-banked.bin",
+    "build: assemble [initial resident image] src/main.s -> build/ladybug-runtime.rom",
+    "build: assemble [provisional presentation runtime] src/presentation_runtime.s -> build/ladybug-presentation-runtime.bin",
+    "build: assemble [resident symbol refresh] src/main.s -> build/ladybug-runtime.rom",
+    "build: assemble [final presentation runtime] src/presentation_runtime.s -> build/ladybug-presentation-runtime.bin",
+    "build: assemble [adaptive bindings generated module] build/ladybug-adaptive-active.s -> build/ladybug-adaptive-active.bin",
+    "build: assemble [adaptive link final audio runtime] src/audio_runtime.s -> build/ladybug-audio-runtime.bin",
+    "build: assemble [adaptive link final resident image] src/main.s -> build/ladybug-runtime.rom"
+  ],
+  "delivered_artifacts": {
+    "ladybug-adaptive-active.bin": {
+      "sha256": "9e37c82d26367fa18ae8a41351d474de5d5e1b79489b2cc2582c6b229c9c4c28",
+      "bytes": 622,
+      "unchanged": true
+    },
+    "ladybug-adaptive-banked.bin": {
+      "sha256": "3827719dd6d237bd994e072748ef9756a2b113872b897ab561574655d8f590ab",
+      "bytes": 696,
+      "unchanged": true
+    },
+    "ladybug-adaptive-mapped.bin": {
+      "sha256": "3db2880d1a5cf636620852676fcc3319c8a37d4499bd80f54d5c1f830d81b6f6",
+      "bytes": 198,
+      "unchanged": true
+    },
+    "ladybug-attract-actor-records.bin": {
+      "sha256": "d1ea13fb0440ef8e80be663d49bab9e55585382b3fdb25978f342e4182fd6fd8",
+      "bytes": 46,
+      "unchanged": true
+    },
+    "ladybug-attract-actor-underlays.bin": {
+      "sha256": "4906b7ed2594c739aaccd5e5b81d756ca3cea1e6740914dcc0250a206d924f8f",
+      "bytes": 1934,
+      "unchanged": true
+    },
+    "ladybug-audio-runtime.bin": {
+      "sha256": "8e070c69ce68229acf61aeef55a8bafcc0a906d16dc1e28481636d2e1dfd3c72",
+      "bytes": 6655,
+      "unchanged": true
+    },
+    "ladybug-demo-runtime.bin": {
+      "sha256": "aaa25341d97a254323a50a363d0a9839efd6209727cbbe088020f0db540f602b",
+      "bytes": 143,
+      "unchanged": true
+    },
+    "ladybug-dinosaur-art.raw": {
+      "sha256": "3b66568b9274811d6c83750a2d8739eabdeb61119e9b7c709bacecfb1e568fbd",
+      "bytes": 5112,
+      "unchanged": true
+    },
+    "ladybug-enemy-helper-page34.bin": {
+      "sha256": "057e2803eac24aebb1447d43614fd4aaf67518d933f08d3f128627e9aeb26526",
+      "bytes": 87,
+      "unchanged": true
+    },
+    "ladybug-enemy-runtime.rom": {
+      "sha256": "ad6db3b864a0c41427e18db7e6ea90ecd2df1310e70080969c2a3914b6781d50",
+      "bytes": 4091,
+      "unchanged": true
+    },
+    "ladybug-enemy-sparse.bin": {
+      "sha256": "688af5ca9c98802096aa50cf47ef65b78077205f7d77a4d70415bbfb4d51029d",
+      "bytes": 23005,
+      "unchanged": true
+    },
+    "ladybug-event-art.raw": {
+      "sha256": "51a1ca12f3b833ad28c6c20b0728f854774ad1cb5e0a4c311a3bf0ea84037e63",
+      "bytes": 9547,
+      "unchanged": true
+    },
+    "ladybug-gate-transitions.bin": {
+      "sha256": "63e7c3597db1d90c177f1afb9278c587744614c1ac79b6a7cec26c78d06021ff",
+      "bytes": 832,
+      "unchanged": true
+    },
+    "ladybug-gmc-bank0-overflow.bin": {
+      "sha256": "79a64c83990335d812f7e8008ecb52094f732249649001dffb8a2e924c8c0d1a",
+      "bytes": 16384,
+      "unchanged": true
+    },
+    "ladybug-gmc-boot.rom": {
+      "sha256": "cc9e2ab9621cb278ff129543e082717d721d3a72dab0a9a60d441f278c287404",
+      "bytes": 16384,
+      "unchanged": true
+    },
+    "ladybug-highscore-helper.bin": {
+      "sha256": "805c3fd81b5fc4162ed95be9194f230874b710f284085a758a0dee995e1df057",
+      "bytes": 3136,
+      "unchanged": true
+    },
+    "ladybug-highscore-runtime.bin": {
+      "sha256": "9984802cf8db4c1fd26c0326bea1081537bb1539feb32077b0ce342ccf3d7f19",
+      "bytes": 917,
+      "unchanged": true
+    },
+    "ladybug-instruction-runtime.bin": {
+      "sha256": "81b5ef61ca887c9b0ea8c92aa80be130ee928a1c22c2dbd0d231ba81b75a9baa",
+      "bytes": 938,
+      "unchanged": true
+    },
+    "ladybug-keybinding-runtime.bin": {
+      "sha256": "9f829e799f80902a425c7219cf10c751e78cb4b2fe05de396ab43ebdd19c724c",
+      "bytes": 1168,
+      "unchanged": true
+    },
+    "ladybug-perimeter-reset-helper.bin": {
+      "sha256": "3603e812f1f8b438ee6f1888d0672d0e84beecd5566b6cadef1a063fb85d8ac7",
+      "bytes": 331,
+      "unchanged": true
+    },
+    "ladybug-perimeter-reset.bin": {
+      "sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+      "bytes": 5751,
+      "unchanged": true
+    },
+    "ladybug-player-sparse.bin": {
+      "sha256": "8c8c22fc7434a029d73874c69e7cb7c68794cc4f6b317cb08612ee298a2e12df",
+      "bytes": 2294,
+      "unchanged": true
+    },
+    "ladybug-presentation-cold.bin": {
+      "sha256": "7e20a94cb5a69f428e874dcf4ca1280fadada5576f680120e3dba9a5b0b0ab4b",
+      "bytes": 14313,
+      "unchanged": true
+    },
+    "ladybug-presentation-runtime.bin": {
+      "sha256": "2ab84326f49de26172b9e60809671d4904d2fadc00d25aed6a3f6763a6d0463b",
+      "bytes": 1259,
+      "unchanged": true
+    },
+    "ladybug-presentation-sparse.bin": {
+      "sha256": "cc4b6e94fde821ae76e7167563a73b9ee40e0a0848b1f310c1348e7e5c1e7002",
+      "bytes": 896,
+      "unchanged": true
+    },
+    "ladybug-presentation-tile-patches.bin": {
+      "sha256": "6fbadbbee2782404d8d6e1f10a11c5679d069bb9be27ebacefab0ed5b2fd7cca",
+      "bytes": 128,
+      "unchanged": true
+    },
+    "ladybug-rate-helper.bin": {
+      "sha256": "c90d80a2989e46c05dfeacd20a8a183a065b0348f914b5a876d149aae320d4dc",
+      "bytes": 191,
+      "unchanged": true
+    },
+    "ladybug-runtime.rom": {
+      "sha256": "16af307da88b0bab6f38bb00be77bdaf0ddd87e7f588cc4b42f84c390a2cf653",
+      "bytes": 16384,
+      "unchanged": true
+    },
+    "ladybug-sparse-bank2.bin": {
+      "sha256": "ddf5c3f17258e88b7ad206cffa79bb3f488d4364660412aacf325705886ef717",
+      "bytes": 16384,
+      "unchanged": true
+    },
+    "ladybug-sparse-bank3.bin": {
+      "sha256": "b69c9ef7fa5ddaecc6131b12cbc4a95c42efe926f6c220b4579cb0c6f78bbc9e",
+      "bytes": 16384,
+      "unchanged": true
+    },
+    "ladybug-vegetable-sparse.bin": {
+      "sha256": "58bad0d3f4c8943a79ea2c7f088a97860c12c08ef3c9e7f303b6011b8894d315",
+      "bytes": 1728,
+      "unchanged": true
+    },
+    "ladybug.rom": {
+      "sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+      "bytes": 65536,
+      "unchanged": true
+    }
+  },
+  "script_sha256": {
+    "scripts/build.sh": "68f761d39264e1f5ae55476b0f0e424f846b0f52c5b3ad15ae5221fa63cd26f6",
+    "scripts/build_adaptive_runtime.py": "5f8c039e63c2cac8a0081185b6bdb2b716cb89ac4a6b53308e78f87d6e4f1674"
+  },
+  "residual_risks": "No emulator/hardware check required for identical delivery bytes. Pre-existing low capacity margins remain unchanged. Other reported game defects remain open.",
+  "rejected_alternatives": [
+    "Omitting required link/assembly passes",
+    "Refactoring build dependencies or assembler forwarding",
+    "Removing harmless redundant reset after validation and repeating unchanged full build"
+  ],
+  "retained_scratch": "repro/tool010-build-pass-logging-20261012; includes preserved tested ROM, baseline qualification, full hash comparison and concise build output"
+}
