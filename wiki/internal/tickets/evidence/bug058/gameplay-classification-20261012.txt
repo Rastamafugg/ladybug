@@ -1,0 +1,61 @@
+BUG-058 — retained gameplay phase classification
+Date: 2026-10-12
+Disposition: evidence-only review. No emulator or runtime probe was performed. BUG-058 remains Proposed; its runtime diagnosis scope and any optimization remain unapproved. Eventual runtime work remains High-risk because it touches a hard timing target, gameplay/audio phase boundaries, and persistent framebuffer publication.
+
+Evidence identity and metric
+The GDB delivery receipt identifies source 7cdc53f6f15a1696ef838efb0569c0d3074cca43; the worklist receipt pins ROM SHA-256 283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5. The retained 44-worklist receipt at repro/bug122-parent/bug121-worklists-current.json has SHA-256 81E5B6BF31D421E5B2423634D669726882F2760134EC32BB5B3C70AB8E4FCA1B. Delivery receipt repro/bug122-parent/bug121-gdb/receipt.json reports the same source commit and matching resident artifact identity.
+
+The measured unit is raw event_ticks/8 fast-CPU cycles from AD_WORK_EXEC entry to the next mainloop marker. IRQ work is included; the prior SYNC wait is excluded. Values are sampled worklist maxima, not full-frame or whole-game bounds. The existing acceptance target remains at most 27000 cycles for each required active worklist. The receipt completed its observation path (result: PASS) while its acceptance field is explicitly target_met: false.
+
+Current phase classification
+The 12-sample “ordinary north input” arm is post-natural-entry regular gameplay by verifier-path evidence: the worklist CLI qualifies delivery, then calls natural Run.start; the maintained start path enters live mode, observes entry state 4, and follows trace_entry until state 0; the verifier then injects north. It performs no direct target-state write before this arm. The receipt omits the entry trace and does not serialize mode/screen/state at each sample, so these phase details are inferred from the executed runner path rather than proved by fields in the retained worklist JSON. Entity count is also absent, so this arm does not establish the reported three-enemy condition.
+
+One of those 12 worklists misses the target: frame 601, 42541 cycles, popup timer 0, pre-work enemy timer 1, enemy animation 0 and post-work animation 1, pose [12,18,3,29228], FB_RENDER_PENDING 1. The other 11 samples are at or below 23281. This is one observed over-budget worklist coincident with a natural enemy-animation rollover in the current 12-sample arm. The timer edge is consistent with scheduled recurring gameplay work, but only one rollover was sampled; recurrence frequency is not measured. The receipt does not measure accepted-input latency, missed logical updates, frontend publication time, or frame-cadence impact. The 42541-cycle ordinary-play miss is real under the existing benchmark and remains open; the receipt alone does not establish player-visible slowdown or its cause.
+
+The 32-sample “one roaming enemy plus popup and nest animation” arm is a controlled combined fixture. Its peak is 54539 cycles at frame 626 with popup timer 30, enemy timer 1, pre-work animation 3 and post-work animation 0. Before the arm the verifier writes BOX_TIMER=[1,91], waits for the enemy release/exit condition, then writes PICKUP_TIMER=30, sets RENDER_FLAGS2 bit 0, and sets ENEMY_TIMER=1. The exact overlap and its peak therefore were not reached naturally in this receipt. Enemy release, pickups, and nest animation are gameplay-capable events, but the receipt does not prove this combination occurs in ordinary play or how often. Treat 54539 as fixture attribution evidence only until a natural sequence demonstrates the same costly work.
+
+The measured arms begin after natural initial entry; they do not time entry, death, stage load, high-score, or other presentation transitions. The entry trace is held only in runtime memory and discarded from the final worklist receipt. No transition-only slowdown is established here.
+
+Audio and BUG-117 interaction
+This run does not enable audio capture. Its start trace records entry/pose/animation/frame but not cue ownership, actual cue-owned PSG output, music queue/slot state, or the post-PSG published busy byte. The retained timing data therefore cannot prove cue 6 was idle during the first north samples. BUG-117 evidence describes the prior source path as starting cue 6 at entry state 4 and allowing control after 16 accepted maze steps, projected at about 32 frames; source predicts 192 audio ticks for cue 6. These unlike measures are not a runtime synchronization result. The timing window may overlap new-life audio work, but this remains an unconfirmed confound. The approved BUG-117 fit patch is an isolated candidate, not the source of this 7cdc53f measurement. Reclassify only from a fresh, parent-integrated BUG-117 artifact.
+
+Missing fields for causal or impact claims
+The receipt lacks per-sample live mode/screen/stage/entry/death state, entity count, explicit input acceptance, cue/voice identity and idle evidence, final-pose FRONT image/commit, IRQ publication marker, logical-tick continuity, and user-visible response delay. The owner field is secondary metadata; these sequential samples are not a controlled owner crossover and support no framebuffer-owner cause claim. The 54539 fixture peak also lacks a natural reachability witness for the combined timer/flag state.
+
+Revised scope and priority proposal
+Keep the 27000-cycle per-required-active-worklist benchmark unchanged. The regular natural worklist miss remains a failure and the main BUG-058 concern; do not silently relabel it pass. The current receipt does not cover natural three-enemy gameplay, so that required phase remains missing. Report recurrence and observed impact separately: worklist cycles, logical-tick continuity, accepted input response, and actual FRONT publication delay. A raw cycle miss is not by itself proof of a perceived slowdown. Transition-only or fixture-only misses are lower-priority follow-up and do not alone block regular gameplay acceptance or unrelated ticket acceptance. A miss demonstrated on recurring regular gameplay remains release-relevant until it meets the unchanged target or the user revises that target. BUG-117 entry/control behavior is a separate ticket; do not attribute its timing or behavior from this receipt.
+
+Smallest future discriminator, after revised BUG-058 scope is approved, marked Ready, and a fresh BUG-117 candidate is integrated:
+1. Natural entry readiness phase, 45-second deadline. Start from a qualified current ROM/map/resident identity. Success marker: natural live mode and available screen/stage values recorded; entry state 0; final pose identified in the actual FRONT image after IRQ/owner commit; cue 6 terminal output and post-PSG publication observed, with no active/queued music and published busy idle; normal input then produces an accepted direction. Timeout means the natural boundary or required marker was absent, not that game code was slow.
+2. Natural three-enemy progress phase, 45-second deadline. Use an event-only progress watch through ordinary play without forcing enemy release, writing target state, or tracing every idle frame. Success marker: three live enemies are reached through natural scheduler/release events while the player remains in live mode with input available; record screen/stage and the natural release witness. A four-enemy count is an adjacent risk only if it is naturally reached and relevant; do not force it. If a separate four-enemy wait is required, give it its own named 45-second natural-count boundary and sample. Timeout means the natural count/release marker was absent, not that code was slow.
+3. Per-count worklist phase, 45-second deadline after each natural count marker. Use the existing short worklist batch (12 calls) at the observed three-enemy state; record worklist-call count separately from logical ticks, plus enemy timer/animation, entity count, pose, accepted input, pending state, actual FRONT commits, and per-worklist cycles. Recurrence requires repeated observed timer/animation edges in the data; call count does not imply logical-tick count or recurrence. If the batch lacks repeated edges, mark recurrence unproven. Any interval above 27000 remains a benchmark failure. Timeout means the bounded sample or a required marker was absent, not a speed result.
+4. Natural transient phase, 45-second deadline, only if relevant to the measured cost. Use an event-only progress watch for a genuine collection or other naturally reachable event, then take a short bounded worklist sample around it. Record its natural state change and publication. If no event occurs by the deadline, mark coverage missing and do not force or accept it. Timeout means the event marker was absent, not that code was slow.
+5. Forced attribution is a later, separately assigned probe only after the natural trace establishes that the cost-bearing event is reachable. Reuse the existing worklist machinery in CLI form, with precondition guards before any fixture writes, and only the minimum setup explicitly authorized by the revised assignment. Record every mutation and worklist phase; a fixture result attributes work but never proves reachability. Each probe has its own 45-second marker boundary; timeout means attribution is incomplete.
+
+Reuse the maintained command-line runner/runtime path, its delivery qualification, and the existing worklist verifier as text-level references. Keep launch wrappers CLI-only; verify_worklists.py invokes receipt() at module top level and must not be imported. No new harness is justified by this evidence. Do not extend any phase beyond 45 seconds without the required progress, benefit, and user approval. After two rejected probes, two observation timeouts, or material cause expansion, reassess before another runtime experiment.
+
+No physical CoCo 3 or PSG observation was made. Current evidence supports a natural post-entry timing miss and an artificially constructed second peak; it does not establish a hardware defect, root cause, or user-visible stall. Optimization requires a separate approval after a revised diagnosis proposal identifies the controlling regular-gameplay cost.
+
+Source anchors and static-review hashes: repro/bug122-parent/luna058-gameplay-classification-20261012/source-review.txt.
+
+
+
+Retained source-review anchors
+BUG-058 phase-classification source review
+Date: 2026-10-12
+Mode: read-only text inspection. No module imports, emulator/GDB calls, runtime probes, builds, or Git operations.
+
+Pinned current run:
+- Source commit in retained GDB receipt: 7cdc53f6f15a1696ef838efb0569c0d3074cca43.
+- ROM SHA-256: 283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5.
+- Worklist receipt SHA-256: 81E5B6BF31D421E5B2423634D669726882F2760134EC32BB5B3C70AB8E4FCA1B.
+- GDB delivery receipt SHA-256: 7E43B36C5E86354CABB6B37FEB7C586FB5767152F66FB6116D65190D52CE00BD.
+- Worklist runner SHA-256: 010D895A72532117A12DE88DCB358F91621BC5283C2B95FB6E0211747CD8E4B2.
+- Runtime text SHA-256: D77B1D2225829B445728396A2068C45CD1B350CBCFB4CBF914924EB3B172FD80.
+- Worklist verifier SHA-256: 13014F5A767BC8DB3B34B70E34EE83FEE2AED8CAEECBFB1D8060EAD3BBA469E6.
+
+Static path checked:
+- repro/bug122-parent/run_bug121_worklists.py loads the maintained runtime from repro/bugpass-20261010/luna122-qa-plan/runtime.py, wraps Run.start with current delivery qualification, and executes the verifier as a script. This runner is CLI-only and must not be imported.
+- Runtime.start waits for the natural live entry marker and calls trace_entry; trace_entry captures entry, pose, face, direction, animation, and frame while state 4 advances to state 0. verify_worklists.py then injects north and records worklists.
+- The in-memory entry trace is not added to the worklist JSON. The verifier does not sample cue/voice state, actual PSG stores, published music busy, screen byte, final FRONT pixels/commit, or accepted-input latency. No audio watch is enabled by this run.
+- The worklist verifier's second arm writes BOX_TIMER, PICKUP_TIMER=30, RENDER_FLAGS2 OR 0x01, and ENEMY_TIMER=1 before sampling. This is a controlled combined fixture, not a naturally observed event sequence.
