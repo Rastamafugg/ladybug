@@ -1,0 +1,36 @@
+BUG-117 isolated fit review
+
+Result: the three final-input ordinary full builds pass. This is a fit result only; it does not clear runtime forceability or timing.
+
+Candidate identity
+Production-source baseline pin: 7cdc53f. Patch base: b01b45ed09a294a25b637c7bda1a0be77ce3a0a3. The shared HEAD moved during the series because the parent committed wiki-only sections; the 265-input path/hash digest remained identical. The source patch is 48773 bytes, SHA-256 4f4765d5c066a607bdb3a46f0d9f855f97005473cbe45f5a530f5cedf117b1ee, and `git apply --check --ignore-space-change` passes. Its ten paths are exactly the four approved assembly sources, source-reference registry, three source/static verifier files, and two source-catalog pages. Capsule raw-file SHA-256 values are in approved-fit-summary.json. The patch is LF-normalized; capsule hashes are raw bytes.
+
+Full builds and capacity
+
+* Keyboard/adaptive: exit 0; resident 8,082/8,192 (110 free, 78 above the required 32); enemy 4,091/4,096 (5 free); audio engine 727/920; adaptive page-$3D audio reservation 6,656/6,656 (zero margin); assets 7,663/7,680 (17 free).
+* Joystick/adaptive: exit 0; resident 8,118/8,192 (74 free, 42 above the required 32); enemy 4,091/4,096; engine 727/920; adaptive audio 6,656/6,656; assets 7,663/7,680.
+* Keyboard/nonadaptive: exit 0; resident 8,150/8,192 (42 free, 10 above the required 32); enemy 4,091/4,096; engine 727/920; nonadaptive audio reservation 5,677/6,656; assets 7,622/7,680.
+
+The earlier resident projections 8,093/8,129/8,157 are estimates, not measurements. Final receipts record three exit-0 complete builds with all regular guards and source documentation checks passing. Minimum resident free space is 42 bytes, so the minimum 32-byte requirement passes by 10 bytes. Adaptive audio is exactly at its 6,656-byte limit.
+
+Input identity and revisions
+
+Each receipt contains 265 source-reference input path/hash records and 87 artifacts. The sorted 265-path/hash set digest matches across all three profiles: ee51c366dab223b24b046d57a642441c54b27860b90ba0d568fa61322b38b3ed. The 264 input records not listed in `generated_inputs` also match: 02fc8778411ac77aa28e170f7eee6fa879a649cd71c615e0695082fb3f4cb00b. Adaptive receipts record four generated inputs (one overlapping the source-reference map and three outside it); nonadaptive records one generated input. The helper's 37-path `authored_input_hashes` subset also matches, but it is not used as a substitute for the complete 265-path digest. The first build receipt cites f3dd15abc770... and the latter two b01b45ed09a2... because of the intervening parent wiki-only commit; path/hash inputs match exactly.
+
+Static checks and diagnosed fixture correction
+
+`python3 fit-scratch/run_targeted_static_checks.py` exited 0: maintained `verify_hud_rows()` and BUG017 `static_contract(payload)` both pass. The checker validates the complete/legacy score pair #$250B/#$260B with a shared HUD_X store, vegetable #$230D, player start #$0C16, and asset_draw_part_value. The separate multiplier remains at #$2107. Credit writes to #$2109; the identical pinned/current TMX places GID 497 at `HUD Placeholders` row 9, column 33, and GID 0 at row 10, column 33. This establishes the two stale checker expectations as reversed; only those assertions changed, with no map or assembly layout edit. TMX SHA-256: f1951fe2ac122e7063cbe63991f60ffd6a0e6a303bf7a92cdf54200d083e78e1.
+
+BUG017 static result: perimeter payload SHA-256 66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae; 24 row-address identities pass; 92 coordinates; 1,702 changed bytes in a 5,751-byte payload; page margin 2,441; 690 paired stores; the five-stride mutation is rejected. `python3 fit-scratch/entry_order_check.py` exited 0 and verifies entry audio before rendering plus bypass of normal mutation/input. The whole `verify_enemy_runtime.py` command remains a recorded failure at an existing line-121 DOC002 comment false positive before its updated order assertion; the focused order check is separate passing evidence and the whole CLI is not claimed as passing.
+
+Emitted-code review
+
+The nonadaptive main listing confirms the long branch encodings at $C1C9 (LBEQ to $C251), $C1D4 (LBNE to $C27F), and $C1E9 (LBNE to $C27F); all displacements are in range. The release path's short branch at $C210 reaches $C27F with +109, and other reviewed short exits also resolve to their intended labels. The new LBSR at $C1F8 reaches `hud_fb_address` at $C59E with +931. The five shortened audio calls emitted at $A1A4/$A1DC/$A221/$A23C/$A57D have signed displacements +112/+56/-13/+9/+60 to their intended helpers. The HUD row change removes `LEAY cell_row_addresses,PCR`; it adds no PCR-relative reference, and all 24 row identities pass.
+
+In the adaptive listing, the state callback at $04B5 calls `initial_entry_tick`, then branches at $04B8 to the existing `atb_popup_publish` path; that path sets A=1 and exits through `atb_done`, preventing same-batch normal movement/enemy mutation. Audio writes post-PSG music-busy state to $02D4 after `audio_music_busy`; resident entry only reads the completed snapshot.
+
+Rejected attempts and residual gates
+
+Earlier intermediate failures included an undefined symbol, two short-branch overflows, an adaptive payload two bytes over its limit, an obsolete dead-label source guard, a reversed HUD fixture assertion, and unreliable shell exit wrappers. These were retained as failures and are superseded only by the final frozen-input exit-0 receipts. The provenance-disabled diagnostic is rejected and not used as evidence.
+
+Runtime forceability remains unresolved. The timing observations 42,541 and 54,539 cycles exceed the 27,000-cycle target. No emulator or hardware runtime probe was run. Do not mark BUG-117 Done or advance production status from this isolated fit; parent integration and ticket status remain outstanding.

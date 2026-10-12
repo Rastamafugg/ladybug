@@ -1,0 +1,437 @@
+{
+  "ticket": "BUG-117",
+  "scope": "Ready isolated fit only; no production integration or runtime acceptance",
+  "candidate_baseline": {
+    "production_source_pin": "7cdc53f",
+    "patch_base_head": "b01b45ed09a294a25b637c7bda1a0be77ce3a0a3",
+    "patch_base_note": "Shared HEAD moved from f3dd15abc770... to b01b45ed09a2... during a docs-only parent commit; full source-reference input-set digests remain equal.",
+    "capsule_raw_sha256": {
+      "src/main.s": "d14c6bb2bad7aac784ea6ef9d04ecec23274d9fbd4e85e5e2b379d484911fa14",
+      "src/audio_runtime.s": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+      "src/adaptive_active.s": "af39bc47cd753f35831e828d747ecd7776a71cf61d52f4402ff1b1096d6fd1ec",
+      "src/adaptive_audio_service.s": "aef4eb0eeb280f2d9eaa01287d5518d691ce825a87f9e3f7f2f97eed4e4904a3",
+      "scripts/source_reference.json": "efee2c9632bc16aa0975456094eb11a7636f1476e16265d8c8be346668b3e5b2",
+      "scripts/verify_enemy_runtime.py": "de71921660925a6d56f724b9540bfa48d3cd003e1969298cc1a524bfde2a68ce",
+      "scripts/verify_arcade_fidelity.py": "88666f3c6e6a6f8a045e71b1c5e24cd6b1c6194606286f563b682de79d510161",
+      "scripts/verify_bug017_perimeter_vertical_stride.py": "cf908de88f191cd3a28f7b501bb24ae8ca57c53f57951af322a68314a3e5acc6",
+      "wiki/internal/implementation/source-structure.html": "fc6e15c994ed39a97083ffdf486f0461449cf42d6d90b2cf7956da82ceecdefb",
+      "wiki/internal/implementation/routine-catalog.html": "451a6c52175c526a974043199b625ecc21a4c1f5e85f3c354470ed1b0f152cdd"
+    }
+  },
+  "source_patch": {
+    "path": "wiki/internal/tickets/evidence/bug117/approved-fit-source.patch",
+    "sha256": "4f4765d5c066a607bdb3a46f0d9f855f97005473cbe45f5a530f5cedf117b1ee",
+    "bytes": 48773,
+    "apply_check": "PASS: git apply --check --ignore-space-change",
+    "line_endings": "LF-normalized unified diff; candidate capsule source hashes are raw-file SHA-256 values.",
+    "changed_paths": [
+      "src/main.s",
+      "src/audio_runtime.s",
+      "src/adaptive_active.s",
+      "src/adaptive_audio_service.s",
+      "scripts/source_reference.json",
+      "scripts/verify_enemy_runtime.py",
+      "scripts/verify_arcade_fidelity.py",
+      "scripts/verify_bug017_perimeter_vertical_stride.py",
+      "wiki/internal/implementation/source-structure.html",
+      "wiki/internal/implementation/routine-catalog.html"
+    ]
+  },
+  "full_builds": {
+    "keyboard_adaptive1": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "tool_exit_code": 0,
+      "full_build_pass": true,
+      "source_reference_revision": "f3dd15abc770d5736ef70f2f00a41c88eb5c97ca",
+      "measurements": {
+        "resident_bytes": 8082,
+        "resident_limit": 8192,
+        "resident_free": 110,
+        "resident_required_free": 32,
+        "enemy_runtime_bytes": 4091,
+        "enemy_runtime_limit": 4096,
+        "audio_engine_bytes": 727,
+        "audio_engine_limit": 920,
+        "audio_page_3d_reserved_bytes": 6656,
+        "audio_page_3d_limit": 6656,
+        "audio_transport_page_3d_bytes": 7824,
+        "page_3d_transport_limit": 8192,
+        "keybinding_bytes": 1168,
+        "assets_bytes": 7663,
+        "assets_limit": 7680,
+        "resident_headroom_over_required_minimum": 78
+      },
+      "selected_artifact_sha256": {
+        "ladybug.rom": "039a4f6d622ff979e1a46e4c651d1940573c3ef2be7346b908435ba9a8244b68",
+        "ladybug-runtime.rom": "d21f241f052fd77ac2b44299fc6c73ffc78cf3534f40569cfe77d78ad6ba3473",
+        "ladybug.lst": "7e64f4abf1f60a7f31c48b0e12619701abeb0ae202f5829ffd328fd73c1b0e0a",
+        "ladybug.map": "179db1c42dd47c4403c36339848fc011e8fe0e74fe26ffac5afc199571526ad9",
+        "ladybug-audio-runtime.bin": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+        "ladybug-audio-runtime.lst": "1664e18d5edb0a23a125bffdfdfdcf252c6cef9f6f015a6d15484f3dfb48882a",
+        "ladybug-audio-runtime.map": "89d06c1383189e791c9f7e29401c71d261c1132b7778e225adf203774746b569",
+        "ladybug-keybinding-runtime.bin": "9f829e799f80902a425c7219cf10c751e78cb4b2fe05de396ab43ebdd19c724c",
+        "ladybug-enemy-runtime.rom": "5f36b093bcc4c93d44b1fb40e74651ccbd84694c2d31ff610b41102c45412519",
+        "ladybug-sparse-layout.json": "1d221bf09dcc8fc914af3a7157e6ad1e59fba8d20c3fe47e688b0263404a769d",
+        "source-build-receipt.json": "e984f03d9421454b8a2dd440a2c7176a2b4f0ef99088c844a8acbedf704710f7"
+      }
+    },
+    "joystick_adaptive1": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "tool_exit_code": 0,
+      "full_build_pass": true,
+      "source_reference_revision": "b01b45ed09a294a25b637c7bda1a0be77ce3a0a3",
+      "measurements": {
+        "resident_bytes": 8118,
+        "resident_limit": 8192,
+        "resident_free": 74,
+        "resident_required_free": 32,
+        "enemy_runtime_bytes": 4091,
+        "enemy_runtime_limit": 4096,
+        "audio_engine_bytes": 727,
+        "audio_engine_limit": 920,
+        "audio_page_3d_reserved_bytes": 6656,
+        "audio_page_3d_limit": 6656,
+        "audio_transport_page_3d_bytes": 7829,
+        "page_3d_transport_limit": 8192,
+        "keybinding_bytes": 1173,
+        "assets_bytes": 7663,
+        "assets_limit": 7680,
+        "resident_headroom_over_required_minimum": 42
+      },
+      "selected_artifact_sha256": {
+        "ladybug.rom": "5c5218b19c21e98d43c7c9b273070b2d30d74187e0756608119c39d9ce900a91",
+        "ladybug-runtime.rom": "35111c6c39f83dcaf3e2feb3c18d10ccda49ad7fcdbe510e57205362a9084ec8",
+        "ladybug.lst": "7a1091ffe568c12ec9a82595738f43fe1cfda28edd373281e6110744bae02e09",
+        "ladybug.map": "567a785f4fe3b6648dcc1dd60098ad82b70ebb0b4a1d2166f10826d2fb907d4a",
+        "ladybug-audio-runtime.bin": "e054b8a576deaf0315bd747171536ca7e9b3d799b4b9eacb2c256f698438a9de",
+        "ladybug-audio-runtime.lst": "6948c6dcccb210966be8e1f2543b0edc794697272177984085fcc2df1cbd3200",
+        "ladybug-audio-runtime.map": "89d06c1383189e791c9f7e29401c71d261c1132b7778e225adf203774746b569",
+        "ladybug-keybinding-runtime.bin": "99a8fd930947f5bd88557ace4fb045fec351357e27a4fdeb62ebf3563482cde0",
+        "ladybug-enemy-runtime.rom": "25ecd3f5f94a8e6dd7cecf9f4f1e73a43aac856c1397c22882e93615489cdf3f",
+        "ladybug-sparse-layout.json": "2acc8f3f5efc28a327fc40bcb7a545f57f6d73d54ccbab40f22ceb76b7c8dc83",
+        "source-build-receipt.json": "f5567abce35f58e6869f977460a65343d6f493c7014cfd6bda206b4d378124b0"
+      }
+    },
+    "keyboard_nonadaptive": {
+      "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build",
+      "tool_exit_code": 0,
+      "full_build_pass": true,
+      "source_reference_revision": "b01b45ed09a294a25b637c7bda1a0be77ce3a0a3",
+      "measurements": {
+        "resident_bytes": 8150,
+        "resident_limit": 8192,
+        "resident_free": 42,
+        "resident_required_free": 32,
+        "enemy_runtime_bytes": 4091,
+        "enemy_runtime_limit": 4096,
+        "audio_engine_bytes": 727,
+        "audio_engine_limit": 920,
+        "audio_page_3d_reserved_bytes": 5677,
+        "audio_page_3d_limit": 6656,
+        "audio_transport_page_3d_bytes": 7824,
+        "page_3d_transport_limit": 8192,
+        "keybinding_bytes": 1168,
+        "assets_bytes": 7622,
+        "assets_limit": 7680,
+        "resident_headroom_over_required_minimum": 10
+      },
+      "selected_artifact_sha256": {
+        "ladybug.rom": "87fe44d959d361201e243d42472c579ee87db89717bcd22a4ebddeeb1ee75464",
+        "ladybug-runtime.rom": "13139f80efa3bd06d7ad32bf057d239fa088d4e83ac1f8c2b98ea0fc8457a1f2",
+        "ladybug.lst": "198e817d2ff87def6417a41288f8de3df9fc61c4d3b2b910678e7b515c7c8814",
+        "ladybug.map": "97618e26cf91a00cdd96c7ad668195b45251b725d4243555e50218ddfc78dd06",
+        "ladybug-audio-runtime.bin": "8f6bac6033560ea1d0c3e09fb413db49883a24b5a59b5c4fcf4577ea91386515",
+        "ladybug-audio-runtime.lst": "2f7992d3c29d72f9d3d5d0bc20ea9c5ebe1c782b0e405126e9e87a1c74d33e29",
+        "ladybug-audio-runtime.map": "791e3d79a64e62397d997c28971c4e54e1a3f65aa922e2a5323e5cd07866bfe1",
+        "ladybug-keybinding-runtime.bin": "9f829e799f80902a425c7219cf10c751e78cb4b2fe05de396ab43ebdd19c724c",
+        "ladybug-enemy-runtime.rom": "cff43e0b45be61a43c425c80b20c18ee74f565bf466da35c87a5b1f4fa834ec1",
+        "ladybug-sparse-layout.json": "6fcf56685da910deb0b141f1ecd61182d1d8e3fe3ae4d644e370b5e4159d9626",
+        "source-build-receipt.json": "97c01657417a47d77f3ff403201fd62d4044f0d312c0cfea69f4a54e4045db49"
+      }
+    }
+  },
+  "provenance_comparison": {
+    "source_reference_input_count": 265,
+    "same_sorted_path_hash_set_all_profiles": true,
+    "same_source_reference_input_set_sha256": "ee51c366dab223b24b046d57a642441c54b27860b90ba0d568fa61322b38b3ed",
+    "input_paths_not_listed_as_generated_count": 264,
+    "same_non_generated_input_set_sha256": "02fc8778411ac77aa28e170f7eee6fa879a649cd71c615e0695082fb3f4cb00b",
+    "captured_authored_subset_count": 37,
+    "same_captured_authored_subset_set_sha256": "d74fb466c317264de3f88fe13a80d88f7fccea70ff69e81b59d9e9231f714698",
+    "per_profile_generated_and_artifact_sets": {
+      "keyboard_adaptive1": {
+        "source_reference_revision": "f3dd15abc770d5736ef70f2f00a41c88eb5c97ca",
+        "source_reference_input_count": 265,
+        "source_reference_input_set_sha256": "ee51c366dab223b24b046d57a642441c54b27860b90ba0d568fa61322b38b3ed",
+        "input_paths_not_listed_as_generated_count": 264,
+        "input_paths_not_listed_as_generated_set_sha256": "02fc8778411ac77aa28e170f7eee6fa879a649cd71c615e0695082fb3f4cb00b",
+        "generated_input_record_count": 4,
+        "generated_input_record_set_sha256": "1601a77bc45396f25f72101e8a0889a04ccfc0ca0868d4125460ccc9a93f213a",
+        "generated_input_records_overlapping_inputs_count": 1,
+        "generated_input_records_outside_inputs_count": 3,
+        "artifact_count": 87,
+        "artifact_set_sha256": "6983a1b9685344081f814d4c413de9151768e7e4b61826fc0efb76676bda609f",
+        "captured_authored_subset_count": 37,
+        "captured_authored_subset_set_sha256": "d74fb466c317264de3f88fe13a80d88f7fccea70ff69e81b59d9e9231f714698"
+      },
+      "joystick_adaptive1": {
+        "source_reference_revision": "b01b45ed09a294a25b637c7bda1a0be77ce3a0a3",
+        "source_reference_input_count": 265,
+        "source_reference_input_set_sha256": "ee51c366dab223b24b046d57a642441c54b27860b90ba0d568fa61322b38b3ed",
+        "input_paths_not_listed_as_generated_count": 264,
+        "input_paths_not_listed_as_generated_set_sha256": "02fc8778411ac77aa28e170f7eee6fa879a649cd71c615e0695082fb3f4cb00b",
+        "generated_input_record_count": 4,
+        "generated_input_record_set_sha256": "1601a77bc45396f25f72101e8a0889a04ccfc0ca0868d4125460ccc9a93f213a",
+        "generated_input_records_overlapping_inputs_count": 1,
+        "generated_input_records_outside_inputs_count": 3,
+        "artifact_count": 87,
+        "artifact_set_sha256": "1fbb1415ee473623fac21dafb965223ecb4143292288a8ae99a24cc07b173175",
+        "captured_authored_subset_count": 37,
+        "captured_authored_subset_set_sha256": "d74fb466c317264de3f88fe13a80d88f7fccea70ff69e81b59d9e9231f714698"
+      },
+      "keyboard_nonadaptive": {
+        "source_reference_revision": "b01b45ed09a294a25b637c7bda1a0be77ce3a0a3",
+        "source_reference_input_count": 265,
+        "source_reference_input_set_sha256": "ee51c366dab223b24b046d57a642441c54b27860b90ba0d568fa61322b38b3ed",
+        "input_paths_not_listed_as_generated_count": 264,
+        "input_paths_not_listed_as_generated_set_sha256": "02fc8778411ac77aa28e170f7eee6fa879a649cd71c615e0695082fb3f4cb00b",
+        "generated_input_record_count": 1,
+        "generated_input_record_set_sha256": "1ce62c72e9d0923d4b7f29e1e475f857931638b6c8ffe9803e7186a26ef3f00d",
+        "generated_input_records_overlapping_inputs_count": 1,
+        "generated_input_records_outside_inputs_count": 0,
+        "artifact_count": 87,
+        "artifact_set_sha256": "a6ae3309216687a84e64723712a837faa77bdb100372b032724ab363cec3af01",
+        "captured_authored_subset_count": 37,
+        "captured_authored_subset_set_sha256": "d74fb466c317264de3f88fe13a80d88f7fccea70ff69e81b59d9e9231f714698"
+      }
+    },
+    "classification_note": "The receipt's generated_inputs map has four records in adaptive profiles and one in nonadaptive. Exactly one generated record overlaps the 265 source-reference inputs; the other three adaptive records are outside that map. The 37-path authored_input_hashes field is only a subset; full-set equality is established by the 265-path sorted path/hash digest."
+  },
+  "targeted_static_checks": {
+    "command": "python3 fit-scratch/run_targeted_static_checks.py",
+    "exit_code": 0,
+    "verify_hud_rows": "PASS",
+    "bug017_static_contract": "PASS",
+    "result_sha256": "fb870ca8085e8b02ccb60ba113feebec0799b2e3cdffbbe79d4ac6c2af278b0d",
+    "hud": {
+      "fixed_coordinates": {
+        "score_complete": "$250B",
+        "score_legacy": "$260B",
+        "vegetable": "$230D",
+        "player_initial_cell": "$0C16",
+        "credit_dynamic_destination": "$2109",
+        "multiplier_dynamic_destination": "$2107"
+      },
+      "credit_placeholder_fixture": {
+        "layer": "HUD Placeholders",
+        "column_zero_based": 33,
+        "credit_row_zero_based": 9,
+        "credit_gid": 497,
+        "credit_expected_gid": 497,
+        "next_row_zero_based": 10,
+        "next_row_gid": 0,
+        "next_row_expected_gid": 0,
+        "current_tmx_sha256": "f1951fe2ac122e7063cbe63991f60ffd6a0e6a303bf7a92cdf54200d083e78e1"
+      },
+      "source_contract": "Complete profile #$250B; legacy profile #$260B; shared HUD_X store; multiplier remains at y=7."
+    },
+    "bug017": {
+      "command_scope": "static_contract(payload) only; main() not invoked",
+      "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+      "coordinates": 92,
+      "changed_bytes": 1702,
+      "payload_bytes": 5751,
+      "page_margin_bytes": 2441,
+      "paired_store_opcodes": 690,
+      "semantic_row_bases": [
+        8192,
+        9472,
+        10752,
+        12032,
+        13312,
+        14592,
+        15872,
+        17152,
+        18432,
+        19712,
+        20992,
+        22272,
+        23552,
+        24832,
+        26112,
+        27392,
+        28672,
+        29952,
+        31232,
+        32512,
+        33792,
+        35072,
+        36352,
+        37632
+      ],
+      "row_identity_count": 24,
+      "five_stride_mutation_rejected": true
+    },
+    "entry_order_static_check": {
+      "command": "python3 fit-scratch/entry_order_check.py",
+      "exit_code": 0,
+      "result": "PASS: entry audio before render; bypasses normal mutation/input path"
+    },
+    "whole_enemy_cli": {
+      "result": "FAILED earlier at pre-existing line 121 DOC002 comment false positive before the updated entry-order assertion executes.",
+      "entry_order_assertion": "Separate focused static check passed; whole CLI is not claimed as passing."
+    }
+  },
+  "emitted_code_review": {
+    "nonadaptive_listing_sha256": "198e817d2ff87def6417a41288f8de3df9fc61c4d3b2b910678e7b515c7c8814",
+    "main_relative_branches": [
+      {
+        "address": "$C132",
+        "bytes": "26 04",
+        "target": "$C138 main_entry_render",
+        "range": "short +4"
+      },
+      {
+        "address": "$C188",
+        "bytes": "26 AE",
+        "target": "$C138 main_entry_render",
+        "range": "short -82"
+      },
+      {
+        "address": "$C1C9",
+        "bytes": "10 27 00 84",
+        "target": "$C251 iet_maze_entry",
+        "range": "long +132"
+      },
+      {
+        "address": "$C1D4",
+        "bytes": "10 26 00 A7",
+        "target": "$C27F iet_done",
+        "range": "long +167"
+      },
+      {
+        "address": "$C1E9",
+        "bytes": "10 26 00 92",
+        "target": "$C27F iet_done",
+        "range": "long +146"
+      },
+      {
+        "address": "$C210",
+        "bytes": "27 6D",
+        "target": "$C27F iet_done",
+        "range": "short +109"
+      },
+      {
+        "address": "$C23B",
+        "bytes": "26 42",
+        "target": "$C27F iet_done",
+        "range": "short +66"
+      },
+      {
+        "address": "$C23F",
+        "bytes": "26 3E",
+        "target": "$C27F iet_done",
+        "range": "short +62"
+      },
+      {
+        "address": "$C259",
+        "bytes": "27 24",
+        "target": "$C27F iet_done",
+        "range": "short +36"
+      },
+      {
+        "address": "$C27B",
+        "bytes": "26 02",
+        "target": "$C27F iet_done",
+        "range": "short +2"
+      }
+    ],
+    "main_relative_call": {
+      "address": "$C1F8",
+      "bytes": "17 03 A3",
+      "target": "$C59E hud_fb_address",
+      "range": "long +931"
+    },
+    "audio_short_calls": [
+      {
+        "address": "$A1A4",
+        "bytes": "8D 70",
+        "target": "$A216 audio_slot_base",
+        "range": "short +112"
+      },
+      {
+        "address": "$A1DC",
+        "bytes": "8D 38",
+        "target": "$A216 audio_slot_base",
+        "range": "short +56"
+      },
+      {
+        "address": "$A221",
+        "bytes": "8D F3",
+        "target": "$A216 audio_slot_base",
+        "range": "short -13"
+      },
+      {
+        "address": "$A23C",
+        "bytes": "8D 09",
+        "target": "$A247 audio_advance_slot",
+        "range": "short +9"
+      },
+      {
+        "address": "$A57D",
+        "bytes": "8D 3C",
+        "target": "$A5BB audio_mix_slot",
+        "range": "short +60"
+      }
+    ],
+    "adaptive_release_barrier": {
+      "observed_bytes": [
+        "04B5 BD C1 75 JSR initial_entry_tick",
+        "04B8 20 17 BRA atb_popup_publish",
+        "04D1 86 01 LDA #1",
+        "04D3 20 3C BRA atb_done"
+      ],
+      "meaning": "Entry callback cannot fall through to same-batch normal player/enemy mutation; it takes the forced publication path and returns the continuation status."
+    },
+    "audio_status": {
+      "symbol": "$02D4 AUDIO_MUSIC_PUBLISHED_BUSY",
+      "writer": "Audio runtime calls audio_music_busy at $A492, stores its post-PSG result at $A495.",
+      "reader": "Resident entry checks $02D4; no resident write."
+    },
+    "pcr_review": "The changed HUD row lookup removes LEAY cell_row_addresses,PCR; no new PCR-relative operand appears in the approved source diff. All 24 row address identities pass."
+  },
+  "capacity_projection_comparison": {
+    "earlier_projected_resident_bytes": [
+      8093,
+      8129,
+      8157
+    ],
+    "measured_resident_bytes": [
+      8082,
+      8118,
+      8150
+    ],
+    "projection_is_not_measurement": true,
+    "minimum_measured_free": 42,
+    "required_free": 32,
+    "worst_profile_margin_over_required_free": 10
+  },
+  "historical_nonpass_attempts": [
+    "An early assembly attempt had an undefined status symbol; the approved EQU was added.",
+    "Two short branch range errors were widened to long branches and charged in the fit.",
+    "An earlier adaptive payload measured 6,658/6,656; the reviewed existing publication path was reused to reach the measured 6,656 limit.",
+    "The source-contract guard rejected an unreferenced dead label; the zero-byte label was removed.",
+    "A provenance-disabled diagnostic and shell wrappers with unreliable exit capture were rejected; final builds used ordinary provenance-enabled direct commands.",
+    "The initial HUD checker run failed on reversed stale credit placeholder expectations; producer/consumer and pinned TMX evidence justified correcting only those two checker assertions."
+  ],
+  "remaining_gates": {
+    "runtime_forceability": "Unresolved; no emulator or hardware launch in this fit step.",
+    "timing_cycles_observed": [
+      42541,
+      54539
+    ],
+    "timing_target_cycles": 27000,
+    "timing_status": "FAIL; measured cases remain above target.",
+    "ticket_status": "Production remains Approved, not Ready; parent owns integration and ticket status."
+  }
+}
