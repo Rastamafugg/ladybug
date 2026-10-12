@@ -1,0 +1,218 @@
+{
+  "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
+  "files": {
+    "ladybug.rom": {
+      "bytes": 65536,
+      "sha256": "87fe44d959d361201e243d42472c579ee87db89717bcd22a4ebddeeb1ee75464"
+    },
+    "ladybug-runtime.rom": {
+      "bytes": 16384,
+      "sha256": "13139f80efa3bd06d7ad32bf057d239fa088d4e83ac1f8c2b98ea0fc8457a1f2"
+    },
+    "ladybug.map": {
+      "bytes": 145671,
+      "sha256": "97618e26cf91a00cdd96c7ad668195b45251b725d4243555e50218ddfc78dd06"
+    },
+    "ladybug-audio-runtime.bin": {
+      "bytes": 5677,
+      "sha256": "8f6bac6033560ea1d0c3e09fb413db49883a24b5a59b5c4fcf4577ea91386515"
+    },
+    "ladybug-audio-runtime.map": {
+      "bytes": 33679,
+      "sha256": "791e3d79a64e62397d997c28971c4e54e1a3f65aa922e2a5323e5cd07866bfe1"
+    },
+    "ladybug-enemy-runtime.rom": {
+      "bytes": 4091,
+      "sha256": "cff43e0b45be61a43c425c80b20c18ee74f565bf466da35c87a5b1f4fa834ec1"
+    },
+    "ladybug-enemy-runtime.map": {
+      "bytes": 80548,
+      "sha256": "d98e25f4e734c28f09740d0181db4da2a40886248ef2d48e21fe9434e6ce258f"
+    }
+  },
+  "candidate_sources": {
+    "main.s": {
+      "sha256": "d14c6bb2bad7aac784ea6ef9d04ecec23274d9fbd4e85e5e2b379d484911fa14",
+      "patterns_checked": [
+        "DEATH_TIMER\\s+equ\\s+\\$003A",
+        "iet_final_wait"
+      ]
+    },
+    "audio_runtime.s": {
+      "sha256": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+      "patterns_checked": [
+        "lda\\s+,u\\s+sta\\s+2,y",
+        "lda\\s+2,x\\s+bita\\s+#1",
+        "audio_mix_write_done\\s+jsr\\s+audio_music_busy\\s+sta\\s+AUDIO_MUSIC_PUBLISHED_BUSY",
+        "audio_write\\s+sta\\s+SND_DATA",
+        "audio_command_end\\s+lda\\s+#\\$FF\\s+sta\\s+,y\\s+rts"
+      ]
+    },
+    "enemy_runtime.s": {
+      "sha256": "c812d91727f46a15ee4e76c8aa73eb8815c6dd524e84a804dfefeb8ef414878e",
+      "patterns_checked": [
+        "fbiq_publish\\s+sta\\s+GIME_VOFF1",
+        "inc\\s+FB_COMMIT_SEQ\\+1"
+      ]
+    }
+  },
+  "mapped_symbols": {
+    "main": {
+      "DEATH_TIMER": 58,
+      "DEATH_STATE": 77,
+      "INITIAL_ENTRY_STATE": 160,
+      "PLAYER_CELL_X": 9,
+      "FB_RENDER_PENDING": 145,
+      "FB_COMMIT_SEQ": 146,
+      "FB_FRONT_ID": 143,
+      "PLAYER_FB": 11,
+      "FB_META_A": 43264,
+      "FB_META_B": 43520
+    },
+    "audio": {
+      "audio_slot0": 46512,
+      "audio_mix_periods": 46624,
+      "audio_mix_atten": 46630,
+      "audio_mix_noise": 46633,
+      "audio_mix_shadow": 46529,
+      "AUDIO_BEST_SLOT": 254,
+      "AUDIO_BEST_PRI": 255,
+      "AUDIO_MUSIC_PUBLISHED_BUSY": 724,
+      "audio_mix_write": 42000,
+      "audio_mix_write_done": 42130,
+      "audio_write": 42137,
+      "audio_command_end": 41682,
+      "gmc_cue_descriptors": 43026,
+      "gmc_cue_stream_06": 44328,
+      "gmc_cue_stream_13": 45686,
+      "gmc_sound_data_end": 46504
+    },
+    "enemy": {
+      "fbiq_publish": 3788
+    }
+  },
+  "cue_descriptors": {
+    "cue6_hex": "b3f0e01bad280700",
+    "cue6_policy": "exclusive, $B3, priority 5, voice mask $07",
+    "cue13_hex": "d3a0e01fb2760300",
+    "cue13_policy": "exclusive, $D3, priority 6"
+  },
+  "emitted_stream_boundaries": {
+    "cue6": {
+      "terminator_offset": 3704,
+      "terminal_next_offset": 3705,
+      "command_count": 101,
+      "terminator": 0,
+      "stream_start": 44328,
+      "terminator_address": 44664,
+      "terminal_x_expected": 44665
+    },
+    "cue13": {
+      "terminator_offset": 5090,
+      "terminal_next_offset": 5091,
+      "command_count": 110,
+      "terminator": 0,
+      "stream_start": 45686,
+      "terminator_address": 46050,
+      "terminal_x_expected": 46051
+    }
+  },
+  "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
+  "runtime_probe_performed": false,
+  "runtime_ready": false,
+  "blocked_observable": "The guarded offline preparation and write permit are implemented; the live event loop that qualifies actual $FF51 stores, terminal stream-end continuity, post-PSG busy publication, IRQ/FRONT pixel identity, and release ordering is not yet implemented. No runtime pass is asserted.",
+  "scenario": "natural",
+  "prepared_at": "pre-runtime; no emulator launch and no target writes",
+  "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
+  "deadlines_seconds": {
+    "each_phase": 45,
+    "monitor_stop_wait_max": 10
+  },
+  "exact_runtime_command_shape": "python runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-scenario-dir> --scenario <natural|front-first|music-first|prior-music>",
+  "acceptance_proofs_required": [
+    "first_cue6_owned_psg_transaction",
+    "first_post_psg_busy_one",
+    "cue6_terminal_stream_end_owned",
+    "terminal_actual_psg_mute_transaction",
+    "terminal_post_psg_busy_zero",
+    "final_pose_in_front_after_irq_commit",
+    "release_after_audio_and_front_commit",
+    "no_same_batch_player_or_enemy_mutation"
+  ],
+  "preparation_status": "PARTIAL; production runtime observer is not Ready",
+  "observer_script_sha256": "72914f717f39090de261b729c962e650aac9535fe103bae07528de61f55b5b09",
+  "runtime_directory_copy_sha256": "72914f717f39090de261b729c962e650aac9535fe103bae07528de61f55b5b09",
+  "offline_verification": {
+    "py_compile": "PASS",
+    "cli_help": "PASS",
+    "self_test": {
+      "result": "PASS",
+      "negative_checks": 158,
+      "target_write_calls": "fake client only",
+      "emulator_launches": 0,
+      "target_writes": 0
+    },
+    "guarded_import_no_launch": "PASS",
+    "prepare_only": {
+      "natural": "PREPARED_WITH_BLOCKER",
+      "front-first": "PREPARED_WITH_BLOCKER",
+      "music-first": "PREPARED_WITH_BLOCKER",
+      "prior-music": "PREPARED_WITH_BLOCKER"
+    },
+    "static_candidate_source_map_and_binary_checks": "PASS for the named accepted-fit candidate only; not the integrated production build",
+    "runtime_probe_or_build_or_git_operation": "NONE"
+  },
+  "reproduction_commands_run": [
+    "python -m py_compile wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py",
+    "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --help",
+    "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --self-test",
+    "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build repro/bug122-parent/luna117-approved-fit-20261011/build --output-dir repro/bug122-parent/luna117-runtime --scenario natural --prepare-only",
+    "Same --prepare-only command repeated for --scenario front-first, music-first, and prior-music.",
+    "Guarded import via importlib with module registered in sys.modules; PASS, no XRoar subprocess created."
+  ],
+  "safety_contract_prepared": {
+    "natural": "no target writes, including no timer writes",
+    "forced": "one write attempt maximum for map-resolved DEATH_TIMER $003A in each fresh scenario; only front-first=0, music-first=255, prior-music=0",
+    "front_first_guards": "state3, x320, deathstate0, pending0, both player-valid ledgers0, cue6 slot0 id6/policy B3/priority5, mixer best slot0/priority5, selected audible source channel and actual write/mix match, busy1; front-first also requires a measured positive numeric pad and cadence viability",
+    "prior_music_guards": "entry inactive, deathstate3/timer37, positive numeric lives, genuine enemy-contact proof, cue13 slot0 id13/policy D3/priority6, mixer best slot0/priority6, selected audible source channel and actual write/mix match, published busy1",
+    "negative_fixtures": "all absent/false/mismatched common guards rejected; numeric pad/lives and audible-channel absence rejected; wrong address/value, foreign permit, and second write rejected",
+    "live_guard_requalification": "Not implemented: the future live adapter must re-read and requalify every approved guard at the same paused monitor stop immediately before the one $003A write; no caller booleans or stale Permit may authorize it."
+  },
+  "source_derived_event_facts": {
+    "cue6": "linked descriptor B3 F0 E0 1B AD 28 07 00; policy B3 is exclusive, priority5, voice mask07; selected audible voice minimum is one, not fixed at three",
+    "cue13": "linked descriptor D3 A0 E0 1F B2 76 03 00; exclusive priority6, voice mask03",
+    "cue6_terminal": "decoded 101 emitted commands from linked cue6 stream $AD28; emitted zero terminator at $AE78; audio_command_end must be observed with slot0 still cue6 and X=$AE79. This endpoint was derived from command lengths and linked bytes, not a next-label assumption.",
+    "PSG": "audio_mix_write entry arrays/shadow and selected slot map are needed to derive the complete expected bus transaction. audio_mix_write writes every tone latch even muted. Credit cue6 output only when the actual FF51 A-byte sequence matches the model and at least one actual period/attenuation store belongs to a selected audible cue6 voice; a latch alone is insufficient.",
+    "post_mix": "audio_mix_write_done is $A492; PC $A498 is after JSR audio_music_busy and STA $02D4. Read actual published busy only at this post-PSG boundary.",
+    "IRQ_FRONT": "fbiq_publish is $0ECC. Source layout places INC $0093 at $0ED9 and its post-increment PC at $0EDB. Require live module-byte/map qualification, the actual sequence write, current front ID, matching valid player metadata/pointer, framebuffer bytes, and release after audio+front commit."
+  },
+  "existing_controls_audited": {
+    "monitor_client_template": "scripts/verify_bug009_monitor_input.py: MonitorClient.call and halted monitor JSON-RPC controls",
+    "monitor_source": "docs/reference/xroar/src/monitor.c: set_watchpoint accepts kind w/addr/length; wait_for_stop returns reason and PC, but not the watched address; read_registers/read_memory/write_memory are existing methods",
+    "watchpoint_discrimination": "No new monitor method is required. Classify FF51 from qualified post-STA PC audio_write+3 with PAR5 page3D and A byte. Classify $0093 from qualified post-increment PC at the enemy module event. Unknown stop PCs fail closed.",
+    "launch_boundary": "No monitor client or Run class is imported. The current script has no live-run path and cannot launch XRoar."
+  },
+  "exact_missing_runtime_adapter": [
+    "Add an explicit run-live gate and a direct guarded monitor session using existing MonitorClient controls; do not import/construct the legacy Run wrapper during import or offline commands.",
+    "Implement bounded stop pump (each named phase <=45 seconds; each wait_for_stop <=10 seconds), source/map/live-byte qualification, and event classification for entry boundary, audio mix batches, bus watchpoints, post-busy publication, contact/death, and IRQ commit.",
+    "At every audio_mix_write boundary snapshot slots, descriptor/mix-order, periods/attenuation/noise/shadow; compare every actual FF51 A byte and complete transaction. Bridge cue6 zero-command/X endpoint to slot clear, actual terminal mute stores, idle post-publication and absence of competing slot/queue/credit changes.",
+    "Implement regular gameplay input/contact path for the natural chain and prior-music forced scenario; at et_player_death prove actual carry/contact path and live source bytes. Missing contacts or busy overlap must fail, not synthesize state.",
+    "At IRQ publication/release compare both page34 ownership metadata ledgers and actual front physical pixels against the pose oracle; prove release follows final front commit and busy0, with no same-batch player/enemy mutation. Current partial artifact does not make that claim.",
+    "Before the single $003A write in each fresh forced run, pause at the qualified stop and recapture/requalify the complete numeric/map/source/state/audio guard snapshot from that same stop immediately before writing; caller-supplied booleans or a stale Permit are not live authorization."
+  ],
+  "available_offline_commands": [
+    "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --self-test",
+    "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <candidate-build> --output-dir <output-dir> --scenario <natural|front-first|music-first|prior-music> --prepare-only"
+  ],
+  "prospective_runtime_cli_after_adapter_only": {
+    "status": "NOT IMPLEMENTED; commands below are a target interface, not executable runtime commands",
+    "natural": "python runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-natural-dir> --scenario natural --run-live --xroar-binary <patched-xroar>",
+    "front-first": "python runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-front-first-dir> --scenario front-first --run-live --xroar-binary <patched-xroar>",
+    "music-first": "python runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar>",
+    "prior-music": "python runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar>",
+    "phase_deadline_seconds": 45,
+    "monitor_stop_wait_max_seconds": 10,
+    "timeout_meaning": "named marker/order was not observed inside its phase; it is not evidence of target slowness"
+  },
+  "ready_verdict": "NO. Offline preparation and fixture-write gating are reviewable, but required live event and pixel evidence capture is absent. The fixture permit is not live authorization: the future adapter must requalify all guards on the same paused stop immediately before the single timer write. Keep production Ready blocked pending parent source/control review and the bounded adapter step."
+}
