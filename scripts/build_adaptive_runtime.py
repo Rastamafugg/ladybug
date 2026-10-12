@@ -9,6 +9,9 @@ def main():
     ap=argparse.ArgumentParser();ap.add_argument('--phase',choices=['core','bindings','audio','link','registry'],required=True);ap.add_argument('--root',type=Path,required=True);ap.add_argument('--build-dir',type=Path,required=True)
     ap.add_argument('--input-joystick',type=int,choices=(0,1),default=0)
     a=ap.parse_args();r=a.root;b=a.build_dir;b.mkdir(parents=True,exist_ok=True)
+    def display_path(path):
+        try:return Path(path).relative_to(r).as_posix()
+        except ValueError:return str(path)
     extension=json.loads((r/'scripts/source_reference_adaptive.json').read_text())
     if a.phase=='registry':
         config=json.loads((r/'scripts/source_reference.json').read_text())
@@ -26,6 +29,7 @@ def main():
         path=b/(name+'.s');path.write_text(header+source)
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'prepare',str(r),str(b),str(path)],check=True)
         command=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-I',str(b),'-I',str(r/'src'),'--output='+str(b/(name+'.bin')),'--map='+str(b/(name+'.map')),'--list='+str(b/(name+'.lst')),str(path)]
+        print(f"build: assemble [adaptive {a.phase} generated module] {display_path(path)} -> {display_path(b/(name+'.bin'))}",flush=True)
         subprocess.run(command,check=True)
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*command[1:]],check=True)
         size=(b/(name+'.bin')).stat().st_size
@@ -41,11 +45,13 @@ def main():
         before=symbols(b/'ladybug.map')
         subprocess.run(['python3',__file__,'--phase','bindings','--root',str(r),'--build-dir',str(b)],check=True)
         audio_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-I',str(b),'-I',str(r/'src'),'-I',str(r/'assets/arcade/audio'),'--output='+str(b/'ladybug-audio-runtime.bin'),'--map='+str(b/'ladybug-audio-runtime.map'),'--list='+str(b/'ladybug-audio-runtime.lst'),str(r/'src/audio_runtime.s')]
+        print(f"build: assemble [adaptive link final audio runtime] {display_path(r/'src/audio_runtime.s')} -> {display_path(b/'ladybug-audio-runtime.bin')}",flush=True)
         subprocess.run(audio_cmd,check=True)
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*audio_cmd[1:]],check=True)
         inc=b/'ladybug_audio_symbols.inc';inc.write_text('\n'.join(line for line in inc.read_text().splitlines() if not line.startswith(('AUDIO_ADAPTIVE_','AUDIO_RUNTIME_BYTES')))+'\n'+f'AUDIO_RUNTIME_BYTES equ {(b/"ladybug-audio-runtime.bin").stat().st_size}\n')
         audio_symbols()
         main_cmd=['lwasm','-9','--format=raw','-DADAPTIVE_RENDERING=1','-DBUG011_DEVELOPMENT_PROFILE=1','-DCOMPLETE_PROFILE=1','-DHIGHSCORE_TEST_PROFILE=0','-DHIGHSCORE_PHASE_HELPER=0','-DPRESENTATION_NAME_ENTRY_DATA=0',f'-DINPUT_JOYSTICK={a.input_joystick}','-I',str(b),'-I',str(r/'src'),'--output='+str(b/'ladybug-runtime.rom'),'--map='+str(b/'ladybug.map'),'--list='+str(b/'ladybug.lst'),str(r/'src/main.s')]
+        print(f"build: assemble [adaptive link final resident image] {display_path(r/'src/main.s')} -> {display_path(b/'ladybug-runtime.rom')}",flush=True)
         subprocess.run(main_cmd,check=True)
         subprocess.run(['python3',str(r/'scripts/source_reference/provenance.py'),'assemble',str(r),str(b),*main_cmd[1:]],check=True)
         after=symbols(b/'ladybug.map')

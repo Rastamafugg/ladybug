@@ -183,9 +183,9 @@ path, target = sys.argv[1], int(sys.argv[2])
 data = open(path, 'rb').read()
 pad = target - len(data)
 if pad < 0:
-    sys.exit(f"build: ROM is {len(data)} bytes â€” exceeds {target} byte cart window")
+    sys.exit(f"build: ROM is {len(data)} bytes - exceeds {target} byte cart window")
 open(path, 'wb').write(data + b'\xff' * pad)
-print(f"build: padded {len(data)} â†’ {target} bytes ({path})")
+print(f"build: padded {len(data)} -> {target} bytes ({path})")
 PY
 }
 
@@ -387,6 +387,19 @@ PY
 }
 
 lwasm() {
+    local source=""
+    local output=""
+    local arg
+    local label="${__ladybug_lwasm_label[0]:-assembly}"
+    for arg in "$@"; do
+        case "$arg" in
+            --output=*) output="${arg#--output=}" ;;
+            *.s) source="$arg" ;;
+        esac
+    done
+    source="${source#"$ROOT"/}"
+    output="${output#"$ROOT"/}"
+    printf 'build: assemble [%s] %s -> %s\n' "$label" "${source:-unknown-source}" "${output:-default-output}"
     command lwasm -DADAPTIVE_RENDERING="$ADAPTIVE_RENDERING" "$@"
     if [[ "${SOURCE_REFERENCE_RECORDING:-0}" == 1 ]]; then
         python3 "$ROOT/scripts/source_reference/provenance.py" assemble "$ROOT" "$BUILD_DIR" -DADAPTIVE_RENDERING="$ADAPTIVE_RENDERING" "$@"
@@ -394,6 +407,7 @@ lwasm() {
 }
 
 cmd_build() {
+    local -a __ladybug_lwasm_label=(module)
     [[ -f "$SRC_MAIN" ]] || { echo "build: $SRC_MAIN not found" >&2; exit 1; }
     mkdir -p "$BUILD_DIR"
     SOURCE_REFERENCE_RECORDING=1
@@ -558,6 +572,7 @@ PY
         --tiled-dir "$ROOT/tiled" \
         --manifest "$PRESENTATION_MANIFEST"
 
+    __ladybug_lwasm_label[0]="initial resident image"
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
@@ -571,6 +586,7 @@ PY
           --map="$MAP" \
           -I "$BUILD_DIR" -I "$ROOT/src" \
           "$SRC_MAIN"
+    __ladybug_lwasm_label[0]="module"
 
     guard_layout "$MAP" "$RUNTIME_ROM"
     pad_cart "$RUNTIME_ROM"
@@ -759,6 +775,7 @@ PY
         DEMO_RUNTIME_STAGE_ADDRESS="$AUX_RUNTIME_STAGE_BASE"
     fi
 
+    __ladybug_lwasm_label[0]="provisional presentation runtime"
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
@@ -778,6 +795,7 @@ PY
           --map="$PRESENTATION_MODULE_MAP" \
           -I "$BUILD_DIR" -I "$ROOT/src" \
           "$PRESENTATION_MODULE_SRC"
+    __ladybug_lwasm_label[0]="module"
     guard_presentation_module "$PRESENTATION_MODULE"
 
     python3 - "$PRESENTATION_MODULE_MAP" "$PRESENTATION_SYMBOLS" <<'PY'
@@ -822,6 +840,7 @@ PY
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
         # Resolve the module's cold-pointer entry without pinning a historical PC.
         # All imported resident entries retain the same layout in this link pass.
+        __ladybug_lwasm_label[0]="resident symbol refresh"
         lwasm -9 --format=raw \
             -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
             -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
@@ -832,8 +851,10 @@ PY
             -I "$BUILD_DIR" -I "$ROOT/src" "$SRC_MAIN"
         guard_layout "$MAP" "$RUNTIME_ROM"
         pad_cart "$RUNTIME_ROM"
+        __ladybug_lwasm_label[0]="module"
     fi
 
+    __ladybug_lwasm_label[0]="module"
     lwasm -9 --format=raw \
           -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           -DHIGHSCORE_PHASE_HELPER=0 \
@@ -936,6 +957,7 @@ PY
     fi
     PRESENTATION_TILE_PATCH_STAGE_ADDRESS=\$BF80
 
+    __ladybug_lwasm_label[0]="final presentation runtime"
     lwasm -9 --format=raw \
           -DBUG011_DEVELOPMENT_PROFILE="$BUG011_DEVELOPMENT_PROFILE" \
           -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
@@ -955,6 +977,7 @@ PY
           --map="$PRESENTATION_MODULE_MAP" \
           -I "$BUILD_DIR" -I "$ROOT/src" \
           "$PRESENTATION_MODULE_SRC"
+    __ladybug_lwasm_label[0]="module"
     guard_presentation_module "$PRESENTATION_MODULE"
 
     rm -f "$INSTRUCTION_RUNTIME.new"
