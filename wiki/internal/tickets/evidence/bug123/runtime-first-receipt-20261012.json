@@ -1,0 +1,86 @@
+{
+  "date": "2026-10-12",
+  "rom_sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5",
+  "gdb_session": "697244b6",
+  "phase": "natural demo draw; subsequent natural player reinitialization watch",
+  "deadline_seconds": 45,
+  "target_state_writes": 0,
+  "timeouts": 0,
+  "capture_front_published": false,
+  "level2_reproduced": false,
+  "draw_snapshot": {
+    "pc": "D4F0",
+    "dp": 0,
+    "cell": [
+      12,
+      22
+    ],
+    "step": 0,
+    "player_fb": "88D8",
+    "expected_seed": "89EC",
+    "mode": 4,
+    "entry": 0,
+    "par": [
+      56,
+      44,
+      45,
+      46,
+      47,
+      52
+    ]
+  },
+  "watch_events": [
+    {
+      "post_pc": "CB04",
+      "pointer": "89EC",
+      "cell": [
+        12,
+        22
+      ]
+    },
+    {
+      "post_pc": "A465",
+      "pointer": "88EC",
+      "cell": [
+        12,
+        22
+      ],
+      "par5": 52,
+      "writer_bytes": "0A0B",
+      "effect": "DEC direct $0B; high byte of PLAYER_FB"
+    }
+  ],
+  "live_full_matches": {
+    "resident": true,
+    "enemy": true
+  },
+  "unexpected_command": "GDB finish unavailable in outermost frame; no result inferred",
+  "reassessment": "helper/mapping boundary discovered; stop and source/staged/destination review before another runtime experiment",
+  "captures": {
+    "back.bin": {
+      "bytes": 30720,
+      "sha256": "981f248a039c3fd5abad6171572433959b3a23c26ebde12601a348643406783f"
+    },
+    "enemy.bin": {
+      "bytes": 4091,
+      "sha256": "ad6db3b864a0c41427e18db7e6ea90ecd2df1310e70080969c2a3914b6781d50"
+    },
+    "natural-demo-back.png": {
+      "bytes": 8151,
+      "sha256": "935541a330ffb2f0d051f561a8598e1f561fd3e9188f6875366988fa1ddf8530"
+    },
+    "resident.bin": {
+      "bytes": 8192,
+      "sha256": "7f6af7c9660fae82fd7dfc7fad8e94f504251916a8b902814907416579742bc0"
+    },
+    "watch-dp.bin": {
+      "bytes": 256,
+      "sha256": "e456137078d9ec93cba7e25631e8a62d04730ea06d71d94464bd2f620f6521a3"
+    },
+    "watch-window.bin": {
+      "bytes": 8192,
+      "sha256": "76b5a9cc4f1b845faee650aa0bd312e2927f230dc657107b97da9491793c541a"
+    }
+  },
+  "cleanup": "GDB disconnected/stopped; owned XRoar PID810 terminated"
+}
