@@ -1,0 +1,83 @@
+{
+  "date": "2026-10-12",
+  "kind": "parent source review; no runtime capture",
+  "source_intake_sha256": "2f352c0bf6318516d6ceb985371339271a790e3cd50de4680eb6a1585aaff23b",
+  "artifact_identity": {
+    "src/main.s": {
+      "bytes": 169389,
+      "sha256": "cf21eac087d6fd1f221a422ccd942561f7696c7cbe7aa6418c74515209109ffc"
+    },
+    "src/enemy_runtime.s": {
+      "bytes": 122126,
+      "sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd"
+    },
+    "src/adaptive_active.s": {
+      "bytes": 9033,
+      "sha256": "2f8971c1e090fc4e32c3cc1f8369e66d43a0c4f6dd086eb86da7147db33dd43a"
+    },
+    "src/presentation_runtime.s": {
+      "bytes": 104163,
+      "sha256": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c"
+    },
+    "src/demo_runtime.s": {
+      "bytes": 37054,
+      "sha256": "35614479667e8ce8d2e2bcac4ab5bc24c54fa92d70eac2b83aec5a14bbe62a18"
+    },
+    "build/ladybug.rom": {
+      "bytes": 65536,
+      "sha256": "283084f3571a3bb25cce4452ef79ece11a3ed5b4085e6f3a3931bacfa7f6c0a5"
+    },
+    "build/ladybug-runtime.rom": {
+      "bytes": 16384,
+      "sha256": "16af307da88b0bab6f38bb00be77bdaf0ddd87e7f588cc4b42f84c390a2cf653"
+    },
+    "build/ladybug.map": {
+      "bytes": 91249,
+      "sha256": "2f2ab6975570db160ee2412049dc8228cd553fa4652cb0437ff8d638afcab42c"
+    },
+    "build/ladybug-enemy-runtime.rom": {
+      "bytes": 4091,
+      "sha256": "ad6db3b864a0c41427e18db7e6ea90ecd2df1310e70080969c2a3914b6781d50"
+    },
+    "build/ladybug-enemy-runtime.map": {
+      "bytes": 49988,
+      "sha256": "38977a0ea13bbeb01231443966107ac257130757092c23a4f9bfd17059e433f9"
+    },
+    "build/ladybug-presentation-runtime.bin": {
+      "bytes": 1259,
+      "sha256": "2ab84326f49de26172b9e60809671d4904d2fadc00d25aed6a3f6763a6d0463b"
+    },
+    "build/ladybug-presentation-runtime.map": {
+      "bytes": 53798,
+      "sha256": "ccb47e9520decbf2e27694f73047e7771d7c6f0aca30c24aab47ff43be486d09"
+    },
+    "build/ladybug-adaptive-active.bin": {
+      "bytes": 622,
+      "sha256": "9e37c82d26367fa18ae8a41351d474de5d5e1b79489b2cc2582c6b229c9c4c28"
+    },
+    "build/ladybug-adaptive-active.map": {
+      "bytes": 11542,
+      "sha256": "0525b6f8c67a0e221aec47f886e31f71ff991fbb5d1f5f2550869b80abcb09ad"
+    }
+  },
+  "user_observations": [
+    "first level renders correctly",
+    "offset appears at second level start",
+    "demo offset independently reported",
+    "life count unconfirmed"
+  ],
+  "confirmed_source_facts": [
+    "context2 preview return bypasses first-level scripted entrant",
+    "init_player seeds consistent row22/$89EC pointer and cell state; ordinary north movement can reach row18/$75EC in16 steps",
+    "draw_player reloads X from PLAYER_FB after save_player",
+    "sparse_player_stream preserves destination X",
+    "stage_panel_read_letters preserves PAR4 and IRQ state"
+  ],
+  "cause_confirmed": false,
+  "runtime_probes": 0,
+  "runtime_timeouts": 0,
+  "production_changed": false,
+  "next_step": "Ready bounded read-only complete/adaptive rendering and handoff audit; exact runtime marker/command/route preparation",
+  "verification_risk": "current BUG015 forced stage fixture cannot demonstrate a natural level1-to-level2 sequence",
+  "attribution_correction": "source revision7cdc53f is parent build identification; user supplied current freshly restarted build/ladybug.rom, not a revision label"
+}
