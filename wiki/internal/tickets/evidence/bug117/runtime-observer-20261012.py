@@ -16,6 +16,7 @@ import os
 import re
 import socket
 import sys
+import tempfile
 import time
 from dataclasses import dataclass
 from pathlib import Path
@@ -648,6 +649,83 @@ def validate_layout_final_image_identity(layout: dict[str, Any], rom_sha256: str
         raise GuardFailure("sparse layout final-image identity differs from the current ROM")
 
 
+def derive_resident_listing_marker(build: Path, symbol: str, address: int,
+                                   source_path: Path, staged_image: bytes) -> dict[str, Any]:
+    """Bind a resident source label to its map, listing bytes, source line, and staged bytes."""
+    build = build.resolve(strict=True)
+    listing_path = build / "ladybug.lst"
+    if not listing_path.is_file():
+        raise GuardFailure("resident death-source marker requires the current assembler listing")
+    listing_bytes = listing_path.read_bytes()
+    listing_lines = listing_bytes.decode("utf-8").splitlines()
+    source_bytes = source_path.read_bytes()
+    source_lines = source_bytes.decode("utf-8").splitlines()
+    label_re = re.compile(
+        rf"^{address:04X}\s+\([^)]*src/main\.s\):(\d+)\s+{re.escape(symbol)}\s*$", re.I)
+    label_rows = [(index, match) for index, line in enumerate(listing_lines)
+                  if (match := label_re.fullmatch(line)) is not None]
+    if len(label_rows) != 1:
+        raise GuardFailure(f"current listing must resolve {symbol} exactly once at ${address:04X}")
+    label_index, label_match = label_rows[0]
+    label_source_line = int(label_match.group(1))
+    if not 1 <= label_source_line <= len(source_lines) or \
+            _asm_code_line(source_lines[label_source_line - 1]).lower() != symbol.lower():
+        raise GuardFailure(f"listing {symbol} label does not resolve to its current source line")
+    instruction_re = re.compile(
+        rf"^{address:04X}\s+([0-9A-F]{{6,}})\s+\([^)]*src/main\.s\):(\d+)\s+(.+?)\s*$", re.I)
+    instruction = None
+    for line in listing_lines[label_index + 1:label_index + 8]:
+        match = instruction_re.fullmatch(line)
+        if match is not None:
+            instruction = match
+            break
+    if instruction is None:
+        raise GuardFailure(f"current listing has no encoded instruction at {symbol} ${address:04X}")
+    source_instruction_line = int(instruction.group(2))
+    listing_assembly = _asm_code_line(instruction.group(3))
+    if not 1 <= source_instruction_line <= len(source_lines) or \
+            _asm_code_line(source_lines[source_instruction_line - 1]) != listing_assembly:
+        raise GuardFailure(f"listing instruction at {symbol} differs from current main.s")
+    listing_span = bytes.fromhex(instruction.group(1))
+    if len(staged_image) != RESIDENT_IMAGE_BYTES or not RESIDENT_IMAGE_BASE <= address < RESIDENT_IMAGE_BASE + len(staged_image):
+        raise GuardFailure("resident death-source marker is outside the staged resident image")
+    staged_offset = address - RESIDENT_IMAGE_BASE
+    staged_span = staged_image[staged_offset:staged_offset + len(listing_span)]
+    if len(staged_span) != len(listing_span) or staged_span != listing_span:
+        raise GuardFailure(f"listing bytes at {symbol} differ from staged resident bytes")
+    return {"symbol": symbol, "source": "src/main.s", "address": address,
+        "listing_label_line": label_source_line,
+        "source_instruction_line": source_instruction_line,
+        "source_instruction": listing_assembly,
+        "span_length": len(listing_span), "span_hex": staged_span.hex(),
+        "span_sha256": sha(staged_span), "listing_sha256": sha(listing_bytes),
+        "map_sha256": sha((build / "ladybug.map").read_bytes()),
+        "source_sha256": sha(source_bytes),
+        "source_build_receipt_sha256": sha((build / "source-build-receipt.json").read_bytes()),
+        "staged_sha256": sha(staged_image), "source_listing_staged_match": True,
+        "classification": "skull-pickup death onset; not an enemy contact"}
+
+
+def validate_prepared_resident_marker(marker: Any, *, symbol: str, address: int,
+                                      staged_image: bytes, source_sha256: str,
+                                      listing_sha256: str, map_sha256: str,
+                                      receipt_sha256: str) -> None:
+    """Reject stale or mutated prepared marker bindings before registering a stop."""
+    if not isinstance(marker, dict):
+        raise GuardFailure(f"prepared resident source marker {symbol} is missing")
+    fields = {"symbol": symbol, "source": "src/main.s", "address": address,
+        "source_sha256": source_sha256, "listing_sha256": listing_sha256,
+        "map_sha256": map_sha256, "source_build_receipt_sha256": receipt_sha256,
+        "staged_sha256": sha(staged_image), "source_listing_staged_match": True}
+    mismatches = [name for name, value in fields.items() if marker.get(name) != value]
+    length = marker.get("span_length")
+    offset = address - RESIDENT_IMAGE_BASE
+    current = staged_image[offset:offset + length] if type(length) is int and length > 0 else b""
+    if (mismatches or len(current) != length or marker.get("span_hex") != current.hex() or
+            marker.get("span_sha256") != sha(current) or len(current) < 3):
+        raise GuardFailure(f"prepared resident source marker {symbol} differs from current map/listing/source/staged identity")
+
+
 def derive_bank_boundary_reference(build: Path, layout: dict[str, Any],
                                    audio_image: bytes,
                                    audio_symbols: dict[str, int]) -> dict[str, Any]:
@@ -1272,6 +1350,7 @@ def prepare(build: Path) -> dict[str, Any]:
                  "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE",
                  "asset_end",
                  "marker_entry_begin", "iet_offscreen", "iet_maze_entry", "iet_final_wait",
+                 "cep_skull",
                  "mainloop"),
         "audio": ("audio_slot0", "audio_slot1", "audio_slot2", "audio_slot3",
                   "audio_music_count", "audio_music_queue", "audio_mix_order", "AUDIO_MIX_COUNT",
@@ -1307,7 +1386,8 @@ def prepare(build: Path) -> dict[str, Any]:
     source_text = {name: re.sub(r"\s+", " ", re.sub(r";[^\n]*", " ", p.read_text(encoding="utf-8")))
                    for name, p in sources.items()}
     source_assertions = {
-        "main.s": (r"DEATH_TIMER\s+equ\s+\$003A", r"iet_final_wait"),
+        "main.s": (r"DEATH_TIMER\s+equ\s+\$003A", r"iet_final_wait",
+                   r"cep_skull\s+ldx\s+#ENTITY_TABLE.*?lda\s+#1\s+sta\s+DEATH_STATE\s+lda\s+#DIR_NONE\s+sta\s+PLAYER_DIR\s+sta\s+PLAYER_WANT\s+lbsr\s+enemy_tick"),
         "audio_runtime.s": (r"lda\s+,u\s+sta\s+2,y", r"lda\s+2,x\s+bita\s+#1",
                              r"audio_mix_write_done\s+jsr\s+audio_music_busy\s+sta\s+AUDIO_MUSIC_PUBLISHED_BUSY",
                              r"audio_write\s+sta\s+SND_DATA",
@@ -1352,6 +1432,9 @@ def prepare(build: Path) -> dict[str, Any]:
     player_art = verify_candidate_player_art(build)
     identity = {name: {"bytes": p.stat().st_size, "sha256": sha(p.read_bytes())}
                 for name, p in files.items()}
+    resident_image = files["ladybug-runtime.rom"].read_bytes()
+    skull_marker = derive_resident_listing_marker(build, "cep_skull", main["cep_skull"],
+        sources["main.s"], resident_image)
     bank_boundary_reference = derive_bank_boundary_reference(build, layout, audio_bin, audio)
     return {
         "candidate_build": str(build), "files": identity,
@@ -1359,6 +1442,7 @@ def prepare(build: Path) -> dict[str, Any]:
         "candidate_sources": checked_source_patterns,
         "mapped_symbols": {d: {s: maps[d][s] for s in symbols}
                            for d, symbols in required.items()},
+        "death_source_markers": {"cep_skull": skull_marker},
         "cue_descriptors": {"cue6_hex": cue6_desc.hex(), "cue6_policy": "exclusive, $B3, priority 5, voice mask $07",
                              "cue13_hex": cue13_desc.hex(), "cue13_policy": "exclusive, $D3, priority 6"},
         "emitted_stream_boundaries": {
@@ -1797,9 +1881,9 @@ def live_audio_snapshot(client: Any, symbols: dict[str, int], page: int = 0x3D) 
         if not 0xA000 <= address < 0xC000 or address + length > 0xC000:
             raise GuardFailure("audio symbol is outside the page-$3D window")
         return physical_page_read(client, page, address - 0xA000, length)
-    slots = [model_from_audio_slot(audio_read(symbols[f"audio_slot{i}"], 28), i)
-             for i in range(4)]
-    return {"slots": slots,
+    slot_raw = [audio_read(symbols[f"audio_slot{i}"], 28) for i in range(4)]
+    slots = [model_from_audio_slot(raw, i) for i, raw in enumerate(slot_raw)]
+    return {"slots": slots, "slot_raw": slot_raw,
             "best_slot": monitor_bytes(client, symbols["AUDIO_BEST_SLOT"], 1)[0],
             "best_priority": monitor_bytes(client, symbols["AUDIO_BEST_PRI"], 1)[0],
             "mix_period_bytes": audio_read(symbols["audio_mix_periods"], 6),
@@ -2113,6 +2197,28 @@ class LiveRuntimeObserver:
         self.audio = read_symbols(build / "ladybug-audio-runtime.map")
         self.enemy = read_symbols(build / "ladybug-enemy-runtime.map")
         self.main_image = (build / "ladybug-runtime.rom").read_bytes()
+        source_root = build.parent
+        main_source_sha = sha((source_root / "src" / "main.s").read_bytes())
+        enemy_source_sha = sha((source_root / "src" / "enemy_runtime.s").read_bytes())
+        candidate_sources = preparation.get("candidate_sources", {})
+        if (candidate_sources.get("main.s", {}).get("sha256") != main_source_sha or
+                candidate_sources.get("enemy_runtime.s", {}).get("sha256") != enemy_source_sha):
+            raise GuardFailure("prepared death-source markers differ from current source bytes")
+        death_source_markers = preparation.get("death_source_markers", {})
+        skull_marker = death_source_markers.get("cep_skull")
+        validate_prepared_resident_marker(skull_marker, symbol="cep_skull",
+            address=self.main.get("cep_skull", -1), staged_image=self.main_image,
+            source_sha256=main_source_sha,
+            listing_sha256=sha((build / "ladybug.lst").read_bytes()),
+            map_sha256=sha((build / "ladybug.map").read_bytes()),
+            receipt_sha256=sha((build / "source-build-receipt.json").read_bytes()))
+        self.death_source_markers = {
+            "cep_skull": skull_marker,
+            "et_player_death": {"symbol": "et_player_death",
+                "source": "src/enemy_runtime.s",
+                "address": self.enemy["et_player_death"],
+                "source_sha256": enemy_source_sha,
+                "classification": "enemy-player collision onset"}}
         self.audio_image = (build / "ladybug-audio-runtime.bin").read_bytes()
         self.bank_boundary_reference = preparation["bank_boundary_page20_reference"]
         self.page20_reset_image = (build / "ladybug-perimeter-reset.bin").read_bytes()
@@ -2188,6 +2294,7 @@ class LiveRuntimeObserver:
         self.previous_death: tuple[int, int] | None = None
         self.contact_count = 0
         self.contacts: list[dict[str, Any]] = []
+        self.death_source_events: list[dict[str, Any]] = []
         self.entry_contact_violation = False
         self.cue_output = {6: False, 13: False}
         self.cue_stream_active = {6: False, 13: False}
@@ -2226,6 +2333,7 @@ class LiveRuntimeObserver:
             "iet_maze_entry": self.main["iet_maze_entry"],
             "iet_final_wait": self.main["iet_final_wait"],
             "mainloop": self.main["mainloop"],
+            "cep_skull": self.main["cep_skull"],
             "add_credit": self.presentation["add_credit"],
             "audio_mix_write": self.audio["audio_mix_write"],
             "audio_command_end": self.audio["audio_command_end"],
@@ -2235,6 +2343,10 @@ class LiveRuntimeObserver:
             "irq_commit_instruction_end": self.irq_marker["end_pc"],
             "fbiq_done": self.enemy["fbiq_done"],
         }
+        skull_pc = wanted["cep_skull"]
+        if any(label != "cep_skull" and address == skull_pc
+               for label, address in wanted.items()):
+            raise GuardFailure("resident cep_skull marker aliases another registered observer breakpoint")
         for label, address in wanted.items():
             if address in self.labels:
                 self.labels[address] += "+" + label
@@ -2805,6 +2917,59 @@ class LiveRuntimeObserver:
             raise GuardFailure(f"live PAR5 page ${page:02X} does not map candidate audio page $3D")
         return live_audio_snapshot(self.client, self.audio, page)
 
+    def _audio_mix_rejection_context(self, stop: MonitorStop,
+                                     qualification: dict[str, Any], snapshot: dict[str, Any],
+                                     cue: int, policy: int, priority: int,
+                                     original: GuardFailure) -> dict[str, Any]:
+        try:
+            model = model_exclusive_mix(snapshot["slots"], cue)
+            model_context = {"result": json_safe(model), "error": None}
+        except Exception as exc:
+            model_context = {"result": None,
+                "error": f"{type(exc).__name__}: {exc}"}
+        reference = getattr(self, "bank_boundary_reference", {})
+        page = reference.get("page20", {}) if isinstance(reference, dict) else {}
+        preparation = getattr(self, "preparation", {})
+        delivery = getattr(self, "delivery", {})
+        audio = getattr(self, "audio", {})
+        boundaries = getattr(self, "boundaries", {})
+        source_hashes = {name: item.get("sha256")
+            for name, item in preparation.get("candidate_sources", {}).items()
+            if isinstance(item, dict)}
+        return {"kind": "selected-cue-mix-rejection",
+            "stop": json_safe(getattr(self, "current_stop_context", None) or {
+                "phase": stop.phase, "pc": stop.pc, "bp_id": stop.bp_id,
+                "ordinal": stop.ordinal, "registers_at_stop": stop.registers}),
+            "registered_stop": {"label": self.labels.get(stop.pc),
+                "pc": stop.pc, "installed_bp_id": self.bp_ids.get(stop.pc),
+                "observed_bp_id": stop.bp_id},
+            "qualified_code_identity": json_safe(qualification),
+            "source_bindings": {"candidate_source_sha256": source_hashes,
+                "source_build_receipt_sha256": reference.get("source_build_receipt_sha256"),
+                "delivery_receipt_sha256": delivery.get("receipt_sha256"),
+                "audio_mix_write_pc": audio.get("audio_mix_write"),
+                "cue_stream_boundary": json_safe(boundaries.get(f"cue{cue}")),
+                "death_markers": json_safe(getattr(self, "death_source_markers", {}))},
+            "cue_expectation": {"cue_id": cue, "policy": policy,
+                "priority": priority, "selected_slot": 0},
+            "audio_snapshot": json_safe(snapshot),
+            "pure_mixer_model": model_context,
+            "cached_perimeter_alias_proof": {"event_count": len(
+                    getattr(self, "perimeter_alias_events", [])),
+                "events": json_safe(getattr(self, "perimeter_alias_events", [])),
+                "full_helper_result": json_safe(getattr(self, "page20_alias_full_check", None)),
+                "helper_identity": {"page": page.get("page"),
+                    "manifest_sha256": page.get("manifest_sha256"),
+                    "payload_sha256": page.get("payload_sha256"),
+                    "source_build_receipt_sha256": reference.get("source_build_receipt_sha256"),
+                    "sparse_layout_sha256": reference.get("sparse_layout_sha256"),
+                    "source_hashes": json_safe(reference.get("source_hashes"))}},
+            "death_source_events": json_safe(getattr(self, "death_source_events", [])[-8:]),
+            "original_guard": {"class": type(original).__name__,
+                "message": str(original)},
+            "monitor_rereads_after_snapshot": 0,
+            "target_write_count": getattr(self, "write_count", None)}
+
     def _validate_terminal_snapshot(self, stop: MonitorStop,
                                     qualification: dict[str, Any],
                                     snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -3242,7 +3407,20 @@ class LiveRuntimeObserver:
         cue = slot0["id"]
         if cue in (6, 13):
             policy, priority = (0xB3, 5) if cue == 6 else (0xD3, 6)
-            model = verify_live_music_mix(snapshot, cue, policy, priority)
+            try:
+                model = verify_live_music_mix(snapshot, cue, policy, priority)
+            except GuardFailure as exc:
+                try:
+                    context = self._audio_mix_rejection_context(
+                        stop, qualification, snapshot, cue, policy, priority, exc)
+                except Exception as capture_error:
+                    context = {"kind": "selected-cue-mix-rejection",
+                        "stop": json_safe(getattr(self, "current_stop_context", None)),
+                        "qualified_code_identity": json_safe(qualification),
+                        "original_guard": {"class": type(exc).__name__, "message": str(exc)},
+                        "capture_error": f"{type(capture_error).__name__}: {capture_error}",
+                        "monitor_rereads_after_snapshot": 0}
+                raise QualificationFailure(str(exc), context) from exc
             start, terminator = self.boundaries[f"cue{cue}"]["stream_start"], self.boundaries[f"cue{cue}"]["terminator_address"]
             if not start <= slot0["stream_pointer"] <= terminator + 1:
                 raise GuardFailure(f"cue{cue} live slot pointer escaped its emitted stream")
@@ -3894,6 +4072,16 @@ class LiveRuntimeObserver:
     def _enemy_contact(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
         genuine = state["entry"] == 0 and state["death"] == 0
+        if not isinstance(getattr(self, "death_source_events", None), list):
+            self.death_source_events = []
+        self.death_source_events.append({"source": "enemy-player-collision",
+            "marker": "et_player_death", "phase": stop.phase,
+            "ordinal": stop.ordinal, "pc": stop.pc,
+            "source_staged_live_match": qualification.get("source_staged_live_match") is True,
+            "qualification_sha256": qualification.get("sha256"),
+            "genuine_enemy_contact": genuine, "entry": state["entry"],
+            "death": state["death"], "frame": state["frames"],
+            "contact_count": self.contact_count + int(genuine)})
         if genuine:
             self.contact_count += 1
             self.contacts.append({"ordinal": stop.ordinal, "lives": state["lives"],
@@ -3913,6 +4101,25 @@ class LiveRuntimeObserver:
         self._record(stop, "genuine-enemy-contact" if genuine else "entry-contact-violation",
             qualification, genuine=genuine, lives=state["lives"], entry=state["entry"],
             death=state["death"], frame=state["frames"])
+
+    def _skull_death_source(self, stop: MonitorStop,
+                            qualification: dict[str, Any]) -> None:
+        marker = self.death_source_markers.get("cep_skull", {})
+        if (qualification.get("module") != "resident" or
+                qualification.get("source_staged_live_match") is not True or
+                marker.get("address") != stop.pc or
+                marker.get("symbol") != "cep_skull"):
+            raise GuardFailure("skull death-source stop lacks its prepared resident source/staged/live identity")
+        self.death_source_events.append({"source": "skull-pickup",
+            "marker": "cep_skull", "phase": stop.phase,
+            "ordinal": stop.ordinal, "pc": stop.pc,
+            "source_staged_live_match": True,
+            "qualification_sha256": qualification.get("sha256"),
+            "genuine_enemy_contact": False,
+            "contact_count": self.contact_count})
+        self._record(stop, "skull-pickup-death-source", qualification,
+            source="skull-pickup", genuine_enemy_contact=False,
+            contact_count=self.contact_count, lifecycle_created=False)
 
     def _mainloop(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
@@ -4067,6 +4274,8 @@ class LiveRuntimeObserver:
             "input_events_tail": json_safe(list(getattr(self, "input_events", []))[-64:]),
             "contact_count": getattr(self, "contact_count", None),
             "contacts_tail": json_safe(list(getattr(self, "contacts", []))[-3:]),
+            "death_source_events": json_safe(list(getattr(self, "death_source_events", []))[-8:]),
+            "death_source_markers": json_safe(getattr(self, "death_source_markers", {})),
             "entries": [entry_summary(entry) for entry in entries],
             "current_entry": entry_summary(getattr(self, "current_entry", None)),
             "proof_ledgers": json_safe(ledgers),
@@ -4295,6 +4504,8 @@ class LiveRuntimeObserver:
             self._irq_done(stop, qualification)
         elif label == "et_player_death":
             self._enemy_contact(stop, qualification)
+        elif label == "cep_skull":
+            self._skull_death_source(stop, qualification)
         elif label == "add_credit":
             self._presentation_credit_add(stop, qualification)
         elif label == "marker_entry_begin":
@@ -4512,6 +4723,8 @@ class LiveRuntimeObserver:
                 "classification": "source/receipt/manifest-qualified page-$20 perimeter reset at registered audio-address breakpoints; excluded from audio END/mix/busy and PSG events"},
             "fixture": self.fixture_result, "target_write_count": self.write_count,
             "contacts": self.contacts, "contact_count": self.contact_count,
+            "death_source_markers": json_safe(self.death_source_markers),
+            "death_source_events": json_safe(self.death_source_events),
             "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
             "held_input_challenges": {**held_input_status,
                 "scenario_scope": "natural only; forced fixture routes do not run this challenge",
@@ -5756,6 +5969,66 @@ def self_test() -> dict[str, Any]:
                 "live_par_mapping_qualified": True}
             current_delivery = validate_delivery_receipt(current_receipt, current_boot_prep)
             bootstrap = current_boot_prep["bootstrap_reset_qualification"]
+            skull_marker = current_boot_prep["death_source_markers"]["cep_skull"]
+            assert skull_marker["address"] == current_boot_prep["mapped_symbols"]["main"]["cep_skull"]
+            assert skull_marker["source_listing_staged_match"] is True
+            assert skull_marker["classification"] == "skull-pickup death onset; not an enemy contact"
+            validate_prepared_resident_marker(skull_marker, symbol="cep_skull",
+                address=skull_marker["address"],
+                staged_image=(current_build / "ladybug-runtime.rom").read_bytes(),
+                source_sha256=current_boot_prep["candidate_sources"]["main.s"]["sha256"],
+                listing_sha256=sha((current_build / "ladybug.lst").read_bytes()),
+                map_sha256=sha((current_build / "ladybug.map").read_bytes()),
+                receipt_sha256=sha((current_build / "source-build-receipt.json").read_bytes()))
+            tested += 1
+            for field, value in (("span_hex", "00"), ("source_sha256", "0" * 64),
+                                 ("address", skull_marker["address"] + 1)):
+                changed_marker = {**skull_marker, field: value}
+                try:
+                    validate_prepared_resident_marker(changed_marker, symbol="cep_skull",
+                        address=skull_marker["address"],
+                        staged_image=(current_build / "ladybug-runtime.rom").read_bytes(),
+                        source_sha256=current_boot_prep["candidate_sources"]["main.s"]["sha256"],
+                        listing_sha256=sha((current_build / "ladybug.lst").read_bytes()),
+                        map_sha256=sha((current_build / "ladybug.map").read_bytes()),
+                        receipt_sha256=sha((current_build / "source-build-receipt.json").read_bytes()))
+                except GuardFailure:
+                    tested += 1
+                else:
+                    raise AssertionError(f"prepared cep_skull marker accepted mutated {field}")
+
+            class FakeMarkerInstallClient:
+                def __init__(self): self.calls = []; self.next_id = 1
+                def call(self, method, params=None, timeout=20.0):
+                    self.calls.append((method, params))
+                    if method == "events.subscribe": return {}
+                    if method in ("set_breakpoint", "set_watchpoint"):
+                        result = {"id": self.next_id}
+                        self.next_id += 1
+                        return result
+                    raise AssertionError(f"unexpected marker install call {method}")
+
+            install_client = FakeMarkerInstallClient()
+            install_observer = LiveRuntimeObserver(install_client, current_build,
+                "natural", current_boot_prep, current_delivery)
+            install_observer.install()
+            skull_pc = current_boot_prep["mapped_symbols"]["main"]["cep_skull"]
+            assert install_observer.labels[skull_pc] == "cep_skull"
+            assert skull_pc in install_observer.bp_ids
+            assert [method for method, _ in install_client.calls].count("set_breakpoint") == 14
+            tested += 1
+            collision_client = FakeMarkerInstallClient()
+            collision_observer = LiveRuntimeObserver(collision_client, current_build,
+                "natural", current_boot_prep, current_delivery)
+            collision_observer.main["cep_skull"] = collision_observer.main["marker_entry_begin"]
+            try:
+                collision_observer.install()
+            except GuardFailure as exc:
+                assert "cep_skull" in str(exc)
+                assert [method for method, _ in collision_client.calls] == ["events.subscribe"]
+                tested += 1
+            else:
+                raise AssertionError("cep_skull breakpoint collision passed observer installation")
 
             class FakeBootstrapClient:
                 def __init__(self, *, corrupt_cpu=False, corrupt_physical=False,
@@ -5986,6 +6259,68 @@ def self_test() -> dict[str, Any]:
                 tested += 1
             else:
                 raise AssertionError("resident physical mismatch passed or failed to retain context")
+
+            skull_dispatch_observer = LiveRuntimeObserver(FakeMarkerInstallClient(),
+                current_build, "natural", current_boot_prep, current_delivery)
+            skull_dispatch_observer.bootstrap_reset_index = len(
+                skull_dispatch_observer.bootstrap_reset["reset_stores"])
+            skull_dispatch_observer.labels[skull_pc] = "cep_skull"
+            skull_dispatch_observer.bp_ids[skull_pc] = 17
+            skull_dispatch_observer._qualify = lambda stop: {
+                "module": "resident", "source_staged_live_match": True,
+                "sha256": skull_marker["span_sha256"]}
+            skull_stop = MonitorStop("natural-contact-search", skull_pc, 17,
+                {"pc": skull_pc, "dp": 0, "a": 0}, 24, time.monotonic())
+            skull_dispatch_observer._dispatch(skull_stop)
+            skull_event = skull_dispatch_observer.events[-1]
+            assert skull_event["label"] == "skull-pickup-death-source"
+            assert skull_event["source"] == "skull-pickup"
+            assert skull_event["genuine_enemy_contact"] is False
+            assert skull_event["lifecycle_created"] is False
+            assert skull_dispatch_observer.contact_count == 0
+            assert skull_dispatch_observer.contacts == []
+            assert json.loads(json.dumps(skull_dispatch_observer.death_source_events)) == \
+                skull_dispatch_observer.death_source_events
+            tested += 1
+
+            bad_skull_dispatch = LiveRuntimeObserver(FakeMarkerInstallClient(),
+                current_build, "natural", current_boot_prep, current_delivery)
+            bad_skull_dispatch.bootstrap_reset_index = len(
+                bad_skull_dispatch.bootstrap_reset["reset_stores"])
+            bad_skull_dispatch.labels[skull_pc] = "cep_skull"
+            bad_skull_dispatch.bp_ids[skull_pc] = 17
+            bad_skull_dispatch._qualify = lambda stop: {
+                "module": "resident", "source_staged_live_match": False,
+                "sha256": skull_marker["span_sha256"]}
+            try:
+                bad_skull_dispatch._dispatch(skull_stop)
+            except GuardFailure as exc:
+                assert "source/staged/live identity" in str(exc)
+                assert bad_skull_dispatch.death_source_events == []
+                assert bad_skull_dispatch.events == []
+                tested += 1
+            else:
+                raise AssertionError("unqualified cep_skull stop was recorded")
+
+            skull_live_expected = (current_build / "ladybug-runtime.rom").read_bytes()[
+                skull_pc - RESIDENT_IMAGE_BASE:skull_pc - RESIDENT_IMAGE_BASE + 3]
+            skull_live_client = FakeResidentMismatchClient(skull_pc, skull_live_expected)
+            skull_live_observer = LiveRuntimeObserver(skull_live_client, current_build,
+                "natural", current_boot_prep, current_delivery)
+            skull_live_observer.bootstrap_reset_index = len(
+                skull_live_observer.bootstrap_reset["reset_stores"])
+            skull_live_observer.labels[skull_pc] = "cep_skull"
+            skull_live_observer.bp_ids[skull_pc] = 17
+            try:
+                skull_live_observer._dispatch(skull_stop)
+            except QualificationFailure as exc:
+                assert "live physical module bytes differ" in str(exc)
+                assert skull_live_observer.failure_context["kind"] == "live-physical-byte-mismatch"
+                assert skull_live_observer.death_source_events == []
+                assert skull_live_observer.events == []
+                tested += 1
+            else:
+                raise AssertionError("mismatched live cep_skull bytes passed source qualification")
 
             boundary_ref = current_boot_prep["bank_boundary_page20_reference"]
             boundary_pc = boundary_ref["cpu_pc"]
@@ -6526,6 +6861,138 @@ def self_test() -> dict[str, Any]:
     assert json.loads(json.dumps(terminal_context)) == terminal_context
     tested += 1
 
+    def audio_slot_fixture(index: int) -> bytes:
+        raw = bytearray(28)
+        raw[0] = 13 if index == 0 else 0xFF
+        raw[1] = 6 if index == 0 else 0
+        raw[2] = 0xD3 if index == 0 else 0
+        raw[3] = 4 if index == 0 else 0
+        raw[4:6] = (0xB28B if index == 0 else 0).to_bytes(2, "big")
+        raw[6:12] = b"\x01\x00" * 3
+        raw[12:15] = b"\x0F" * 3
+        raw[15] = 0
+        raw[16] = 15
+        raw[17:28] = bytes((0x80 + index,)) * 11
+        return bytes(raw)
+
+    selected_raw = [audio_slot_fixture(i) for i in range(4)]
+    selected_slots = [model_from_audio_slot(raw, i) for i, raw in enumerate(selected_raw)]
+    rejected_audio_snapshot = {"slots": selected_slots, "slot_raw": selected_raw,
+        "best_slot": 0, "best_priority": 6,
+        "mix_period_bytes": b"\x01\x00" * 3,
+        "mix_attenuation": b"\x0F" * 3, "mix_noise": b"\x00\x0F",
+        "mix_shadow": bytes(range(11)), "mix_order": bytes(range(4)),
+        "mix_count": 0, "music_count": 0, "music_queue": bytes(8),
+        "effect_queue_count": 0, "credit_pending": 0, "published_busy": 1}
+
+    class NoRpcFailureClient:
+        def __init__(self): self.calls = []
+        def call(self, method, params=None, timeout=20.0):
+            self.calls.append((method, params))
+            raise AssertionError(f"audio rejection context issued unexpected RPC {method}")
+
+    rejection_client = NoRpcFailureClient()
+    rejection_observer = LiveRuntimeObserver(rejection_client, current_build,
+        "natural", current_boot_prep, current_delivery)
+    rejection_observer.bootstrap_reset_index = len(
+        rejection_observer.bootstrap_reset["reset_stores"])
+    rejection_observer.labels[skull_pc] = "cep_skull"
+    rejection_observer.bp_ids[skull_pc] = 17
+    rejection_observer._qualify = lambda stop: {
+        "module": "resident", "source_staged_live_match": True,
+        "sha256": skull_marker["span_sha256"]}
+    rejection_observer._dispatch(MonitorStop("natural-contact-search", skull_pc, 17,
+        {"pc": skull_pc, "dp": 0}, 8642, time.monotonic()))
+    audio_pc = current_boot_prep["mapped_symbols"]["audio"]["audio_mix_write"]
+    rejection_observer.labels[audio_pc] = "audio_mix_write"
+    rejection_observer.bp_ids[audio_pc] = 19
+    rejection_observer._qualify = lambda stop: {
+        "module": "audio", "source_staged_live_match": True,
+        "sha256": "a" * 64, "pc": stop.pc}
+    snapshot_calls = [0]
+    def retained_snapshot():
+        snapshot_calls[0] += 1
+        return rejected_audio_snapshot
+    rejection_observer._audio_snapshot = retained_snapshot
+    rejection_observer.perimeter_alias_events = [{"phase": "natural-contact-search",
+        "pc": 0xA410, "source_staged_live_match": True}]
+    rejection_observer.page20_alias_full_check = {
+        "matches_complete_synthesized_image": True, "physical_length": 5751}
+    rejection_observer._natural_contact_search_context = lambda phase: {
+        "cached_failure_phase": phase, "no_extra_snapshot_reads": True}
+    audio_rejection_stop = MonitorStop("natural-contact-search", audio_pc, 19,
+        {"pc": audio_pc, "a": 13, "dp": 0}, 8668, time.monotonic())
+    try:
+        rejection_observer._dispatch(audio_rejection_stop)
+    except QualificationFailure as exc:
+        assert str(exc) == "selected cue has no audible tone channel in this mixer service"
+        assert isinstance(exc.__cause__, GuardFailure)
+        assert str(exc.__cause__) == str(exc)
+    else:
+        raise AssertionError("silent selected cue passed the existing audio guard")
+    rejection_context = rejection_observer.failure_context
+    assert rejection_context["kind"] == "selected-cue-mix-rejection"
+    assert rejection_context["original_guard"] == {"class": "GuardFailure",
+        "message": "selected cue has no audible tone channel in this mixer service"}
+    assert rejection_context["stop"]["pc"] == audio_pc
+    assert rejection_context["stop"]["ordinal"] == 8668
+    assert rejection_context["audio_snapshot"]["slot_raw"][0]["hex"] == selected_raw[0].hex()
+    assert rejection_context["audio_snapshot"]["music_queue"] == {"hex": "00" * 8, "length": 8}
+    assert rejection_context["audio_snapshot"]["mix_shadow"]["hex"] == bytes(range(11)).hex()
+    assert rejection_context["pure_mixer_model"]["result"]["audible_voice_count"] == 0
+    assert rejection_context["cached_perimeter_alias_proof"]["event_count"] == 1
+    assert rejection_context["cached_perimeter_alias_proof"]["full_helper_result"][
+        "matches_complete_synthesized_image"] is True
+    assert rejection_context["death_source_events"][-1]["source"] == "skull-pickup"
+    assert rejection_context["monitor_rereads_after_snapshot"] == 0
+    assert snapshot_calls == [1] and rejection_client.calls == []
+    assert rejection_observer.contact_count == 0 and rejection_observer.write_count == 0
+    assert rejection_observer.events[-1]["label"] == "skull-pickup-death-source"
+    assert json.loads(json.dumps(rejection_context)) == rejection_context
+    tested += 1
+
+    class FakeOuterApi:
+        def __init__(self): self.stopped = False
+        def launch(self, binary, rom, port): return FakeOuterProcess(), FakeOuterClient()
+        def free_port(self): return 1
+        def stop(self, process): self.stopped = True
+    class FakeOuterProcess:
+        def wait(self, timeout=None): return 0
+    class FakeOuterClient:
+        def call(self, method, params=None, timeout=20.0): return {"state": "halted"}
+        def close(self): pass
+    class FakeOuterObserver:
+        def __init__(self, *args):
+            self.write_count = 0
+            self.events = []
+            self.phases = []
+            self.errors = []
+            self.failure_context = rejection_context
+            self.contact_search_timeout_context = None
+            self.bootstrap_reset_events = []
+        def run(self): raise QualificationFailure(
+            "selected cue has no audible tone channel in this mixer service", rejection_context)
+        def release_inputs(self): pass
+    saved_monitor_api = globals()["monitor_api"]
+    saved_observer_class = globals()["LiveRuntimeObserver"]
+    outer_api = FakeOuterApi()
+    try:
+        globals()["monitor_api"] = lambda: outer_api
+        globals()["LiveRuntimeObserver"] = FakeOuterObserver
+        with tempfile.TemporaryDirectory(prefix="bug117-observer-") as temp_output:
+            outer_summary, outer_exit = run_live_capture(ROOT / "scripts/build.sh",
+                current_build, Path(temp_output), "natural", current_boot_prep,
+                current_profile, current_delivery)
+            outer_report = json.loads((Path(temp_output) /
+                "bug117-natural-runtime.json").read_text(encoding="utf-8"))
+            assert outer_exit == 2 and outer_summary["status"] == "INCOMPLETE_FAIL_CLOSED"
+            assert outer_report["failure_context"] == rejection_context
+            assert outer_report["target_write_count"] == 0 and outer_api.stopped
+            tested += 1
+    finally:
+        globals()["monitor_api"] = saved_monitor_api
+        globals()["LiveRuntimeObserver"] = saved_observer_class
+
     class FakeQuietClient:
         def __init__(self):
             self.busy = 0
@@ -7061,7 +7528,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
