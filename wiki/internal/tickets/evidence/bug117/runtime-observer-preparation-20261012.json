@@ -896,7 +896,37 @@
     "current_observer_logic": "_irq_done calls _front_pose for every non-dead active entry and appends live-player-front-pose-missing-at-irq-commit whenever it returns None. _front_pose returns None when the committed owner has no valid player metadata or does not publish the current PLAYER_FB. The held-input contract defines state 3 as offscreen at row-derived x=320 while owner histories retire. self.errors is a hard acceptance gate, so these entries currently fail acceptance even though the adjacent events associate them with the offscreen phase.",
     "source_restoration_contract": "iet_offscreen waits until both FB_META_A/B FBM_PLAYER_VALID fields are clear before init_player publishes ENTRY_MAZE_ENTRY. The frame pipeline hydrates the selected BACK owner, actor_closure_restore restores PLAYER_OLD_FB from the owner-local PLAYER_BG_PTR and invalidates that history, then framebuffer_capture_back publishes the owner-local player-valid metadata. The source restores each selected BACK owner over successive publications.",
     "existing_oracle_coverage": "owner_history stores actual FRONT pixels and the saved-under background keyed by owner and pointer; visible_rect_matches_background is currently used by the death-blank oracle. The owner_history record does not retain an entry-generation key or a state-3 retirement result. Existing held-input logical checks prove row-derived x=320 but do not compare restored last-visible pixels for both owners.",
-    "bounded_proposed_correction_not_implemented": "Track the last visible saved-under record per entry generation and each FRONT owner. At each actual state-3 IRQ commit, require death=0 and row-derived x=320. For the committed FRONT owner, require its FBM_PLAYER_VALID bit to be clear before classifying its player pose as retired; compare pixels at that owner\u2019s last visible pointer with its saved background using visible_rect_matches_background and record owner-specific retirement/restoration evidence. Require successful retirement/restoration evidence for both A and B before the first state-4/maze-entry publication. Suppress the missing-visible-pose error only for state 3 after these checks pass. Keep missing visible poses in states 2 and 4, wrong state/x, premature maze publication, missing owner evidence, valid FRONT metadata at retirement, and underlay mismatches as hard failures.",
-    "status": "Read-only diagnosis only. No offscreen assertion or production behavior was changed; the proposal requires separate parent review."
+    "status": "Observer-only restoration proof implemented and independently reviewed. Offline checks pass; parent owns the next natural runtime reassessment.",
+    "implemented_observer_correction": {
+      "status": "IMPLEMENTED_AWAITING_PARENT_NATURAL_REASSESSMENT",
+      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner\u2019s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
+      "owner_timing": "Each state-3 stop validates only the committed FRONT owner; both metadata bits need not be clear on the same stop. A valid FRONT metadata byte at a state-3 retirement stop fails closed.",
+      "snapshot_storage": "Raw 8x16 actual and saved-under bytes are held only in private observer memory keyed by entry generation and owner. Entry/event JSON retains pointer, clipped width, ordinal, frame, SHA-256 digests, and restoration outcome; the private byte map is not serialized.",
+      "gate_sources": [
+        "irq-front-commit-complete",
+        "iet_maze_entry",
+        "mainloop"
+      ],
+      "focused_offline_cases": [
+        "both-owner end-to-end retirement and state-4 gate positive",
+        "wrong state and row-derived x",
+        "premature state 4 or proof ordinal",
+        "missing owner snapshot",
+        "valid FRONT metadata",
+        "saved-under pixel mismatch",
+        "state-2/state-4 missing-pose failures",
+        "actual entry JSON serialization"
+      ],
+      "verification": {
+        "compile": "PASS: python -B -m py_compile",
+        "guarded_import": "PASS: subprocess.Popen and socket.create_connection trapped and untouched",
+        "help": "PASS: no emulator or monitor launch",
+        "self_test": "PASS: 324 offline checks; zero emulator launches and zero target writes",
+        "parent_independent_self_test": "PASS: 324 offline checks",
+        "live_runtime": "NOT RUN: parent owns natural runtime reassessment"
+      },
+      "observer_script_sha256": "473adf5c0aea1dd9d7cac452f939ca7d8579ca5d3ab3aaca074234e554d7181c",
+      "target_ram_writes": 0
+    }
   }
 }

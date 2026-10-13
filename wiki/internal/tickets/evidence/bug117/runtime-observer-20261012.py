@@ -503,6 +503,81 @@ def visible_rect_matches_background(actual: bytes, background: bytes,
                background[row * 8:row * 8 + visible_width_bytes] for row in range(16))
 
 
+def requires_visible_front_pose(entry_state: int) -> bool:
+    """State 3 retires the actor; every other observed entry state remains visible."""
+    return entry_state != 3
+
+
+def missing_visible_front_pose_failure(entry_state: int,
+                                      pose: dict[str, Any] | None) -> bool:
+    return pose is None and requires_visible_front_pose(entry_state)
+
+
+def validate_offscreen_owner_retirement(state: dict[str, Any], entry: dict[str, Any],
+                                        visible: dict[str, Any], actual: bytes) -> dict[str, Any]:
+    """Prove one FRONT owner's prior entry pose was restored to its saved-under pixels."""
+    generation = entry.get("index")
+    if type(generation) is not int or generation < 1:
+        raise GuardFailure("offscreen restoration lacks an entry generation")
+    if state.get("entry") != 3 or state.get("death") != 0:
+        raise GuardFailure("offscreen restoration was observed outside live entry state 3")
+    start_fb, marker_x = entry.get("entry_start_fb"), entry.get("marker_x")
+    x = entry_row_x(state.get("player_fb"), start_fb, marker_x)
+    if x != 320:
+        raise GuardFailure("offscreen restoration is not at row-derived x=320")
+    owner = state.get("front")
+    if type(owner) is not int or owner not in (0, 1):
+        raise GuardFailure("offscreen restoration has no qualified FRONT owner")
+    valid_field = "valid_a" if owner == 0 else "valid_b"
+    if type(state.get(valid_field)) is not int or state[valid_field] != 0:
+        raise GuardFailure("offscreen FRONT owner still publishes valid player metadata")
+    if not isinstance(visible, dict):
+        raise GuardFailure("offscreen owner lacks a last-visible saved-under snapshot")
+    if (visible.get("entry_generation") != generation or visible.get("owner") != owner or
+            type(visible.get("pointer")) is not int):
+        raise GuardFailure("offscreen saved-under snapshot belongs to another entry or owner")
+    pointer = visible["pointer"]
+    width = visible.get("visible_width_bytes")
+    if type(width) is not int or width != visible_row_width_bytes(pointer):
+        raise GuardFailure("offscreen saved-under snapshot has an invalid clipped row width")
+    saved_actual = visible.get("actual")
+    background = visible.get("background")
+    if (type(saved_actual) is not bytes or len(saved_actual) != 128 or
+            type(background) is not bytes or len(background) != 128 or
+            type(actual) is not bytes or len(actual) != 128):
+        raise GuardFailure("offscreen saved-under comparison lacks complete 8x16 pixel records")
+    if not visible_rect_matches_background(actual, background, width):
+        raise GuardFailure("offscreen FRONT pixels differ from that owner's last saved-under image")
+    return {"status": "RESTORED", "entry_generation": generation, "owner": owner,
+        "pointer": pointer, "visible_width_bytes": width,
+        "last_visible_actual_sha256": sha(saved_actual),
+        "saved_under_sha256": sha(background), "restored_front_rect_sha256": sha(actual),
+        "restored_pixels_match_saved_under": True}
+
+
+def offscreen_maze_entry_gate(entry: dict[str, Any], ordinal: int) -> dict[str, Any]:
+    """Require both owner restorations from this entry before state 4 is first observed."""
+    generation = entry.get("index")
+    tracking = entry.get("offscreen_retirement")
+    retired = tracking.get("retired_by_owner") if isinstance(tracking, dict) else None
+    retired = retired if isinstance(retired, dict) else {}
+    accepted: dict[str, Any] = {}
+    failures: list[str] = []
+    if type(generation) is not int or generation < 1 or type(ordinal) is not int:
+        failures.append("invalid-entry-generation-or-maze-entry-ordinal")
+    for owner in (0, 1):
+        proof = retired.get(owner)
+        if (not isinstance(proof, dict) or proof.get("status") != "RESTORED" or
+                proof.get("entry_generation") != generation or proof.get("owner") != owner or
+                type(proof.get("event_ordinal")) is not int or proof["event_ordinal"] >= ordinal):
+            failures.append(f"owner-{owner}-restoration-proof-missing-or-not-before-state4")
+        else:
+            accepted[str(owner)] = proof["event_ordinal"]
+    return {"pass": not failures, "entry_generation": generation,
+        "first_state4_ordinal": ordinal, "owner_restoration_ordinals": accepted,
+        "failures": failures}
+
+
 def visible_row_width_bytes(pointer: int) -> int:
     if type(pointer) is not int or not VISIBLE_BASE <= pointer < VISIBLE_BASE + VISIBLE_BYTES:
         raise GuardFailure("player framebuffer pointer is outside the visible image")
@@ -1996,6 +2071,7 @@ class LiveRuntimeObserver:
         self.pose_hashes: list[str] = []
         self.last_pose: dict[str, Any] | None = None
         self.owner_history: dict[tuple[int, int], dict[str, Any]] = {}
+        self.offscreen_owner_snapshots: dict[tuple[int, int], dict[str, Any]] = {}
         self.release_snapshot: dict[str, Any] | None = None
         self._previous_state: dict[str, Any] | None = None
         if self.main.get("DEATH_TIMER") != TIMER_ADDRESS:
@@ -3023,9 +3099,134 @@ class LiveRuntimeObserver:
         self._record(stop, "actual-front-player-pose", qualification, **record)
         if self.current_entry is not None:
             self.current_entry["pose_count"] += 1
+            if state["entry"] == 2:
+                tracking = self.current_entry.get("offscreen_retirement")
+                if (not isinstance(tracking, dict) or
+                        tracking.get("entry_generation") != self.current_entry.get("index")):
+                    tracking = {"entry_generation": self.current_entry["index"],
+                        "last_visible_by_owner": {}, "retired_by_owner": {},
+                        "state3_observations": [], "maze_entry_gate": None}
+                    self.current_entry["offscreen_retirement"] = tracking
+                try:
+                    row_x = entry_row_x(state["player_fb"],
+                        self.current_entry["entry_start_fb"], self.current_entry["marker_x"])
+                    if row_x >= 320:
+                        raise GuardFailure("state-2 FRONT pose is not before the offscreen boundary")
+                    snapshot = {
+                        "entry_generation": self.current_entry["index"], "owner": owner,
+                        "pointer": state["player_fb"], "actual": actual,
+                        "background": background, "visible_width_bytes": visible_width,
+                        "event_ordinal": stop.ordinal, "frame": state["frames"],
+                        "actual_sha256": sha(actual), "saved_under_sha256": sha(background)}
+                    self.offscreen_owner_snapshots[(self.current_entry["index"], owner)] = snapshot
+                    tracking["last_visible_by_owner"][str(owner)] = {
+                        "entry_generation": self.current_entry["index"], "owner": owner,
+                        "pointer": state["player_fb"], "visible_width_bytes": visible_width,
+                        "event_ordinal": stop.ordinal, "frame": state["frames"],
+                        "actual_sha256": snapshot["actual_sha256"],
+                        "saved_under_sha256": snapshot["saved_under_sha256"]}
+                except GuardFailure as exc:
+                    tracking.setdefault("errors", []).append(str(exc))
+                    self.errors.append("state2-owner-last-visible-snapshot-invalid")
             if state["entry"] == 4 and self.current_entry.get("first_maze_visible_frame") is None:
                 self.current_entry["first_maze_visible_frame"] = state["frames"]
         return record
+
+    def _offscreen_owner_retirement(self, stop: MonitorStop,
+                                    qualification: dict[str, Any],
+                                    state: dict[str, Any]) -> bool:
+        entry = self.current_entry
+        if entry is None:
+            return False
+        tracking = entry.get("offscreen_retirement")
+        if (not isinstance(tracking, dict) or
+                tracking.get("entry_generation") != entry.get("index")):
+            tracking = {"entry_generation": entry.get("index"),
+                "last_visible_by_owner": {}, "retired_by_owner": {},
+                "state3_observations": [], "maze_entry_gate": None}
+            entry["offscreen_retirement"] = tracking
+        event: dict[str, Any] = {"entry_generation": entry.get("index"),
+            "event_ordinal": stop.ordinal, "front_owner": state.get("front"),
+            "entry_state": state.get("entry"), "death_state": state.get("death")}
+        try:
+            if state.get("entry") != 3 or state.get("death") != 0:
+                raise GuardFailure("offscreen owner retirement requires live entry state 3")
+            x = entry_row_x(state.get("player_fb"), entry.get("entry_start_fb"),
+                            entry.get("marker_x"))
+            event["row_derived_x"] = x
+            if x != 320:
+                raise GuardFailure("offscreen owner retirement is not at row-derived x=320")
+            owner = state.get("front")
+            if type(owner) is not int or owner not in (0, 1):
+                raise GuardFailure("offscreen owner retirement lacks a qualified FRONT owner")
+            valid_field = "valid_a" if owner == 0 else "valid_b"
+            published_field = "meta_fb_a" if owner == 0 else "meta_fb_b"
+            valid = state.get(valid_field)
+            event["front_player_valid"] = valid
+            event["published_player_fb"] = state.get(published_field)
+            retired = tracking["retired_by_owner"]
+            if type(valid) is not int:
+                raise GuardFailure("offscreen FRONT player-valid metadata is malformed")
+            if valid != 0 and owner in retired:
+                raise GuardFailure("offscreen FRONT metadata became valid again after retirement")
+            visible = self.offscreen_owner_snapshots.get((entry.get("index"), owner))
+            if not isinstance(visible, dict):
+                raise GuardFailure("offscreen FRONT owner has no last-visible state-2 saved-under snapshot")
+            summary = tracking["last_visible_by_owner"].get(str(owner))
+            if (not isinstance(summary, dict) or
+                    summary.get("entry_generation") != entry.get("index") or
+                    summary.get("owner") != owner or
+                    summary.get("pointer") != visible.get("pointer") or
+                    summary.get("event_ordinal") != visible.get("event_ordinal") or
+                    summary.get("actual_sha256") != visible.get("actual_sha256") or
+                    summary.get("saved_under_sha256") != visible.get("saved_under_sha256")):
+                raise GuardFailure("offscreen private pixel snapshot differs from retained entry evidence")
+            mapping = self._front_mapping(owner)
+            actual = self._front_rect(owner, visible["pointer"], mapping)
+            proof = validate_offscreen_owner_retirement(state, entry, visible, actual)
+            proof["event_ordinal"] = stop.ordinal
+            proof["front_mapping_qualified"] = True
+            proof["front_owner_voff1_shadow"] = mapping["front_owner_voff1_shadow"]
+            proof["front_owner_voff2_shadow"] = mapping["front_owner_voff2_shadow"]
+            proof["front_physical_base"] = mapping["front_physical_base"]
+            retired[owner] = proof
+            event.update(proof)
+            tracking["state3_observations"].append(event)
+            self._record(stop, "offscreen-owner-saved-under-restored", qualification, **event)
+            return True
+        except GuardFailure as exc:
+            event["status"] = "REJECTED"
+            event["reason"] = str(exc)
+            tracking.setdefault("errors", []).append({"event_ordinal": stop.ordinal,
+                                                        "reason": str(exc)})
+            tracking["state3_observations"].append(event)
+            if not tracking.get("failure_reported"):
+                self.errors.append("offscreen-owner-saved-under-restoration-proof-failed")
+                tracking["failure_reported"] = True
+            self._record(stop, "offscreen-owner-restoration-rejected", qualification, **event)
+            return False
+
+    def _guard_first_maze_entry(self, stop: MonitorStop,
+                                qualification: dict[str, Any],
+                                state: dict[str, Any]) -> None:
+        entry = self.current_entry
+        if entry is None or state.get("entry") != 4:
+            return
+        tracking = entry.get("offscreen_retirement")
+        if (not isinstance(tracking, dict) or
+                tracking.get("entry_generation") != entry.get("index")):
+            tracking = {"entry_generation": entry.get("index"),
+                "last_visible_by_owner": {}, "retired_by_owner": {},
+                "state3_observations": [], "maze_entry_gate": None}
+            entry["offscreen_retirement"] = tracking
+        if tracking.get("maze_entry_gate") is not None:
+            return
+        gate = offscreen_maze_entry_gate(entry, stop.ordinal)
+        tracking["maze_entry_gate"] = gate
+        if not gate["pass"]:
+            self.errors.append("maze-entry-published-before-both-owner-restoration-proofs")
+        self._record(stop, "maze-entry-offscreen-restoration-gate", qualification,
+            **gate, observation_source="first-state-4-observation")
 
     def _irq_done(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         if self.irq_before is None or self.irq_inc is None:
@@ -3039,10 +3240,14 @@ class LiveRuntimeObserver:
         self._record(stop, "irq-front-commit-complete", qualification,
             seq_before=self.irq_before["seq"], seq_after=state["commit_seq"],
             front_id=state["front"], irq_commit_end_pc=self.irq_inc["pc"])
-        if state["death"] == 0 and self.current_entry is not None:
+        if self.current_entry is not None and state["entry"] == 4:
+            self._guard_first_maze_entry(stop, qualification, state)
+        if self.current_entry is not None and state["entry"] == 3:
+            self._offscreen_owner_retirement(stop, qualification, state)
+        elif state["death"] == 0 and self.current_entry is not None:
             pose = self._front_pose(stop, qualification, state)
             self._record_challenge_front_pose(stop, state, pose)
-            if pose is None:
+            if missing_visible_front_pose_failure(state["entry"], pose):
                 self.errors.append("live-player-front-pose-missing-at-irq-commit")
             elif state["entry"] == 4 and state["cell_y"] == 18:
                 if pose["visible_width_bytes"] != 8 or pose["opaque_pixels_compared"] <= 0:
@@ -3103,7 +3308,10 @@ class LiveRuntimeObserver:
             self.entry_count += 1
             self.current_entry = {"index": self.entry_count, "cue6_first_frame": None,
                 "first_maze_visible_frame": None, "marker_x": None, "pose_count": 0,
-                "seed_ordinal": stop.ordinal}
+                "seed_ordinal": stop.ordinal,
+                "offscreen_retirement": {"entry_generation": self.entry_count,
+                    "last_visible_by_owner": {}, "retired_by_owner": {},
+                    "state3_observations": [], "maze_entry_gate": None}}
             self.proofs[self.entry_count] = ProofLedger()
             self.entries.append(self.current_entry)
         entry = self.current_entry
@@ -3134,6 +3342,9 @@ class LiveRuntimeObserver:
         entry["seed_death_timer"] = state["timer"]
         entry["entry_start_fb"] = state["player_fb"]
         entry["marker_x"] = framebuffer_row_x(state["player_fb"])
+        entry["offscreen_retirement"] = {"entry_generation": entry["index"],
+            "last_visible_by_owner": {}, "retired_by_owner": {},
+            "state3_observations": [], "maze_entry_gate": None}
         entry["marker_x_matches_life_slot"] = (
                 entry["marker_x"] == (33 + 2 * state["lives"]) * 8)
         entry["input_isolated_at_seed"] = isolated
@@ -3179,6 +3390,8 @@ class LiveRuntimeObserver:
 
     def _mainloop(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
+        if self.current_entry is not None and state["entry"] == 4:
+            self._guard_first_maze_entry(stop, qualification, state)
         self._record(stop, "mainloop", qualification, entry=state["entry"], death=state["death"],
             timer=state["timer"], lives=state["lives"], player_fb=state["player_fb"],
             cell=[state["cell_x"], state["cell_y"]], step=state["step"],
@@ -3441,6 +3654,11 @@ class LiveRuntimeObserver:
             self._entry_seed(stop, qualification)
         elif label == "iet_final_wait":
             self._final_entry_wait(stop, qualification)
+        elif label == "iet_maze_entry":
+            state = self._state()
+            self._guard_first_maze_entry(stop, qualification, state)
+            self._record(stop, label, qualification, entry=state["entry"],
+                         death=state["death"], timer=state["timer"], frames=state["frames"])
         elif label == "mainloop":
             self._mainloop(stop, qualification)
         else:
@@ -4091,6 +4309,134 @@ def self_test() -> dict[str, Any]:
     assert missing_front_entry["held_input_challenge"]["observed_front_maze_player_fb"] != \
         missing_front_entry["held_input_challenge"]["expected_front_maze_player_fb"]
     tested += 1
+
+    offscreen_generation = 7
+    offscreen_row = VISIBLE_BASE + 30 * 160
+    offscreen_entry = {"index": offscreen_generation,
+        "entry_start_fb": offscreen_row + 296 // 2, "marker_x": 296}
+    offscreen_state = {"entry": 3, "death": 0, "player_fb": offscreen_row + 160,
+        "front": 0, "valid_a": 0, "valid_b": 1}
+    saved_under = bytes([0xA5]) * 128
+    last_visible = {"entry_generation": offscreen_generation, "owner": 0,
+        "pointer": offscreen_row + 159, "actual": bytes([0x5A]) * 128,
+        "background": saved_under, "visible_width_bytes": 1, "event_ordinal": 10}
+    restored = validate_offscreen_owner_retirement(
+        offscreen_state, offscreen_entry, last_visible, saved_under)
+    assert restored["status"] == "RESTORED"
+    assert restored["restored_pixels_match_saved_under"] is True
+    tested += 1
+
+    for changed_state in (
+            dict(offscreen_state, entry=2),
+            dict(offscreen_state, player_fb=offscreen_row + 159),
+            dict(offscreen_state, valid_a=1)):
+        try:
+            validate_offscreen_owner_retirement(changed_state, offscreen_entry,
+                                                last_visible, saved_under)
+        except GuardFailure:
+            pass
+        else:
+            raise AssertionError("offscreen state, x, or valid-metadata negative was accepted")
+    tested += 3
+
+    try:
+        validate_offscreen_owner_retirement(offscreen_state, offscreen_entry, None, saved_under)
+    except GuardFailure:
+        pass
+    else:
+        raise AssertionError("missing owner snapshot was accepted")
+    tested += 1
+
+    mismatched_underlay = bytearray(saved_under)
+    mismatched_underlay[0] ^= 0x01
+    try:
+        validate_offscreen_owner_retirement(offscreen_state, offscreen_entry,
+                                            last_visible, bytes(mismatched_underlay))
+    except GuardFailure:
+        pass
+    else:
+        raise AssertionError("mismatched restored underlay was accepted")
+    tested += 1
+
+    owner_a_proof = {"status": "RESTORED", "entry_generation": offscreen_generation,
+        "owner": 0, "event_ordinal": 20}
+    owner_b_proof = {"status": "RESTORED", "entry_generation": offscreen_generation,
+        "owner": 1, "event_ordinal": 21}
+    gated_entry = {"index": offscreen_generation, "offscreen_retirement": {
+        "entry_generation": offscreen_generation,
+        "retired_by_owner": {0: owner_a_proof, 1: owner_b_proof}}}
+    assert offscreen_maze_entry_gate(gated_entry, 30)["pass"] is True
+    premature_entry = {"index": offscreen_generation, "offscreen_retirement": {
+        "entry_generation": offscreen_generation, "retired_by_owner": {0: owner_a_proof}}}
+    assert offscreen_maze_entry_gate(premature_entry, 30)["pass"] is False
+    assert offscreen_maze_entry_gate(gated_entry, 20)["pass"] is False
+    tested += 3
+
+    serializable_offscreen_entry = {"index": offscreen_generation,
+        "offscreen_retirement": {"entry_generation": offscreen_generation,
+            "last_visible_by_owner": {"0": {"entry_generation": offscreen_generation,
+                "owner": 0, "pointer": offscreen_row + 159, "visible_width_bytes": 1,
+                "event_ordinal": 10, "actual_sha256": sha(bytes([0x5A]) * 128),
+                "saved_under_sha256": sha(saved_under)}},
+            "retired_by_owner": {"0": owner_a_proof, "1": owner_b_proof},
+            "state3_observations": [], "maze_entry_gate": offscreen_maze_entry_gate(
+                gated_entry, 30)}}
+    json.dumps({"entries": [serializable_offscreen_entry],
+                "offscreen_owner_snapshots": {"generation_owner": "private bytes omitted"}},
+               allow_nan=False)
+    tested += 1
+
+    offscreen_fake = object.__new__(LiveRuntimeObserver)
+    offscreen_fake.current_entry = {"index": offscreen_generation,
+        "entry_start_fb": offscreen_entry["entry_start_fb"], "marker_x": 296,
+        "offscreen_retirement": {"entry_generation": offscreen_generation,
+            "last_visible_by_owner": {}, "retired_by_owner": {},
+            "state3_observations": [], "maze_entry_gate": None}}
+    offscreen_fake.offscreen_owner_snapshots = {}
+    offscreen_fake.errors = []
+    offscreen_fake.recorded_events = []
+    offscreen_fake._record = lambda stop, label, qualification, **fields: \
+        offscreen_fake.recorded_events.append({"label": label, **fields})
+    owner_bases = (0x60000, 0x58000)
+    owner_pixels = {0: bytes([0xA1]) * 128, 1: bytes([0xB2]) * 128}
+    def fake_front_mapping(owner: int) -> dict[str, Any]:
+        return {"front_owner_voff1_shadow": 0xC0 if owner == 0 else 0xB0,
+            "front_owner_voff2_shadow": 0, "front_physical_base": owner_bases[owner]}
+    offscreen_fake._front_mapping = fake_front_mapping
+    offscreen_fake._front_rect = lambda owner, pointer, mapping: owner_pixels[owner]
+    for owner in (0, 1):
+        pointer = offscreen_row + (159 if owner == 0 else 158)
+        width = visible_row_width_bytes(pointer)
+        visible = {"entry_generation": offscreen_generation, "owner": owner,
+            "pointer": pointer, "actual": bytes([owner + 0x31]) * 128,
+            "background": owner_pixels[owner], "visible_width_bytes": width,
+            "event_ordinal": 10 + owner, "actual_sha256": sha(bytes([owner + 0x31]) * 128),
+            "saved_under_sha256": sha(owner_pixels[owner])}
+        offscreen_fake.offscreen_owner_snapshots[(offscreen_generation, owner)] = visible
+        offscreen_fake.current_entry["offscreen_retirement"]["last_visible_by_owner"][str(owner)] = {
+            "entry_generation": offscreen_generation, "owner": owner, "pointer": pointer,
+            "visible_width_bytes": width, "event_ordinal": 10 + owner,
+            "actual_sha256": visible["actual_sha256"],
+            "saved_under_sha256": visible["saved_under_sha256"]}
+        owner_state = {"entry": 3, "death": 0, "player_fb": offscreen_row + 160,
+            "front": owner, "valid_a": 0, "valid_b": 0,
+            "meta_fb_a": pointer if owner == 0 else 0,
+            "meta_fb_b": pointer if owner == 1 else 0}
+        owner_stop = MonitorStop("fake-offscreen-retirement", 0xC000, 1,
+            {"pc": 0xC000}, 20 + owner, 800.0 + owner)
+        assert offscreen_fake._offscreen_owner_retirement(owner_stop, {}, owner_state)
+    maze_gate_stop = MonitorStop("fake-first-maze", 0xC000, 2,
+        {"pc": 0xC000}, 30, 900.0)
+    offscreen_fake._guard_first_maze_entry(maze_gate_stop, {}, {"entry": 4})
+    assert offscreen_fake.current_entry["offscreen_retirement"]["maze_entry_gate"]["pass"]
+    assert offscreen_fake.errors == []
+    json.dumps({"entries": [offscreen_fake.current_entry]}, allow_nan=False)
+    tested += 1
+
+    assert missing_visible_front_pose_failure(2, None)
+    assert missing_visible_front_pose_failure(4, None)
+    assert not missing_visible_front_pose_failure(3, None)
+    tested += 3
 
     forced_entry_observer = object.__new__(LiveRuntimeObserver)
     forced_entry_observer.scenario = "front-first"
@@ -5145,7 +5491,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
