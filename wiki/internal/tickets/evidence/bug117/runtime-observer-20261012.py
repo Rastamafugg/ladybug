@@ -9,6 +9,7 @@ GDB-MCP delivery qualification receipt for the exact candidate artifacts.
 from __future__ import annotations
 
 import argparse
+import copy
 import hashlib
 import importlib.util
 import json
@@ -65,11 +66,14 @@ INITIAL_ENTRY_STATE = 0x00A0
 PRES_CREDITS_ADDRESS = 0x00A8
 MODE_ATTRACT = 2
 DEATH_STATE = 0x004D
+DEATH_FRAME = 0x004E
 PLAYER_FB = 0x000B
+PLAYER_OLD_FB = 0x0067
 PLAYER_FACE = 0x0007
 PLAYER_ANIM = 0x004F
 PLAYER_BG_PTR = 0x00A2
 PLAYER_BG_VALID = 0x006A
+PLAYER_VISIBLE_ROWS = 0x00A1
 PLAYER_CELL_X = 0x0009
 PLAYER_CELL_Y = 0x000A
 PLAYER_STEP = 0x0008
@@ -594,6 +598,141 @@ def visible_rect_matches_background(actual: bytes, background: bytes,
                background[row * 8:row * 8 + visible_width_bytes] for row in range(16))
 
 
+def blend_native_over_saved_under(background: bytes, native: bytes) -> bytes:
+    """Apply the authored sparse 4bpp transparency rule to one 8x16 underlay."""
+    if len(background) != 128 or len(native) != 128:
+        raise GuardFailure("death pose blend requires complete 8x16 native and saved-under rectangles")
+    output = bytearray(background)
+    for index, pixel in enumerate(native):
+        mask = (0xF0 if not pixel & 0xF0 else 0) | (0x0F if not pixel & 0x0F else 0)
+        output[index] = (output[index] & mask) | pixel
+    return bytes(output)
+
+
+def compare_visible_rect_exact(actual: bytes, expected: bytes,
+                               visible_width_bytes: int) -> dict[str, Any]:
+    """Compare every visible packed pixel, including transparent underlay pixels."""
+    if (len(actual) != 128 or len(expected) != 128 or
+            type(visible_width_bytes) is not int or not 1 <= visible_width_bytes <= 8):
+        raise GuardFailure("exact FRONT rectangle comparison requires bounded complete 8x16 pixels")
+    mismatches = [index for row in range(16)
+                  for index in range(row * 8, row * 8 + visible_width_bytes)
+                  if actual[index] != expected[index]]
+    if mismatches:
+        raise GuardFailure(f"FRONT rectangle differs from source art/underlay at {len(mismatches)} visible bytes")
+    return {"visible_bytes_compared": visible_width_bytes * 16,
+            "mismatch_count": 0, "visible_width_bytes": visible_width_bytes}
+
+
+def validate_death_pose_snapshot(state: dict[str, Any], owner: int,
+                                 generation: int, frame_index: int,
+                                 actual: bytes, background: bytes,
+                                 native: bytes, stream_identity: dict[str, Any],
+                                 ordinal: int) -> dict[str, Any]:
+    """Validate one committed state-1/2 death pose against exact compiled art."""
+    if (type(owner) is not int or owner not in (0, 1) or
+            type(generation) is not int or generation < 1 or type(ordinal) is not int or ordinal < 1):
+        raise GuardFailure("death-pose snapshot lacks owner, contact generation, or commit ordinal")
+    if (state.get("entry") != 0 or state.get("death") not in (1, 2) or
+            type(frame_index) is not int or state.get("death_frame") != frame_index or
+            not 0 <= frame_index < 14 or state.get("front") != owner):
+        raise GuardFailure("death-pose snapshot is not the current committed visible death frame")
+    valid = state.get("valid_a") if owner == 0 else state.get("valid_b")
+    metadata_fb = state.get("meta_fb_a") if owner == 0 else state.get("meta_fb_b")
+    metadata_rows = state.get("meta_rows_a") if owner == 0 else state.get("meta_rows_b")
+    bg_base = 0xA300 if owner == 0 else 0xAB00
+    pointer = state.get("player_fb")
+    width = visible_row_width_bytes(pointer)
+    if (pointer - VISIBLE_BASE) // 160 + 16 > 192 or \
+            type(state.get("commit_seq")) is not int or not 0 <= state["commit_seq"] <= 0xFFFF:
+        raise GuardFailure("death-pose rectangle or framebuffer commit sequence is outside source bounds")
+    if (valid != 1 or metadata_fb != pointer or metadata_rows != 16 or
+            state.get("player_bg_valid") != 1 or state.get("player_visible_rows") != 16 or
+            state.get("player_bg_ptr") != bg_base):
+        raise GuardFailure("death-pose owner metadata or selected saved-under buffer is not current")
+    if (stream_identity.get("source_staged_match") is not True or
+            stream_identity.get("cpu_matches_staged") is not True or
+            stream_identity.get("physical_matches_staged") is not True):
+        raise GuardFailure("death-pose resident stream lacks source/staged/CPU/physical identity")
+    expected = blend_native_over_saved_under(background, native)
+    pixels = compare_visible_rect_exact(actual, expected, width)
+    opaque = sum(bool((native[row * 8 + column] >> shift) & 0x0F)
+                 for row in range(16) for column in range(width)
+                 for shift in (4, 0))
+    if opaque <= 0:
+        raise GuardFailure("compiled death pose has no visible nontransparent pixels")
+    return {"generation": generation, "owner": owner, "death_state": state["death"],
+            "death_frame": frame_index, "pointer": pointer,
+            "visible_width_bytes": width, "visible_rows": 16,
+            "ordinal": ordinal, "commit_seq": state.get("commit_seq"),
+            "actual_sha256": sha(actual), "expected_sha256": sha(expected),
+            "saved_under_sha256": sha(background),
+            "resident_stream_sha256": stream_identity.get("staged_sha256"),
+            "source_stream_sha256": stream_identity.get("source_sha256"),
+            "opaque_pixels_compared": opaque, **pixels}
+
+
+def validate_death_blank_retirement(state: dict[str, Any], generation: int,
+                                    entry_generation: int,
+                                    prior: dict[str, Any] | None, actual: bytes,
+                                    current_background: bytes,
+                                    mapping: dict[str, Any], irq_committed: bool,
+                                    ordinal: int) -> dict[str, Any]:
+    """Prove timer-37 FRONT restored its owner-local retired death rectangle."""
+    if (type(generation) is not int or generation < 1 or
+            type(entry_generation) is not int or entry_generation < 1 or
+            state.get("entry") != 0 or state.get("death") != 3 or state.get("timer") != 37 or
+            type(irq_committed) is not bool or not irq_committed or
+            type(ordinal) is not int or ordinal < 1):
+        raise GuardFailure("death-blank retirement lacks the exact timer-37 committed FRONT boundary")
+    if not isinstance(prior, dict):
+        raise GuardFailure("timer-37 FRONT owner has no committed death-pose history")
+    owner = state.get("front")
+    if (type(owner) is not int or owner not in (0, 1) or
+            prior.get("generation") != generation or
+            prior.get("entry_generation") != entry_generation or prior.get("owner") != owner or
+            prior.get("death_state") != 2 or
+            prior.get("source_staged_live_qualified") is not True):
+        raise GuardFailure("timer-37 pose history is missing, stale, cross-owner, or not state 2")
+    pointer = prior.get("pointer")
+    width = prior.get("visible_width_bytes")
+    if (type(pointer) is not int or state.get("player_old_fb") != pointer or
+            type(width) is not int or width != visible_row_width_bytes(pointer)):
+        raise GuardFailure("timer-37 PLAYER_OLD_FB differs from this owner's retired death rectangle")
+    bg_base = 0xA300 if owner == 0 else 0xAB00
+    valid = state.get("valid_a") if owner == 0 else state.get("valid_b")
+    metadata_fb = state.get("meta_fb_a") if owner == 0 else state.get("meta_fb_b")
+    metadata_rows = state.get("meta_rows_a") if owner == 0 else state.get("meta_rows_b")
+    prior_visible_rows = prior.get("visible_rows")
+    if (state.get("player_bg_ptr") != bg_base or state.get("player_bg_valid") != 0 or
+            type(prior_visible_rows) is not int or prior_visible_rows != 16 or
+            state.get("player_visible_rows") != prior_visible_rows or
+            valid != 0 or metadata_rows != 0 or
+            metadata_fb != state.get("player_fb")):
+        raise GuardFailure("timer-37 owner metadata is not invalid with the current logical address published")
+    if mapping.get("front_mapping_qualified") is not True:
+        raise GuardFailure("timer-37 FRONT rectangle lacks qualified GIME owner mapping")
+    saved_under = prior.get("background")
+    if (type(saved_under) is not bytes or len(saved_under) != 128 or
+            type(current_background) is not bytes or current_background != saved_under or
+            type(actual) is not bytes or len(actual) != 128):
+        raise GuardFailure("timer-37 saved-under bytes differ from the owner-local state-2 snapshot")
+    if not visible_rect_matches_background(actual, saved_under, width):
+        raise GuardFailure("timer-37 FRONT pixels differ from the retired rectangle saved-under")
+    return {"generation": generation,
+            "entry_generation": prior.get("entry_generation"),
+            "owner": owner, "retired_pointer": pointer,
+            "logical_pointer": state["player_fb"], "visible_width_bytes": width,
+            "saved_under_sha256": sha(saved_under), "front_rect_sha256": sha(actual),
+            "current_saved_under_sha256": sha(current_background),
+            "visible_bytes_compared": width * 16,
+            "death_blank_opaque_pixels_compared": prior.get("opaque_pixels_compared"),
+            "retired_pointer_matches_player_old_fb": True,
+            "logical_pointer_matches_post_capture_metadata": True,
+            "owner_metadata_invalid": True, "front_mapping_qualified": True,
+            "pixels_match_saved_under": True, "irq_commit_event_ordinal": ordinal}
+
+
 def requires_visible_front_pose(entry_state: int) -> bool:
     """State 3 retires the actor; every other observed entry state remains visible."""
     return entry_state != 3
@@ -907,6 +1046,161 @@ def candidate_player_frame_table(build: Path) -> tuple[tuple[bytes, ...], dict[s
         if len(frames) != 16:
             raise GuardFailure("candidate player compiler did not produce sixteen face/animation poses")
         return frames, identity
+    finally:
+        if added:
+            sys.path.remove(scripts_dir)
+
+
+def candidate_death_frame_table(build: Path) -> tuple[tuple[bytes, ...],
+        tuple[bytes, ...], tuple[bytes, ...], dict[str, Any]]:
+    """Bind all authored death frames and emitted resident streams to one receipt."""
+    if ROOT is None or PLAYER_ART is None:
+        raise GuardFailure("death art compiler/source is unavailable from this workspace")
+    build = build.resolve(strict=True)
+    receipt_path = build / "source-build-receipt.json"
+    image_path = build / "ladybug-runtime.rom"
+    map_path = build / "ladybug.map"
+    listing_path = build / "ladybug.lst"
+    if any(not path.is_file() for path in
+           (receipt_path, image_path, map_path, listing_path, PLAYER_ART)):
+        raise GuardFailure("candidate lacks a death-art source, receipt, map, listing, or resident image")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    inputs = {str(name).replace("\\", "/"): value
+              for name, value in receipt.get("inputs", {}).items()}
+    artifacts = receipt.get("artifacts")
+    if receipt.get("state") != "complete" or not isinstance(artifacts, dict):
+        raise GuardFailure("death art requires a complete source-build receipt")
+    required_inputs = {"assets/arcade/sprites.json": PLAYER_ART,
+                       "scripts/build_screen.py": ROOT / "scripts/build_screen.py",
+                       "src/main.s": build.parent / "src" / "main.s"}
+    source_hashes = {name: sha(path.read_bytes()) for name, path in required_inputs.items()}
+    if any(inputs.get(name) != digest for name, digest in source_hashes.items()):
+        raise GuardFailure("death frame source, compiler, or main assembly differs from current receipt")
+    image = image_path.read_bytes()
+    image_sha, map_sha, listing_sha = sha(image), sha(map_path.read_bytes()), sha(listing_path.read_bytes())
+    for name, digest in (("ladybug-runtime.rom", image_sha),
+                         ("ladybug.map", map_sha), ("ladybug.lst", listing_sha)):
+        if artifacts.get(name) != digest:
+            raise GuardFailure(f"death frame candidate {name} differs from complete source receipt")
+    symbols = read_symbols(map_path)
+    frame_count = symbols.get("DEATH_FRAME_COUNT")
+    angel_frame = symbols.get("DEATH_ANGEL_FRAME")
+    if frame_count != 14 or angel_frame != 13:
+        raise GuardFailure("death frame count/angel map differs from the authored fourteen-frame contract")
+    frame_addresses = [symbols.get(f"death_sparse_frame_{index}") for index in range(frame_count)]
+    table_address = symbols.get("death_sparse_streams")
+    end_address = symbols.get("vegetable_sprites")
+    if (any(type(address) is not int for address in frame_addresses) or
+            type(table_address) is not int or type(end_address) is not int or
+            frame_addresses != sorted(frame_addresses) or
+            not (RESIDENT_IMAGE_BASE <= table_address <= table_address + 28 <= end_address <=
+                 RESIDENT_IMAGE_BASE + len(image))):
+        raise GuardFailure("death stream map labels/table are outside ordered resident bounds")
+    table_offset = table_address - RESIDENT_IMAGE_BASE
+    staged_table = image[table_offset:table_offset + 28]
+    expected_table = b"".join(address.to_bytes(2, "big") for address in frame_addresses)
+    if staged_table != expected_table:
+        raise GuardFailure("staged death frame pointer table differs from current map labels")
+    main_source = build.parent / "src" / "main.s"
+    main_source_lines = main_source.read_text(encoding="utf-8").splitlines()
+    renderer_pattern = re.compile(
+        r"draw_death_frame\s+lbsr\s+save_player\s+lda\s+DEATH_FRAME\s+lsla\s+"
+        r"leau\s+death_sparse_streams,pcr\s+leau\s+a,u\s+ldu\s+,u\s+"
+        r"ldx\s+PLAYER_FB\s+jsr\s+PRESENTATION_MODULE_DRAW\s+rts", re.I)
+    normalized_main = re.sub(r"\s+", " ", re.sub(r";[^\n]*", " ",
+                              main_source.read_text(encoding="utf-8")))
+    if not renderer_pattern.search(normalized_main):
+        raise GuardFailure("current main source no longer selects and draws death art from DEATH_FRAME")
+    listing_lines = listing_path.read_text(encoding="utf-8").splitlines()
+    label_pattern = re.compile(r"^([0-9A-Fa-f]{4})\s+\([^)]*src/main\.s\):(\d+)\s+draw_death_frame\s*$", re.I)
+    end_pattern = re.compile(r"^([0-9A-Fa-f]{4})\s+\([^)]*src/main\.s\):(\d+)\s+cep_next\s*$", re.I)
+    renderer_labels = [(line_index, match) for line_index, line in enumerate(listing_lines)
+                       if (match := label_pattern.fullmatch(line))]
+    renderer_ends = [(line_index, match) for line_index, line in enumerate(listing_lines)
+                     if (match := end_pattern.fullmatch(line))]
+    if len(renderer_labels) != 1 or len(renderer_ends) != 1:
+        raise GuardFailure("current listing must resolve one death renderer and its next label")
+    renderer_line_index, renderer_match = renderer_labels[0]
+    end_line_index, end_match = renderer_ends[0]
+    renderer_address, renderer_source_line = int(renderer_match.group(1), 16), int(renderer_match.group(2))
+    renderer_end, renderer_end_source_line = int(end_match.group(1), 16), int(end_match.group(2))
+    if (end_line_index <= renderer_line_index or renderer_end <= renderer_address or
+            renderer_address < RESIDENT_IMAGE_BASE or renderer_end > RESIDENT_IMAGE_BASE + len(image) or
+            not (1 <= renderer_source_line <= len(main_source_lines)) or
+            not (1 <= renderer_end_source_line <= len(main_source_lines)) or
+            _asm_code_line(main_source_lines[renderer_source_line - 1]).lower() != "draw_death_frame" or
+            _asm_code_line(main_source_lines[renderer_end_source_line - 1]).lower() != "cep_next"):
+        raise GuardFailure("death renderer listing labels do not resolve to current resident source lines")
+    listing_bytes = bytearray()
+    instruction_pattern = re.compile(
+        r"^([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]+)\s+\([^)]*src/main\.s\):(\d+)\s+", re.I)
+    for line in listing_lines[renderer_line_index + 1:end_line_index]:
+        match = instruction_pattern.match(line)
+        if match is not None:
+            encoded = match.group(2)
+            if len(encoded) % 2:
+                raise GuardFailure("death renderer listing contains an odd-length instruction encoding")
+            listing_bytes.extend(bytes.fromhex(encoded))
+    renderer_staged = image[renderer_address - RESIDENT_IMAGE_BASE:
+                             renderer_end - RESIDENT_IMAGE_BASE]
+    if not listing_bytes or bytes(listing_bytes) != renderer_staged:
+        raise GuardFailure("death renderer staged bytes differ from its current source listing")
+    renderer_identity = {"symbol": "draw_death_frame", "address": renderer_address,
+        "length": len(renderer_staged), "source_line": renderer_source_line,
+        "source_sha256": source_hashes["src/main.s"],
+        "listing_sha256": listing_sha, "staged_sha256": sha(renderer_staged),
+        "listing_staged_match": True, "selects_death_frame_table": True,
+        "calls_sparse_renderer": True, "staged_hex": renderer_staged.hex()}
+    scripts_dir = str(ROOT / "scripts")
+    added = scripts_dir not in sys.path
+    if added:
+        sys.path.insert(0, scripts_dir)
+    try:
+        screen = importlib.import_module("build_screen")
+        sparse_verify = importlib.import_module("verify_presentation_sparse")
+        packed_frames = tuple(screen.compile_death_sprites(PLAYER_ART))
+        if len(packed_frames) != frame_count or any(len(frame) != 64 for frame in packed_frames):
+            raise GuardFailure("current death compiler did not produce fourteen complete packed frames")
+        native_frames: list[bytes] = []
+        streams: list[bytes] = []
+        frame_identities = []
+        for index, packed in enumerate(packed_frames):
+            colour = 1 if index < 7 else 6
+            native = screen.expand_sprite(packed, (0, colour, colour, colour))
+            expected_stream = screen.encode_sparse_native(native, 16, 8)
+            start = frame_addresses[index]
+            end = frame_addresses[index + 1] if index + 1 < frame_count else end_address
+            if not RESIDENT_IMAGE_BASE <= start < end <= RESIDENT_IMAGE_BASE + len(image):
+                raise GuardFailure(f"death frame {index} stream bounds are invalid")
+            staged_stream = image[start - RESIDENT_IMAGE_BASE:end - RESIDENT_IMAGE_BASE]
+            if staged_stream != expected_stream:
+                raise GuardFailure(f"staged death frame {index} stream differs from current authored compiler output")
+            try:
+                _decoded, consumed = sparse_verify.decode(staged_stream, 16, 8)
+            except (IndexError, ValueError) as exc:
+                raise GuardFailure(f"staged death frame {index} sparse stream is malformed") from exc
+            if consumed != len(staged_stream):
+                raise GuardFailure(f"staged death frame {index} stream contains unconsumed bytes")
+            native_frames.append(native)
+            streams.append(staged_stream)
+            frame_identities.append({"index": index, "palette_pen": colour,
+                "packed_sha256": sha(packed), "native_sha256": sha(native),
+                "stream_address": start, "stream_length": len(staged_stream),
+                "source_stream_sha256": sha(expected_stream),
+                "staged_stream_sha256": sha(staged_stream),
+                "source_staged_match": True, "decoder_consumed_exact_stream": True})
+        identity = {"frame_count": frame_count, "angel_frame": angel_frame,
+            "source_asset": "assets/arcade/sprites.json",
+            "source_hashes": source_hashes,
+            "receipt_sha256": sha(receipt_path.read_bytes()),
+            "resident_sha256": image_sha, "map_sha256": map_sha,
+            "listing_sha256": listing_sha,
+            "build_screen_sha256": source_hashes["scripts/build_screen.py"],
+            "table_address": table_address, "table_sha256": sha(staged_table),
+            "all_source_staged_streams_match": True,
+            "renderer": renderer_identity,
+            "frames": frame_identities}
+        return packed_frames, tuple(native_frames), tuple(streams), identity
     finally:
         if added:
             sys.path.remove(scripts_dir)
@@ -1429,8 +1723,12 @@ def prepare(build: Path) -> dict[str, Any]:
         "main": ("DEATH_TIMER", "DEATH_STATE", "INITIAL_ENTRY_STATE", "PLAYER_CELL_X",
                  "PLAYER_CELL_Y", "PLAYER_STEP", "PLAYER_DIR", "PLAYER_FACE", "PLAYER_ANIM",
                  "PLAYER_TICK_PENDING", "PLAYER_BG_PTR",
-                 "PLAYER_BG_VALID", "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
-                 "FB_META_A", "FB_META_B", "FBM_PLAYER_VALID",
+                 "PLAYER_BG_VALID", "PLAYER_OLD_FB", "PLAYER_VISIBLE_ROWS",
+                 "DEATH_FRAME", "DEATH_FRAME_COUNT", "DEATH_ANGEL_FRAME",
+                 "death_sparse_streams", "vegetable_sprites",
+                 "PLAYER_BG", "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
+                 "FB_META_A", "FB_META_B", "FBM_PLAYER_VALID", "FBM_PLAYER_RESERVED",
+                 *(f"death_sparse_frame_{index}" for index in range(14)),
                   "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE", "ENTITY_TABLE", "ENTITY_COUNT",
                   "STAGE", "DIR_NORTH", "DIR_EAST", "DIR_SOUTH", "DIR_WEST",
                  "asset_end",
@@ -1446,7 +1744,9 @@ def prepare(build: Path) -> dict[str, Any]:
                   "gmc_cue_stream_03", "gmc_cue_stream_06", "gmc_cue_stream_13",
                   "gmc_sound_data_end"),
         "enemy": ("framebuffer_irq_impl", "fbiq_publish", "fbiq_done", "et_player_death",
-                  "FBM_PLAYER_FB"),
+                  "PLAYER_BG", "PLAYER_BG_B", "PLAYER_BG_PTR", "PLAYER_BG_VALID",
+                  "PLAYER_OLD_FB", "PLAYER_VISIBLE_ROWS", "FBM_PLAYER_VALID",
+                  "FBM_PLAYER_RESERVED", "FBM_PLAYER_FB"),
         "presentation": ("presentation_flow_tick", "add_credit", "pft_ready",
                          "pft_single_credit", "PRES_MAGIC", "PRES_CREDITS", "PRES_EVENT",
                          "MODE_ATTRACT"),
@@ -1456,6 +1756,14 @@ def prepare(build: Path) -> dict[str, Any]:
               for symbol in symbols if symbol not in maps[domain]]
     if absent:
         raise GuardFailure("required map symbols absent: " + ", ".join(absent))
+    if (main["DEATH_FRAME"] != DEATH_FRAME or main["DEATH_FRAME_COUNT"] != 14 or
+            main["DEATH_ANGEL_FRAME"] != 13 or main["PLAYER_BG"] != 0xA300 or
+            enemy["PLAYER_BG"] != main["PLAYER_BG"] or enemy["PLAYER_BG_B"] != 0xAB00 or
+            any(main[name] != enemy[name] for name in
+                ("PLAYER_BG_PTR", "PLAYER_BG_VALID", "PLAYER_OLD_FB", "PLAYER_VISIBLE_ROWS",
+                 "FBM_PLAYER_VALID", "FBM_PLAYER_RESERVED")) or
+            enemy["FBM_PLAYER_FB"] != 4):
+        raise GuardFailure("death pose low-RAM/save-under and A/B metadata maps disagree across modules")
     if main["DEATH_TIMER"] != TIMER_ADDRESS:
         raise GuardFailure(f"DEATH_TIMER map resolves to ${main['DEATH_TIMER']:04X}, not $003A")
     if (presentation["presentation_flow_tick"] != 0x1900 or
@@ -1521,6 +1829,8 @@ def prepare(build: Path) -> dict[str, Any]:
     post_busy_pc = post_busy_marker(audio_bin, audio)
     bus_marker = audio_bus_write_marker(audio_bin, audio)
     player_art = verify_candidate_player_art(build)
+    _death_packed, _death_native, _death_streams, death_art_identity = \
+        candidate_death_frame_table(build)
     identity = {name: {"bytes": p.stat().st_size, "sha256": sha(p.read_bytes())}
                 for name, p in files.items()}
     resident_image = files["ladybug-runtime.rom"].read_bytes()
@@ -1558,6 +1868,7 @@ def prepare(build: Path) -> dict[str, Any]:
         "post_psg_busy_marker": {"pc": post_busy_pc,
             "derived_from_linked_jsr_and_sta": True},
         "player_art_identity": player_art,
+        "death_art_identity": death_art_identity,
         "observer_adapter": {
             "implemented": LIVE_CAPTURE_IMPLEMENTED,
             "monitor_controls": ["events.subscribe", "set_breakpoint", "set_watchpoint",
@@ -2533,6 +2844,10 @@ class LiveRuntimeObserver:
         self.perimeter_alias_events: list[dict[str, Any]] = []
         self.page20_alias_full_check: dict[str, Any] | None = None
         self.player_frame_table, self.player_art_identity = candidate_player_frame_table(build)
+        (self.death_frame_table, self.death_native_frames,
+         self.death_stream_bytes, self.death_art_identity) = candidate_death_frame_table(build)
+        if preparation.get("death_art_identity") != self.death_art_identity:
+            raise GuardFailure("prepared death frame/source/staged identity differs from current candidate")
         self.irq_marker = preparation["irq_commit_instruction"]
         self.bus_marker = preparation["audio_bus_store"]
         self.post_busy_pc = preparation["post_psg_busy_marker"]["pc"]
@@ -2571,6 +2886,13 @@ class LiveRuntimeObserver:
         self.lifecycle_records: list[LifecycleOrder] = []
         self.previous_death: tuple[int, int] | None = None
         self.contact_count = 0
+        self.death_generation: int | None = None
+        self.death_entry_generation: int | None = None
+        self.death_pose_by_owner: dict[int, dict[str, Any]] = {}
+        self.death_pose_rejections: list[dict[str, Any]] = []
+        self.death_blank_mainloop: dict[str, Any] | None = None
+        self.death_blank_observations: list[dict[str, Any]] = []
+        self.death_blank_attempted_generations: set[int] = set()
         self.contacts: list[dict[str, Any]] = []
         self.death_source_events: list[dict[str, Any]] = []
         self.entry_contact_violation = False
@@ -3176,18 +3498,28 @@ class LiveRuntimeObserver:
             **decode_contact_search_state(low, self.main),
             "entry": byte("INITIAL_ENTRY_STATE"), "death": byte("DEATH_STATE"),
             "timer": byte("DEATH_TIMER"), "lives": byte("LIVES"),
+            "death_frame": byte("DEATH_FRAME"),
             "pending": byte("FB_RENDER_PENDING"), "front": byte("FB_FRONT_ID"),
             "back": byte("FB_BACK_ID"), "commit_seq": word("FB_COMMIT_SEQ"),
             "frames": word("FRAMES"), "player_fb": word("PLAYER_FB"),
+            "player_old_fb": word("PLAYER_OLD_FB"),
+            "player_bg_ptr": word("PLAYER_BG_PTR"),
+            "player_bg_valid": byte("PLAYER_BG_VALID"),
+            "player_visible_rows": byte("PLAYER_VISIBLE_ROWS"),
             "cell_x": byte("PLAYER_CELL_X"), "cell_y": byte("PLAYER_CELL_Y"),
             "step": byte("PLAYER_STEP"), "dir": byte("PLAYER_DIR"),
             "face": byte("PLAYER_FACE"), "tick_pending": byte("PLAYER_TICK_PENDING"),
             "anim": byte("PLAYER_ANIM"), "mode": byte("PRES_MODE"),
             "presentation_magic": low[0x00A4], "credits": low[PRES_CREDITS_ADDRESS],
             "presentation_event": low[0x00A9],
-            "valid_a": meta_a[2], "valid_b": meta_b[2],
-            "meta_fb_a": int.from_bytes(meta_a[4:6], "big"),
-            "meta_fb_b": int.from_bytes(meta_b[4:6], "big"),
+            "valid_a": meta_a[self.main["FBM_PLAYER_VALID"]],
+            "valid_b": meta_b[self.main["FBM_PLAYER_VALID"]],
+            "meta_rows_a": meta_a[self.main["FBM_PLAYER_RESERVED"]],
+            "meta_rows_b": meta_b[self.main["FBM_PLAYER_RESERVED"]],
+            "meta_fb_a": int.from_bytes(meta_a[self.enemy["FBM_PLAYER_FB"]:
+                                               self.enemy["FBM_PLAYER_FB"] + 2], "big"),
+            "meta_fb_b": int.from_bytes(meta_b[self.enemy["FBM_PLAYER_FB"]:
+                                               self.enemy["FBM_PLAYER_FB"] + 2], "big"),
             "enemy_sha256": sha(enemy_raw)}
 
     def _audio_snapshot(self) -> dict[str, Any]:
@@ -4196,7 +4528,10 @@ class LiveRuntimeObserver:
     def _irq_start(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
         self.irq_before = {"seq": state["commit_seq"], "back": state["back"],
-                           "pending": state["pending"], "state": state}
+                           "front": state["front"], "pending": state["pending"],
+                           "state": state, "ordinal": stop.ordinal,
+                           "source_staged_live_match":
+                               qualification.get("source_staged_live_match") is True}
         self.irq_inc = None
         self._record(stop, "irq-publication-start", qualification,
                      pending=state["pending"], back=state["back"], seq=state["commit_seq"])
@@ -4329,6 +4664,248 @@ class LiveRuntimeObserver:
                 self.current_entry["first_maze_visible_frame"] = state["frames"]
         return record
 
+    def _death_renderer_live_identity(self, stop: MonitorStop) -> dict[str, Any]:
+        renderer = self.death_art_identity["renderer"]
+        expected = bytes.fromhex(renderer["staged_hex"])
+        live = qualify_live_span(self.client, renderer["address"], expected,
+            PAR_BASE + 6, 0x3E, 0xC000, RESIDENT_IMAGE_BASE,
+            self.main_image, self.delivery, self.current_stop_context)
+        cpu = monitor_bytes(self.client, renderer["address"], len(expected))
+        if cpu != expected:
+            raise GuardFailure("death renderer CPU bytes differ from receipt-bound staged listing bytes")
+        if (renderer.get("listing_staged_match") is not True or
+                renderer.get("selects_death_frame_table") is not True or
+                renderer.get("calls_sparse_renderer") is not True):
+            raise GuardFailure("death renderer source/listing identity is incomplete")
+        return {"source_staged_match": True, "cpu_matches_staged": True,
+            "physical_matches_staged": True, "address": renderer["address"],
+            "length": len(expected), "sha256": live["sha256"],
+            "cpu_sha256": sha(cpu), "source_sha256": renderer["source_sha256"],
+            "listing_sha256": renderer["listing_sha256"]}
+
+    def _death_stream_live_identity(self, stop: MonitorStop,
+                                    frame_index: int) -> dict[str, Any]:
+        if type(frame_index) is not int or not 0 <= frame_index < len(self.death_stream_bytes):
+            raise GuardFailure("committed death frame index is outside the receipt-bound fourteen-frame table")
+        frame = self.death_art_identity["frames"][frame_index]
+        expected = self.death_stream_bytes[frame_index]
+        address = frame["stream_address"]
+        if (frame.get("source_staged_match") is not True or
+                frame.get("staged_stream_sha256") != sha(expected)):
+            raise GuardFailure("death stream source/compiler/staged identity changed after preparation")
+        page_register = PAR_BASE + (6 if address < 0xE000 else 7)
+        page = 0x3E if address < 0xE000 else 0x3F
+        window = 0xC000 if address < 0xE000 else 0xE000
+        live = qualify_live_span(self.client, address, expected, page_register, page,
+            window, RESIDENT_IMAGE_BASE, self.main_image, self.delivery,
+            self.current_stop_context)
+        cpu = monitor_bytes(self.client, address, len(expected))
+        if cpu != expected:
+            raise GuardFailure("death sparse stream CPU bytes differ from source-compiled staged frame")
+        return {"source_staged_match": True, "cpu_matches_staged": True,
+            "physical_matches_staged": True, "cpu_sha256": sha(cpu),
+            "physical_sha256": live["sha256"],
+            "source_sha256": frame["source_stream_sha256"],
+            "staged_sha256": frame["staged_stream_sha256"],
+            "address": address, "length": len(expected),
+            "frame_index": frame_index,
+            "resident_image_sha256": self.death_art_identity["resident_sha256"]}
+
+    def _record_death_front_pose(self, stop: MonitorStop,
+                                 qualification: dict[str, Any],
+                                 state: dict[str, Any]) -> None:
+        """Retain the latest source/art/underlay-qualified death pose per FRONT owner."""
+        if (self.lifecycle is None or self.death_generation is None or
+                self.death_entry_generation is None or state.get("entry") != 0 or
+                state.get("death") not in (1, 2)):
+            return
+        owner = state.get("front")
+        frame_index = state.get("death_frame")
+        if type(owner) is int and owner in (0, 1) and frame_index == 0xFF:
+            self.death_pose_by_owner.pop(owner, None)
+            summary = {"generation": self.death_generation,
+                "entry_generation": self.death_entry_generation, "owner": owner,
+                "death_state": state.get("death"), "death_frame": 0xFF,
+                "event_ordinal": stop.ordinal, "visible_pose": False,
+                "reason": "source-hidden-death-frame-has-no-art"}
+            self.death_pose_rejections.append(summary)
+            self._record(stop, "death-front-pose-hidden", qualification, **summary)
+            return
+        try:
+            if qualification.get("source_staged_live_match") is not True:
+                raise GuardFailure("death pose IRQ stop lacks source/staged live code identity")
+            if (type(owner) is not int or owner not in (0, 1) or
+                    self.death_generation != self.contact_count or
+                    self.death_entry_generation != (self.current_entry or {}).get("index")):
+                raise GuardFailure("death pose has no current genuine-contact and entry generation")
+            published = self.irq_before.get("state") if isinstance(self.irq_before, dict) else None
+            if (not isinstance(published, dict) or self.irq_before.get("pending") != 1 or
+                    self.irq_before.get("back") != owner or
+                    published.get("entry") != state.get("entry") or
+                    published.get("death") != state.get("death") or
+                    published.get("death_frame") != frame_index or
+                    published.get("player_fb") != state.get("player_fb")):
+                raise GuardFailure("death pose frame/pointer did not remain stable from renderer publication to IRQ commit")
+            for field in ("valid_a", "valid_b", "meta_rows_a", "meta_rows_b",
+                          "meta_fb_a", "meta_fb_b", "player_bg_ptr", "player_bg_valid",
+                          "player_visible_rows"):
+                if published.get(field) != state.get(field):
+                    raise GuardFailure(f"death pose publication-to-FRONT metadata changed at {field}")
+            stream = self._death_stream_live_identity(stop, frame_index)
+            renderer = self._death_renderer_live_identity(stop)
+            mapping = self._front_mapping(owner)
+            pointer = state.get("player_fb")
+            actual = self._front_rect(owner, pointer, mapping)
+            bg_base = self.main["PLAYER_BG"] if owner == 0 else self.enemy["PLAYER_BG_B"]
+            background = physical_page_read(self.client, 0x34, bg_base - 0xA000, 128)
+            proof = validate_death_pose_snapshot(state, owner, self.death_generation,
+                frame_index, actual, background, self.death_native_frames[frame_index],
+                stream, stop.ordinal)
+            if bg_base != (0xA300 if owner == 0 else 0xAB00):
+                raise GuardFailure("death pose source map resolves to an unexpected owner save-under buffer")
+            if not renderer.get("source_staged_match") or not renderer.get("cpu_matches_staged") or \
+                    not renderer.get("physical_matches_staged"):
+                raise GuardFailure("death pose renderer bytes lack source/staged/CPU/physical identity")
+            proof.update({"entry_generation": self.death_entry_generation,
+                "event_ordinal": stop.ordinal,
+                "renderer_address": renderer["address"],
+                "renderer_sha256": renderer["sha256"],
+                "front_mapping_qualified": True,
+                "front_owner_voff1_shadow": mapping["front_owner_voff1_shadow"],
+                "front_owner_voff2_shadow": mapping["front_owner_voff2_shadow"],
+                "front_physical_base": mapping["front_physical_base"],
+                "source_staged_live_art_qualified": True,
+                "irq_publish_ordinal": self.irq_before["ordinal"],
+                "irq_commit_event_ordinal": stop.ordinal})
+            self.death_pose_by_owner[owner] = {**proof,
+                "background": background, "actual": actual,
+                "native": self.death_native_frames[frame_index],
+                "source_staged_live_qualified": True,
+                "entry_generation": self.death_entry_generation,
+                "logical_pointer_at_pose": pointer}
+            self._record(stop, "actual-front-death-pose", qualification, **proof)
+        except GuardFailure as exc:
+            if type(owner) is int and owner in (0, 1):
+                self.death_pose_by_owner.pop(owner, None)
+            summary = {"generation": self.death_generation,
+                "entry_generation": self.death_entry_generation,
+                "owner": owner if type(owner) is int else None,
+                "death_state": state.get("death"), "death_frame": frame_index,
+                "player_fb": state.get("player_fb"),
+                "player_old_fb": state.get("player_old_fb"),
+                "event_ordinal": stop.ordinal, "visible_pose": False,
+                "reason": str(exc)}
+            self.death_pose_rejections.append(summary)
+            self.errors.append("death-front-pose-source-or-pixel-proof-failed")
+            self._record(stop, "death-front-pose-rejected", qualification, **summary)
+
+    def _record_death_blank_retirement(self, stop: MonitorStop,
+                                       qualification: dict[str, Any],
+                                       state: dict[str, Any]) -> None:
+        """Prove the timer-37 committed FRONT at its owner-local retired death pointer."""
+        if (self.lifecycle is None or self.death_generation is None or
+                state.get("entry") != 0 or state.get("death") != 3 or
+                state.get("timer") != 37):
+            return
+        generation = self.death_generation
+        if generation in self.death_blank_attempted_generations:
+            return
+        self.death_blank_attempted_generations.add(generation)
+        owner = state.get("front")
+        mainloop = self.death_blank_mainloop
+        prior = self.death_pose_by_owner.get(owner) if type(owner) is int else None
+        try:
+            if qualification.get("source_staged_live_match") is not True:
+                raise GuardFailure("timer-37 IRQ stop lacks source/staged live IRQ code identity")
+            if (not isinstance(mainloop, dict) or mainloop.get("generation") != generation or
+                    mainloop.get("entry_generation") != self.death_entry_generation or
+                    mainloop.get("entry") != 0 or mainloop.get("death") != 3 or
+                    mainloop.get("timer") != 37 or mainloop.get("pending") != 1 or
+                    mainloop.get("source_staged_live_match") is not True or
+                    mainloop.get("event_ordinal", stop.ordinal) >= stop.ordinal):
+                raise GuardFailure("timer-37 blank lacks its earlier source-qualified pending mainloop boundary")
+            published = self.irq_before.get("state") if isinstance(self.irq_before, dict) else None
+            if (not isinstance(published, dict) or self.irq_before.get("pending") != 1 or
+                    self.irq_before.get("back") != owner or
+                    self.irq_before.get("ordinal", stop.ordinal) <= mainloop["event_ordinal"] or
+                    mainloop.get("commit_seq") != self.irq_before.get("seq") or
+                    mainloop.get("front") != self.irq_before.get("front") or
+                    mainloop.get("back") != self.irq_before.get("back") or
+                    self.irq_inc is None or self.irq_inc.get("ordinal", 0) <= self.irq_before.get("ordinal", 0) or
+                    self.irq_inc.get("pc") != self.irq_marker.get("pc") or
+                    published.get("entry") != 0 or published.get("death") != 3 or
+                    published.get("timer") != 37 or state.get("entry") != 0 or
+                    state.get("death") != 3 or state.get("timer") != 37):
+                raise GuardFailure("timer-37 blank is not the exact pending state and committed FRONT transaction")
+            for field in ("player_fb", "player_old_fb", "player_bg_ptr", "player_bg_valid",
+                          "player_visible_rows", "valid_a", "valid_b", "meta_rows_a",
+                          "meta_rows_b", "meta_fb_a", "meta_fb_b"):
+                if published.get(field) != state.get(field):
+                    raise GuardFailure(f"timer-37 published FRONT metadata changed at {field}")
+            if (self.death_entry_generation != (self.current_entry or {}).get("index") or
+                    self.death_generation != self.contact_count):
+                raise GuardFailure("timer-37 blank belongs to a stale contact or replacement-entry generation")
+            mapping = self._front_mapping(owner)
+            bg_base = self.main["PLAYER_BG"] if owner == 0 else self.enemy["PLAYER_BG_B"]
+            if bg_base != (0xA300 if owner == 0 else 0xAB00):
+                raise GuardFailure("timer-37 FRONT owner maps to an unexpected save-under buffer")
+            pointer = prior.get("pointer") if isinstance(prior, dict) else None
+            actual = self._front_rect(owner, pointer, mapping)
+            current_background = physical_page_read(self.client, 0x34,
+                bg_base - 0xA000, 128)
+            proof = validate_death_blank_retirement(state, generation,
+                self.death_entry_generation, prior,
+                actual, current_background, mapping, True, stop.ordinal)
+            if (not isinstance(mainloop, dict) or mainloop.get("front") not in (0, 1) or
+                    mainloop.get("commit_seq") is None or
+                    mainloop.get("event_ordinal") >= self.irq_before["ordinal"]):
+                raise GuardFailure("timer-37 mainloop evidence is not ordered before its IRQ publication")
+            opaque = prior.get("opaque_pixels_compared")
+            if type(opaque) is not int or opaque <= 0:
+                raise GuardFailure("retired death pose has no compared visible source-art pixels")
+            proof.update({"death_blank_opaque_pixels_compared": opaque,
+                "death_blank_front_commit_observed": True,
+                "death_blank_pixels_match_oracle": True,
+                "death_blank_irq_commit_observed": True,
+                "death_blank_live_code_span_qualified": True,
+                "death_blank_front_mapping_qualified": True,
+                "source_bytes_match": True,
+                "source_staged_live_art_qualified": True,
+                "prior_state2_death_art_qualified": True,
+                "mainloop_event_ordinal": mainloop["event_ordinal"],
+                "irq_publish_ordinal": self.irq_before["ordinal"],
+                "front_voff1_shadow": mapping["front_owner_voff1_shadow"],
+                "front_voff2_shadow": mapping["front_owner_voff2_shadow"],
+                "front_physical_base": mapping["front_physical_base"],
+                "event_ordinal": stop.ordinal})
+            self.lifecycle.record("death_blank_timer37", {
+                "death_state": 3, "death_timer": 37, "entry_state": 0,
+                "source_bytes_match": True, "death_blank_front_commit_observed": True,
+                "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
+                "death_blank_live_code_span_qualified": True,
+                "death_blank_front_mapping_qualified": True,
+                "death_blank_opaque_pixels_compared": opaque,
+                "event_ordinal": stop.ordinal})
+            self.death_blank_observations.append({"status": "PASS", **proof})
+            self._record(stop, "death-blank-front-oracle", qualification, **proof)
+        except GuardFailure as exc:
+            summary = {"status": "REJECTED", "generation": generation,
+                "entry_generation": self.death_entry_generation,
+                "owner": owner if type(owner) is int else None,
+                "entry": state.get("entry"), "death": state.get("death"),
+                "timer": state.get("timer"), "player_fb": state.get("player_fb"),
+                "player_old_fb": state.get("player_old_fb"),
+                "player_bg_ptr": state.get("player_bg_ptr"),
+                "event_ordinal": stop.ordinal, "reason": str(exc)}
+            if isinstance(prior, dict):
+                summary["prior_pose"] = {key: prior.get(key) for key in
+                    ("owner", "generation", "entry_generation", "death_state", "death_frame",
+                     "pointer", "commit_seq", "event_ordinal", "expected_sha256",
+                     "saved_under_sha256", "opaque_pixels_compared")}
+            self.death_blank_observations.append(summary)
+            self.errors.append("death-blank-owner-pixel-oracle-failed")
+            self._record(stop, "death-blank-front-oracle-rejected", qualification, **summary)
+
     def _offscreen_owner_retirement(self, stop: MonitorStop,
                                     qualification: dict[str, Any],
                                     state: dict[str, Any]) -> bool:
@@ -4437,6 +5014,8 @@ class LiveRuntimeObserver:
         self._record(stop, "irq-front-commit-complete", qualification,
             seq_before=self.irq_before["seq"], seq_after=state["commit_seq"],
             front_id=state["front"], irq_commit_end_pc=self.irq_inc["pc"])
+        if self.lifecycle is not None and state["entry"] == 0 and state["death"] in (1, 2):
+            self._record_death_front_pose(stop, qualification, state)
         if self.current_entry is not None and state["entry"] == 4:
             self._guard_first_maze_entry(stop, qualification, state)
         if self.current_entry is not None and state["entry"] == 3:
@@ -4475,27 +5054,7 @@ class LiveRuntimeObserver:
                             "irq_commit_event_ordinal": stop.ordinal,
                             "irq_commit_end_pc": self.irq_marker["end_pc"],
                             "event_ordinal": stop.ordinal})
-        if state["death"] == 3 and state["timer"] == 37 and self.lifecycle is not None:
-            owner = state["front"]
-            prior = self.owner_history.get((owner, state["player_fb"]))
-            if prior is not None:
-                blank = self._front_rect(owner, state["player_fb"])
-                if visible_rect_matches_background(blank, prior["background"],
-                                                    prior["visible_width_bytes"]):
-                    native = bug011_image_api().native_frame(prior["sprite"])
-                    opaque = sum(bool((byte >> shift) & 0x0F)
-                                 for byte in native for shift in (4, 0))
-                    self.lifecycle.record("death_blank_timer37", {
-                        "death_state": 3, "death_timer": 37, "entry_state": 0,
-                        "source_bytes_match": True, "death_blank_front_commit_observed": True,
-                        "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
-                        "death_blank_live_code_span_qualified": True,
-                        "death_blank_front_mapping_qualified": True,
-                        "death_blank_opaque_pixels_compared": opaque,
-                        "event_ordinal": stop.ordinal})
-                    self._record(stop, "death-blank-front-oracle", qualification,
-                        compared_opaque_pixels=opaque, front_rect_sha256=sha(blank),
-                        saved_under_sha256=sha(prior["background"]))
+        self._record_death_blank_retirement(stop, qualification, state)
         self.irq_before = None
         self.irq_inc = None
 
@@ -4503,6 +5062,10 @@ class LiveRuntimeObserver:
         state = self._state()
         if self.current_entry is None or self.current_entry.get("released"):
             self.entry_count += 1
+            self.death_generation = None
+            self.death_entry_generation = None
+            self.death_pose_by_owner.clear()
+            self.death_blank_mainloop = None
             self.current_entry = {"index": self.entry_count, "cue6_first_frame": None,
                 "first_maze_visible_frame": None, "marker_x": None, "pose_count": 0,
                 "seed_ordinal": stop.ordinal,
@@ -4581,6 +5144,14 @@ class LiveRuntimeObserver:
             "contact_count": self.contact_count + int(genuine)})
         if genuine:
             self.contact_count += 1
+            self.death_generation = self.contact_count
+            self.death_entry_generation = (self.current_entry or {}).get("index")
+            if type(self.death_entry_generation) is not int or self.death_entry_generation < 1:
+                self.death_generation = None
+                self.death_entry_generation = None
+                self.errors.append("genuine-contact-missing-current-entry-generation")
+            self.death_pose_by_owner.clear()
+            self.death_blank_mainloop = None
             self.contacts.append({"ordinal": stop.ordinal, "lives": state["lives"],
                 "entry": state["entry"], "death": state["death"], "frame": state["frames"],
                 "enemy_snapshot_sha256": state["enemy_sha256"], "source_staged_live_match": True})
@@ -4633,6 +5204,23 @@ class LiveRuntimeObserver:
             cell=[state["cell_x"], state["cell_y"]], step=state["step"],
             pending=state["pending"], front=state["front"], commit_seq=state["commit_seq"],
             frames=state["frames"], mode=state["mode"])
+        if (self.lifecycle is not None and self.death_generation is not None and
+                state["entry"] == 0 and state["death"] == 3 and state["timer"] == 37 and
+                state["pending"] == 1 and
+                qualification.get("source_staged_live_match") is True):
+            self.death_blank_mainloop = {"generation": self.death_generation,
+                "entry_generation": self.death_entry_generation,
+                "event_ordinal": stop.ordinal, "phase": stop.phase,
+                "pc": stop.pc, "source_staged_live_match": True,
+                "entry": state["entry"], "death": state["death"],
+                "timer": state["timer"], "pending": state["pending"],
+                "front": state["front"], "back": state["back"],
+                "commit_seq": state["commit_seq"],
+                "player_fb": state["player_fb"],
+                "player_old_fb": state["player_old_fb"],
+                "player_bg_ptr": state["player_bg_ptr"]}
+        else:
+            self.death_blank_mainloop = None
         self._start_inputs(stop, state)
         self._confirm_start_credit(stop, qualification, state)
         if self.current_entry is not None and state["entry"] == 2:
@@ -5358,6 +5946,15 @@ class LiveRuntimeObserver:
                 fixture_order is not None and fixture_order["pass"])
         if self.write_count > (0 if self.scenario == "natural" else 1):
             raise GuardFailure("live run exceeded the approved single $003A write budget")
+        death_pose_summary = {str(owner): {key: pose.get(key) for key in (
+            "generation", "entry_generation", "owner", "death_state", "death_frame",
+            "pointer", "logical_pointer_at_pose", "visible_width_bytes", "visible_rows",
+            "ordinal", "event_ordinal", "irq_publish_ordinal", "irq_commit_event_ordinal",
+            "commit_seq", "actual_sha256", "expected_sha256",
+            "saved_under_sha256", "resident_stream_sha256", "source_stream_sha256",
+            "renderer_sha256", "renderer_address", "front_mapping_qualified",
+            "source_staged_live_art_qualified", "opaque_pixels_compared")}
+            for owner, pose in self.death_pose_by_owner.items()}
         return {"scenario": self.scenario,
             "status": "SCENARIO_ACCEPTANCE_OBSERVED" if success else "INCOMPLETE_FAIL_CLOSED",
             "scenario_acceptance_observed": bool(success),
@@ -5378,6 +5975,14 @@ class LiveRuntimeObserver:
             "contacts": self.contacts, "contact_count": self.contact_count,
             "death_source_markers": json_safe(self.death_source_markers),
             "death_source_events": json_safe(self.death_source_events),
+            "death_pose_art_identity": self.death_art_identity,
+            "death_pose_generation": {"contact": self.death_generation,
+                "entry": self.death_entry_generation},
+            "death_pose_latest_by_front_owner": death_pose_summary,
+            "death_pose_rejections": {"count": len(self.death_pose_rejections),
+                "tail_limit": 16, "tail": self.death_pose_rejections[-16:]},
+            "death_blank_mainloop_candidate": self.death_blank_mainloop,
+            "death_blank_observations": self.death_blank_observations,
             "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
             "held_input_challenges": {**held_input_status,
                 "scenario_scope": "natural only; forced fixture routes do not run this challenge",
@@ -8788,8 +9393,330 @@ def self_test() -> dict[str, Any]:
     assert not bad_ledger.status()["pass"] and bad_ledger.status()["order_failures"]
     tested += 1
 
+    if ROOT is None:
+        raise AssertionError("death-pose qualification requires the workspace root")
+    _death_packed, death_native, _death_streams, death_identity = \
+        candidate_death_frame_table(ROOT / "build")
+    assert len(death_native) == 14 and death_identity["all_source_staged_streams_match"] is True
+    underlays = {owner: bytes((i * 29 + owner * 53 + 7) & 0xFF for i in range(128))
+        for owner in (0, 1)}
+    pointers = {0: VISIBLE_BASE + 80 * 160 + 24,
+                1: VISIBLE_BASE + 81 * 160 + 40}
+    frames = {0: 5, 1: 10}
+    pose_states: dict[int, dict[str, Any]] = {}
+    pose_proofs: dict[int, dict[str, Any]] = {}
+    source_identity = {"source_staged_match": True, "cpu_matches_staged": True,
+        "physical_matches_staged": True, "source_sha256": "a" * 64,
+        "staged_sha256": "b" * 64}
+    for owner in (0, 1):
+        pointer, frame = pointers[owner], frames[owner]
+        base = 0xA300 if owner == 0 else 0xAB00
+        state = {"entry": 0, "death": 2, "death_frame": frame, "front": owner,
+            "player_fb": pointer, "commit_seq": 40 + owner,
+            "valid_a": int(owner == 0), "valid_b": int(owner == 1),
+            "meta_fb_a": pointer if owner == 0 else 0,
+            "meta_fb_b": pointer if owner == 1 else 0,
+            "meta_rows_a": 16 if owner == 0 else 0,
+            "meta_rows_b": 16 if owner == 1 else 0,
+            "player_bg_valid": 1, "player_visible_rows": 16,
+            "player_bg_ptr": base}
+        actual = blend_native_over_saved_under(underlays[owner], death_native[frame])
+        proof = validate_death_pose_snapshot(state, owner, 1, frame, actual,
+            underlays[owner], death_native[frame], source_identity, 50 + owner)
+        pose_states[owner], pose_proofs[owner] = state, proof
+        assert proof["owner"] == owner and proof["pointer"] == pointer
+        assert proof["death_frame"] == frame and proof["opaque_pixels_compared"] > 0
+        tested += 1
+
+    method_events: list[dict[str, Any]] = []
+    def run_death_pose_method(owner: int, *, stream_flags: dict[str, bool] | None = None,
+                              changed_pixel: bool = False,
+                              published_frame: int | None = None) -> LiveRuntimeObserver:
+        state = pose_states[owner]
+        frame = frames[owner]
+        pointer = pointers[owner]
+        actual = blend_native_over_saved_under(underlays[owner], death_native[frame])
+        if changed_pixel:
+            altered = bytearray(actual)
+            altered[0] ^= 1
+            actual = bytes(altered)
+        published = dict(state)
+        if published_frame is not None:
+            published["death_frame"] = published_frame
+        observer = object.__new__(LiveRuntimeObserver)
+        observer.lifecycle = object()
+        observer.death_generation = 1
+        observer.contact_count = 1
+        observer.death_entry_generation = 9
+        observer.current_entry = {"index": 9}
+        observer.irq_before = {"state": published, "pending": 1,
+            "back": owner, "ordinal": 100 + owner}
+        observer.death_pose_by_owner = {}
+        observer.death_pose_rejections = []
+        observer.errors = []
+        observer.death_native_frames = death_native
+        observer.death_stream_bytes = (b"",) * 14
+        observer.death_art_identity = death_identity
+        observer.client = object()
+        observer.main = {"PLAYER_BG": 0xA300}
+        observer.enemy = {"PLAYER_BG_B": 0xAB00}
+        observer_flags = {"source_staged_match": True,
+            "cpu_matches_staged": True, "physical_matches_staged": True,
+            "source_sha256": source_identity["source_sha256"],
+            "staged_sha256": source_identity["staged_sha256"]}
+        if stream_flags:
+            observer_flags.update(stream_flags)
+        observer._death_stream_live_identity = lambda stop, frame_index: observer_flags
+        renderer = death_identity["renderer"]
+        observer._death_renderer_live_identity = lambda stop: {
+            "source_staged_match": True, "cpu_matches_staged": True,
+            "physical_matches_staged": True, "address": renderer["address"],
+            "sha256": renderer["staged_sha256"]}
+        observer._front_mapping = lambda selected: {
+            "front_mapping_qualified": True,
+            "front_owner_voff1_shadow": 0xC0 if selected == 0 else 0xB0,
+            "front_owner_voff2_shadow": 0,
+            "front_physical_base": 0x60000 if selected == 0 else 0x58000}
+        observer._front_rect = lambda selected, at, mapping: actual
+        observer._record = lambda stop, name, qualification, **fields: \
+            method_events.append({"owner": owner, "name": name, **fields})
+        prior_reader = globals()["physical_page_read"]
+        globals()["physical_page_read"] = lambda client, page, offset, length: underlays[owner]
+        try:
+            observer._record_death_front_pose(MonitorStop("fake-death-pose-method",
+                0x0EC6, 1, {"pc": 0x0EC6}, 110 + owner, 1.0),
+                {"source_staged_live_match": True}, state)
+        finally:
+            globals()["physical_page_read"] = prior_reader
+        return observer
+
+    method_pose_observers = {owner: run_death_pose_method(owner) for owner in (0, 1)}
+    assert all(owner in observer.death_pose_by_owner
+        for owner, observer in method_pose_observers.items())
+    assert all(any(event["owner"] == owner and event["name"] == "actual-front-death-pose"
+        for event in method_events) for owner in (0, 1))
+    assert all(observer.death_pose_by_owner[owner]["event_ordinal"] == 110 + owner
+        for owner, observer in method_pose_observers.items())
+    death_summary_keys = ("generation", "entry_generation", "owner", "death_state",
+        "death_frame", "pointer", "logical_pointer_at_pose", "visible_width_bytes",
+        "visible_rows", "ordinal", "event_ordinal", "irq_publish_ordinal",
+        "irq_commit_event_ordinal", "commit_seq", "actual_sha256", "expected_sha256",
+        "saved_under_sha256", "resident_stream_sha256", "source_stream_sha256",
+        "renderer_sha256", "renderer_address", "front_mapping_qualified",
+        "source_staged_live_art_qualified", "opaque_pixels_compared")
+    death_summary = {str(owner): {key: pose.get(key) for key in death_summary_keys}
+        for owner, observer in method_pose_observers.items()
+        for pose in observer.death_pose_by_owner.values()}
+    json.dumps({"latest_death_pose_by_owner": death_summary,
+        "death_pose_events": method_events}, allow_nan=False)
+    tested += 1
+    for bad_kwargs, expected_reason in (
+            ({"stream_flags": {"physical_matches_staged": False}}, "stream"),
+            ({"changed_pixel": True}, "differs"),
+            ({"published_frame": 4}, "stable")):
+        rejected_pose = run_death_pose_method(0, **bad_kwargs)
+        assert not rejected_pose.death_pose_by_owner
+        assert rejected_pose.errors == ["death-front-pose-source-or-pixel-proof-failed"]
+        assert expected_reason in rejected_pose.death_pose_rejections[0]["reason"]
+        tested += 1
+
+    def reject_death_pose(label: str, *, state_change: dict[str, Any] | None = None,
+                          stream_change: dict[str, Any] | None = None,
+                          actual: bytes | None = None, background: bytes | None = None,
+                          native: bytes | None = None, owner: int = 0,
+                          generation: int = 1, frame: int | None = None) -> None:
+        nonlocal tested
+        frame_index = frames[owner] if frame is None else frame
+        state = {**pose_states[owner], **(state_change or {})}
+        try:
+            validate_death_pose_snapshot(state, owner, generation, frame_index,
+                (blend_native_over_saved_under(underlays[owner], death_native[frames[owner]])
+                 if actual is None else actual),
+                underlays[owner] if background is None else background,
+                death_native[frames[owner]] if native is None else native,
+                {**source_identity, **(stream_change or {})}, 60)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError(f"death-pose negative passed: {label}")
+
+    for flags in ({"source_staged_match": False}, {"cpu_matches_staged": False},
+                  {"physical_matches_staged": False}):
+        reject_death_pose("source/staged/live identity", stream_change=flags)
+    reject_death_pose("wrong contact generation", generation=0)
+    reject_death_pose("cross-owner FRONT", owner=1, state_change={"front": 0})
+    for changes in ({"entry": 1}, {"death": 3}, {"death_frame": 4},
+                    {"valid_a": 0}, {"meta_fb_a": pointers[0] + 1},
+                    {"meta_rows_a": 15}, {"player_bg_valid": 0},
+                    {"player_visible_rows": 15}, {"player_bg_ptr": 0xAB00},
+                    {"commit_seq": 0x10000},
+                    {"player_fb": VISIBLE_BASE + 178 * 160 + 20}):
+        reject_death_pose("invalid state or owner metadata", state_change=changes)
+    altered_art = bytearray(blend_native_over_saved_under(underlays[0], death_native[frames[0]]))
+    altered_art[0] ^= 1
+    reject_death_pose("changed FRONT death pixel", actual=bytes(altered_art))
+    reject_death_pose("malformed saved-under length", background=underlays[0][:-1])
+    reject_death_pose("empty compiled death art", native=bytes(128))
+    reject_death_pose("frame argument differs from observed DEATH_FRAME", frame=4)
+
+    retired = pose_proofs[1]
+    logical_pointer = VISIBLE_BASE + 82 * 160 + 112
+    assert logical_pointer != retired["pointer"]
+    blank_state = {"entry": 0, "death": 3, "timer": 37, "front": 1,
+        "player_fb": logical_pointer, "player_old_fb": retired["pointer"],
+        "player_bg_ptr": 0xAB00, "player_bg_valid": 0,
+        "player_visible_rows": 16, "valid_b": 0,
+        "meta_fb_b": logical_pointer, "meta_rows_b": 0}
+    blank_prior = {**method_pose_observers[1].death_pose_by_owner[1],
+        "generation": 1, "entry_generation": 9,
+        "owner": 1, "death_state": 2, "source_staged_live_qualified": True,
+        "background": underlays[1]}
+    blank_mapping = {"front_mapping_qualified": True}
+    blank = validate_death_blank_retirement(blank_state, 1, 9, blank_prior,
+        underlays[1], underlays[1], blank_mapping, True, 70)
+    assert blank["retired_pointer"] == retired["pointer"]
+    assert blank["logical_pointer"] == logical_pointer
+    assert blank["retired_pointer"] != blank["logical_pointer"]
+    assert blank["pixels_match_saved_under"] is True
+    tested += 1
+
+    def reject_death_blank(label: str, *, state_change: dict[str, Any] | None = None,
+                           prior_change: dict[str, Any] | None = None,
+                           actual: bytes | None = None, current_underlay: bytes | None = None,
+                           mapping: dict[str, Any] | None = None,
+                           entry_generation: int = 9, irq: bool = True,
+                           ordinal: int = 70) -> None:
+        nonlocal tested
+        state = {**blank_state, **(state_change or {})}
+        prior = {**blank_prior, **(prior_change or {})}
+        try:
+            validate_death_blank_retirement(state, 1, entry_generation, prior,
+                underlays[1] if actual is None else actual,
+                underlays[1] if current_underlay is None else current_underlay,
+                blank_mapping if mapping is None else mapping, irq, ordinal)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError(f"death-blank negative passed: {label}")
+
+    for changes in ({"entry": 1}, {"death": 2}, {"timer": 36}, {"front": 0},
+                    {"player_old_fb": retired["pointer"] + 1},
+                    {"player_bg_ptr": 0xA300}, {"player_bg_valid": 1},
+                    {"player_visible_rows": 0}, {"player_visible_rows": 15},
+                    {"valid_b": 1},
+                    {"meta_rows_b": 16}, {"meta_fb_b": retired["pointer"]}):
+        reject_death_blank("state, retired address or metadata mismatch", state_change=changes)
+    reject_death_blank("stale contact generation", prior_change={"generation": 2})
+    reject_death_blank("stale entry generation", prior_change={"entry_generation": 8})
+    reject_death_blank("cross-owner pose", prior_change={"owner": 0})
+    reject_death_blank("wrong prior pose state", prior_change={"death_state": 1})
+    reject_death_blank("unqualified source art", prior_change={"source_staged_live_qualified": False})
+    reject_death_blank("changed saved-under", current_underlay=bytes(128))
+    changed_blank = bytearray(underlays[1])
+    changed_blank[0] ^= 1
+    reject_death_blank("changed FRONT pixel", actual=bytes(changed_blank))
+    reject_death_blank("unqualified GIME mapping", mapping={"front_mapping_qualified": False})
+    reject_death_blank("bad entry generation", entry_generation=0)
+    reject_death_blank("missing IRQ commit", irq=False)
+    reject_death_blank("missing IRQ ordinal", ordinal=0)
+
+    class MissingPoseLifecycle:
+        def __init__(self):
+            self.records: list[dict[str, Any]] = []
+        def record(self, name: str, evidence: dict[str, Any]) -> None:
+            self.records.append({"name": name, **evidence})
+
+    missing_history = object.__new__(LiveRuntimeObserver)
+    missing_history.lifecycle = MissingPoseLifecycle()
+    missing_history.death_generation = 1
+    missing_history.death_entry_generation = 9
+    missing_history.contact_count = 1
+    missing_history.current_entry = {"index": 9}
+    missing_history.death_blank_attempted_generations = set()
+    missing_history.death_pose_by_owner = {}
+    missing_history.death_blank_observations = []
+    missing_history.errors = []
+    missing_history.death_blank_mainloop = {"generation": 1,
+        "entry_generation": 9, "entry": 0, "death": 3, "timer": 37,
+        "pending": 1, "source_staged_live_match": True,
+        "event_ordinal": 200, "front": 0, "back": 1, "commit_seq": 21}
+    missing_history.irq_before = {"state": dict(blank_state), "pending": 1,
+        "back": 1, "ordinal": 201, "seq": 21, "front": 0}
+    missing_history.irq_inc = {"ordinal": 202, "pc": 0x0EBC}
+    missing_history.irq_marker = {"pc": 0x0EBC}
+    missing_history.main = {"PLAYER_BG": 0xA300}
+    missing_history.enemy = {"PLAYER_BG_B": 0xAB00}
+    missing_history.client = object()
+    missing_history._front_mapping = lambda owner: {
+        "front_mapping_qualified": True, "front_owner_voff1_shadow": 0xB0,
+        "front_owner_voff2_shadow": 0, "front_physical_base": 0x58000}
+    missing_history._front_rect = lambda owner, pointer, mapping: underlays[1]
+    missing_history._record = lambda *args, **kwargs: None
+    prior_physical_page_read = globals()["physical_page_read"]
+    globals()["physical_page_read"] = lambda client, page, offset, length: underlays[1]
+    try:
+        blank_runtime = copy.copy(missing_history)
+        blank_runtime.lifecycle = MissingPoseLifecycle()
+        blank_runtime.death_blank_attempted_generations = set()
+        blank_runtime.death_pose_by_owner = {1: blank_prior}
+        blank_runtime.death_blank_observations = []
+        blank_runtime.errors = []
+        blank_runtime_events: list[dict[str, Any]] = []
+        blank_runtime._record = lambda stop, name, qualification, **fields: \
+            blank_runtime_events.append({"name": name, **fields})
+        blank_runtime._record_death_blank_retirement(
+            MonitorStop("fake-death-blank-method", 0x0EC6, 1,
+                {"pc": 0x0EC6}, 203, 1.0),
+            {"source_staged_live_match": True}, blank_state)
+        assert len(blank_runtime.lifecycle.records) == 1
+        assert blank_runtime.lifecycle.records[0]["name"] == "death_blank_timer37"
+        assert blank_runtime.death_blank_observations[0]["status"] == "PASS"
+        assert blank_runtime.death_blank_observations[0]["logical_pointer"] == logical_pointer
+        assert blank_runtime.death_blank_observations[0]["retired_pointer"] != logical_pointer
+        assert blank_runtime_events[0]["name"] == "death-blank-front-oracle"
+        json.dumps({"lifecycle": blank_runtime.lifecycle.records,
+            "blank_observations": blank_runtime.death_blank_observations,
+            "events": blank_runtime_events}, allow_nan=False)
+        tested += 1
+
+        missing_history._record_death_blank_retirement(
+            MonitorStop("fake-missing-death-pose", 0x0EC6, 1,
+                {"pc": 0x0EC6}, 203, 1.0),
+            {"source_staged_live_match": True}, blank_state)
+    finally:
+        globals()["physical_page_read"] = prior_physical_page_read
+    rejection = missing_history.death_blank_observations[0]
+    assert rejection["status"] == "REJECTED"
+    assert "no committed death-pose history" in rejection["reason"]
+    assert rejection["owner"] == 1 and rejection["event_ordinal"] == 203
+    assert not missing_history.lifecycle.records
+    json.dumps(missing_history.death_blank_observations, allow_nan=False)
+    tested += 1
+
+    wrong_death_irq = copy.copy(missing_history)
+    wrong_death_irq.lifecycle = MissingPoseLifecycle()
+    wrong_death_irq.death_blank_attempted_generations = set()
+    wrong_death_irq.death_pose_by_owner = {1: blank_prior}
+    wrong_death_irq.death_blank_observations = []
+    wrong_death_irq.errors = []
+    wrong_death_irq.irq_inc = {"ordinal": 202, "pc": 0x0EBD}
+    wrong_death_irq._record_death_blank_retirement(
+        MonitorStop("fake-death-blank-wrong-irq", 0x0EC6, 1,
+            {"pc": 0x0EC6}, 204, 1.0),
+        {"source_staged_live_match": True}, blank_state)
+    assert not wrong_death_irq.lifecycle.records
+    assert "exact pending state" in wrong_death_irq.death_blank_observations[0]["reason"]
+    json.dumps(wrong_death_irq.death_blank_observations, allow_nan=False)
+    tested += 1
+
     return {"self_test": "PASS", "negative_checks": tested,
              "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, natural skull table requires qualified mainloop PC/PAR5=$34/page-$34 mapping and bounded ENTITY_COUNT; malformed count/coordinates/mapping/source fail before injection; center-prospective and step-3 in-flight skulls skip/release through existing source-ordered bindings; all-blocked neighbors inject nothing; ordinary release-roam is a separate 45-second neutral phase after held-input release and requires increased ENEMY_RELEASED, an active source-tagged outside-nest record, and saved-background-valid=1; malformed active tags/counts and missing release/background fail; contact input is enabled only inside its bounded phase and released on exit, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "death_pose_qualification": {
+                "compiled_frames": 14, "front_owners_tested": 2,
+                "positive_retired_pointer_differs_from_logical": True,
+                "method_level_pose_and_blank_events": True,
+                "negative_case_count_included": True,
+                "report_projection_json_safe": True},
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
