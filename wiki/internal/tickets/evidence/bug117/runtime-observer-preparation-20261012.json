@@ -11,7 +11,8 @@
       "pause",
       "read_memory",
       "inject_key",
-      "single guarded write_memory for forced fixtures"
+      "single guarded write_memory for forced fixtures",
+      "get_run_state"
     ],
     "offline_only_in_this_preparation": true,
     "live_invocation_requires": [
@@ -21,6 +22,7 @@
       "explicit scenario and XRoar binary"
     ],
     "event_capture": [
+      "Ordered bootstrap reset attenuation stores qualified separately from runtime PSG/cue output using source, receipt, staged image, packaged bank-zero prefix, live CPU and physical bytes, PAR mapping, and get_run_state stop identity",
       "source/staged/live bytes and PAR",
       "On a physical-versus-staged mismatch, numeric stopped PC/breakpoint/ordinal and phase deadline, CPU/physical bytes, staged/caller bytes, raw/masked PAR and physical window/address, plus read-only halted status before any marker-label interpretation",
       "selected cue PSG stores",
@@ -33,12 +35,13 @@
     "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
     "forced_order_entry": "front-first and music-first runs use ordinary input-only route search through two genuine contacts and replacements, then write only at lives=0 / HUD marker column x=33 (pixel x=264) / row-derived player x=320.",
-    "natural_held_input_challenge": "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge."
+    "natural_held_input_challenge": "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge.",
+    "bootstrap_reset_stores": "Source-derived from current complete receipt, bootstrap source/listing/map, staged boot image, and packaged ROM raw bank-zero prefix; watched reset events remain separate from runtime cue-owned PSG events."
   },
   "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
   "runtime_probe_performed": true,
   "runtime_ready": false,
-  "runtime_ready_reason": "The first natural invocation failed closed on a physical-versus-staged byte mismatch before any stop/event/phase context was retained. The source now retains that context for the parent-owned single diagnostic rerun; no runtime acceptance is claimed.",
+  "runtime_ready_reason": "Bootstrap reset stores are now statically receipt-derived and offline-fake-qualified, including exact stopped-state and live-byte guards. No corrected natural runtime invocation has run; parent review and live capture remain required.",
   "first_natural_runtime_attempt": {
     "receipt": "repro/bug117-integration-20261012/runtime-natural-20261013/bug117-natural-runtime.json",
     "observer_script_sha256_at_attempt": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
@@ -52,7 +55,16 @@
     "phases": [],
     "errors": [],
     "stop_context_retained_by_attempt": false,
-    "stop_context_missing": ["PC", "breakpoint id", "ordinal", "phase/deadline", "CPU-window bytes", "physical address/window/page", "raw and masked PAR", "halted status"],
+    "stop_context_missing": [
+      "PC",
+      "breakpoint id",
+      "ordinal",
+      "phase/deadline",
+      "CPU-window bytes",
+      "physical address/window/page",
+      "raw and masked PAR",
+      "halted status"
+    ],
     "parent_delivery_receipt_sha256": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef",
     "parent_reported_same_rom_delivery_result": "all live copies and PAR mapping qualified in the accepted GDB-MCP round trip; the failed observer read does not establish corruption",
     "unconfirmed_candidates": [
@@ -80,7 +92,8 @@
     "monitor_timeout_control": "Use synchronous run then bounded wait_for_stop; cap event-dispatch RPC timeouts by remaining phase time; preserve buffered breakpoint races and abort after two consecutive unrecovered observation timeouts.",
     "natural_held_south_challenge": "Natural only: hold the live South DSCAN binding from first state 2 of each initial/replacement entry through states 2/3/4. Verify every programmed logical 2-pixel pose and actual FRONT pose without changing automatic direction/facing, link press/release events to that entry's live matrix binding, and require three witnesses plus zero target RAM writes. Release only at state-4 final wait after actual terminal post-PSG busy-zero and IRQ-committed final FRONT. The source may combine 318-to-320 and state-2-to-state-3 in one callback; the row-derived final walkout pose can first appear in state 3. Forced fixtures are challenge-free.",
     "resident_image_receipt": "The main runtime receipt assembles the raw resident prefix ending at map asset_end. Compare that prefix hash to the invocation hash, compare the full 16 KiB staged image hash to the receipt artifact hash, and require the remaining staged bytes to be FF.",
-    "source_receipt_layout_split": "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout."
+    "source_receipt_layout_split": "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout.",
+    "bootstrap_reset_separation": "Derive reset LDA/STA spans, values, post-store PCs, and three-byte post-PC windows from the current bootstrap source receipt and emitted listing. Bind the standalone boot artifact hash and map-derived raw prefix separately from the packaged bank-zero raw prefix; bank-zero overflow may replace staged padding after loader_end. Require matching PAR_EXEC+6, stopped get_run_state PC/reason, A value, and source/staged/CPU/physical bytes at both the executed store span and exact stopped post-PC. Reject wrong bytes, values, mappings, order, malformed or unknown watchpoints."
   },
   "gameplay_worklist_timing": {
     "target_cycles_max_per_required_worklist": 27000,
@@ -90,7 +103,7 @@
     },
     "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
   },
-  "blocked_observable": "The first natural runtime attempt launched once and failed closed with a physical-versus-staged byte mismatch before retaining any event, phase, or stop context; target writes were zero. Its receipt is retained above. The same df260 ROM passed the parent-reported accepted GDB-MCP live-copy/PAR round trip, so the observer failure does not establish corruption. The previous receipt lacks stop PC/breakpoint/ordinal and CPU/physical/PAR/status details. This source change retains those facts on a mismatch without relaxing byte or mapping gates. The halt-on-start/shared-resident-window startup-interception possibility is unconfirmed. No held-input witness, runtime release ordering, natural timing/contact acceptance, or forced completion order is claimed. Parent owns the single next bounded diagnostic rerun and runtime evidence aggregation.",
+  "blocked_observable": "Two natural invocations were rejected and reassessed. The latest parent-retained stop at $C027 is explained by a receipt-qualified bootstrap reset attenuation write before resident installation; it does not establish resident corruption. This revision derives and separately qualifies source/staged/live reset spans, values, post-store PCs and PAR mapping, and uses the supported get_run_state method for diagnostic and fresh fixture-stop checks. Offline fakes are not runtime acceptance evidence. Parent review and one corrected bounded natural rerun remain outstanding; no game repair, build, live probe, target write, or protocol change is included.",
   "scenario": "natural",
   "prepared_at": "updated after first natural runtime fail-closed attempt; this context-retention change was verified offline only and made no emulator launch or target write",
   "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
@@ -121,17 +134,17 @@
     "release_after_audio_and_front_commit",
     "no_same_batch_player_or_enemy_mutation"
   ],
-  "report_kind": "bounded observer failure-context retention update after a failed natural runtime attempt; no acceptance capture",
-  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_GATE_PASS; FIRST_NATURAL_ATTEMPT_FAILED_CLOSED; FAILURE_CONTEXT_RETENTION_ADDED; PARENT_REVIEW_PENDING; NEXT_DIAGNOSTIC_NOT_RUN",
-  "observer_script_sha256": "89938b09e1923bebf8d1c7ee56b1d4eee4b6fea9b12dc1f50ac41d09dd66fd3b",
+  "report_kind": "observer-only bootstrap reset qualification and supported stopped-state endpoint correction; no live acceptance capture",
+  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_AND_BOOTSTRAP_RECEIPT_GATE_PASS; TWO_NATURAL_PROBES_REASSESSED; BOOTSTRAP_RESET_QUALIFICATION_ADDED; GET_RUN_STATE_STOP_GUARDS_ADDED; PARENT_REVIEW_PENDING; CORRECTED_NATURAL_RERUN_NOT_RUN",
+  "observer_script_sha256": "23aa7b4148618d8618a962f7d4d1c58216ee807c828c3b3e07bb3f42bf8fad68",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
-  "runtime_directory_copy_status": "Pre-existing scratch copy was not refreshed because it is outside the two-file owned commit boundary; the next diagnostic must invoke the owned observer source at the updated hash or parent must refresh its runtime copy before launching.",
+  "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
   "offline_verification": {
     "py_compile": "PASS",
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 293,
+      "negative_checks": 302,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -155,7 +168,8 @@
         "Three-entry end-to-end fake covers full state-2/state-3/state-4 logical and FRONT poses, including source transition 318-to-320 at state 3; missing state 3, mutated/missing FRONT, fewer than three witnesses, wrong DSCAN event key, or any target RAM write fails",
         "Resident receipt gate positively qualifies the current complete/adaptive/keyboard root profile: map-derived raw prefix hash, full 16 KiB staged receipt hash, and exact FF padding; wrong raw/full hash, bad map boundary, non-FF padding, or missing nonresident artifact fails",
         "Sparse layout must bind final_image_sha256 to the current ROM; source-build receipt checks its ten artifact hashes, while parent delivery receipt retains all eleven hashes including the sparse layout",
-        "A full observer-dispatch fake physical-byte mismatch retains exact numeric stop phase/deadline/PC/breakpoint/ordinal/registers, CPU and physical bytes, staged/caller bytes, raw and masked PAR, physical window/address, and halted status; it emits no event and performs no target write"
+        "A full observer-dispatch fake physical-byte mismatch retains exact numeric stop phase/deadline/PC/breakpoint/ordinal/registers, CPU and physical bytes, staged/caller bytes, raw and masked PAR, physical window/address, and halted status; it emits no event and performs no target write",
+        "Current-root end-to-end bootstrap fake qualifies all receipt/listing-derived reset stores in order, records them separately from runtime PSG events, checks get_run_state PC and zero watchpoint ID, and compares executed store spans plus bytes at each exact stopped post-PC across staged, CPU, and physical memory. Wrong CPU/physical bytes (including post-PC), A, PAR mapping, order, or unknown watchpoints fail; zero target writes."
       ]
     },
     "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped; import did not load the maintained monitor client template",
@@ -165,9 +179,9 @@
       "music-first": "PASS; static only, runtime route/order unobserved",
       "prior-music": "PASS; static only, runtime route/order unobserved"
     },
-    "static_candidate_checks": "PASS for the frozen root build: current ROM/layout identity, maps, source patterns, cue descriptors, player art, and complete/adaptive/keyboard source-receipt gate. Offline only; no runtime scenario is accepted.",
+    "static_candidate_checks": "PASS for the current root build: complete source-receipt bootstrap raw prefix, staged boot artifact/map/listing hashes, packaged bank-zero raw prefix and reset/post-PC spans, current ROM/layout identity, maps, cue descriptors, player art, and complete/adaptive/keyboard gate. Offline only; no runtime scenario is accepted.",
     "runtime_probe_build_target_write_git": "This context-retention change ran no runtime probe, build, or target write; only the two assigned evidence files are in scope",
-    "runtime_probe_build_target_write": "NONE during this change; the earlier parent-run natural attempt launched once and wrote zero target bytes; new self-test mismatch uses fake clients only",
+    "runtime_probe_build_target_write": "NONE during this observer correction; offline tests use fake clients. Parent owns the next corrected natural probe.",
     "current_root_profile_gate": {
       "result": "PASS",
       "candidate_build": "E:\\projects\\ladybug\\build",
@@ -204,14 +218,15 @@
       "fresh empty scenario output directory and explicit XRoar binary",
       "source/map/live byte qualification before interpreting watched PCs"
     ],
-    "fixture_requalification": "At the actual paused mainloop stop, recapture and validate every approved guard, including live lives=0/HUD x=33 for the two order fixtures; immediately before mutation reread status=halted and exact current PC, then issue the sole map-resolved $003A write. No cached permit or caller booleans authorize it.",
+    "fixture_requalification": "At the actual paused mainloop stop, recapture and validate every approved guard, including live lives=0/HUD x=33 for the two order fixtures; immediately before mutation require get_run_state halted with breakpoint reason and exact current PC, reread registers at that PC, then issue the sole map-resolved $003A write. No cached permit or caller booleans authorize it.",
     "natural_write_budget": 0,
     "forced_write_budget": "At most one write per fresh run, only map-resolved $003A and the approved scenario byte.",
     "forced_order_contract": {
       "front-first": "HUD marker column x=33 (pixel x=264), lives=0, actual row-derived player x=320; final FRONT must precede terminal busy-zero and published busy must still equal 1 at FRONT.",
       "music-first": "HUD marker column x=33 (pixel x=264), lives=0, actual row-derived player x=320; terminal busy-zero must precede final FRONT and published busy must equal 0 at FRONT.",
       "route": "Two genuine input-only contact/death/replacement cycles in each fresh order fixture; missing contact or desired order remains failed."
-    }
+    },
+    "bootstrap_reset_sequence": "Before runtime event acceptance, require the complete source-derived ordered bootstrap reset-store set with get_run_state stopped-state identity, mapped PAR_EXEC+6, exact A value, and matching staged/CPU/physical spans. Unknown, malformed, reordered, or mismatched stops fail closed."
   },
   "phase_and_measurement_contract": {
     "phase_deadline_seconds": 45,
@@ -236,13 +251,13 @@
     "forced_order_fixtures": "Both completion-order runs retain the approved HUD column x=33 (pixel264) and require lives0. Reach that third entry by two genuine input-only contacts/replacements in each fresh run; require actual row-derived player x320 and compare final-FRONT versus terminal-busy-zero ordinals and the busy byte sampled at FRONT."
   },
   "prospective_runtime_cli_after_gates": {
-    "status": "FIRST_NATURAL_ATTEMPT_FAILED_CLOSED; mismatch context retention is implemented and offline-tested but has not been run live; parent owns the single next diagnostic and all runtime scenarios",
+    "status": "Bootstrap reset qualification and get_run_state checks are offline-tested; current revision remains pending parent review. One corrected natural runtime probe has not run.",
     "natural": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-natural-dir> --scenario natural --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "front-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-front-first-dir> --scenario front-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "Observer implementation now retains failure context for a physical-versus-staged mismatch while preserving all fail-closed gates. Offline tests pass. The first natural attempt failed before any stop context was retained, with zero target writes; parent-reported GDB delivery qualification passed for the same ROM. No live acceptance scenario or root cause is claimed. Parent owns review and one bounded diagnostic rerun.",
+  "ready_verdict": "Observer source now qualifies receipt-derived bootstrap reset stores and exact stopped post-PC bytes separately from owned runtime PSG/cue events, and uses get_run_state for stop diagnostics and fixture guards. Current-root preparation and 302 offline checks pass with zero launches or target writes. No natural acceptance result is claimed; parent review and one corrected bounded natural rerun remain required.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -698,5 +713,101 @@
     "python -B wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build repro/bug122-parent/luna117-approved-fit-20261011/build --output-dir repro/bug122-parent/luna117-runtime --scenario prior-music --prepare-only",
     "python -B wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --run-live (expected argparse rejection before candidate validation or process creation)",
     "Guarded import using importlib.util.spec_from_file_location, subprocess.Popen/socket.create_connection traps, and a sys.modules insertion; asserted no process/socket launch and no maintained monitor-template import."
-  ]
+  ],
+  "bootstrap_reset_qualification_current": {
+    "source": "src/gmc_bootstrap.s",
+    "source_sha256": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+    "source_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+    "assembly_sha256": "22cc2af3440423e0b2d2425b7eeb3cdf55b0ea4f87d71bb1b58712561978c22d",
+    "raw_length": 1410,
+    "raw_prefix_sha256": "22cc2af3440423e0b2d2425b7eeb3cdf55b0ea4f87d71bb1b58712561978c22d",
+    "origin": 49152,
+    "loader_end": 50562,
+    "staged_boot_sha256": "33b3b20961caa4fcbfe2d675fc4942a514b4c10293e275c02ad37493c723b6ef",
+    "packaged_bank0_sha256": "33b3b20961caa4fcbfe2d675fc4942a514b4c10293e275c02ad37493c723b6ef",
+    "packaged_raw_prefix_sha256": "22cc2af3440423e0b2d2425b7eeb3cdf55b0ea4f87d71bb1b58712561978c22d",
+    "packaged_raw_prefix_match": true,
+    "receipt_artifact_sha256": {
+      "ladybug-gmc-boot.rom": "33b3b20961caa4fcbfe2d675fc4942a514b4c10293e275c02ad37493c723b6ef",
+      "ladybug-gmc-boot.map": "17a4ff316f28cf924954309c7d3595a0c03dd16db551e4302d15436db40aa8ba",
+      "ladybug-gmc-boot.lst": "7ba7648b34dce0f4dab5dbf4f67afaaf95ae1ad18356b58d87ad49ee094dba04"
+    },
+    "page_register": 65446,
+    "expected_page": 62,
+    "page_setup_source_lines": {
+      "PAR_EXEC+5": 67,
+      "PAR_EXEC+6": 68
+    },
+    "reset_stores": [
+      {
+        "sequence": 0,
+        "source_load_line": 76,
+        "source_store_line": 77,
+        "load_pc": 49186,
+        "store_pc": 49188,
+        "post_store_pc": 49191,
+        "value": 159,
+        "span_hex": "869fb7ff51",
+        "span_sha256": "31d6c8f0fb21b344575dab242af57fa6af66a6ada63e42cf860ef2b23b412104",
+        "post_pc_span_hex": "86bfb7",
+        "post_pc_span_sha256": "7e00108a42dfba00891ed1405c1c8cac2de8db22975fbba476da9949611dcf08"
+      },
+      {
+        "sequence": 1,
+        "source_load_line": 78,
+        "source_store_line": 79,
+        "load_pc": 49191,
+        "store_pc": 49193,
+        "post_store_pc": 49196,
+        "value": 191,
+        "span_hex": "86bfb7ff51",
+        "span_sha256": "4d440551a4c4351cedb29ba88db271f1e64bf758071e3ce91cfbd1b2b3fd3ec4",
+        "post_pc_span_hex": "86dfb7",
+        "post_pc_span_sha256": "5503d98624c82b2fc337aa25762282c457cee555032ac263745ea53fc45e443a"
+      },
+      {
+        "sequence": 2,
+        "source_load_line": 80,
+        "source_store_line": 81,
+        "load_pc": 49196,
+        "store_pc": 49198,
+        "post_store_pc": 49201,
+        "value": 223,
+        "span_hex": "86dfb7ff51",
+        "span_sha256": "907ae9520bffb9075cc82883f2ab461b885b63369a47dce5868c84c22a722fa7",
+        "post_pc_span_hex": "86ffb7",
+        "post_pc_span_sha256": "04270f39cd02557f56292261aa721cf1ae0356054e8d289d011d3b1fa92006ad"
+      },
+      {
+        "sequence": 3,
+        "source_load_line": 82,
+        "source_store_line": 83,
+        "load_pc": 49201,
+        "store_pc": 49203,
+        "post_store_pc": 49206,
+        "value": 255,
+        "span_hex": "86ffb7ff51",
+        "span_sha256": "f22c89bb6c69a0f96f3b3fde99f625bf87954047aa3758781822293a6d67d5fb",
+        "post_pc_span_hex": "b7ffd9",
+        "post_pc_span_sha256": "7b1688fadbb8d19b359ce81d4da2ff68588f976cfce0f9cd715e032404f12901"
+      }
+    ]
+  },
+  "latest_parent_reassessment": {
+    "status": "Two natural invocations rejected; observer-only bootstrap qualification is implemented and awaits parent source review.",
+    "stop": {
+      "pc": 49191,
+      "accumulator": 159,
+      "par6_raw": 190,
+      "par6_masked": 62,
+      "cpu_and_physical_bytes_at_pc_hex": "86bfb7",
+      "resident_candidate_bytes_at_same_address_hex": "ff90b6",
+      "phase": "initial-entry"
+    },
+    "parent_verified_context": "Current boot raw prefix is source-receipt-qualified and matches staged/packaged bank-zero raw bytes; the C027 stop follows a bootstrap reset attenuation STA before resident installation. This is not resident corruption evidence.",
+    "unsupported_monitor_method": "status",
+    "supported_monitor_method": "get_run_state",
+    "next_probe": "One parent-owned corrected natural rerun after source review, with 45-second named phases and stop waits capped at 10 seconds.",
+    "observer_qualification_added": "Each reset event is matched to its preceding emitted LDA/STA span and post-store PC. The live CPU and physical three-byte windows at the stopped post-PC are compared directly with the receipt-qualified staged bootstrap; the first derived window matches the parent-retained C027 bytes 86 BF B7."
+  }
 }

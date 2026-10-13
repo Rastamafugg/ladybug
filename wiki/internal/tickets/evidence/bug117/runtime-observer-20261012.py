@@ -116,6 +116,176 @@ def read_symbols(path: Path) -> dict[str, int]:
         r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$", path.read_text(encoding="utf-8"), re.M)}
 
 
+def _asm_code_line(line: str) -> str:
+    return line.split(";", 1)[0].strip()
+
+
+def _asm_immediate_a(line: str) -> int | None:
+    match = re.fullmatch(r"lda\s+#\$([0-9A-Fa-f]{1,2})", _asm_code_line(line), re.I)
+    return int(match.group(1), 16) if match else None
+
+
+def derive_bootstrap_reset_qualification(build: Path, packaged_rom: bytes) -> dict[str, Any]:
+    """Bind boot reset-store spans to current source, build receipt, staged bank, and package."""
+    build = build.resolve(strict=True)
+    source_path = build.parent / "src" / "gmc_bootstrap.s"
+    receipt_path = build / "source-build-receipt.json"
+    boot_path = build / "ladybug-gmc-boot.rom"
+    map_path = build / "ladybug-gmc-boot.map"
+    listing_path = build / "ladybug-gmc-boot.lst"
+    if not all(path.is_file() for path in (source_path, receipt_path, boot_path, map_path, listing_path)):
+        raise GuardFailure("current bootstrap source, receipt, staged image, map, or listing is missing")
+    source_bytes = source_path.read_bytes()
+    source_text = source_bytes.decode("utf-8")
+    source_lines = source_text.splitlines()
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    source_name = "src/gmc_bootstrap.s"
+    receipt_inputs = {str(key).replace("\\", "/"): value
+                      for key, value in receipt.get("inputs", {}).items()}
+    source_sha = sha(source_bytes)
+    if receipt.get("state") != "complete" or receipt_inputs.get(source_name) != source_sha:
+        raise GuardFailure("bootstrap source bytes do not match the complete source-build receipt")
+    invocations = [item for item in receipt.get("invocations", [])
+                   if str(item.get("source", "")).replace("\\", "/") == source_name and
+                   Path(str(item.get("output", ""))).name.startswith("ladybug-gmc-boot.rom")]
+    if len(invocations) != 1:
+        raise GuardFailure("source receipt must contain exactly one current bootstrap assembly invocation")
+    invocation = invocations[0]
+    artifacts = receipt.get("artifacts", {})
+    boot_image = boot_path.read_bytes()
+    artifact_hashes: dict[str, str] = {}
+    for path in (boot_path, map_path, listing_path):
+        name = path.name
+        expected_hash = artifacts.get(name) if isinstance(artifacts, dict) else None
+        actual_hash = sha(path.read_bytes())
+        if not isinstance(expected_hash, str) or expected_hash != actual_hash:
+            raise GuardFailure(f"staged bootstrap {name} differs from the complete source receipt")
+        artifact_hashes[name] = actual_hash
+    if len(boot_image) != RESIDENT_IMAGE_BYTES or len(packaged_rom) < RESIDENT_IMAGE_BYTES:
+        raise GuardFailure("staged bootstrap or packaged ROM bank has an invalid size")
+    origins = [int(match.group(1), 16) for line in source_lines
+               if (match := re.fullmatch(r"\s*org\s+\$([0-9A-Fa-f]{4})\s*", _asm_code_line(line), re.I))]
+    if len(origins) != 1:
+        raise GuardFailure("bootstrap source must have one explicit origin")
+    origin = origins[0]
+    boot_map = read_symbols(map_path)
+    if "loader_end" not in boot_map or boot_map["loader_end"] <= origin:
+        raise GuardFailure("bootstrap map lacks a valid loader_end raw-image boundary")
+    raw_length = boot_map["loader_end"] - origin
+    if raw_length > len(boot_image) or sha(boot_image[:raw_length]) != invocation.get("assembled_sha256"):
+        raise GuardFailure("map-derived staged bootstrap prefix differs from its assembly invocation")
+    packaged_boot_bank = packaged_rom[:RESIDENT_IMAGE_BYTES]
+    packaged_boot_prefix = packaged_rom[:raw_length]
+    if packaged_boot_prefix != boot_image[:raw_length]:
+        raise GuardFailure("packaged ROM bank zero raw bootstrap prefix differs from the staged bootstrap")
+
+    # The listing is the emitted address/byte authority for each source line.
+    listed: dict[int, tuple[int, bytes, str]] = {}
+    for line in listing_path.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^\s*([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]+)\s+\(c/gmc_bootstrap\.s\):(\d+)\s*(.*)$", line)
+        if match:
+            listed[int(match.group(3))] = (int(match.group(1), 16),
+                bytes.fromhex(match.group(2)), match.group(4).strip())
+
+    par_exec = boot_map.get("PAR_EXEC")
+    if type(par_exec) is not int or par_exec + 6 > 0xFFFF:
+        raise GuardFailure("bootstrap map lacks a valid PAR_EXEC mapping symbol")
+    page_setup: dict[int, tuple[int, int, int, int]] = {}
+    for line_index, line in enumerate(source_lines):
+        code = _asm_code_line(line)
+        match = re.fullmatch(r"sta\s+PAR_EXEC\+([56])", code, re.I)
+        if not match or int(match.group(1)) in page_setup:
+            continue
+        page_index = int(match.group(1))
+        previous_line = next((index for index in range(line_index - 1, -1, -1)
+                              if _asm_code_line(source_lines[index])), None)
+        previous = (_asm_immediate_a(source_lines[previous_line])
+                    if previous_line is not None else None)
+        load_line = previous_line if previous is not None else None
+        if (previous is None and page_index == 6 and previous_line is not None and
+                re.fullmatch(r"sta\s+PAR_EXEC\+5", _asm_code_line(source_lines[previous_line]), re.I) and
+                5 in page_setup):
+            _, previous, load_line, _ = page_setup[5]
+        listed_store = listed.get(line_index + 1)
+        if (previous is None or listed_store is None or
+                listed_store[1] != bytes((0xB7, (par_exec + page_index) >> 8,
+                                          (par_exec + page_index) & 0xFF))):
+            raise GuardFailure(f"bootstrap PAR_EXEC+{page_index} setup is malformed or disagrees with its map")
+        store_pc = listed_store[0]
+        if load_line is None or _asm_immediate_a(source_lines[load_line]) != previous:
+            raise GuardFailure("bootstrap PAR page immediate is not the preceding executable instruction")
+        listed_load = listed.get(load_line + 1)
+        if (listed_load is None or listed_load[1] != bytes((0x86, previous)) or
+                listed_load[0] + len(listed_load[1]) != store_pc):
+            if not (page_index == 6 and previous_line is not None and
+                    re.fullmatch(r"sta\s+PAR_EXEC\+5", _asm_code_line(source_lines[previous_line]), re.I) and
+                    listed.get(previous_line + 1) is not None and
+                    listed[previous_line + 1][0] + len(listed[previous_line + 1][1]) == store_pc):
+                raise GuardFailure("bootstrap PAR page load bytes disagree with the source listing")
+        page_setup[page_index] = (line_index + 1, previous, load_line, store_pc)
+    if 5 not in page_setup or 6 not in page_setup or page_setup[5][1] != page_setup[6][1]:
+        raise GuardFailure("bootstrap does not establish matching PAR_EXEC+5/+6 pages")
+    expected_page = page_setup[6][1]
+    page_register = par_exec + 6
+
+    reset_stores: list[dict[str, Any]] = []
+    reset_source_indices: list[int] = []
+    for line_index, line in enumerate(source_lines):
+        if not re.fullmatch(r"sta\s+\$FF51", _asm_code_line(line), re.I):
+            continue
+        previous_line = next((index for index in range(line_index - 1, -1, -1)
+                              if _asm_code_line(source_lines[index])), None)
+        value = _asm_immediate_a(source_lines[previous_line]) if previous_line is not None else None
+        listed_load = listed.get(previous_line + 1) if previous_line is not None else None
+        listed_store = listed.get(line_index + 1)
+        if (value is None or listed_load is None or listed_store is None or
+                listed_load[1] != bytes((0x86, value)) or
+                listed_store[1] != b"\xB7\xFF\x51" or
+                listed_load[0] + 2 != listed_store[0]):
+            raise GuardFailure("bootstrap reset SND_DATA source/listing sequence is malformed")
+        load_pc, store_pc = listed_load[0], listed_store[0]
+        post_pc = store_pc + len(listed_store[1])
+        span = boot_image[load_pc - origin:post_pc - origin]
+        packaged_span = packaged_rom[load_pc - origin:post_pc - origin]
+        post_pc_span = boot_image[post_pc - origin:post_pc - origin + 3]
+        packaged_post_pc_span = packaged_rom[post_pc - origin:post_pc - origin + 3]
+        expected_span = listed_load[1] + listed_store[1]
+        if (load_pc < origin or post_pc > boot_map["loader_end"] or
+                span != expected_span or packaged_span != span or
+                len(span) != 5 or len(post_pc_span) != 3 or
+                packaged_post_pc_span != post_pc_span or
+                post_pc + len(post_pc_span) > boot_map["loader_end"]):
+            raise GuardFailure("bootstrap reset SND_DATA span differs from staged or packaged raw bytes")
+        reset_stores.append({
+            "sequence": len(reset_stores), "source_load_line": previous_line + 1,
+            "source_store_line": line_index + 1, "load_pc": load_pc,
+            "store_pc": store_pc, "post_store_pc": post_pc, "value": value,
+            "span_hex": span.hex(), "span_sha256": sha(span),
+            "post_pc_span_hex": post_pc_span.hex(),
+            "post_pc_span_sha256": sha(post_pc_span),
+        })
+        reset_source_indices.append(line_index)
+    if (not reset_stores or page_setup[6][0] - 1 >= reset_source_indices[0] or
+            len(reset_stores) != len(reset_source_indices)):
+        raise GuardFailure("bootstrap reset stores are absent or precede PAR_EXEC+6 mapping setup")
+    return {
+        "source": source_name, "source_sha256": source_sha,
+        "source_receipt_sha256": sha(receipt_path.read_bytes()),
+        "assembly_sha256": invocation.get("assembled_sha256"),
+        "raw_length": raw_length, "raw_prefix_sha256": sha(boot_image[:raw_length]),
+        "origin": origin, "loader_end": boot_map["loader_end"],
+        "staged_boot_sha256": sha(boot_image),
+        "packaged_bank0_sha256": sha(packaged_boot_bank),
+        "packaged_raw_prefix_sha256": sha(packaged_boot_prefix),
+        "packaged_raw_prefix_match": True,
+        "receipt_artifact_sha256": artifact_hashes,
+        "page_register": page_register, "expected_page": expected_page,
+        "page_setup_source_lines": {"PAR_EXEC+5": page_setup[5][0],
+                                     "PAR_EXEC+6": page_setup[6][0]},
+        "reset_stores": reset_stores,
+    }
+
+
 def stream_terminal(image: bytes, start: int, limit: int) -> dict[str, Any]:
     """Decode linked commands to the emitted zero-command boundary."""
     pos = start
@@ -915,6 +1085,7 @@ def prepare(build: Path) -> dict[str, Any]:
     if missing:
         raise GuardFailure("candidate build is incomplete: " + ", ".join(missing))
     rom_bytes = files["ladybug.rom"].read_bytes()
+    bootstrap_reset = derive_bootstrap_reset_qualification(build, rom_bytes)
     layout = json.loads(files["ladybug-sparse-layout.json"].read_text(encoding="utf-8"))
     validate_layout_final_image_identity(layout, sha(rom_bytes))
     main, audio, enemy, presentation = (read_symbols(files[n]) for n in
@@ -1025,6 +1196,7 @@ def prepare(build: Path) -> dict[str, Any]:
                       "terminal_x_expected": 0xA000 + cue13_end["terminal_next_offset"]}},
         "irq_commit_instruction": irq_marker,
         "audio_bus_store": bus_marker,
+        "bootstrap_reset_qualification": bootstrap_reset,
         "post_psg_busy_marker": {"pc": post_busy_pc,
             "derived_from_linked_jsr_and_sta": True},
         "player_art_identity": player_art,
@@ -1032,12 +1204,13 @@ def prepare(build: Path) -> dict[str, Any]:
             "implemented": LIVE_CAPTURE_IMPLEMENTED,
             "monitor_controls": ["events.subscribe", "set_breakpoint", "set_watchpoint",
                 "run", "read_registers", "wait_for_stop", "pause", "read_memory",
-                "inject_key", "single guarded write_memory for forced fixtures"],
+                "get_run_state", "inject_key", "single guarded write_memory for forced fixtures"],
             "offline_only_in_this_preparation": True,
             "live_invocation_requires": ["complete adaptive keyboard source-build receipt",
                 "parent-accepted GDB-MCP delivery receipt", "fresh output directory",
                 "explicit scenario and XRoar binary"],
-            "event_capture": ["source/staged/live bytes and PAR", "selected cue PSG stores",
+            "event_capture": ["source/staged/live bootstrap reset-store spans and PAR mapping before resident/runtime events",
+                "source/staged/live bytes and PAR", "selected cue PSG stores",
                 "emitted END and terminal slot-clear/mute/busy tail", "post-instruction IRQ sequence commit",
                 "physical FRONT pixels against candidate player frames", "same-stop fixture guard recapture"],
             "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
@@ -1046,6 +1219,9 @@ def prepare(build: Path) -> dict[str, Any]:
                 "Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. "
                 "Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. "
                 "Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge."),
+            "bootstrap_reset_stores": (
+                "Derive each watched SND_DATA reset immediate, store span, and post-store PC from the current complete source receipt, bootstrap source/listing/map, staged image, and packaged bank zero. "
+                "At each ordered no-breakpoint-ID stop, require halted get_run_state at the exact PC, expected accumulator value, PAR_EXEC+6 mapping, and equal staged/CPU/physical bytes before runtime event classification."),
         },
         "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
         "runtime_probe_performed": False,
@@ -1074,6 +1250,8 @@ def prepare(build: Path) -> dict[str, Any]:
                 "Verify every programmed logical 2-pixel pose and actual FRONT pose without changing automatic direction/facing, link press/release events to that entry's live matrix binding, "
                 "and require three witnesses plus zero target RAM writes. Release only at state-4 final wait after actual terminal post-PSG busy-zero and IRQ-committed final FRONT. "
                 "The source may combine 318-to-320 and state-2-to-state-3 in one callback; the row-derived final walkout pose can first appear in state 3. Forced fixtures are challenge-free."),
+            "bootstrap_reset_separation": (
+                "The four authored reset attenuation stores are a separate ordered bootstrap event stream, not owned runtime PSG cue output. Unknown, malformed, reordered, remapped, wrong-value, or byte-mismatched watchpoint events fail closed."),
         },
         "gameplay_worklist_timing": {
             "target_cycles_max_per_required_worklist": GAMEPLAY_WORKLIST_CYCLE_TARGET,
@@ -1291,9 +1469,12 @@ def live_span_mismatch_context(client: Any, cpu_address: int, expected: bytes,
     except Exception as exc:
         context["bytes"]["live_cpu_window_read_error"] = f"{type(exc).__name__}: {exc}"
     try:
-        status = monitor_call(client, "status", maximum=2.0)
+        status = monitor_call(client, "get_run_state", maximum=2.0)
         context["stopped_status"] = {"state": status.get("state"),
-            "status_reply": status, "read_error": None}
+            "last_stop_reason": status.get("last_stop_reason"),
+            "last_stop_pc": status.get("last_stop_pc"),
+            "last_stop_bp_id": status.get("last_stop_bp_id"),
+            "run_state_reply": status, "read_error": None}
     except Exception as exc:
         context["stopped_status"] = {"state": "unavailable",
             "read_error": f"{type(exc).__name__}: {exc}"}
@@ -1302,9 +1483,10 @@ def live_span_mismatch_context(client: Any, cpu_address: int, expected: bytes,
 
 def require_current_paused_stop(client: Any, expected_pc: int) -> dict[str, int]:
     """Prove the target is still halted at the exact event before fresh guard reads."""
-    status = monitor_call(client, "status")
+    status = monitor_call(client, "get_run_state")
     regs = monitor_call(client, "read_registers")
-    if status.get("state") != "halted" or regs.get("pc") != expected_pc:
+    if (status.get("state") != "halted" or status.get("last_stop_reason") != "breakpoint" or
+            status.get("last_stop_pc") != expected_pc or regs.get("pc") != expected_pc):
         raise GuardFailure("fresh fixture read is not at the same paused monitor stop")
     return regs
 
@@ -1730,6 +1912,10 @@ class LiveRuntimeObserver:
         self.enemy_image = (build / "ladybug-enemy-runtime.rom").read_bytes()
         self.presentation_image = (build / "ladybug-presentation-runtime.bin").read_bytes()
         self.presentation = read_symbols(build / "ladybug-presentation-runtime.map")
+        self.bootstrap_image = (build / "ladybug-gmc-boot.rom").read_bytes()
+        self.bootstrap_reset = preparation["bootstrap_reset_qualification"]
+        self.bootstrap_reset_index = 0
+        self.bootstrap_reset_events: list[dict[str, Any]] = []
         self.player_frame_table, self.player_art_identity = candidate_player_frame_table(build)
         self.irq_marker = preparation["irq_commit_instruction"]
         self.bus_marker = preparation["audio_bus_store"]
@@ -1872,8 +2058,148 @@ class LiveRuntimeObserver:
                 "sha256": sha(live), "source_staged_live_match": True,
                 "low_ram_copy_qualified": True}
 
+    def _qualify_bootstrap_reset(self, stop: MonitorStop,
+                                 expected: dict[str, Any]) -> dict[str, Any]:
+        """Qualify a watched reset attenuation store before any runtime marker routing."""
+        origin = self.bootstrap_reset["origin"]
+        page_register = self.bootstrap_reset["page_register"]
+        expected_page = self.bootstrap_reset["expected_page"]
+        staged = bytes.fromhex(expected["span_hex"])
+        post_pc_staged = bytes.fromhex(expected["post_pc_span_hex"])
+        offset = expected["load_pc"] - origin
+        staged_image_span = self.bootstrap_image[offset:offset + len(staged)]
+        post_pc_offset = expected["post_store_pc"] - origin
+        staged_post_pc = self.bootstrap_image[post_pc_offset:post_pc_offset + len(post_pc_staged)]
+        context: dict[str, Any] = {
+            "kind": "bootstrap-reset-store-qualification",
+            "stop": self.current_stop_context,
+            "expected": {**expected, "span": byte_evidence(staged),
+                         "page_register": page_register, "expected_page": expected_page},
+            "stopped_status": {"state": "not-read", "read_error": None},
+            "mapping": {"expected_page": expected_page, "raw": None, "masked": None},
+            "bytes": {"candidate_staged": byte_evidence(staged),
+                      "packaged_staged": byte_evidence(staged_image_span),
+                      "post_pc_expected": byte_evidence(post_pc_staged),
+                      "post_pc_staged": byte_evidence(staged_post_pc)},
+        }
+        try:
+            state = monitor_call(self.client, "get_run_state", maximum=2.0)
+            context["stopped_status"] = {"state": state.get("state"),
+                "last_stop_reason": state.get("last_stop_reason"),
+                "last_stop_pc": state.get("last_stop_pc"),
+                "last_stop_bp_id": state.get("last_stop_bp_id"),
+                "reply": state, "read_error": None}
+        except Exception as exc:
+            context["stopped_status"] = {"state": "unavailable",
+                "read_error": f"{type(exc).__name__}: {exc}"}
+            raise QualificationFailure("bootstrap stop state is unavailable", context) from exc
+        try:
+            raw_par = monitor_bytes(self.client, page_register, 1)[0]
+            context["mapping"].update({"raw": raw_par, "raw_hex": f"${raw_par:02X}",
+                "masked": raw_par & 0x3F, "masked_hex": f"${raw_par & 0x3F:02X}",
+                "mask": 0x3F})
+            cpu_live = monitor_bytes(self.client, expected["load_pc"], len(staged))
+            context["bytes"]["live_cpu"] = byte_evidence(cpu_live)
+            cpu_post_pc = monitor_bytes(self.client, expected["post_store_pc"], len(post_pc_staged))
+            context["bytes"]["live_cpu_at_post_pc"] = byte_evidence(cpu_post_pc)
+            physical_page = raw_par & 0x3F
+            physical_offset = expected["load_pc"] - origin
+            physical_address = physical_page * PHYSICAL_PAGE_BYTES + physical_offset
+            physical_live = physical_page_read(self.client, physical_page,
+                physical_offset, len(staged))
+            physical_post_offset = expected["post_store_pc"] - origin
+            physical_post_live = physical_page_read(self.client, physical_page,
+                physical_post_offset, len(post_pc_staged))
+            context["span"] = {"cpu_address": expected["load_pc"],
+                "cpu_window": origin, "physical_page": physical_page,
+                "physical_offset": physical_offset, "physical_address": physical_address,
+                "length": len(staged), "stopped_pc": expected["post_store_pc"],
+                "stopped_pc_physical_address": (physical_page * PHYSICAL_PAGE_BYTES +
+                    physical_post_offset), "stopped_pc_length": len(post_pc_staged)}
+            context["bytes"]["live_physical"] = byte_evidence(physical_live)
+            context["bytes"]["live_physical_at_post_pc"] = byte_evidence(physical_post_live)
+        except Exception as exc:
+            context["read_error"] = f"{type(exc).__name__}: {exc}"
+            raise QualificationFailure("bootstrap source/staged/live evidence read failed", context) from exc
+
+        valid_stop = (
+            state.get("state") == "halted" and
+            state.get("last_stop_reason") == "breakpoint" and
+            state.get("last_stop_pc") == expected["post_store_pc"] and
+            state.get("last_stop_bp_id", 0) in (None, 0) and
+            stop.bp_id in (None, 0) and stop.pc == expected["post_store_pc"] and
+            stop.registers.get("pc") == expected["post_store_pc"] and
+            stop.registers.get("a") == expected["value"])
+        if not valid_stop:
+            raise QualificationFailure("bootstrap reset stop PC, watchpoint identity, status, or value is invalid",
+                                        context)
+        if context["mapping"].get("masked") != expected_page:
+            raise QualificationFailure("bootstrap PAR_EXEC+6 mapping differs from the source-derived page",
+                                        context)
+        if (len(staged_image_span) != len(staged) or staged_image_span != staged or
+                len(staged_post_pc) != len(post_pc_staged) or staged_post_pc != post_pc_staged or
+                context["bytes"].get("live_cpu", {}).get("hex") != staged.hex() or
+                context["bytes"].get("live_physical", {}).get("hex") != staged.hex() or
+                context["bytes"].get("live_cpu_at_post_pc", {}).get("hex") != post_pc_staged.hex() or
+                context["bytes"].get("live_physical_at_post_pc", {}).get("hex") != post_pc_staged.hex()):
+            raise QualificationFailure("bootstrap reset source/staged/CPU/physical bytes differ", context)
+        return {"module": "bootstrap-reset", "sequence": expected["sequence"],
+            "source_line": expected["source_store_line"],
+            "load_pc": expected["load_pc"], "store_pc": expected["store_pc"],
+            "post_store_pc": expected["post_store_pc"], "value": expected["value"],
+            "page_register": page_register, "mapped_page": expected_page,
+            "span_hex": staged.hex(), "source_staged_live_match": True,
+            "post_pc_span_hex": post_pc_staged.hex(),
+            "live_cpu_span_hex": context["bytes"]["live_cpu"]["hex"],
+            "live_physical_span_hex": context["bytes"]["live_physical"]["hex"],
+            "live_cpu_at_post_pc_hex": context["bytes"]["live_cpu_at_post_pc"]["hex"],
+            "live_physical_at_post_pc_hex": context["bytes"]["live_physical_at_post_pc"]["hex"],
+            "par_raw": context["mapping"]["raw"],
+            "live_cpu_sha256": context["bytes"]["live_cpu"]["sha256"],
+            "live_physical_sha256": context["bytes"]["live_physical"]["sha256"],
+            "live_cpu_at_post_pc_sha256": context["bytes"]["live_cpu_at_post_pc"]["sha256"],
+            "live_physical_at_post_pc_sha256": context["bytes"]["live_physical_at_post_pc"]["sha256"],
+            "get_run_state": {key: context["stopped_status"].get(key)
+                for key in ("state", "last_stop_reason", "last_stop_pc", "last_stop_bp_id")},
+            "get_run_state_qualified": True}
+
     def _qualify(self, stop: MonitorStop) -> dict[str, Any]:
         pc = stop.pc
+        reset_stores = self.bootstrap_reset["reset_stores"]
+        if stop.bp_id in (None, 0):
+            matching = [item for item in reset_stores if item["post_store_pc"] == pc]
+            if matching:
+                expected = reset_stores[self.bootstrap_reset_index] if self.bootstrap_reset_index < len(reset_stores) else None
+                if expected is None or expected["post_store_pc"] != pc:
+                    raise QualificationFailure("bootstrap reset watchpoint is duplicate or out of source order",
+                        {"kind": "bootstrap-reset-order-failure", "stop": self.current_stop_context,
+                         "next_expected_sequence": self.bootstrap_reset_index,
+                         "observed_post_store_pc": pc})
+                if stop.phase != "initial-entry":
+                    raise QualificationFailure("bootstrap reset watchpoint occurred outside initial-entry phase",
+                        {"kind": "bootstrap-reset-phase-failure", "stop": self.current_stop_context,
+                         "expected_phase": "initial-entry"})
+                qualification = self._qualify_bootstrap_reset(stop, expected)
+                self.bootstrap_reset_index += 1
+                return qualification
+            if pc != self.bus_marker["stop_pc"]:
+                try:
+                    state = monitor_call(self.client, "get_run_state", maximum=2.0)
+                except Exception as exc:
+                    state = {"read_error": f"{type(exc).__name__}: {exc}"}
+                raise QualificationFailure("unknown watched stop is not an authored bootstrap reset or runtime PSG store",
+                    {"kind": "unknown-watchpoint-stop", "stop": self.current_stop_context,
+                     "get_run_state": state, "next_expected_bootstrap_sequence": self.bootstrap_reset_index})
+            if self.bootstrap_reset_index != len(reset_stores):
+                raise QualificationFailure("runtime PSG stop arrived before bootstrap reset qualification completed",
+                    {"kind": "bootstrap-reset-incomplete-before-runtime", "stop": self.current_stop_context,
+                     "observed_reset_count": self.bootstrap_reset_index,
+                     "required_reset_count": len(reset_stores)})
+        elif self.bootstrap_reset_index != len(reset_stores):
+            raise QualificationFailure("runtime execution breakpoint arrived before bootstrap reset qualification completed",
+                {"kind": "bootstrap-reset-incomplete-before-runtime", "stop": self.current_stop_context,
+                 "observed_reset_count": self.bootstrap_reset_index,
+                 "required_reset_count": len(reset_stores)})
         if pc == self.bus_marker["stop_pc"]:
             par5 = monitor_bytes(self.client, PAR5, 1)[0]
             code = self._audio_code(self.bus_marker["instruction_pc"], 3)
@@ -2991,6 +3317,12 @@ class LiveRuntimeObserver:
             self.failure_context["error"] = f"{type(exc).__name__}: {exc}"
             raise
         label = self.labels.get(stop.pc)
+        if qualification.get("module") == "bootstrap-reset":
+            self.bootstrap_reset_events.append({**qualification,
+                "event_ordinal": stop.ordinal, "phase": stop.phase,
+                "stop_pc": stop.pc, "breakpoint_id": stop.bp_id,
+                "stop_context": self.current_stop_context})
+            return
         if label is None and stop.pc == self.bus_marker["stop_pc"]:
             label = "SND_DATA"
         if label is None:
@@ -3132,6 +3464,20 @@ class LiveRuntimeObserver:
     def run(self) -> dict[str, Any]:
         self.install()
         success = self._run_phases()
+        expected_reset_count = len(self.bootstrap_reset["reset_stores"])
+        bootstrap_reset_status = {
+            "expected_store_count": expected_reset_count,
+            "observed_store_count": len(self.bootstrap_reset_events),
+            "ordered_sequences": [event.get("sequence") for event in self.bootstrap_reset_events],
+            "all_source_staged_live_match": all(
+                event.get("source_staged_live_match") is True for event in self.bootstrap_reset_events),
+            "pass": (len(self.bootstrap_reset_events) == expected_reset_count and
+                     [event.get("sequence") for event in self.bootstrap_reset_events] ==
+                     list(range(expected_reset_count)) and
+                     all(event.get("source_staged_live_match") is True
+                         for event in self.bootstrap_reset_events)),
+        }
+        success = success and bootstrap_reset_status["pass"]
         proof_status = {str(k): acceptance_status(v) for k, v in self.proofs.items()}
         lifecycle_status = [x.status() for x in self.lifecycle_records]
         relative = [((entry["first_maze_visible_frame"] - entry["cue6_first_frame"]) & 0xFFFF)
@@ -3191,6 +3537,10 @@ class LiveRuntimeObserver:
             "runtime_ready_reason": "parent must aggregate all required scenario artifacts and audit the evidence",
             "candidate_files": self.preparation["files"],
             "delivery_qualification": self.delivery, "cold_credited_start": self.cold_credited_start,
+            "bootstrap_reset_qualification": {**bootstrap_reset_status,
+                "source_staged_identity": self.bootstrap_reset,
+                "events": self.bootstrap_reset_events,
+                "classification": "bootstrap reset attenuation; excluded from runtime cue-owned PSG events"},
             "fixture": self.fixture_result, "target_write_count": self.write_count,
             "contacts": self.contacts, "contact_count": self.contact_count,
             "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
@@ -3259,6 +3609,8 @@ def run_live_capture(binary: Path, build: Path, output: Path, scenario: str,
             "events": observer.events if observer is not None else [],
             "phases": observer.phases if observer is not None else [],
             "errors": observer.errors if observer is not None else [str(exc)]}
+        result["bootstrap_reset_events"] = (
+            observer.bootstrap_reset_events if observer is not None else [])
         if observer is not None and observer.failure_context is not None:
             result["failure_context"] = observer.failure_context
         elif isinstance(getattr(exc, "failure_context", None), dict):
@@ -3806,18 +4158,19 @@ def self_test() -> dict[str, Any]:
                  timeout: float = 20.0):
             self.calls.append((method, params))
             self.timeouts.append(timeout)
-            if method == "status": return {"state": self.state}
+            if method == "get_run_state": return {"state": self.state,
+                "last_stop_reason": "breakpoint", "last_stop_pc": self.pc}
             if method == "read_registers": return {"pc": self.pc}
             if method == "read_memory": return {"data": "34", "space": "cpu"}
             return {}
 
     deadline_client = FakeClient()
     deadline_client._bug117_phase_deadline = time.monotonic() + 0.2
-    monitor_call(deadline_client, "status")
+    monitor_call(deadline_client, "get_run_state")
     assert 0 < deadline_client.timeouts[-1] <= 0.2
     deadline_client._bug117_phase_deadline = time.monotonic() - 1
     deadline_call_count = len(deadline_client.calls)
-    try: monitor_call(deadline_client, "status")
+    try: monitor_call(deadline_client, "get_run_state")
     except GuardFailure:
         assert len(deadline_client.calls) == deadline_call_count
         tested += 1
@@ -3833,7 +4186,7 @@ def self_test() -> dict[str, Any]:
         assert fresh == {"scenario": scenario, "address": TIMER_ADDRESS,
             "value": expected, "fresh_snapshot": True, "attempts": 1}
         assert reads == [fake] and fake.calls[-3:] == [
-            ("status", None), ("read_registers", None),
+            ("get_run_state", None), ("read_registers", None),
             ("write_memory", {"addr": TIMER_ADDRESS, "data": f"{expected:02x}"})]
         call_count = len(fake.calls)
         try:
@@ -3866,7 +4219,7 @@ def self_test() -> dict[str, Any]:
         moved_writer.write_from_paused_stop(moved_client, moved_client.pc,
             move_during_guard_capture)
     except GuardFailure:
-        assert [method for method, _ in moved_client.calls] == ["status", "read_registers"]
+        assert [method for method, _ in moved_client.calls] == ["get_run_state", "read_registers"]
         tested += 1
     else:
         raise AssertionError("writer accepted a changed PC after guard recapture")
@@ -4144,6 +4497,146 @@ def self_test() -> dict[str, Any]:
                 "live_par_mapping_qualified": True}
             delivery = validate_delivery_receipt(receipt, candidate_prep)
             assert delivery["mapping_and_copy_qualified"]
+            current_build = ROOT / "build"
+            current_boot_prep = prepare(current_build)
+            current_required_hashes = {name: current_boot_prep["files"][name]["sha256"]
+                                       for name in DELIVERY_HASH_FILES}
+            current_receipt = {"schema": DELIVERY_RECEIPT_SCHEMA, "status": "parent-accepted",
+                "artifact_sha256": current_required_hashes, "source_to_staged_bytes_match": True,
+                "staged_sparse_copy_identity": True, "destination_live_bytes_match": True,
+                "live_par_mapping_qualified": True}
+            current_delivery = validate_delivery_receipt(current_receipt, current_boot_prep)
+            bootstrap = current_boot_prep["bootstrap_reset_qualification"]
+
+            class FakeBootstrapClient:
+                def __init__(self, *, corrupt_cpu=False, corrupt_physical=False,
+                             corrupt_cpu_post=False, corrupt_physical_post=False,
+                             wrong_page=False):
+                    self.corrupt_cpu = corrupt_cpu
+                    self.corrupt_physical = corrupt_physical
+                    self.corrupt_cpu_post = corrupt_cpu_post
+                    self.corrupt_physical_post = corrupt_physical_post
+                    self.wrong_page = wrong_page
+                    self.current: dict[str, Any] | None = None
+                    self.write_count = 0
+                def call(self, method: str, params: dict[str, Any] | None = None,
+                         timeout: float = 20.0):
+                    if method == "get_run_state":
+                        return {"state": "halted", "last_stop_reason": "breakpoint",
+                            "last_stop_pc": self.current["post_store_pc"],
+                            "last_stop_bp_id": 0}
+                    if method != "read_memory":
+                        if method == "write_memory": self.write_count += 1
+                        raise AssertionError(f"unexpected bootstrap fake RPC {method}")
+                    address, length = params["addr"], params["length"]
+                    space = params.get("space", "cpu")
+                    if space == "cpu" and address == bootstrap["page_register"]:
+                        page = bootstrap["expected_page"] ^ (1 if self.wrong_page else 0)
+                        data = bytes((0x80 | page,))
+                    elif (space == "cpu" and bootstrap["origin"] <= address and
+                          address + length <= bootstrap["loader_end"]):
+                        offset = address - bootstrap["origin"]
+                        data = bytearray((current_build / "ladybug-gmc-boot.rom").read_bytes()[
+                            offset:offset + length])
+                        if data and (self.corrupt_cpu or
+                                (self.corrupt_cpu_post and address == self.current["post_store_pc"])):
+                            data[0] ^= 1
+                        data = bytes(data)
+                    elif space == "physical":
+                        page = address // PHYSICAL_PAGE_BYTES
+                        offset = address % PHYSICAL_PAGE_BYTES
+                        data = bytearray((current_build / "ladybug-gmc-boot.rom").read_bytes()[
+                            offset:offset + length] if page == bootstrap["expected_page"] else bytes(length))
+                        if data and (self.corrupt_physical or
+                                (self.corrupt_physical_post and
+                                 offset == self.current["post_store_pc"] - bootstrap["origin"])):
+                            data[0] ^= 1
+                        data = bytes(data)
+                    else:
+                        raise AssertionError(f"unexpected bootstrap fake read {space} ${address:04X}")
+                    return {"data": data.hex(), "space": space}
+
+            bootstrap_observer = LiveRuntimeObserver(FakeBootstrapClient(), current_build,
+                "natural", current_boot_prep, current_delivery)
+            for expected_store in bootstrap["reset_stores"]:
+                bootstrap_observer.client.current = expected_store
+                bootstrap_observer._dispatch(MonitorStop("initial-entry",
+                    expected_store["post_store_pc"], None,
+                    {"pc": expected_store["post_store_pc"], "a": expected_store["value"]},
+                    expected_store["sequence"] + 1, time.monotonic()))
+            assert len(bootstrap_observer.bootstrap_reset_events) == len(bootstrap["reset_stores"])
+            assert bootstrap_observer.events == [] and bootstrap_observer.write_count == 0
+            assert all(event["source_staged_live_match"] is True
+                       for event in bootstrap_observer.bootstrap_reset_events)
+            assert all(event["get_run_state"]["last_stop_pc"] == event["post_store_pc"]
+                       for event in bootstrap_observer.bootstrap_reset_events)
+            assert all(event["live_cpu_at_post_pc_sha256"] ==
+                       sha(bytes.fromhex(event["post_pc_span_hex"]))
+                       for event in bootstrap_observer.bootstrap_reset_events)
+            assert bootstrap_observer.bootstrap_reset_events[0]["live_cpu_at_post_pc_hex"] == "86bfb7"
+            tested += 1
+
+            def reject_bootstrap_fake(client: Any, store_index: int,
+                                      *, value_delta: int = 0, wrong_order: bool = False,
+                                      require_mapping_context: bool = False) -> dict[str, Any]:
+                observer = LiveRuntimeObserver(client, current_build, "natural",
+                    current_boot_prep, current_delivery)
+                expected_store = bootstrap["reset_stores"][store_index]
+                if wrong_order:
+                    expected_store = bootstrap["reset_stores"][store_index + 1]
+                client.current = expected_store
+                try:
+                    observer._dispatch(MonitorStop("initial-entry", expected_store["post_store_pc"],
+                        None, {"pc": expected_store["post_store_pc"],
+                               "a": expected_store["value"] ^ value_delta},
+                        expected_store["sequence"] + 1, time.monotonic()))
+                except GuardFailure:
+                    assert observer.bootstrap_reset_events == [] and observer.events == []
+                    assert observer.write_count == 0 and client.write_count == 0
+                    assert observer.failure_context is not None
+                    if require_mapping_context:
+                        assert observer.failure_context["mapping"]["masked"] != bootstrap["expected_page"]
+                    return observer.failure_context
+                raise AssertionError("invalid bootstrap watchpoint event passed qualification")
+
+            byte_context = reject_bootstrap_fake(FakeBootstrapClient(corrupt_physical=True), 0)
+            assert byte_context["kind"] == "bootstrap-reset-store-qualification"
+            assert byte_context["bytes"]["live_physical"]["hex"] != bootstrap["reset_stores"][0]["span_hex"]
+            tested += 1
+            cpu_context = reject_bootstrap_fake(FakeBootstrapClient(corrupt_cpu=True), 0)
+            assert cpu_context["bytes"]["live_cpu"]["hex"] != bootstrap["reset_stores"][0]["span_hex"]
+            tested += 1
+            post_cpu_context = reject_bootstrap_fake(FakeBootstrapClient(corrupt_cpu_post=True), 0)
+            assert post_cpu_context["bytes"]["live_cpu_at_post_pc"]["hex"] != bootstrap["reset_stores"][0]["post_pc_span_hex"]
+            tested += 1
+            post_physical_context = reject_bootstrap_fake(
+                FakeBootstrapClient(corrupt_physical_post=True), 0)
+            assert post_physical_context["bytes"]["live_physical_at_post_pc"]["hex"] != bootstrap["reset_stores"][0]["post_pc_span_hex"]
+            tested += 1
+            value_context = reject_bootstrap_fake(FakeBootstrapClient(), 0, value_delta=1)
+            assert "value is invalid" in value_context["error"]
+            tested += 1
+            order_context = reject_bootstrap_fake(FakeBootstrapClient(), 0, wrong_order=True)
+            assert order_context["kind"] == "bootstrap-reset-order-failure"
+            tested += 1
+            mapping_context = reject_bootstrap_fake(FakeBootstrapClient(wrong_page=True), 0,
+                                                     require_mapping_context=True)
+            assert "mapping differs" in mapping_context["error"]
+            tested += 1
+            unknown_observer = LiveRuntimeObserver(FakeBootstrapClient(), current_build,
+                "natural", current_boot_prep, current_delivery)
+            unknown_pc = bootstrap["origin"] + 0x2A
+            unknown_observer.client.current = bootstrap["reset_stores"][0]
+            try:
+                unknown_observer._dispatch(MonitorStop("initial-entry", unknown_pc, None,
+                    {"pc": unknown_pc, "a": 0}, 1, time.monotonic()))
+            except GuardFailure:
+                assert unknown_observer.failure_context["kind"] == "unknown-watchpoint-stop"
+                assert unknown_observer.bootstrap_reset_events == [] and unknown_observer.events == []
+                tested += 1
+            else:
+                raise AssertionError("unknown bootstrap watchpoint stop was accepted")
+
             class FakeMemoryClient:
                 def __init__(self, corrupt=False): self.corrupt = corrupt
                 def call(self, method, params, timeout=20.0):
@@ -4180,8 +4673,9 @@ def self_test() -> dict[str, Any]:
                     self._bug117_phase_deadline = time.monotonic() + PHASE_SECONDS
                 def call(self, method: str, params: dict[str, Any] | None = None,
                          timeout: float = 20.0):
-                    if method == "status":
-                        return {"state": "halted"}
+                    if method == "get_run_state":
+                        return {"state": "halted", "last_stop_reason": "breakpoint",
+                            "last_stop_pc": self.pc, "last_stop_bp_id": 17}
                     if method != "read_memory":
                         raise AssertionError(f"unexpected mismatch-context RPC {method}")
                     address = params["addr"]
@@ -4206,6 +4700,10 @@ def self_test() -> dict[str, Any]:
             mismatch_client = FakeResidentMismatchClient(mismatch_pc, mismatch_expected)
             mismatch_observer = LiveRuntimeObserver(mismatch_client, pinned, "natural",
                                                      candidate_prep, delivery)
+            # This focused mismatch probe starts at a resident stop; bootstrap coverage is
+            # exercised end-to-end above with current-receipt bootstrap bytes.
+            mismatch_observer.bootstrap_reset_index = len(
+                mismatch_observer.bootstrap_reset["reset_stores"])
             mismatch_observer.labels[mismatch_pc] = "marker_entry_begin"
             mismatch_observer.bp_ids[mismatch_pc] = 17
             mismatch_stop = MonitorStop("initial-entry", mismatch_pc, 17,
@@ -4233,6 +4731,7 @@ def self_test() -> dict[str, Any]:
                 assert context["bytes"]["live_cpu_window"]["hex"] == mismatch_expected.hex()
                 assert context["bytes"]["live_physical"]["hex"] != mismatch_expected.hex()
                 assert context["stopped_status"]["state"] == "halted"
+                assert context["stopped_status"]["last_stop_pc"] == mismatch_pc
                 assert context["error"] == (
                     "QualificationFailure: live physical module bytes differ from staged candidate bytes")
                 tested += 1
@@ -4462,7 +4961,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
