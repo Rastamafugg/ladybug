@@ -1,0 +1,207 @@
+{
+  "scenario": "natural",
+  "status": "INCOMPLETE_FAIL_CLOSED",
+  "error": "GuardFailure: terminal mute service has queued music, effects, credits, or mixer work",
+  "target_writes": 0,
+  "phases": [
+    {
+      "name": "initial-entry",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 4266,
+      "success_marker": "live event predicate"
+    }
+  ],
+  "failure_context": {
+    "kind": "terminal-audio-guard-failure",
+    "error": "GuardFailure: terminal mute service has queued music, effects, credits, or mixer work",
+    "stop": {
+      "phase": "natural-contact-search",
+      "phase_deadline_seconds": 45,
+      "phase_deadline_monotonic": 4144.432645849,
+      "phase_remaining_seconds_at_dispatch": 44.19406869100021,
+      "pc": 42000,
+      "pc_hex": "$A410",
+      "bp_id": 7,
+      "ordinal": 4499,
+      "observed_monotonic": 4100.23857331,
+      "registers_at_stop": {
+        "a": 0,
+        "b": 0,
+        "d": 0,
+        "cc": 196,
+        "dp": 0,
+        "x": 42900,
+        "y": 6272,
+        "u": 42904,
+        "s": 8182,
+        "pc": 42000
+      }
+    },
+    "qualification": {
+      "module": "audio",
+      "cpu_address": 42000,
+      "page_register": 65445,
+      "mapped_page": 61,
+      "length": 3,
+      "sha256": "02634fd2fae0851ce87431403b41b5fc8fa9d4c2afe8687d48261ed72e391cf7",
+      "source_staged_live_match": true
+    },
+    "audio_snapshot": {
+      "slots": [
+        {
+          "index": 0,
+          "id": 255,
+          "priority": 5,
+          "policy": 179,
+          "wait": 0,
+          "stream_pointer": 44669,
+          "periods": [
+            226,
+            570,
+            570
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "820e94aa23b4ca23d4e0ff",
+            "length": 11
+          }
+        },
+        {
+          "index": 1,
+          "id": 255,
+          "priority": 5,
+          "policy": 186,
+          "wait": 0,
+          "stream_pointer": 45694,
+          "periods": [
+            80,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        },
+        {
+          "index": 2,
+          "id": 255,
+          "priority": 0,
+          "policy": 0,
+          "wait": 0,
+          "stream_pointer": 0,
+          "periods": [
+            1,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        },
+        {
+          "index": 3,
+          "id": 255,
+          "priority": 0,
+          "policy": 0,
+          "wait": 0,
+          "stream_pointer": 0,
+          "periods": [
+            1,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        }
+      ],
+      "counts": {
+        "music_count": 0,
+        "effect_queue_count": 0,
+        "credit_pending": 0,
+        "mix_count": 0,
+        "published_busy": 1
+      },
+      "music_queue": {
+        "hex": "0600000000000000",
+        "length": 8
+      },
+      "mixer": {
+        "periods": {
+          "hex": "010001000100",
+          "length": 6
+        },
+        "attenuation": {
+          "hex": "0f0f0f",
+          "length": 3
+        },
+        "noise": {
+          "hex": "000f",
+          "length": 2
+        },
+        "shadow": {
+          "hex": "820e94aa23b4ca23d4e0ff",
+          "length": 11
+        },
+        "order": {
+          "hex": "00000000",
+          "length": 4
+        },
+        "best_slot": 255,
+        "best_priority": 0
+      }
+    },
+    "stopped_status": {
+      "state": "halted",
+      "last_stop_reason": "breakpoint",
+      "last_stop_pc": 42000,
+      "last_stop_bp_id": 7,
+      "reply": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 42000,
+        "last_stop_bp_id": 7
+      },
+      "read_error": null
+    }
+  },
+  "raw_trace_path": "repro/bug117-integration-20261012/runtime-natural-terminal-diagnostic-20261013/bug117-natural-runtime.json",
+  "raw_trace_sha256": "07503463c77b2303cce784dbe8516816c7678056bde28ef3d84379a55204e429",
+  "event_count": 4561,
+  "error_count": 136,
+  "distinct_errors": [
+    "live-player-front-pose-missing-at-irq-commit"
+  ],
+  "diagnosis": "Inactive retired cue 6 remains in music_queue[0] while music_count is zero; source audio_music_remove does not clear retired cells. Pending-count/slot/mixer gates remain required. Missing-pose errors need separate offscreen-boundary diagnosis."
+}
