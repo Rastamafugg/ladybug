@@ -47,6 +47,10 @@ RESIDENT_IMAGE_BASE = 0xC000
 RESIDENT_IMAGE_BYTES = 0x4000
 PAR_BASE = 0xFFA0
 PAR5 = 0xFFA5
+PAGE20_RESET_PAGE = 0x20
+PAGE20_RESET_ADDRESS = 0xA000
+BANK_BOUNDARY_CAPTURE_PC = 0xA2D2
+BANK_BOUNDARY_CAPTURE_SPAN_BYTES = 16
 SND_DATA = 0xFF51
 FB_FRONT_ID = 0x008F
 FB_BACK_ID = 0x0090
@@ -640,6 +644,70 @@ def validate_layout_final_image_identity(layout: dict[str, Any], rom_sha256: str
     gmc = layout.get("gmc") if isinstance(layout, dict) else None
     if not isinstance(gmc, dict) or gmc.get("final_image_sha256") != rom_sha256:
         raise GuardFailure("sparse layout final-image identity differs from the current ROM")
+
+
+def derive_bank_boundary_reference(build: Path, layout: dict[str, Any],
+                                   audio_image: bytes,
+                                   audio_symbols: dict[str, int]) -> dict[str, Any]:
+    """Bind page-$20 reference bytes and the same-address audio span to current inputs."""
+    build = build.resolve(strict=True)
+    manifest_path = build / "ladybug-sparse-layout.json"
+    payload_path = build / "ladybug-perimeter-reset.bin"
+    receipt_path = build / "source-build-receipt.json"
+    source_root = build.parent
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    receipt_inputs = {str(key).replace("\\", "/"): value
+                      for key, value in receipt.get("inputs", {}).items()}
+    source_names = ("src/gmc_bootstrap.s", "src/perimeter_reset_helper.s",
+                    "scripts/build_sparse_sprites.py", "tiled/coco-special-screen.tmx")
+    source_hashes: dict[str, str] = {}
+    for name in source_names:
+        source_path = source_root / name
+        if not source_path.is_file():
+            raise GuardFailure(f"page-$20 source reference is missing: {name}")
+        digest = sha(source_path.read_bytes())
+        if receipt.get("state") != "complete" or receipt_inputs.get(name) != digest:
+            raise GuardFailure(f"page-$20 source does not match the complete build receipt: {name}")
+        source_hashes[name] = digest
+    manifest = layout.get("perimeter_reset")
+    if not isinstance(manifest, dict):
+        raise GuardFailure("sparse layout lacks the page-$20 perimeter reset manifest")
+    reference = payload_path.read_bytes()
+    if (manifest.get("page") != PAGE20_RESET_PAGE or
+            manifest.get("address") != PAGE20_RESET_ADDRESS or
+            manifest.get("bytes") != 5751 or manifest.get("boot_synthesized") is not True or
+            manifest.get("source_bytes") != 0 or len(reference) != 5751 or
+            manifest.get("sha256") != sha(reference)):
+        raise GuardFailure("page-$20 synthesized helper reference differs from its current manifest")
+    offset = BANK_BOUNDARY_CAPTURE_PC - PAGE20_RESET_ADDRESS
+    length = BANK_BOUNDARY_CAPTURE_SPAN_BYTES
+    helper_span = reference[offset:offset + length]
+    audio_span = audio_image[offset:offset + length]
+    artifacts = receipt.get("artifacts", {})
+    audio_digest = sha(audio_image)
+    if (len(helper_span) != length or len(audio_span) != length or
+            artifacts.get("ladybug-audio-runtime.bin") != audio_digest):
+        raise GuardFailure("page-$20 helper or receipt-qualified audio reference span is incomplete")
+    return {
+        "cpu_pc": BANK_BOUNDARY_CAPTURE_PC,
+        "cpu_window": PAGE20_RESET_ADDRESS,
+        "offset": offset,
+        "span_bytes": length,
+        "audio_command_end_pc": audio_symbols.get("audio_command_end"),
+        "page20": {
+            "page": PAGE20_RESET_PAGE, "address": PAGE20_RESET_ADDRESS,
+            "manifest_bytes": manifest["bytes"], "boot_synthesized": True,
+            "source_bytes": 0, "manifest_sha256": manifest["sha256"],
+            "payload_sha256": sha(reference), "span_hex": helper_span.hex(),
+            "span_sha256": sha(helper_span),
+        },
+        "page3d_audio": {"page": 0x3D, "artifact": "ladybug-audio-runtime.bin",
+            "artifact_sha256": audio_digest, "span_hex": audio_span.hex(),
+            "span_sha256": sha(audio_span)},
+        "sparse_layout_sha256": sha(manifest_path.read_bytes()),
+        "source_build_receipt_sha256": sha(receipt_path.read_bytes()),
+        "source_hashes": source_hashes,
+    }
 
 
 def candidate_player_frame(build: Path, face: int, animation: int) -> tuple[bytes, dict[str, Any]]:
@@ -1282,8 +1350,10 @@ def prepare(build: Path) -> dict[str, Any]:
     player_art = verify_candidate_player_art(build)
     identity = {name: {"bytes": p.stat().st_size, "sha256": sha(p.read_bytes())}
                 for name, p in files.items()}
+    bank_boundary_reference = derive_bank_boundary_reference(build, layout, audio_bin, audio)
     return {
         "candidate_build": str(build), "files": identity,
+        "bank_boundary_page20_reference": bank_boundary_reference,
         "candidate_sources": checked_source_patterns,
         "mapped_symbols": {d: {s: maps[d][s] for s in symbols}
                            for d, symbols in required.items()},
@@ -2041,6 +2111,36 @@ class LiveRuntimeObserver:
         self.enemy = read_symbols(build / "ladybug-enemy-runtime.map")
         self.main_image = (build / "ladybug-runtime.rom").read_bytes()
         self.audio_image = (build / "ladybug-audio-runtime.bin").read_bytes()
+        self.bank_boundary_reference = preparation["bank_boundary_page20_reference"]
+        self.page20_reset_image = (build / "ladybug-perimeter-reset.bin").read_bytes()
+        reference = self.bank_boundary_reference
+        prepared_files = preparation.get("files", {})
+        delivered_hashes = delivery.get("artifact_sha256", {})
+        source_root = build.parent
+        if (sha(self.page20_reset_image) != reference["page20"]["payload_sha256"] or
+                len(self.page20_reset_image) != reference["page20"]["manifest_bytes"] or
+                self.page20_reset_image[reference["offset"]:
+                    reference["offset"] + reference["span_bytes"]].hex() !=
+                    reference["page20"]["span_hex"] or
+                reference["sparse_layout_sha256"] != prepared_files.get(
+                    "ladybug-sparse-layout.json", {}).get("sha256") or
+                reference["sparse_layout_sha256"] != delivered_hashes.get(
+                    "ladybug-sparse-layout.json") or
+                reference["sparse_layout_sha256"] != sha(
+                    (build / "ladybug-sparse-layout.json").read_bytes()) or
+                reference["page3d_audio"]["artifact_sha256"] != prepared_files.get(
+                    "ladybug-audio-runtime.bin", {}).get("sha256") or
+                reference["page3d_audio"]["artifact_sha256"] != delivered_hashes.get(
+                    "ladybug-audio-runtime.bin") or
+                reference["page3d_audio"]["span_hex"] != self.audio_image[
+                    reference["offset"]:reference["offset"] + reference["span_bytes"]].hex() or
+                reference["audio_command_end_pc"] != self.audio.get("audio_command_end") or
+                reference["source_build_receipt_sha256"] != sha(
+                    (build / "source-build-receipt.json").read_bytes())):
+            raise GuardFailure("page-$20 byte-capture references differ from current preparation or delivery identity")
+        for source_name, expected_hash in reference["source_hashes"].items():
+            if sha((source_root / source_name).read_bytes()) != expected_hash:
+                raise GuardFailure(f"page-$20 source reference changed after preparation: {source_name}")
         self.enemy_image = (build / "ladybug-enemy-runtime.rom").read_bytes()
         self.presentation_image = (build / "ladybug-presentation-runtime.bin").read_bytes()
         self.presentation = read_symbols(build / "ladybug-presentation-runtime.map")
@@ -2169,6 +2269,116 @@ class LiveRuntimeObserver:
         return qualify_live_span(self.client, pc, expected, PAR5, 0x3D,
                                  0xA000, 0xA000, self.audio_image, self.delivery,
                                  self.current_stop_context)
+
+    def _is_page20_boundary_mismatch(self, stop: MonitorStop, exc: Exception) -> bool:
+        match = re.fullmatch(r"live PAR \$FFA5 page \$([0-9A-Fa-f]{2}) != expected \$3D",
+                             str(exc))
+        reference = getattr(self, "bank_boundary_reference", {})
+        return (isinstance(exc, GuardFailure) and match is not None and
+                int(match.group(1), 16) == PAGE20_RESET_PAGE and
+                stop.phase == "natural-contact-search" and
+                stop.pc == BANK_BOUNDARY_CAPTURE_PC == reference.get("cpu_pc") and
+                reference.get("audio_command_end_pc") == stop.pc)
+
+    def _capture_page20_boundary_mismatch(self, stop: MonitorStop,
+                                         stop_context: dict[str, Any],
+                                         original_error: Exception) -> dict[str, Any]:
+        reference = self.bank_boundary_reference
+        offset = reference["offset"]
+        length = reference["span_bytes"]
+        context: dict[str, Any] = {
+            "kind": "bank-boundary-byte-capture",
+            "capture_status": "incomplete",
+            "guard_rethrown": True,
+            "original_guard": {"class": type(original_error).__name__,
+                "message": str(original_error)},
+            "stop": json_safe(stop_context),
+            "target_write_count": getattr(self, "write_count", 0),
+            "reference": json_safe(reference),
+            "stopped_status": {"state": "unavailable", "read_error": None},
+            "mapping": {"page_register_address": PAR5,
+                "page_register_address_hex": f"${PAR5:04X}",
+                "guard_observed_page": PAGE20_RESET_PAGE,
+                "guard_expected_page": 0x3D, "par_mask": 0x3F},
+            "window": {"cpu_address": stop.pc, "cpu_address_hex": f"${stop.pc:04X}",
+                "cpu_window": PAGE20_RESET_ADDRESS, "offset": offset,
+                "physical_page20_address": PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES + offset,
+                "physical_page3d_address": 0x3D * PHYSICAL_PAGE_BYTES + offset,
+                "span_bytes": length},
+            "bytes": {}, "comparisons": {},
+        }
+        try:
+            status = monitor_call(self.client, "get_run_state", maximum=2.0)
+            if not isinstance(status, dict):
+                raise GuardFailure("get_run_state returned a non-object byte-capture status")
+            context["stopped_status"] = {"state": status.get("state"),
+                "last_stop_reason": status.get("last_stop_reason"),
+                "last_stop_pc": status.get("last_stop_pc"),
+                "last_stop_bp_id": status.get("last_stop_bp_id"),
+                "reply": json_safe(status), "read_error": None}
+        except Exception as status_exc:
+            context["stopped_status"]["read_error"] = (
+                f"{type(status_exc).__name__}: {status_exc}")
+            context["capture_status"] = "stopped-status-read-failed"
+            return context
+        installed_bp = self.bp_ids.get(stop.pc)
+        stop_identity = (
+            status.get("state") == "halted" and
+            status.get("last_stop_reason") == "breakpoint" and
+            status.get("last_stop_pc") == stop.pc and
+            status.get("last_stop_bp_id") == stop.bp_id and
+            stop.bp_id == installed_bp and
+            stop.registers.get("pc") == stop.pc)
+        context["stopped_status"]["stop_identity_match"] = stop_identity
+        if not stop_identity:
+            context["capture_status"] = "stopped-identity-mismatch"
+            return context
+        try:
+            raw_par = monitor_bytes(self.client, PAR5, 1)[0]
+            masked_par = raw_par & 0x3F
+            context["mapping"].update({"par_raw": raw_par,
+                "par_raw_hex": f"${raw_par:02X}", "par_masked": masked_par,
+                "par_masked_hex": f"${masked_par:02X}",
+                "matches_guard_observed_page": masked_par == PAGE20_RESET_PAGE})
+        except Exception as par_exc:
+            context["mapping"]["read_error"] = f"{type(par_exc).__name__}: {par_exc}"
+            context["capture_status"] = "par5-read-failed"
+            return context
+        for name, read in (
+                ("live_cpu_window", lambda: monitor_bytes(self.client, stop.pc, length)),
+                ("live_physical_page20", lambda: physical_page_read(
+                    self.client, PAGE20_RESET_PAGE, offset, length)),
+                ("live_physical_page3d", lambda: physical_page_read(
+                    self.client, 0x3D, offset, length))):
+            try:
+                context["bytes"][name] = byte_evidence(read())
+            except Exception as read_exc:
+                context["bytes"][f"{name}_read_error"] = f"{type(read_exc).__name__}: {read_exc}"
+        def captured(name: str) -> bytes | None:
+            item = context["bytes"].get(name)
+            if not isinstance(item, dict) or not isinstance(item.get("hex"), str):
+                return None
+            try:
+                data = bytes.fromhex(item["hex"])
+            except ValueError:
+                return None
+            return data if len(data) == length else None
+        cpu = captured("live_cpu_window")
+        page20 = captured("live_physical_page20")
+        page3d = captured("live_physical_page3d")
+        helper_expected = bytes.fromhex(reference["page20"]["span_hex"])
+        audio_expected = bytes.fromhex(reference["page3d_audio"]["span_hex"])
+        context["comparisons"] = {
+            "par5_matches_guard_observed_page": context["mapping"].get(
+                "matches_guard_observed_page"),
+            "cpu_matches_physical_page20": cpu == page20 if cpu is not None and page20 is not None else None,
+            "physical_page20_matches_manifest_reference": page20 == helper_expected if page20 is not None else None,
+            "cpu_matches_page20_manifest_reference": cpu == helper_expected if cpu is not None else None,
+            "physical_page3d_matches_receipt_audio_span": page3d == audio_expected if page3d is not None else None,
+        }
+        reads_complete = all(value is not None for value in (cpu, page20, page3d))
+        context["capture_status"] = "captured" if reads_complete else "incomplete-byte-reads"
+        return context
 
     def _enemy_code(self, pc: int, size: int = 3) -> dict[str, Any]:
         if not 0x0800 <= pc < 0x0800 + len(self.enemy_image):
@@ -3829,6 +4039,20 @@ class LiveRuntimeObserver:
         try:
             self._dispatch_qualified(stop)
         except Exception as exc:
+            if self._is_page20_boundary_mismatch(stop, exc):
+                try:
+                    exc.failure_context = self._capture_page20_boundary_mismatch(
+                        stop, stop_context, exc)
+                except Exception as capture_exc:
+                    exc.failure_context = {
+                        "kind": "bank-boundary-byte-capture",
+                        "capture_status": "capture-handler-failed",
+                        "guard_rethrown": True,
+                        "original_guard": {"class": type(exc).__name__, "message": str(exc)},
+                        "capture_error": f"{type(capture_exc).__name__}: {capture_exc}",
+                        "stop": json_safe(stop_context),
+                        "reference": json_safe(getattr(self, "bank_boundary_reference", {})),
+                    }
             context = getattr(exc, "failure_context", None)
             self.failure_context = (context if isinstance(context, dict) else {
                 "kind": "observer-dispatch-failure", "stop": stop_context})
@@ -5559,6 +5783,134 @@ def self_test() -> dict[str, Any]:
                 tested += 1
             else:
                 raise AssertionError("resident physical mismatch passed or failed to retain context")
+
+            boundary_ref = current_boot_prep["bank_boundary_page20_reference"]
+            boundary_pc = boundary_ref["cpu_pc"]
+            helper_span = bytes.fromhex(boundary_ref["page20"]["span_hex"])
+            audio_span = bytes.fromhex(boundary_ref["page3d_audio"]["span_hex"])
+
+            class FakeBankBoundaryClient:
+                def __init__(self, *, cpu_delta=False, page20_delta=False,
+                             page3d_delta=False, par=PAGE20_RESET_PAGE,
+                             status_delta=None):
+                    self.cpu_delta = cpu_delta
+                    self.page20_delta = page20_delta
+                    self.page3d_delta = page3d_delta
+                    self.par = par
+                    self.status_delta = status_delta or {}
+                    self.calls: list[tuple[str, dict[str, Any] | None]] = []
+                    self._bug117_phase_deadline = time.monotonic() + PHASE_SECONDS
+                def call(self, method: str, params: dict[str, Any] | None = None,
+                         timeout: float = 20.0):
+                    self.calls.append((method, params))
+                    assert 0 < timeout <= STOP_WAIT_SECONDS
+                    if method == "get_run_state":
+                        return {"state": "halted", "last_stop_reason": "breakpoint",
+                            "last_stop_pc": boundary_pc, "last_stop_bp_id": 17,
+                            **self.status_delta}
+                    if method != "read_memory":
+                        raise AssertionError(f"unexpected bank-boundary RPC {method}")
+                    address = params["addr"]
+                    length = params["length"]
+                    space = params.get("space", "cpu")
+                    if space == "cpu" and address == PAR5:
+                        data = bytes((self.par,))
+                    elif space == "cpu" and address == boundary_pc:
+                        payload = bytearray(helper_span)
+                        if self.cpu_delta:
+                            payload[0] ^= 1
+                        data = bytes(payload[:length])
+                    elif space == "physical" and address == (
+                            PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES + boundary_ref["offset"]):
+                        payload = bytearray(helper_span)
+                        if self.page20_delta:
+                            payload[0] ^= 1
+                        data = bytes(payload[:length])
+                    elif space == "physical" and address == (
+                            0x3D * PHYSICAL_PAGE_BYTES + boundary_ref["offset"]):
+                        payload = bytearray(audio_span)
+                        if self.page3d_delta:
+                            payload[0] ^= 1
+                        data = bytes(payload[:length])
+                    else:
+                        raise AssertionError(f"unexpected bank-boundary read {space} ${address:04X}")
+                    return {"data": data.hex(), "space": space}
+
+            def dispatch_boundary_failure(client: FakeBankBoundaryClient):
+                observer = LiveRuntimeObserver(client, current_build, "natural",
+                    current_boot_prep, current_delivery)
+                observer.bp_ids[boundary_pc] = 17
+                original = GuardFailure("live PAR $FFA5 page $20 != expected $3D")
+                observer._dispatch_qualified = lambda stop: (_ for _ in ()).throw(original)
+                observer._natural_contact_search_context = lambda phase: {"phase": phase}
+                stop = MonitorStop("natural-contact-search", boundary_pc, 17,
+                    {"pc": boundary_pc, "a": 6, "b": 0x66, "d": 0x0666,
+                     "cc": 0xD0, "dp": 0, "x": 0x056D, "y": 0,
+                     "u": 0xAA00, "s": 0x1FD6}, 8640, time.monotonic())
+                try:
+                    observer._dispatch(stop)
+                except GuardFailure as caught:
+                    assert caught is original
+                    return observer, original, observer.failure_context
+                raise AssertionError("bank-boundary mismatch was swallowed")
+
+            boundary_client = FakeBankBoundaryClient()
+            boundary_observer, boundary_original, boundary_context = dispatch_boundary_failure(
+                boundary_client)
+            assert boundary_context["kind"] == "bank-boundary-byte-capture"
+            assert boundary_context["capture_status"] == "captured"
+            assert boundary_context["guard_rethrown"] is True
+            assert boundary_context["stop"]["pc"] == boundary_pc
+            assert boundary_context["stop"]["bp_id"] == 17
+            assert boundary_context["stop"]["ordinal"] == 8640
+            assert boundary_context["stop"]["phase_deadline_seconds"] == PHASE_SECONDS
+            assert boundary_context["stop"]["registers_at_stop"]["a"] == 6
+            assert boundary_context["stopped_status"]["stop_identity_match"] is True
+            assert boundary_context["mapping"]["par_raw"] == PAGE20_RESET_PAGE
+            assert boundary_context["mapping"]["par_masked"] == PAGE20_RESET_PAGE
+            assert boundary_context["bytes"]["live_cpu_window"]["hex"] == helper_span.hex()
+            assert boundary_context["bytes"]["live_physical_page20"]["hex"] == helper_span.hex()
+            assert boundary_context["bytes"]["live_physical_page3d"]["hex"] == audio_span.hex()
+            assert all(value is True for value in boundary_context["comparisons"].values())
+            assert [method for method, _ in boundary_client.calls] == [
+                "get_run_state", "read_memory", "read_memory", "read_memory", "read_memory"]
+            assert boundary_observer.events == [] and boundary_observer.write_count == 0
+            assert json.loads(json.dumps(boundary_context)) == boundary_context
+            assert type(boundary_original) is GuardFailure
+            tested += 1
+
+            for client, comparison, description in (
+                    (FakeBankBoundaryClient(cpu_delta=True), "cpu_matches_physical_page20",
+                     "CPU-window mismatch"),
+                    (FakeBankBoundaryClient(page20_delta=True),
+                     "physical_page20_matches_manifest_reference", "page-$20 mismatch"),
+                    (FakeBankBoundaryClient(page3d_delta=True),
+                     "physical_page3d_matches_receipt_audio_span", "page-$3D mismatch")):
+                _, original, context = dispatch_boundary_failure(client)
+                assert type(original) is GuardFailure and context["guard_rethrown"] is True
+                assert context["comparisons"][comparison] is False
+                tested += 1
+
+            wrong_stop_client = FakeBankBoundaryClient(
+                status_delta={"last_stop_bp_id": 18})
+            _, _, wrong_stop_context = dispatch_boundary_failure(wrong_stop_client)
+            assert wrong_stop_context["capture_status"] == "stopped-identity-mismatch"
+            assert [method for method, _ in wrong_stop_client.calls] == ["get_run_state"]
+            tested += 1
+
+            current_layout = json.loads((current_build / "ladybug-sparse-layout.json").read_text(
+                encoding="utf-8"))
+            bad_page20 = {**current_layout, "perimeter_reset": {
+                **current_layout["perimeter_reset"], "sha256": "0" * 64}}
+            try:
+                derive_bank_boundary_reference(current_build, bad_page20,
+                    (current_build / "ladybug-audio-runtime.bin").read_bytes(),
+                    read_symbols(current_build / "ladybug-audio-runtime.map"))
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("mutated page-$20 manifest passed reference qualification")
+
             try:
                 validate_delivery_receipt({**receipt, "status": "unaccepted"}, candidate_prep)
             except GuardFailure:
@@ -6246,7 +6598,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; wrong stop identity, manifest reference, CPU bytes, and physical-page bytes rejected, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 

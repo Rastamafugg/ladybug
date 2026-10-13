@@ -34,7 +34,8 @@
       "On terminal audio guard failure, retain the already-read four-slot snapshot, queue counts, raw eight-byte music queue and mixer period/attenuation/noise/shadow bytes as hex, plus qualified numeric stop/phase/deadline and one read-only get_run_state reply; handler failures retain context without relaxing the guard.",
       "Treat audio_music_count as authoritative queue occupancy. Retain and validate music_queue as exactly eight bytes, enforce a numeric count in [0,8], and reject every active music/effect/credit/mixer count; inactive retired tail bytes may remain nonzero. Preserve inactive-slot, raw quiet-mixer, emitted END, actual PSG mute, post-service busy-zero, and final IRQ FRONT gates.",
       "Quiet terminal audio is generation-bound: preserve the first actual mute plus same-generation post-PSG busy-zero proof immutably; accept a later exact-model shadow-suppressed refresh only for the same cue/start ordinal/entry, with no audible stores and a prior busy-zero proof; retain refresh records separately.",
-      "On natural-contact timeout, serialize the last already-read low-RAM player/enemy-timer snapshot, 32-byte enemy table, input-only held direction and at most 64 action/event records, plus current three-entry/proof/lifecycle context; no timeout-time memory or status RPC is issued."
+      "On natural-contact timeout, serialize the last already-read low-RAM player/enemy-timer snapshot, 32-byte enemy table, input-only held direction and at most 64 action/event records, plus current three-entry/proof/lifecycle context; no timeout-time memory or status RPC is issued.",
+      "On the exact natural-contact-search $A2D2 PAR5 page-$20-versus-$3D guard rejection, preserve the original failure and capture halted stop identity, raw/masked PAR5, bounded CPU-window and physical page-$20/$3D spans, reference hashes, and byte comparisons; no classification or guard relaxation."
     ],
     "natural_route": "At source-qualified mainloop observations, keep the selected DSCAN direction held as the player pose changes. Reset no-progress age on a changed (cell_x, cell_y, PLAYER_STEP) tuple; rotate to the next existing binding only after eight repeated unchanged step-0 center observations indicate no progress. Release on entry/death/target isolation. This prevents per-cell opposite reversals without a new planner or guest writes. The retry records observed non-progress only; it does not claim the cause is a wall or enemy state.",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
@@ -166,8 +167,8 @@
     "no_same_batch_player_or_enemy_mutation"
   ],
   "report_kind": "observer-only natural contact waypoint and cached timeout-state qualification; runtime acceptance pending parent-owned natural rerun",
-  "preparation_status": "OFFLINE_CONTACT_WAYPOINT_AND_TIMEOUT_CONTEXT_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
-  "observer_script_sha256": "c5abd92392f53856618dd8588753e8a6ed7f6ef6da67787070cee04fbfc7a819",
+  "preparation_status": "OFFLINE_A2D2_BANK_BOUNDARY_CAPTURE_PASS; PARENT_REVIEW_PENDING; LIVE_DIAGNOSTIC_NOT_RUN",
+  "observer_script_sha256": "3f26ccbad2170b6dce07cdaa5d6662bc4d4520bd6e2bed6f556bbf378f8f41e2",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
   "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
   "offline_verification": {
@@ -246,7 +247,74 @@
     "live_runtime": "NOT RUN: parent owns next natural runtime qualification",
     "runtime_probe_build_target_writes": null,
     "observer_script_sha256": "c5abd92392f53856618dd8588753e8a6ed7f6ef6da67787070cee04fbfc7a819",
-    "current_step_static_prepare": "NOT RUN; this bounded observer step makes no build or current-candidate preparation claim."
+    "current_step_static_prepare": "NOT RUN; this bounded observer step makes no build or current-candidate preparation claim.",
+    "latest_bank_boundary_capture_step": {
+      "py_compile": "PASS",
+      "cli_help": "PASS",
+      "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped and untouched",
+      "self_test": {
+        "result": "PASS",
+        "negative_checks": 351,
+        "emulator_launches": 0,
+        "target_writes": 0,
+        "focused_capture_cases": [
+          "exact A2D2 natural phase guard retains source/staged reference and live byte comparisons, then rethrows the identical GuardFailure",
+          "wrong halted breakpoint identity stops before memory reads",
+          "mutated synthesized page-$20 manifest reference fails closed",
+          "mismatched CPU, physical page-$20, or physical page-$3D span is retained as a failed comparison"
+        ]
+      },
+      "current_candidate_prepare": "PASS; read-only prepare(build) completed against the settled current root build and bound the current 5,751-byte synthesized page-$20 payload and page-$3D audio artifact",
+      "reference": {
+        "cpu_pc": 41682,
+        "cpu_window": 40960,
+        "offset": 722,
+        "span_bytes": 16,
+        "audio_command_end_pc": 41682,
+        "page20": {
+          "page": 32,
+          "address": 40960,
+          "manifest_bytes": 5751,
+          "boot_synthesized": true,
+          "source_bytes": 0,
+          "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+          "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+          "span_hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+          "span_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+        },
+        "page3d_audio": {
+          "page": 61,
+          "artifact": "ladybug-audio-runtime.bin",
+          "artifact_sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+          "span_hex": "86ffa7a43996a584fb270b863db7ffa5",
+          "span_sha256": "6c53b6412e399ef2b8f98b9ba736007779555aac46e606047116a3d6ddee48e7"
+        },
+        "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+        "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+        "source_hashes": {
+          "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+          "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+          "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+          "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+        }
+      },
+      "bounded_failure_capture": {
+        "trigger": "exact natural-contact-search PAR5 guard failure at numeric PC $A2D2, observed page $20, expected page $3D, and current audio_command_end symbol at $A2D2",
+        "calls_after_failure": [
+          "get_run_state",
+          "read raw PAR5",
+          "read 16-byte CPU window",
+          "read 16-byte physical page $20",
+          "read 16-byte physical page $3D"
+        ],
+        "guard_behavior": "capture is observational only; original GuardFailure is rethrown unchanged",
+        "interpretation": "none; retain numeric stop, mapping, source/staged/live bytes and comparisons before any code-label diagnosis"
+      },
+      "observer_script_sha256": "3f26ccbad2170b6dce07cdaa5d6662bc4d4520bd6e2bed6f556bbf378f8f41e2",
+      "parent_independent_self_test": "PENDING parent review of frozen source",
+      "live_probe": "NOT RUN; parent owns one bounded diagnostic rerun",
+      "build_or_target_write": "NONE during this step"
+    }
   },
   "reproduction_commands_run": [
     "python -B -m py_compile wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py",
@@ -303,7 +371,7 @@
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "Offline contact-waypoint correction is ready for parent source review. Existing route inputs now remain held across legal source-qualified pose changes and advance only after eight identical step-0 samples, recording no movement without inferring a wall cause; entry/death isolation remains immediate. Natural timeout output now retains the cached low-RAM direction/want and enemy timers, enemy records, bounded input tail, and entry/proof/lifecycle state without another RPC. Offline verification passes 345 checks with zero emulator launches and zero target writes. Runtime acceptance remains pending the parent-owned bounded natural probe.",
+  "ready_verdict": "The observer-only A2D2 bank-boundary byte-capture step is prepared for parent review. It preserves the exact PAR5 mismatch failure while retaining halted stop identity, raw/masked mapping, bounded CPU and physical page-$20/$3D bytes, and receipt/source-bound reference hashes without interpreting or relaxing the guard. Read-only current-candidate preparation, compile, CLI help, guarded import, and 351 offline checks pass; the parent-owned bounded live diagnostic has not run.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -1055,5 +1123,38 @@
       "live_probe": "NOT RUN by this step"
     }
   },
-  "current_step_runtime_probe": "NOT RUN; parent owns the next single bounded natural probe."
+  "current_step_runtime_probe": "NOT RUN; parent owns the one bounded A2D2 byte-capture diagnostic with the existing 45-second phase and 10-second stop-wait bounds.",
+  "bank_boundary_page20_reference": {
+    "cpu_pc": 41682,
+    "cpu_window": 40960,
+    "offset": 722,
+    "span_bytes": 16,
+    "audio_command_end_pc": 41682,
+    "page20": {
+      "page": 32,
+      "address": 40960,
+      "manifest_bytes": 5751,
+      "boot_synthesized": true,
+      "source_bytes": 0,
+      "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+      "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+      "span_hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+      "span_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+    },
+    "page3d_audio": {
+      "page": 61,
+      "artifact": "ladybug-audio-runtime.bin",
+      "artifact_sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+      "span_hex": "86ffa7a43996a584fb270b863db7ffa5",
+      "span_sha256": "6c53b6412e399ef2b8f98b9ba736007779555aac46e606047116a3d6ddee48e7"
+    },
+    "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+    "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+    "source_hashes": {
+      "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+      "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+      "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+      "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+    }
+  }
 }
