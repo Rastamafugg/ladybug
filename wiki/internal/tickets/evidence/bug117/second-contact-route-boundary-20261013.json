@@ -1,0 +1,1914 @@
+{
+  "ticket": "BUG-117",
+  "date": "2026-10-13",
+  "observer_commit": "4206b4d4fb3d0aa163477634012785a26fb83724",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "trace": "repro\\bug117-integration-20261012\\runtime-natural-post-inc-corrected-20261013\\bug117-natural-runtime.json",
+  "trace_sha256": "863df73cdf321099f9d8d9dbf14ad12b95646d17bfd573d51594a2181aca477f",
+  "status": "INCOMPLETE_FAIL_CLOSED",
+  "errors": [],
+  "target_write_count": 0,
+  "qualified_death_pose_count": 233,
+  "actual_blank_pixel_proofs": [
+    {
+      "phase": "death-animation-blank",
+      "ordinal": 17956,
+      "label": "death-blank-front-oracle",
+      "pc": 3782,
+      "qualified": true,
+      "qualification": "Full byte/PAR qualification retained in referenced trace at this event ordinal",
+      "generation": 1,
+      "entry_generation": 1,
+      "owner": 1,
+      "retired_pointer": 25412,
+      "logical_pointer": 25252,
+      "visible_width_bytes": 8,
+      "saved_under_sha256": "323c2d2372ead3d1fbed9ff27d7139ac08109dfea2909e443846e74359ba33c8",
+      "front_rect_sha256": "323c2d2372ead3d1fbed9ff27d7139ac08109dfea2909e443846e74359ba33c8",
+      "current_saved_under_sha256": "323c2d2372ead3d1fbed9ff27d7139ac08109dfea2909e443846e74359ba33c8",
+      "visible_bytes_compared": 128,
+      "death_blank_opaque_pixels_compared": 40,
+      "retired_pointer_matches_player_old_fb": true,
+      "logical_pointer_matches_post_capture_metadata": true,
+      "owner_metadata_invalid": true,
+      "front_mapping_qualified": true,
+      "pixels_match_saved_under": true,
+      "irq_commit_event_ordinal": 17956,
+      "death_blank_front_commit_observed": true,
+      "death_blank_pixels_match_oracle": true,
+      "death_blank_irq_commit_observed": true,
+      "death_blank_live_code_span_qualified": true,
+      "death_blank_front_mapping_qualified": true,
+      "source_bytes_match": true,
+      "source_staged_live_art_qualified": true,
+      "prior_state2_death_art_qualified": true,
+      "mainloop_event_ordinal": 17953,
+      "irq_publish_ordinal": 17954,
+      "front_voff1_shadow": 176,
+      "front_voff2_shadow": 0,
+      "front_physical_base": 360448,
+      "event_ordinal": 17956
+    }
+  ],
+  "entry_release_joins": [
+    {
+      "phase": "initial-entry",
+      "ordinal": 4595,
+      "label": "entry-release-join",
+      "pc": 49716,
+      "qualified": true,
+      "qualification": "Full byte/PAR qualification retained in referenced trace at this event ordinal",
+      "busy": 0,
+      "final_front_pose": true,
+      "front_commit_event_ordinal": 4593,
+      "terminal_audio_idle": true
+    },
+    {
+      "phase": "replacement-entry",
+      "ordinal": 20337,
+      "label": "entry-release-join",
+      "pc": 49716,
+      "qualified": true,
+      "qualification": "Full byte/PAR qualification retained in referenced trace at this event ordinal",
+      "busy": 0,
+      "final_front_pose": true,
+      "front_commit_event_ordinal": 20335,
+      "terminal_audio_idle": true
+    }
+  ],
+  "phases": [
+    {
+      "name": "initial-entry",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 4595,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "ordinary-enemy-release-roam",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 8033,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "natural-contact-search",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 3016,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "death-animation-blank",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 2312,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "cue13-normal-drain",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 176,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "replacement-entry",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 2205,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "ordinary-enemy-release-roam",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 8026,
+      "success_marker": "live event predicate"
+    }
+  ],
+  "failure": {
+    "kind": "observer-dispatch-failure",
+    "stop": {
+      "phase": "natural-contact-search",
+      "phase_deadline_seconds": 45,
+      "phase_deadline_monotonic": 39362.831328879,
+      "phase_remaining_seconds_at_dispatch": 0.0027262540024821647,
+      "pc": 3782,
+      "pc_hex": "$0EC6",
+      "bp_id": 14,
+      "ordinal": 40098,
+      "observed_monotonic": 39362.828598437,
+      "registers_at_stop": {
+        "a": 0,
+        "b": 1,
+        "d": 1,
+        "cc": 216,
+        "dp": 0,
+        "x": 42128,
+        "y": 0,
+        "u": 43560,
+        "s": 8176,
+        "pc": 3782
+      }
+    },
+    "error": "GuardFailure: phase deadline expired before monitor read_memory call",
+    "natural_route_context": {
+      "kind": "natural-contact-search-timeout-context",
+      "cached_only_no_monitor_reread": true,
+      "no_progress_cause": "not_inferred_from_player_pose_alone",
+      "phase": {
+        "name": "natural-contact-search",
+        "status": "dispatch-failure",
+        "deadline_seconds": 45
+      },
+      "last_stop": {
+        "phase": "natural-contact-search",
+        "phase_deadline_seconds": 45,
+        "phase_deadline_monotonic": 39362.831328879,
+        "phase_remaining_seconds_at_dispatch": 0.01004110999929253,
+        "pc": 49430,
+        "pc_hex": "$C116",
+        "bp_id": 5,
+        "ordinal": 40095,
+        "observed_monotonic": 39362.821283611,
+        "registers_at_stop": {
+          "a": 1,
+          "b": 0,
+          "d": 256,
+          "cc": 196,
+          "dp": 0,
+          "x": 42128,
+          "y": 0,
+          "u": 43560,
+          "s": 8190,
+          "pc": 49430
+        },
+        "source_staged_live_match": true
+      },
+      "last_low_ram_state": {
+        "entry": 0,
+        "death": 0,
+        "timer": 0,
+        "lives": 1,
+        "frames": 4483,
+        "player_fb": 35311,
+        "cell_x": 13,
+        "cell_y": 22,
+        "step": 1,
+        "dir": 3,
+        "player_dir": 3,
+        "player_want": 3,
+        "box_timer": 6,
+        "enemy_timer": 4,
+        "enemy_active": 1,
+        "enemy_released": 2,
+        "entity_count": 8,
+        "stage": 1,
+        "freeze_timer": 0,
+        "enemy_sha256": "0911d7cce784b5ba54fd4a695ce962c6a2c0a35811ccfc9701e27c8449ed836f",
+        "enemy_raw": {
+          "hex": "0025f4000e020001014a5403160a010000000000000000000000000000000000",
+          "length": 32,
+          "sha256": "0911d7cce784b5ba54fd4a695ce962c6a2c0a35811ccfc9701e27c8449ed836f"
+        }
+      },
+      "input_only_search": {
+        "direction_index": 2,
+        "held_dscan": 45,
+        "held_matrix_key": 43,
+        "origin_cell": [
+          13,
+          22
+        ],
+        "no_progress_stops": 0,
+        "action_count": 31,
+        "action_tail_limit": 64,
+        "actions_tail": [
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "press",
+            "stop_ordinal": 12641,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "release",
+            "stop_ordinal": 12994,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 0,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "press",
+            "stop_ordinal": 12994,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 1,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "release",
+            "stop_ordinal": 13694,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 1,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "press",
+            "stop_ordinal": 13694,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 2,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "release",
+            "stop_ordinal": 14454,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 2,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "press",
+            "stop_ordinal": 14454,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 3,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "release",
+            "stop_ordinal": 15644,
+            "reason": "enemy-contact-input-isolation",
+            "direction_index": 3,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "press",
+            "stop_ordinal": 28376,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 3,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "release",
+            "stop_ordinal": 29137,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 3,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "press",
+            "stop_ordinal": 29137,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "release",
+            "stop_ordinal": 29438,
+            "reason": "source-qualified-center-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 1,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "press",
+            "stop_ordinal": 29438,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 1,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "release",
+            "stop_ordinal": 30175,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 1,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "press",
+            "stop_ordinal": 30175,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 2,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "release",
+            "stop_ordinal": 31758,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 2,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "press",
+            "stop_ordinal": 31758,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 3,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "release",
+            "stop_ordinal": 33328,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 3,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "press",
+            "stop_ordinal": 33328,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "release",
+            "stop_ordinal": 34003,
+            "reason": "source-qualified-center-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 1,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "press",
+            "stop_ordinal": 34003,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 1,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "release",
+            "stop_ordinal": 34784,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 1,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "press",
+            "stop_ordinal": 34784,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 2,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "release",
+            "stop_ordinal": 36329,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 2,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "press",
+            "stop_ordinal": 36329,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 3,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 46,
+            "key_namespace": "DSCAN",
+            "matrix_key": 51,
+            "action": "release",
+            "stop_ordinal": 37921,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 3,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "press",
+            "stop_ordinal": 37921,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 43,
+            "key_namespace": "DSCAN",
+            "matrix_key": 27,
+            "action": "release",
+            "stop_ordinal": 38625,
+            "reason": "source-qualified-center-skull-exclusion",
+            "direction_index": 0,
+            "no_progress_stops": 1,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "press",
+            "stop_ordinal": 38625,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 1,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          },
+          {
+            "key": 44,
+            "key_namespace": "DSCAN",
+            "matrix_key": 35,
+            "action": "release",
+            "stop_ordinal": 39371,
+            "reason": "source-qualified-observed-no-progress-route-retry",
+            "direction_index": 1,
+            "no_progress_stops": 8,
+            "target_memory_write": false
+          },
+          {
+            "key": 45,
+            "key_namespace": "DSCAN",
+            "matrix_key": 43,
+            "action": "press",
+            "stop_ordinal": 39371,
+            "reason": "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion",
+            "direction_index": 2,
+            "no_progress_stops": 0,
+            "target_memory_write": false
+          }
+        ],
+        "hazard_event_count": 0,
+        "hazard_event_tail_limit": 64,
+        "hazard_events_tail": []
+      },
+      "contact_input_enabled": true,
+      "cached_hazard_snapshot": {
+        "phase": "natural-contact-search",
+        "event_ordinal": 40095,
+        "stop_pc": 49430,
+        "source_staged_live_match": true,
+        "mapping": {
+          "par5_raw": 52,
+          "par5_masked": 52,
+          "physical_page": 52,
+          "entity_table_address": 41856,
+          "physical_offset": 896
+        },
+        "entity_count": 8,
+        "stage": 1,
+        "raw_entities": {
+          "length": 32,
+          "hex": "0e020000160c0100080802010404020102020201060a030b06100305080e0302",
+          "sha256": "4ac3bb8f9e22cb582d1261ec5cafdf9be7c449ce4eae08918a2bfb3216a32194"
+        },
+        "skull_cells": [
+          [
+            22,
+            12
+          ]
+        ],
+        "player_cell": [
+          13,
+          22
+        ],
+        "player_step": 1,
+        "player_dir": 3,
+        "target_memory_write": false
+      },
+      "ordinary_release_context": {
+        "entry_generation": 2,
+        "enemy_released_baseline": 0,
+        "start_ordinal": 20337,
+        "start_cell": [
+          12,
+          18
+        ],
+        "start_enemy_active": 0,
+        "neutral_input": true,
+        "target_memory_write": false
+      },
+      "ordinary_release_marker": {
+        "enemy_released_baseline": 0,
+        "enemy_released_observed": 1,
+        "enemy_active": 1,
+        "record_index": 0,
+        "cell": [
+          12,
+          10
+        ],
+        "outside_nest": true,
+        "saved_background_valid": true,
+        "marker_kind": "source-qualified-ordinary-enemy-release-roam",
+        "phase": "ordinary-enemy-release-roam",
+        "event_ordinal": 28363,
+        "stop_pc": 49430,
+        "source_staged_live_match": true,
+        "neutral_input": true,
+        "stage": 1,
+        "box_timer": 2,
+        "enemy_timer": 5,
+        "freeze_timer": 0
+      },
+      "input_event_count": 8,
+      "input_events_tail_limit": 64,
+      "contact_count": 1,
+      "contacts_tail": [
+        {
+          "ordinal": 15644,
+          "lives": 2,
+          "entry": 0,
+          "death": 0,
+          "frame": 1847,
+          "enemy_snapshot_sha256": "d593f3cb0993aced26d98c57f82c7f70b0195cf88ebfc1c62caff29577cef474",
+          "source_staged_live_match": true
+        }
+      ],
+      "death_source_events": [
+        {
+          "source": "enemy-player-collision",
+          "marker": "et_player_death",
+          "phase": "natural-contact-search",
+          "ordinal": 15644,
+          "pc": 2448,
+          "source_staged_live_match": true,
+          "qualification_sha256": "a3e6b661afffe1448b5006c84d390271fa9bb7934438698facb6f8022c464fb3",
+          "genuine_enemy_contact": true,
+          "entry": 0,
+          "death": 0,
+          "frame": 1847,
+          "contact_count": 1
+        }
+      ],
+      "death_source_markers": {
+        "cep_skull": {
+          "symbol": "cep_skull",
+          "source": "src/main.s",
+          "address": 53795,
+          "listing_label_line": 4012,
+          "source_instruction_line": 4013,
+          "source_instruction": "ldx     #ENTITY_TABLE",
+          "span_length": 3,
+          "span_hex": "8ea380",
+          "span_sha256": "0f450e30a5e59859c522ea36660d4489529ff135a6e3b965e5fff5c6b8859318",
+          "listing_sha256": "ad5ba89933232d85844295a8139e79c0c12ffeccb7f62efd232938422bf83e50",
+          "map_sha256": "393c43d830b405dcd17d881814d2c3bc80c341eea0988d7592872620d9255c5c",
+          "source_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+          "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+          "staged_sha256": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+          "source_listing_staged_match": true,
+          "classification": "skull-pickup death onset; not an enemy contact"
+        },
+        "et_player_death": {
+          "symbol": "et_player_death",
+          "source": "src/enemy_runtime.s",
+          "address": 2448,
+          "source_sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+          "classification": "enemy-player collision onset"
+        }
+      },
+      "entries": [
+        {
+          "index": 1,
+          "seed_ordinal": 2543,
+          "marker_call_ordinal": 2504,
+          "state2_ordinal": 2543,
+          "lives_before_marker_body": 2,
+          "seed_lives": 2,
+          "seed_frame": 456,
+          "seed_death_timer": 80,
+          "entry_start_fb": 35220,
+          "marker_x": 296,
+          "marker_x_matches_life_slot": true,
+          "seed_verified": true,
+          "input_isolated_at_seed": true,
+          "released": true,
+          "first_maze_visible_frame": 625,
+          "cue6_first_frame": 456,
+          "pose_count": 1090,
+          "offscreen_remaining_death_timer": 68,
+          "offscreen_x_pixels": 320,
+          "offscreen_x320": true,
+          "held_input_challenge": {
+            "entry_generation": 1,
+            "matrix_key": 35,
+            "dscan_key": 44,
+            "press_ordinal": 2543,
+            "release_ordinal": 4595,
+            "valid": true,
+            "pass": true,
+            "held_states_observed": [
+              2,
+              3,
+              4
+            ],
+            "state_sample_counts": {
+              "2": 31,
+              "3": 136,
+              "4": 33
+            },
+            "walkout_steps": 12,
+            "walkout_last_x": 320,
+            "walkout_reached_x320": true,
+            "maze_steps": 16,
+            "maze_last_cell_y": 18,
+            "maze_last_step": 0,
+            "observation_count": 200,
+            "last_observation": {
+              "ordinal": 4590,
+              "frame": 656,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 30188,
+              "face": 0,
+              "dir": 0,
+              "held_dscan": 44
+            },
+            "logical_pose_changes_count": 30,
+            "logical_pose_changes_tail": [
+              {
+                "ordinal": 4443,
+                "frame": 642,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 32428,
+                "cell_y": 20,
+                "step": 1,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4463,
+                "frame": 644,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 32108,
+                "cell_y": 20,
+                "step": 2,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4483,
+                "frame": 646,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31788,
+                "cell_y": 20,
+                "step": 3,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4510,
+                "frame": 648,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31468,
+                "cell_y": 19,
+                "step": 0,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4530,
+                "frame": 650,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31148,
+                "cell_y": 19,
+                "step": 1,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4550,
+                "frame": 652,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30828,
+                "cell_y": 19,
+                "step": 2,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4570,
+                "frame": 654,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30508,
+                "cell_y": 19,
+                "step": 3,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 4590,
+                "frame": 656,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30188,
+                "cell_y": 18,
+                "step": 0,
+                "face": 0,
+                "dir": 0
+              }
+            ],
+            "front_pose_positions_count": 57,
+            "front_pose_positions_tail": [
+              [
+                4,
+                31468,
+                0,
+                3
+              ],
+              [
+                4,
+                31148,
+                0,
+                3
+              ],
+              [
+                4,
+                31148,
+                0,
+                3
+              ],
+              [
+                4,
+                30828,
+                0,
+                3
+              ],
+              [
+                4,
+                30828,
+                0,
+                3
+              ],
+              [
+                4,
+                30508,
+                0,
+                3
+              ],
+              [
+                4,
+                30508,
+                0,
+                0
+              ],
+              [
+                4,
+                30188,
+                0,
+                0
+              ]
+            ],
+            "front_pose_ordinals_count": 57,
+            "front_pose_ordinals_tail": [
+              4523,
+              4533,
+              4543,
+              4553,
+              4563,
+              4573,
+              4583,
+              4593
+            ]
+          },
+          "offscreen_retirement": {
+            "entry_generation": 1,
+            "last_visible_owners": [
+              "0",
+              "1"
+            ],
+            "retired_owners": [
+              "0",
+              "1"
+            ],
+            "state3_observation_count": 136,
+            "state3_observations_tail": [
+              {
+                "entry_generation": 1,
+                "event_ordinal": 4218,
+                "front_owner": 0,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 0,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 192,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 393216
+              },
+              {
+                "entry_generation": 1,
+                "event_ordinal": 4228,
+                "front_owner": 1,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 1,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 176,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 360448
+              },
+              {
+                "entry_generation": 1,
+                "event_ordinal": 4242,
+                "front_owner": 0,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 0,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 192,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 393216
+              },
+              {
+                "entry_generation": 1,
+                "event_ordinal": 4252,
+                "front_owner": 1,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 1,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 176,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 360448
+              }
+            ],
+            "maze_entry_gate": {
+              "pass": true,
+              "entry_generation": 1,
+              "first_state4_ordinal": 4263,
+              "owner_restoration_ordinals": {
+                "0": 4242,
+                "1": 4252
+              },
+              "failures": []
+            }
+          }
+        },
+        {
+          "index": 2,
+          "seed_ordinal": 18301,
+          "marker_call_ordinal": 18299,
+          "state2_ordinal": 18301,
+          "lives_before_marker_body": 1,
+          "seed_lives": 1,
+          "seed_frame": 2136,
+          "seed_death_timer": 80,
+          "entry_start_fb": 35212,
+          "marker_x": 280,
+          "marker_x_matches_life_slot": true,
+          "seed_verified": true,
+          "input_isolated_at_seed": true,
+          "reserve_decrement_exactly_once": true,
+          "released": true,
+          "first_maze_visible_frame": 2305,
+          "cue6_first_frame": 2136,
+          "pose_count": 1932,
+          "offscreen_remaining_death_timer": 60,
+          "offscreen_x_pixels": 320,
+          "offscreen_x320": true,
+          "held_input_challenge": {
+            "entry_generation": 2,
+            "matrix_key": 35,
+            "dscan_key": 44,
+            "press_ordinal": 18301,
+            "release_ordinal": 20337,
+            "valid": true,
+            "pass": true,
+            "held_states_observed": [
+              2,
+              3,
+              4
+            ],
+            "state_sample_counts": {
+              "2": 47,
+              "3": 120,
+              "4": 33
+            },
+            "walkout_steps": 20,
+            "walkout_last_x": 320,
+            "walkout_reached_x320": true,
+            "maze_steps": 16,
+            "maze_last_cell_y": 18,
+            "maze_last_step": 0,
+            "observation_count": 200,
+            "last_observation": {
+              "ordinal": 20332,
+              "frame": 2336,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 30188,
+              "face": 0,
+              "dir": 0,
+              "held_dscan": 44
+            },
+            "logical_pose_changes_count": 38,
+            "logical_pose_changes_tail": [
+              {
+                "ordinal": 20185,
+                "frame": 2322,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 32428,
+                "cell_y": 20,
+                "step": 1,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20205,
+                "frame": 2324,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 32108,
+                "cell_y": 20,
+                "step": 2,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20225,
+                "frame": 2326,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31788,
+                "cell_y": 20,
+                "step": 3,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20252,
+                "frame": 2328,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31468,
+                "cell_y": 19,
+                "step": 0,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20272,
+                "frame": 2330,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 31148,
+                "cell_y": 19,
+                "step": 1,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20292,
+                "frame": 2332,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30828,
+                "cell_y": 19,
+                "step": 2,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20312,
+                "frame": 2334,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30508,
+                "cell_y": 19,
+                "step": 3,
+                "face": 0,
+                "dir": 0
+              },
+              {
+                "ordinal": 20332,
+                "frame": 2336,
+                "source": "mainloop",
+                "entry_state": 4,
+                "player_fb": 30188,
+                "cell_y": 18,
+                "step": 0,
+                "face": 0,
+                "dir": 0
+              }
+            ],
+            "front_pose_positions_count": 73,
+            "front_pose_positions_tail": [
+              [
+                4,
+                31468,
+                0,
+                3
+              ],
+              [
+                4,
+                31148,
+                0,
+                3
+              ],
+              [
+                4,
+                31148,
+                0,
+                3
+              ],
+              [
+                4,
+                30828,
+                0,
+                3
+              ],
+              [
+                4,
+                30828,
+                0,
+                3
+              ],
+              [
+                4,
+                30508,
+                0,
+                0
+              ],
+              [
+                4,
+                30508,
+                0,
+                0
+              ],
+              [
+                4,
+                30188,
+                0,
+                0
+              ]
+            ],
+            "front_pose_ordinals_count": 73,
+            "front_pose_ordinals_tail": [
+              20265,
+              20275,
+              20285,
+              20295,
+              20305,
+              20315,
+              20325,
+              20335
+            ]
+          },
+          "offscreen_retirement": {
+            "entry_generation": 2,
+            "last_visible_owners": [
+              "0",
+              "1"
+            ],
+            "retired_owners": [
+              "0",
+              "1"
+            ],
+            "state3_observation_count": 120,
+            "state3_observations_tail": [
+              {
+                "entry_generation": 2,
+                "event_ordinal": 19960,
+                "front_owner": 1,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 1,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 176,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 360448
+              },
+              {
+                "entry_generation": 2,
+                "event_ordinal": 19974,
+                "front_owner": 0,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 0,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 192,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 393216
+              },
+              {
+                "entry_generation": 2,
+                "event_ordinal": 19984,
+                "front_owner": 1,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 1,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 176,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 360448
+              },
+              {
+                "entry_generation": 2,
+                "event_ordinal": 19998,
+                "front_owner": 0,
+                "entry_state": 3,
+                "death_state": 0,
+                "row_derived_x": 320,
+                "front_player_valid": 0,
+                "published_player_fb": 35232,
+                "status": "RESTORED",
+                "owner": 0,
+                "pointer": 35231,
+                "visible_width_bytes": 1,
+                "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+                "restored_pixels_match_saved_under": true,
+                "front_mapping_qualified": true,
+                "front_owner_voff1_shadow": 192,
+                "front_owner_voff2_shadow": 0,
+                "front_physical_base": 393216
+              }
+            ],
+            "maze_entry_gate": {
+              "pass": true,
+              "entry_generation": 2,
+              "first_state4_ordinal": 20005,
+              "owner_restoration_ordinals": {
+                "0": 19998,
+                "1": 19984
+              },
+              "failures": []
+            }
+          }
+        }
+      ],
+      "current_entry": {
+        "index": 2,
+        "seed_ordinal": 18301,
+        "marker_call_ordinal": 18299,
+        "state2_ordinal": 18301,
+        "lives_before_marker_body": 1,
+        "seed_lives": 1,
+        "seed_frame": 2136,
+        "seed_death_timer": 80,
+        "entry_start_fb": 35212,
+        "marker_x": 280,
+        "marker_x_matches_life_slot": true,
+        "seed_verified": true,
+        "input_isolated_at_seed": true,
+        "reserve_decrement_exactly_once": true,
+        "released": true,
+        "first_maze_visible_frame": 2305,
+        "cue6_first_frame": 2136,
+        "pose_count": 1932,
+        "offscreen_remaining_death_timer": 60,
+        "offscreen_x_pixels": 320,
+        "offscreen_x320": true,
+        "held_input_challenge": {
+          "entry_generation": 2,
+          "matrix_key": 35,
+          "dscan_key": 44,
+          "press_ordinal": 18301,
+          "release_ordinal": 20337,
+          "valid": true,
+          "pass": true,
+          "held_states_observed": [
+            2,
+            3,
+            4
+          ],
+          "state_sample_counts": {
+            "2": 47,
+            "3": 120,
+            "4": 33
+          },
+          "walkout_steps": 20,
+          "walkout_last_x": 320,
+          "walkout_reached_x320": true,
+          "maze_steps": 16,
+          "maze_last_cell_y": 18,
+          "maze_last_step": 0,
+          "observation_count": 200,
+          "last_observation": {
+            "ordinal": 20332,
+            "frame": 2336,
+            "source": "mainloop",
+            "entry_state": 4,
+            "player_fb": 30188,
+            "face": 0,
+            "dir": 0,
+            "held_dscan": 44
+          },
+          "logical_pose_changes_count": 38,
+          "logical_pose_changes_tail": [
+            {
+              "ordinal": 20185,
+              "frame": 2322,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 32428,
+              "cell_y": 20,
+              "step": 1,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20205,
+              "frame": 2324,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 32108,
+              "cell_y": 20,
+              "step": 2,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20225,
+              "frame": 2326,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 31788,
+              "cell_y": 20,
+              "step": 3,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20252,
+              "frame": 2328,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 31468,
+              "cell_y": 19,
+              "step": 0,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20272,
+              "frame": 2330,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 31148,
+              "cell_y": 19,
+              "step": 1,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20292,
+              "frame": 2332,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 30828,
+              "cell_y": 19,
+              "step": 2,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20312,
+              "frame": 2334,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 30508,
+              "cell_y": 19,
+              "step": 3,
+              "face": 0,
+              "dir": 0
+            },
+            {
+              "ordinal": 20332,
+              "frame": 2336,
+              "source": "mainloop",
+              "entry_state": 4,
+              "player_fb": 30188,
+              "cell_y": 18,
+              "step": 0,
+              "face": 0,
+              "dir": 0
+            }
+          ],
+          "front_pose_positions_count": 73,
+          "front_pose_positions_tail": [
+            [
+              4,
+              31468,
+              0,
+              3
+            ],
+            [
+              4,
+              31148,
+              0,
+              3
+            ],
+            [
+              4,
+              31148,
+              0,
+              3
+            ],
+            [
+              4,
+              30828,
+              0,
+              3
+            ],
+            [
+              4,
+              30828,
+              0,
+              3
+            ],
+            [
+              4,
+              30508,
+              0,
+              0
+            ],
+            [
+              4,
+              30508,
+              0,
+              0
+            ],
+            [
+              4,
+              30188,
+              0,
+              0
+            ]
+          ],
+          "front_pose_ordinals_count": 73,
+          "front_pose_ordinals_tail": [
+            20265,
+            20275,
+            20285,
+            20295,
+            20305,
+            20315,
+            20325,
+            20335
+          ]
+        },
+        "offscreen_retirement": {
+          "entry_generation": 2,
+          "last_visible_owners": [
+            "0",
+            "1"
+          ],
+          "retired_owners": [
+            "0",
+            "1"
+          ],
+          "state3_observation_count": 120,
+          "state3_observations_tail": [
+            {
+              "entry_generation": 2,
+              "event_ordinal": 19960,
+              "front_owner": 1,
+              "entry_state": 3,
+              "death_state": 0,
+              "row_derived_x": 320,
+              "front_player_valid": 0,
+              "published_player_fb": 35232,
+              "status": "RESTORED",
+              "owner": 1,
+              "pointer": 35231,
+              "visible_width_bytes": 1,
+              "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_pixels_match_saved_under": true,
+              "front_mapping_qualified": true,
+              "front_owner_voff1_shadow": 176,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 360448
+            },
+            {
+              "entry_generation": 2,
+              "event_ordinal": 19974,
+              "front_owner": 0,
+              "entry_state": 3,
+              "death_state": 0,
+              "row_derived_x": 320,
+              "front_player_valid": 0,
+              "published_player_fb": 35232,
+              "status": "RESTORED",
+              "owner": 0,
+              "pointer": 35231,
+              "visible_width_bytes": 1,
+              "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_pixels_match_saved_under": true,
+              "front_mapping_qualified": true,
+              "front_owner_voff1_shadow": 192,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 393216
+            },
+            {
+              "entry_generation": 2,
+              "event_ordinal": 19984,
+              "front_owner": 1,
+              "entry_state": 3,
+              "death_state": 0,
+              "row_derived_x": 320,
+              "front_player_valid": 0,
+              "published_player_fb": 35232,
+              "status": "RESTORED",
+              "owner": 1,
+              "pointer": 35231,
+              "visible_width_bytes": 1,
+              "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_pixels_match_saved_under": true,
+              "front_mapping_qualified": true,
+              "front_owner_voff1_shadow": 176,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 360448
+            },
+            {
+              "entry_generation": 2,
+              "event_ordinal": 19998,
+              "front_owner": 0,
+              "entry_state": 3,
+              "death_state": 0,
+              "row_derived_x": 320,
+              "front_player_valid": 0,
+              "published_player_fb": 35232,
+              "status": "RESTORED",
+              "owner": 0,
+              "pointer": 35231,
+              "visible_width_bytes": 1,
+              "last_visible_actual_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "saved_under_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_front_rect_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+              "restored_pixels_match_saved_under": true,
+              "front_mapping_qualified": true,
+              "front_owner_voff1_shadow": 192,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 393216
+            }
+          ],
+          "maze_entry_gate": {
+            "pass": true,
+            "entry_generation": 2,
+            "first_state4_ordinal": 20005,
+            "owner_restoration_ordinals": {
+              "0": 19998,
+              "1": 19984
+            },
+            "failures": []
+          }
+        }
+      },
+      "proof_ledgers": {
+        "1": {
+          "status": "OBSERVATIONS_PRESENT",
+          "missing_proofs": [],
+          "order_failures": [],
+          "pass": true,
+          "proof_records": [
+            {
+              "name": "first_cue6_owned_psg_transaction",
+              "selected_id": 6,
+              "slot": 0,
+              "policy": 179,
+              "best_slot": 0,
+              "best_priority": 5,
+              "mix_match": true,
+              "audible_store_count": 6,
+              "event_ordinal": 2545
+            },
+            {
+              "name": "first_post_psg_busy_one",
+              "busy": 1,
+              "derived_marker": true,
+              "busy_read_after_psg": true,
+              "event_ordinal": 2553
+            },
+            {
+              "name": "cue6_terminal_stream_end_owned",
+              "slot_id": 6,
+              "x_matches_emitted_end": true,
+              "terminator_byte": 0,
+              "stream_decoder_matches_emitted_bytes": true,
+              "event_ordinal": 4497
+            },
+            {
+              "name": "terminal_actual_psg_mute_transaction",
+              "slot_clear_observed": true,
+              "all_mix_stores_match": true,
+              "quiet_state_verified": true,
+              "actual_mute_attenuation_stores": 3,
+              "actual_store_count": 9,
+              "event_ordinal": 4508
+            },
+            {
+              "name": "terminal_post_psg_busy_zero",
+              "busy": 0,
+              "all_slots_queues_credit_idle": true,
+              "busy_read_after_psg": true,
+              "event_ordinal": 4509
+            },
+            {
+              "name": "final_pose_in_front_after_irq_commit",
+              "irq_commit_observed": true,
+              "front_pixels_match_opaque_player": true,
+              "live_code_span_qualified": true,
+              "irq_live_opcode_match": true,
+              "front_mapping_qualified": true,
+              "same_stop_busy_sample": true,
+              "opaque_pixels_compared": 122,
+              "visible_width_bytes": 8,
+              "front_id": 0,
+              "front_owner_voff1_shadow": 192,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 393216,
+              "entry_marker_x": 296,
+              "entry_seed_lives": 2,
+              "player_fb": 30188,
+              "published_music_busy": 0,
+              "irq_commit_event_ordinal": 4593,
+              "irq_commit_end_pc": 3772,
+              "event_ordinal": 4593
+            },
+            {
+              "name": "release_after_audio_and_front_commit",
+              "busy_zero_precedes_release": true,
+              "front_commit_precedes_release": true,
+              "front_commit_event_ordinal": 4593,
+              "held_input_challenge_pass": true,
+              "event_ordinal": 4595
+            },
+            {
+              "name": "no_same_batch_player_or_enemy_mutation",
+              "player_unchanged": true,
+              "enemy_unchanged": true,
+              "event_ordinal": 4601
+            }
+          ]
+        },
+        "2": {
+          "status": "OBSERVATIONS_PRESENT",
+          "missing_proofs": [],
+          "order_failures": [],
+          "pass": true,
+          "proof_records": [
+            {
+              "name": "first_cue6_owned_psg_transaction",
+              "selected_id": 6,
+              "slot": 0,
+              "policy": 179,
+              "best_slot": 0,
+              "best_priority": 5,
+              "mix_match": true,
+              "audible_store_count": 6,
+              "event_ordinal": 18303
+            },
+            {
+              "name": "first_post_psg_busy_one",
+              "busy": 1,
+              "derived_marker": true,
+              "busy_read_after_psg": true,
+              "event_ordinal": 18311
+            },
+            {
+              "name": "cue6_terminal_stream_end_owned",
+              "slot_id": 6,
+              "x_matches_emitted_end": true,
+              "terminator_byte": 0,
+              "stream_decoder_matches_emitted_bytes": true,
+              "event_ordinal": 20229
+            },
+            {
+              "name": "terminal_actual_psg_mute_transaction",
+              "slot_clear_observed": true,
+              "all_mix_stores_match": true,
+              "quiet_state_verified": true,
+              "actual_mute_attenuation_stores": 3,
+              "actual_store_count": 9,
+              "event_ordinal": 20240
+            },
+            {
+              "name": "terminal_post_psg_busy_zero",
+              "busy": 0,
+              "all_slots_queues_credit_idle": true,
+              "busy_read_after_psg": true,
+              "event_ordinal": 20241
+            },
+            {
+              "name": "final_pose_in_front_after_irq_commit",
+              "irq_commit_observed": true,
+              "front_pixels_match_opaque_player": true,
+              "live_code_span_qualified": true,
+              "irq_live_opcode_match": true,
+              "front_mapping_qualified": true,
+              "same_stop_busy_sample": true,
+              "opaque_pixels_compared": 122,
+              "visible_width_bytes": 8,
+              "front_id": 1,
+              "front_owner_voff1_shadow": 176,
+              "front_owner_voff2_shadow": 0,
+              "front_physical_base": 360448,
+              "entry_marker_x": 280,
+              "entry_seed_lives": 1,
+              "player_fb": 30188,
+              "published_music_busy": 0,
+              "irq_commit_event_ordinal": 20335,
+              "irq_commit_end_pc": 3772,
+              "event_ordinal": 20335
+            },
+            {
+              "name": "release_after_audio_and_front_commit",
+              "busy_zero_precedes_release": true,
+              "front_commit_precedes_release": true,
+              "front_commit_event_ordinal": 20335,
+              "held_input_challenge_pass": true,
+              "event_ordinal": 20337
+            },
+            {
+              "name": "no_same_batch_player_or_enemy_mutation",
+              "player_unchanged": true,
+              "enemy_unchanged": true,
+              "event_ordinal": 20343
+            }
+          ]
+        }
+      },
+      "lifecycle_ledgers": [
+        {
+          "status": "ORDER_OBSERVED",
+          "missing_events": [],
+          "order_failures": [],
+          "pass": true,
+          "events": [
+            {
+              "name": "death_state_1",
+              "death_state": 1,
+              "genuine_contact_live_bytes": true,
+              "event_ordinal": 15660
+            },
+            {
+              "name": "death_state_2",
+              "death_state": 2,
+              "genuine_contact_live_bytes": true,
+              "event_ordinal": 16610
+            },
+            {
+              "name": "death_blank_timer37",
+              "death_state": 3,
+              "death_timer": 37,
+              "entry_state": 0,
+              "source_bytes_match": true,
+              "death_blank_front_commit_observed": true,
+              "death_blank_pixels_match_oracle": true,
+              "death_blank_irq_commit_observed": true,
+              "death_blank_live_code_span_qualified": true,
+              "death_blank_front_mapping_qualified": true,
+              "death_blank_opaque_pixels_compared": 40,
+              "event_ordinal": 17956
+            },
+            {
+              "name": "cue13_published_idle",
+              "cue13_actual_output": true,
+              "published_busy": 0,
+              "normal_drain": true,
+              "cue13_emitted_end_observed": true,
+              "actual_terminal_mute_observed": true,
+              "event_ordinal": 18132
+            },
+            {
+              "name": "replacement_entry_seed",
+              "prior_death_blank_observed": true,
+              "prior_cue13_idle_observed": true,
+              "entry_state": 2,
+              "event_ordinal": 18301
+            },
+            {
+              "name": "replacement_cue6_output",
+              "entry_seed_precedes_cue6": true,
+              "selected_id": 6,
+              "audible_store_count": 6,
+              "event_ordinal": 18303
+            }
+          ]
+        }
+      ],
+      "target_memory_write_count": 0,
+      "input_events_tail_summary": {
+        "count": 8,
+        "sha256": "4f6d7c0c24fe4f38f596a6fe47d438f1b35a48ffb23d38af8af4205f1d09e2d3",
+        "retention": "Full tail in hash-qualified referenced failing trace; representative route in second-contact-route-plan-20261013.txt"
+      }
+    }
+  },
+  "interpretation": "Post-INC observer mechanism is corrected live. First genuine death art/128-byte retired blank and normalcue13 drain pass; initial+first replacement actualcue6/control release joins observed. Secondcontact45s phase expires; no secondcontact/thirdentry/forcedfixtures/HUD pass is inferred. No game CPU slowness or production defect established. Reassess input-only driver/source cadence and currentenemy reachability using retained cachedstate before another probe."
+}

@@ -1,0 +1,86 @@
+BUG-122 runtime verification plan
+Date: 2026-10-13
+Status: read-only assignment preparation; no runtime or acceptance claim
+
+Classification and ownership
+
+Objective: prepare the smallest complete runtime-verifier assignment for the approved heart repair, using existing BUG-122 verifiers and fixtures. BUG-122 remains High-risk because the repair crosses persistent framebuffer ownership and publication, hard capacity limits, and later-stage/demo handoffs.
+
+This report is the only owned output: repro/bug122-heart-runtime-plan-20261013/report.txt. Do not change canonical source, historical verifiers/evidence, fit evidence, wiki/ticket, build outputs, emulator state, or Git. The parent owns candidate reconstruction/build, source integration, artifact qualification, GDB-MCP/runtime lease, and final acceptance. No build/runtime commands were run for this report.
+
+Reviewed contract and identity
+
+Canonical contract: wiki/internal/tickets/bug-122-level-preview-letter-mismatch.html, anchors #heart-repair-approval-20261013 and #heart-fit-reviewed-runtime-plan-ready-20261013. The approved output is one selected-letter row at y=112, all three authored hearts at y=136, unchanged adjacent panel fields, preview/maze selection data agreeing with visible pixels, and unchanged placement/RNG/retention behavior. The task remains High-risk. Runtime acceptance and production integration are pending.
+
+Current-regression evidence is heart-current-baseline-20261013.json: ROM df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726, two letter rows, missing hearts, full FRONT hash 29198d0425159eda1d4d7b7e0be9e4cb9a267eb79b6bbe850c929a4176a1fae9. It confirms the pre-fix defect only. The verifier’s historical pixel/selection baseline is a different retained ROM, SHA-256 85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300. Keep those identities distinct.
+
+The fit capsule is identified by the 266-input manifest. Only src/shared_text_stage.inc and tiled/coco-level-start-screen.tmx differ. Candidate source hashes are 012db9eaf68912ccc010fe89170ea6bfe255334ad09c952b88d4d151d5190ef6 and fdc8db8aecf3fabcd4799b66b680809da48d96d18606fdb9d542c08905c821fc. The TMX changes are exactly the 12 letter cells at columns 17–22, rows 14–15 to zero, and the 12 heart cells at rows 17–18 to [264,228,264,228,264,228] and [486,468,486,468,486,468]. The retained fit reports all three static profiles passing; resident spare is 110/74/42 bytes, meeting the unchanged 32-byte minimum. Asset spare is 31/31/72; presentation spare is 21/21/8; helper end is B880. These are frozen-fit measurements, not a substitute for the parent’s final integrated build receipt and current capacity qualification.
+
+Oracle repair boundary
+
+Copy the existing verify_bug122.py, pixel_oracle.py, runtime.py, and verify_bug122_terminal_adapter.py into the new scratch directory repro/bug122-heart-verification-20261013. Retarget local imports and every report/output path to that scratch tree. Do not edit repro/bugpass-20261010/luna122-qa-plan or repro/bug122-parent/luna122-terminal-reassessment. Pin the copied dependencies and the final candidate ROM to the parent’s reviewed integrated receipt. Preserve the historical baseline ROM pin at 85e2d5… . The terminal adapter’s current candidate pin 73dcf527d22ccbbd3a53a1eb6830bec274278664780daaf2b07c3965f7760f81 is pre-repair and must be replaced only after the final integrated artifact exists. The old nonadaptive pin db3129613949c47da163e62139ad4475e3c20da0e8505c98eddd93395c3e29b0 is also stale; the retained fitted nonadaptive artifact is 1f8f57ca61806e9aa552852cc68ec7cfdc6ae765bb72c149e60e4969994213aa, with its exact files listed in fit-evidence/keyboard-nonadaptive/artifacts/retention.json. If the parent produces a different integrated nonadaptive artifact, pin that exact retained artifact instead.
+
+In pixel_oracle.py, move the three 16×16 letter crops from rows 136–151 to rows 112–127, retaining their existing x/byte-column anchors. Keep mask generation independent: compile masks from the retained frozen character art, require equality with both retained baseline and candidate object-mask bytes, derive variants from the actual active page-$34 entity table, and use the retained baseline sprite_blue_pairs table for Blue3. Do not use the candidate LUT or expected letter pixels copied from the candidate screen.
+
+Replace clean_underlay’s old rule that only clears 12 marker cells at rows 17–18. First compare the integrated Level Start Panel TMX against repro/bug122-heart-fit-20261013/originals/tiled/coco-level-start-screen.tmx (baseline SHA-256 c9789ca8d79605c67942ac51b9d60166df4ebb4b72f698c6b0361424caa9816d) and require exactly the 24 approved cell deltas and no other map change. Pin the accepted candidate map SHA-256 to fdc8db8aecf3fabcd4799b66b680809da48d96d18606fdb9d542c08905c821fc. Do not use the older pixel-oracle baseline TMX as the current-input diff base. Build the expected underlay from the approved candidate TMX with the letter cells blank and the restored heart tiles intact. Compile it with the existing presentation/screen compiler and frozen art. Compare all three published letter crops against the independently composed mask/data result at y=112. Separately compare all three 16×16 heart crops at y=136 against the authored compiled underlay. This makes restored hearts an explicit pixel gate instead of masking them as “letter markers.”
+
+Update the adjacent-field comparison to exclude only the old/new letter and heart footprints, then require the heart oracle above to pass. All other panel pixels must remain equal to the same-configuration historical preview. Retain exact first differing pixel and cell deltas. Require the selected variants from the active entity table to agree with all three letter pixel crops in every required preview phase. A correct data table without matching pixels fails; matching pixels without the expected table fails.
+
+The existing initial scenario proves only the natural FRONT. Add one isolated-owner subcase inside the existing initial scenario, not a new CLI scenario or receipt fixture field: repeat the same default stage-1 setup in a fresh session, changing only the existing FB_FRONT_ID owner selector so the resulting preview targets the opposite physical owner. Before the selector write, qualify live code/data bytes, PAR0/PAR5 page identity, both owner ledgers, and a clear/stable publication state. Do not change entity, RNG, maze, counters, input, or audio state. Require the committed owner to be the intended opposite owner, then compare its physical frame with the same letter and heart oracles. If the owner mapping/ledger preconditions do not hold or the owner cannot be selected without another state mutation, stop and report isolated-owner coverage missing; do not count natural FRONT or nonadaptive owner convergence as a substitute. The natural run remains unforced and covers the user path. The nonadaptive test below covers its distinct direct-render scheduler path.
+
+Current verifier coverage and fixture limits
+
+Reuse these existing scenarios and their stated test-only inputs. Do not add fixture fields or widen a route:
+- initial: cold attract → natural credit/start → default stage-1 preview and natural release. Risk: first visible preview, correct y=112 letters/y=136 hearts, selected-table pixels, no preview RNG reroll or cue admission, and unchanged adjacent panel art.
+- max-records: set the existing configured start-level byte to 18, then use natural credit/start. Risk: all 12 active records and all three letter variants under the full table.
+- life: natural stage-18 entry, then the existing qualified enemy-contact fixture. Risk: exactly one life decrement while the prepared stage selection/table remains retained; no unrelated placement/RNG behavior change.
+- next-stage: retain the actual active heart, set only DOTS_LEFT=0 and BONUS_LEFT=1, then collect that heart through ordinary route movement. Risk: natural stage-18→19 handoff, context-2 publication, 12-record table, and matching stage-19 preview pixels/data.
+- seed: at the existing common init_entities boundary, write identical approved RNG state for baseline and candidate. Compare maze, active records, and terminal RNG; do not compare cold-start frame counts. Risk: placement and RNG regression.
+- nonadaptive-entry: one run against the retained nonadaptive keyboard artifact and its fresh retention manifest. Risk: direct frame_render_impl/RF_STAGE replay and live-entry ordering. Preserve the existing natural stage-1 preview, gameplay-inactive hold, ENTRY_WAIT_STAGE with lives held and RF_STAGE queued, first post-preview commit, both-owner physical commit evidence, life decrement, and final ledger convergence. It must prove both owner commits; do not require exactly one total replay.
+- terminal/default-demo: use the maintained combined adapter, not verify_bug122.py’s old demo_freshness path. Its terminal path uses the authorized stage-18/death fixture; its separate cold session covers natural default attract/demo and stale stage-18 player-table freshness at the qualified stage-1 init_entities boundary. Risk: screen ownership/input terminal transition and demo-table freshness/pixels. Keep the existing distinct seed/maze and no-preview-cue assertions.
+
+Do not invoke the old --scenario demo unchanged. It waits for mode 2 after terminal death, but source and terminal reassessment show the natural terminal sequence is death state 4 → mode 7/screen 4 with timer progress → mode 5/screen 3/context 1. Idle mode 5 remains selected and its timer is stable at zero. The combined terminal adapter separately starts a cold session for the natural default demo.
+
+Terminal input observer correction
+
+The maintained source reassessment and src/keybinding_runtime.s establish different lifetimes for the two event bytes. key_scan clears/rebuilds PRES_EVENT at $A9 on every scan. It rewrites MENU_EVENT at $D0 only through ks_local when PRES_SCREEN is 3 or at least 6. On screen 2 it takes ks_done and may leave the previous $D0 edge, such as $10, while updating the menu-held history. Therefore at the released screen-2 level-preview boundary require $A9==0 and record $D0/$DF; do not require $D0==0 there and do not call it a product failure. Later, at qualified screen 3/mode 5, prove at least one key_scan service occurred with no key held, then require $D0==0. A nonzero $D0 before that screen-3 scan is expected stale state; a nonzero value after the proven scan is a separate input-service failure.
+
+The terminal adapter already corrected the absent PRES_SCREEN-symbol assumption by using qualified direct-page $A6/$A7 reads. Its two prior runtime failures were verifier assumptions, not product acceptance failures: first “PRES_SCREEN map is None” despite valid direct-page identity; then the invalid screen-2 assertion observed PRES_EVENT=$00 and MENU_EVENT=$10. No further runtime attempt is authorized by this plan until the copied adapter applies the A9/D0 distinction and the parent reviews it. At screen 3/mode 5, still require credits, PRES_EVENT, MENU_EVENT, and MENU_SELECT neutral, screen publication stable, and mode-7 timer progression monotonic through at least 179 before menu publication. Then monitor mode 5 for 10 seconds; stable timer zero is expected. Do not wait for mode 2 after terminal death.
+
+Commands and runtime bounds
+
+Run from the repository root under WSL after the parent has produced and identified the final integrated build, validated capacity/artifact identity, prepared the copied scratch verifiers, and taken the GDB-MCP lease. Keep commands serial. Each verifier owns output only under repro/bug122-heart-verification-20261013/evidence. A missing marker is a failed required scenario; timeout means the named marker was absent within its phase, not that target code was slow. Identity, mapping, table, pixel, RNG, lifecycle, or capacity mismatches are immediate failures and must retain their failing receipt. Do not skip a case or waive a missing scenario.
+
+Static dependency and candidate-pin audit (no emulator):
+  python3 repro/bug122-heart-verification-20261013/verify_bug122_terminal_adapter.py --static-check
+
+Natural adaptive default flow and isolated opposite-owner subcase:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario initial
+
+Maximum configured table:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario max-records
+
+Life retention:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario life
+
+Natural stage-19 handoff:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario next-stage
+
+Common-boundary RNG/placement comparison:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario seed
+
+Single nonadaptive handoff, using the retained fit artifact:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122.py --candidate-build repro/bug122-heart-fit-20261013/fit-evidence/keyboard-nonadaptive/artifacts --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence --scenario nonadaptive-entry
+
+Terminal transition plus separate natural default-demo session:
+  python3 repro/bug122-heart-verification-20261013/verify_bug122_terminal_adapter.py --candidate-build build --baseline-build repro/bug122-parent/baseline --output-dir repro/bug122-heart-verification-20261013/evidence
+
+Every runtime phase remains capped at 45 seconds; each monitor stop is at most 10 seconds. Artifact delivery succeeds only after current staged/runtime bytes and page identities match the supplied build; no symbol interpretation precedes that proof. Preview success requires the selected mode/screen/context plus two consecutive clear-pending mainloop boundaries with unchanged framebuffer commit sequence. The first selected boundary may still be pending. Terminal success requires death4→published screen3/mode5/context1 and observed mode7 timer progress; its 10-second monitor checks stable zero timer and released state. Default-demo success requires a natural cold attract, selected context 0, fresh stage-1 count-8 data that differs from the prior stage-18 prefix, all letter and heart pixels correct, and retained table through preview hold and demo release. Any absent boundary at 45 seconds is a coverage failure, not a speed result.
+
+Dependencies, retained evidence, and verdict
+
+Runtime work cannot start until the parent supplies the final integrated candidate ROM/source receipt, confirms unchanged capacity gates across the required full profiles, and approves the retargeted verifier copy and owner-selector precondition. The fit report does not qualify an integrated ROM. Refresh all candidate ROM/source/module pins from that final receipt; do not reuse pre-repair terminal hash 73dcf5… or old nonadaptive hash db3129….
+
+Retain concise scenario receipts, artifact hashes, selected variants/table hashes, first differing pixel and exact owner/page/commit evidence. Retain full traces only on failure or where the acceptance criterion requires sequence replay. Preserve all historical failures unchanged. No build or runtime acceptance is claimed in this report; ticket remains Verification and cannot move to Done until each required natural, isolated-owner, nonadaptive, next-stage, RNG, terminal, and default-demo gate passes on the identified integrated artifacts.
+
+Rejected assumptions to carry forward: diagonal stride is disproved by the writer trace; the mode-6 terminal wait for a future commit was already rejected when the preview was published; mode 2 is not the natural terminal destination; screen-2 D0 neutrality is not guaranteed; and a timeout does not establish slow target code. No new runtime attempt, source edit, build, cleanup, or canonical-ticket update was made.
