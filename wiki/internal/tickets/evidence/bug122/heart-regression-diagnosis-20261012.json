@@ -1,0 +1,502 @@
+{
+  "ticket": "BUG-122",
+  "date": "2026-10-12",
+  "scope": "frozen-artifact reproduction and diagnosis only; no production edits or repair",
+  "artifact_identity": {
+    "delivered_rom_sha256": "6c61446394c9a7a88ce74c1a79e300bdc961b5e26050cb1031465f9b45137744",
+    "expected_delivered_rom_sha256": "6c61446394c9a7a88ce74c1a79e300bdc961b5e26050cb1031465f9b45137744",
+    "source_head_at_artifact": "de361d03d8bfc252d2793702492aaad989a0a9cf",
+    "parent_snapshot_head_docs_only": "fe457eaeb39045e84789bad5260fc5a329b47ac5",
+    "source_snapshot_manifest_head": "fe457eaeb39045e84789bad5260fc5a329b47ac5",
+    "ROM_match": true,
+    "pinned_helper_bin_sha256": "805c3fd81b5fc4162ed95be9194f230874b710f284085a758a0dee995e1df057",
+    "staged_helper_bin_sha256": "805c3fd81b5fc4162ed95be9194f230874b710f284085a758a0dee995e1df057",
+    "helper_cpu_and_physical_mapping_match_staged": true,
+    "helper_physical_start": "0x46c40",
+    "helper_cpu_start": "0xac40",
+    "helper_length": 3136,
+    "live_writer_instruction_bytes": "8e7544",
+    "probe_trace_sha256": "27b8378f4955a42e4cf627739c6310c583940691964fb49e65e21517a17cf461",
+    "captured_front_sha256": "29198d0425159eda1d4d7b7e0be9e4cb9a267eb79b6bbe850c929a4176a1fae9",
+    "captured_front_bytes": 30720,
+    "captured_front_png_sha256": "58f0ae53df6e1b6e76f89a5f46164fe2d38bcb9ad8e643bee8942b4c8eb9efbb",
+    "captured_front_panel_crop_png_sha256": "b32b05e3145f6fbdedea211767640774a9f6ee560283abfc33f539dd486d955f",
+    "pre122_authored_tmx_sha256": "7b43e120e0332037bdaed5f65e566feeb7e9a20a82762473e7d9dbf5a3e224b3",
+    "current_tmx_sha256": "c9789ca8d79605c67942ac51b9d60166df4ebb4b72f698c6b0361424caa9816d",
+    "chars_json_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+    "build_screen_reference_sha256": "6d7b045523c772d16e4b856d961fdb25f73c73299b0830dd77aedfac0afe13a0",
+    "live_module_matches": {
+      "resident": true,
+      "enemy": true,
+      "presentation": true,
+      "rate": true
+    },
+    "authored_pre122_tmx_copy_sha256": "7b43e120e0332037bdaed5f65e566feeb7e9a20a82762473e7d9dbf5a3e224b3"
+  },
+  "natural_reproduction": {
+    "result": "reproduced",
+    "steps": "fresh cold start; DSCAN coin=5; DSCAN Enter=48; allow natural credited level-start presentation; no game RAM fixture writes; capture physical FRONT",
+    "phase_seconds": {
+      "cold_credit_and_consumed_start": 0.869,
+      "natural_writer_trace_and_physical_front_capture": 0.333
+    },
+    "target_memory_writes": 0,
+    "qualified_writer_marker": "0xb173",
+    "qualified_natural_preview_marker": "0x1996",
+    "preview_context": [
+      165,
+      6,
+      2,
+      1,
+      0
+    ],
+    "front_owner": 1,
+    "back_owner": 0,
+    "pending": 0,
+    "frame_sequence": 5,
+    "pre_start_sequence": 2,
+    "sequence_delta": 3,
+    "scanout_address": "0x58000",
+    "scanout_matches_front_owner": true,
+    "observed_symptom": "two blue glyph rows in the level-start preview; expected one variable letter row at authored y14-15 and three hearts at authored y17-18",
+    "phase_contract": {
+      "phase_deadline_seconds": 45,
+      "each_monitor_stop_wait_seconds_max": 10,
+      "target_writes": 0,
+      "meaning_of_missing_marker": "probe boundary failure; no execution-speed inference"
+    },
+    "probe_preparation_note": "Earlier PFT entry marker alone did not prove that this writer had run or that the preview FRONT capture was current. The accepted trace stops at the live qualified B173 writer and separately captures the physical FRONT at PC 1996."
+  },
+  "authored_panel_cells": {
+    "coordinate_system": "TMX cells x/y, 8x8 pixels; level-start visible pixels x136..183 correspond cells x17..22; y112..127 cells y14..15; y136..151 cells y17..18",
+    "pre122_level_start_panel_gids_x17_through22": {
+      "14": [
+        184,
+        292,
+        232,
+        420,
+        232,
+        388
+      ],
+      "15": [
+        37,
+        3,
+        229,
+        99,
+        69,
+        19
+      ],
+      "17": [
+        264,
+        228,
+        264,
+        228,
+        264,
+        228
+      ],
+      "18": [
+        486,
+        468,
+        486,
+        468,
+        486,
+        468
+      ]
+    },
+    "current_level_start_panel_gids_x17_through22": {
+      "14": [
+        184,
+        292,
+        232,
+        420,
+        232,
+        388
+      ],
+      "15": [
+        37,
+        3,
+        229,
+        99,
+        69,
+        19
+      ],
+      "17": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "18": [
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ]
+    },
+    "authored_groups": {
+      "letters": "three adjacent 16x16 glyphs, cells x17-18, x19-20, x21-22 over y14-15; pixel anchors (136,112),(152,112),(168,112)",
+      "hearts": "three repeated 16x16 hearts, cells x17-18, x19-20, x21-22 over y17-18; pixel anchors (136,136),(152,136),(168,136)"
+    },
+    "pixel_oracle": {
+      "authored_letters_at_y112_vs_natural_front": {
+        "pixel_count_expected_nonzero": 135,
+        "pixel_count_actual_nonzero": 135,
+        "expected_colors": {
+          "0": 633,
+          "4": 135
+        },
+        "actual_colors": {
+          "0": 633,
+          "3": 135
+        },
+        "binary_mask_xor_pixels": 0,
+        "first_row_major_color_mismatches": [
+          {
+            "x": 143,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 144,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 145,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 159,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 160,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 161,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 175,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 176,
+            "y": 116,
+            "expected": 4,
+            "actual": 3
+          }
+        ],
+        "authored_nonzero_footprint_matches_observed": true,
+        "interpretation": "Authored letter footprint and observed top-row footprint have identical nonzero masks (0 XOR pixels); source reconstruction expects color 4 and captured FRONT contains blue color index 3."
+      },
+      "pre122_hearts_at_y136_vs_natural_front": {
+        "pixel_count_expected_nonzero": 183,
+        "pixel_count_actual_nonzero": 143,
+        "expected_colors": {
+          "0": 585,
+          "4": 135,
+          "5": 48
+        },
+        "actual_colors": {
+          "0": 625,
+          "3": 143
+        },
+        "binary_mask_xor_pixels": 40,
+        "first_row_major_color_mismatches": [
+          {
+            "x": 143,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 144,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 145,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 159,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 160,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 161,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 175,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          },
+          {
+            "x": 176,
+            "y": 140,
+            "expected": 4,
+            "actual": 3
+          }
+        ],
+        "first_row_major_binary_silhouette_mismatch": {
+          "x": 142,
+          "y": 142,
+          "expected_palette_index": 4,
+          "actual_palette_index": 0,
+          "authored_gid": 264,
+          "character_code": 239
+        }
+      },
+      "current_map_blank_y136_vs_natural_front": {
+        "pixel_count_expected_nonzero": 0,
+        "pixel_count_actual_nonzero": 143,
+        "expected_colors": {
+          "0": 768
+        },
+        "actual_colors": {
+          "0": 625,
+          "3": 143
+        },
+        "binary_mask_xor_pixels": 143,
+        "first_row_major_color_mismatches": [
+          {
+            "x": 143,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 144,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 145,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 159,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 160,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 161,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 175,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          },
+          {
+            "x": 176,
+            "y": 140,
+            "expected": 0,
+            "actual": 3
+          }
+        ]
+      },
+      "pixel_decoding": "4bpp frame: high nibble is even pixel x; low nibble odd x. Authored expected tiles were reconstructed with compiler character ordering/rotation/central-map palette transform."
+    }
+  },
+  "confirmed_writer_cause": {
+    "writer": "stage_panel_finish -> stage_panel_read_letters -> stage_panel_letter_loop in shared_text_stage.inc",
+    "source_line_ldx": "684: LDX #$7544 (frozen source file shared_text_stage.inc SHA f958e01212158cba5359e6ad2f9b67bb02314abb9c8e27c2907f014cbdef82ad)",
+    "live_code_marker": "PC=$B173 bytes 8E7544; helper cpu bytes and physical page-$23 bytes equal staged 3136-byte artifact before symbols interpreted",
+    "live_state": {
+      "raw_PAR5": "0x23",
+      "helper_cpu_start": "0xac40",
+      "helper_physical_start": "0x46c40",
+      "entry_front_state": {
+        "front": 0,
+        "back": 1,
+        "pending": 0,
+        "sequence": 4
+      },
+      "natural_context_before_writer": [
+        165,
+        1,
+        2,
+        1,
+        0
+      ]
+    },
+    "writes": [
+      {
+        "iteration": 0,
+        "variant": 11,
+        "logical_anchor_before_blit": "0x7544",
+        "logical_anchor_xy_pixels": [
+          136,
+          136
+        ],
+        "back_owner": 1,
+        "back_physical_page": "0x2c",
+        "physical_destination": "0x5d544",
+        "mask_pointer": "0xee7a",
+        "expected_mask_pointer": "0xee7a",
+        "x_at_blit_return_B189": "0x7f44",
+        "blitter_x_advance": 2560,
+        "x_after_LEAX_B18F": "0x754c",
+        "leax_displacement": -2552,
+        "destination_region_changed_bytes": 32,
+        "destination_region_before_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+        "destination_region_after_sha256": "25885ae617f4c0a6f6a64c79dc77f1ba90c4f3fe09c3d88178cd7353bd5ef6d1"
+      },
+      {
+        "iteration": 1,
+        "variant": 5,
+        "logical_anchor_before_blit": "0x754c",
+        "logical_anchor_xy_pixels": [
+          152,
+          136
+        ],
+        "back_owner": 1,
+        "back_physical_page": "0x2c",
+        "physical_destination": "0x5d54c",
+        "mask_pointer": "0xecfa",
+        "expected_mask_pointer": "0xecfa",
+        "x_at_blit_return_B189": "0x7f4c",
+        "blitter_x_advance": 2560,
+        "x_after_LEAX_B18F": "0x7554",
+        "leax_displacement": -2552,
+        "destination_region_changed_bytes": 33,
+        "destination_region_before_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+        "destination_region_after_sha256": "e1b828c0fefbca6b3281d86650c91e98ba220567165d82c276ece1c062edb84d"
+      },
+      {
+        "iteration": 2,
+        "variant": 2,
+        "logical_anchor_before_blit": "0x7554",
+        "logical_anchor_xy_pixels": [
+          168,
+          136
+        ],
+        "back_owner": 1,
+        "back_physical_page": "0x2c",
+        "physical_destination": "0x5d554",
+        "mask_pointer": "0xec3a",
+        "expected_mask_pointer": "0xec3a",
+        "x_at_blit_return_B189": "0x7f54",
+        "blitter_x_advance": 2560,
+        "x_after_LEAX_B18F": "0x755c",
+        "leax_displacement": -2552,
+        "destination_region_changed_bytes": 31,
+        "destination_region_before_sha256": "38723a2e5e8a17aa7950dc008209944e898f69a7bd10a23c839d341e935fd5ca",
+        "destination_region_after_sha256": "0df9349b1693641df29932e8e494884c684929e6b8f2cf21d7ff07d2ba8f5453"
+      }
+    ],
+    "address_derivation": "Framebuffer is 320 pixels packed 4bpp, 160 bytes/row, virtual base $2000. Authored y14 anchor x136: $2000 + 112*160 + 136/2 = $6644. Authored heart row y17 currently starts $7544 = $2000 + 136*160 + 68.",
+    "stride_rejected_hypothesis": "Rejected. blit_packed_sprite advances X by 16*(8+152)=2560 bytes; LEAX -2552 yields net +8 bytes, exactly one 16-pixel packed 4bpp sprite step. Do not change loop stride; a +8 change would make a diagonal row.",
+    "cause": "The live natural writer starts the three selected variable letter masks at authored heart y17 rather than authored letter y14. Current TMX removed all 12 heart tile cells y17-18 while retaining the 12 letter tile cells y14-15. Natural preview therefore shows variable letters below the existing authored/other-rendered letter row and no authored hearts.",
+    "stage_current_map_rows": "Pre-122 authored map has y14-15 letters and y17-18 hearts; delivered map retains y14-15 and clears y17-18.",
+    "stride_equation": "2560 + (-2552) = +8 bytes, equal to 16 pixels at 4bpp; observed anchors x136, x152, x168 stay on one row.",
+    "first_preview_mismatch": "At authored heart y17/y18 rectangle, first row-major pixel color mismatch is (143,140): expected palette index 4, actual 3; first silhouette-presence mismatch is (142,142): expected 4, actual 0."
+  },
+  "proposed_repair_outline_not_applied": {
+    "class": "High-risk (persistent framebuffer render, map/source-data interaction, natural preview publication and later maze equality are independent verification risks)",
+    "candidate_targets": [
+      "src/shared_text_stage.inc: change the writer initial LDX at line 684 from $7544 to $6644; preserve LEAX -2552 loop stride.",
+      "tiled/coco-level-start-screen.tmx: clear the 12 authored letter tiles at x17-22,y14-15 so transparent mask holes do not reveal stale fixed glyph pixels; let the existing black background GID 8 show through.",
+      "tiled/coco-level-start-screen.tmx: restore the 12 authored heart GIDs at x17-22,y17-18: y17 [264,228,264,228,264,228]; y18 [486,468,486,468,486,468]."
+    ],
+    "candidate_exact_letter_cells_to_clear": {
+      "y14": [
+        184,
+        292,
+        232,
+        420,
+        232,
+        388
+      ],
+      "y15": [
+        37,
+        3,
+        229,
+        99,
+        69,
+        19
+      ]
+    },
+    "candidate_exact_heart_cells_to_restore": {
+      "y17": [
+        264,
+        228,
+        264,
+        228,
+        264,
+        228
+      ],
+      "y18": [
+        486,
+        468,
+        486,
+        468,
+        486,
+        468
+      ]
+    },
+    "bounded_verification": "On one fresh combined build, capture natural credited level-start FRONT after the current selected letter variants are drawn; require one 3-glyph row matching the independently selected triple at y14-15, intact three authored hearts at y17-18, no duplicate glyph row, correct FRONT owner/scanout/sequence. Then verify the same triple in the subsequent maze using existing BUG-122 pixel/data oracle; assess isolated/natural persistent-framebuffer publication path according to ticket.",
+    "risks": "Changing only the anchor risks underlying static-letter pixels showing through sprite-mask transparent holes. Restoring hearts only in TMX risks fixed letter row duplication. Runtime row shift may interact with persistent BACK/FRONT pixel ownership; acceptance must observe natural published FRONT and subsequent maze identity. No capacity, timing, or build result is claimed.",
+    "excluded": "No source/build/wiki/Git edits, no runtime memory fixtures, no ROM rebuild, no repair or acceptance claim.",
+    "exact_scope_count": "24 panel-cell updates: clear 12 letter overlay GIDs and restore 12 original heart GIDs; one assembly immediate operand change. These are proposed edits only."
+  },
+  "rejected_experiments_and_limits": [
+    {
+      "experiment": "Static prediction that LEAX -2552 causes the writer to step diagonally",
+      "result": "Rejected after trace showed +2560 blitter advance and post-LEAX net +8. Retain as a rejected hypothesis; no stride repair."
+    },
+    {
+      "experiment": "Earlier PFT marker as proof that new preview draw had occurred",
+      "result": "Rejected: marker can precede actual writer/FRONT capture. Final accepted evidence uses live B173 natural-writer stop and separately mapping-qualified physical FRONT at PC 1996."
+    },
+    {
+      "limit": "No further runtime probe authorized after successful natural writer trace; report contains no repair, build, or post-repair verification."
+    }
+  ]
+}
