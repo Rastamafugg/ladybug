@@ -1,0 +1,70 @@
+{
+  "ticket": "BUG-122",
+  "date": "2026-10-13",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "zero_guest_state_writes": true,
+  "live_modules_match": {
+    "resident": true,
+    "enemy": true,
+    "presentation": true,
+    "rate": true
+  },
+  "phase_results": [
+    {
+      "name": "cold credit and consumed start",
+      "elapsed_seconds": 2.353,
+      "deadline_seconds": 45,
+      "credit": 0,
+      "context": [
+        165,
+        1,
+        2,
+        1,
+        0
+      ]
+    },
+    {
+      "name": "natural credited level-start preview PFT marker and physical FRONT snapshot",
+      "elapsed_seconds": 0.759,
+      "deadline_seconds": 45
+    }
+  ],
+  "front": {
+    "pc": "0x1996",
+    "front_owner": 1,
+    "back_owner_at_mark": 0,
+    "pending": 0,
+    "sequence_before": 5,
+    "sequence_at_mark": 5,
+    "sequence_delta_from_pre_start": 3,
+    "physical_page": "0x2c",
+    "gime_v_offset_registers_shadow": {
+      "FF9D": 176,
+      "FF9E": 0
+    },
+    "gime_scanout_physical_address": "0x58000",
+    "gime_scanout_matches_front_owner": true,
+    "frame_sha256": "29198d0425159eda1d4d7b7e0be9e4cb9a267eb79b6bbe850c929a4176a1fae9",
+    "frame_file": "repro/bug122-heart-baseline-20261013/current-preview.front.bin",
+    "frame_bytes": 30720,
+    "context": [
+      165,
+      6,
+      2,
+      1,
+      0
+    ]
+  },
+  "diagnosed_baseline_full_frame_sha256": "29198d0425159eda1d4d7b7e0be9e4cb9a267eb79b6bbe850c929a4176a1fae9",
+  "full_frame_byte_mismatches": 0,
+  "panel_rectangle_pixels": [
+    136,
+    104,
+    48,
+    56
+  ],
+  "panel_byte_mismatches": 0,
+  "panel_sha256": "dbcb4109fa88ff11c93cdab003dfe5fcaa305e5e7713e579de6790ffb9b43f00",
+  "result": "Current source-qualified scanout panel is byte-identical to the retained two-letter-row/missing-heart diagnosis.",
+  "acceptance": false
+}
