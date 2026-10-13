@@ -1,0 +1,42 @@
+BUG-117 suppressed cue-3 effect plan
+2026-10-13
+
+Disposition
+
+This is a design-only correction for the observed cue-13 muted-WAIT ownership rejection. The current evidence supports a narrowly qualified suppressed cue-3 occupant during an in-progress cue-13 WAIT. It does not support accepting arbitrary active slots, terminal drain with active effects, a second enemy contact, or overall BUG-117 acceptance. No next live probe is authorized by this report.
+
+Observed boundary
+
+The unchanged ROM is df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726. The retained observer is commit afeb308, script SHA-256 d10796ec9dd8dfb62a0bdfdd502d20b88d3680180448e71031eacfae242a9697. Evidence is wiki/internal/tickets/evidence/bug117/natural-contact-suppressed-effect-boundary-20261013.json, trace SHA-256 b58197abe293544a3e6fb7e9bd0b5eb061e8663976b5a339caf7bd1804873c46.
+
+The natural run passed the held-entry release, observed an ordinary roamer release at event 12628, and qualified one genuine enemy contact at event 15644. At event 15676, PC $A410, the observer rejected cue-13 WAIT qualification before comparing its live emitted prefix. Target writes were zero. The captured four-slot snapshot has cue 13 in slot 0 (priority 6, policy $D3, wait 8, stream pointer $B295) and cue 3 in slot 1 (priority 4, policy $8A, wait 2, stream pointer $AB22); slots 2 and 3 have inactive IDs. Queue counts are zero and published busy is one. The actual mixer buffers are periods 010001000100, attenuation 0F0F0F, noise 000F; the pure cue-13 exclusive model matches them and has zero audible voices. This is one contact, not the required two-contact sequence.
+
+Confirmed source behavior
+
+The generated `assets/arcade/audio/gmc_sound_data.inc` table has 8-byte descriptors. `audio_admit` indexes an entry by cue ID times eight, stores descriptor byte 0 as slot policy, derives slot priority from its top three bits, uses descriptor byte 2 bit 7 to route music versus effect admission, and loads the big-endian stream pointer from bytes 4 and 5. Cue 3's current descriptor begins `8A 08 20 FC`, points to `gmc_cue_stream_03`, and ends `08 00`; cue 13 is the existing exclusive music descriptor `D3 A0 E0 1F` plus its stream pointer and trailing fields. The full descriptor must be compared as a unit; this plan does not assign unverified meaning to every descriptor field.
+
+Cue 3's authored stream is `1C 06 01 02 04 1C 04 01 02 04 1D 0F 02 04 1E 08 00`. In the captured slot, the cursor is after the second WAIT with two ticks remaining. Replaying that prefix yields default tone periods and muted tone attenuations, with noise value 4 and attenuation 1, matching the captured slot.
+
+In `src/audio_runtime.s`, `audio_mix_find_exclusive` considers active slots whose policy bit 0 is set, selects the greatest priority, calls `audio_mix_slot` only for that slot, then returns. Cue 13's $D3 policy is exclusive; cue 3's $8A policy is not. Thus cue 3 remains active in its effect slot but does not contribute to this exclusive cue-13 mixer service. This interpretation is independently consistent with the actual mixer buffers and pure-model output in the retained snapshot.
+
+Smallest bounded correction
+
+Keep the correction in the existing observer and preparation JSON only. Extend `prepare(build)` to derive cue 3 from the current mapped `gmc_cue_descriptors` symbol, the 8-byte table stride, and the existing `gmc_sound_data_end` bound. Bind the descriptor and terminated stream bytes to the current build receipt, staged `ladybug-audio-runtime.bin`, and source asset hash. Store the descriptor fields, stream start/terminator/length, and hashes in preparation. Reuse `stream_terminal`; do not hardcode a stream address or trust a live slot ID alone.
+
+In `_qualify_cue13_quiet_wait`, retain every current cue-13 generation, first-audible-output, authored muted-WAIT prefix, PAR5, source/staged/CPU/physical, slot-0 selection, pure-model, queue-count, busy-one, PSG-transaction, and post-publication checks. Replace the blanket rejection of any active nonzero slot only with one exact exception: slot 1 is cue 3 matching the receipt-bound descriptor and emitted stream; slots 2 and 3 remain inactive. A different active slot, a second active effect, or an exclusive competitor still fails closed.
+
+For this exception, require the current cue-3 slot priority and policy to match its descriptor, its effect-route and nonexclusive bits to match source, and its stream pointer/wait to pass `current_authored_wait` over the derived cue-3 stream. Compare the replayed periods, attenuation, and noise state with the live cue-3 slot. Compare the complete 8-byte descriptor and bounded cue-3 stream against staged bytes, CPU-window bytes, and physical page-$3D bytes at the qualified PAR5 mapping. Then use the existing `model_exclusive_mix` and `verify_live_music_mix` to prove cue 13 remains the selected owner and its current service is the exact zero-audible model; the exception must not be enabled for an audible cue-13 service.
+
+Keep the exception scoped to the active cue-13 muted-WAIT continuation in the same entry and cue generation, before emitted END. `validate_quiet_terminal` remains unchanged: after cue-13 END, all four slots and all queues must be idle, with actual mute, published busy zero, and final FRONT requirements intact. No suppressed effect can satisfy terminal drain.
+
+Focused verification for that two-file correction
+
+Use the retained captured slot bytes as the positive regression input and derive the expected descriptor and stream from the current prepared artifact. It must show cue 3's exact slot-1 stream state, cue 13 selected as exclusive slot 0, and the unchanged quiet model and PSG transaction.
+
+Reject a mutated cue-3 descriptor or stream; source/staged/CPU/physical mismatch; wrong cue ID, route, policy, or priority; invalid cursor, malformed WAIT or dwell, and replayed state mismatch; any active slot 2 or 3; a second active effect; an exclusive competitor; a lost cue-13 selection; a nonquiet model; missing current-generation prior audible-output/busy proof; nonzero queues or wrong published busy; and a cue-3 occupant during terminal all-slot drain. Existing cue-13 and terminal negatives remain required.
+
+Run the existing observer self-test, compilation, CLI help, guarded import, and read-only current preparation. The focused risks are exact artifact binding, suppressed-source identity and state, selected-exclusive mixer ownership, and preservation of terminal all-idle behavior. Fakes qualify only the offline guards. Do not run a live capture, build, target write, or fixture route as part of this design step.
+
+Result boundary
+
+The design addresses only the demonstrated overstrict in-progress ownership guard. Natural contact reachability beyond the first qualified contact, the second genuine contact, later replacement behavior, required fixture routes, and live HUD remain unqualified. No production audio defect is established.
