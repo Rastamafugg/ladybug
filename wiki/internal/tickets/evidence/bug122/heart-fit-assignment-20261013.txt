@@ -1,0 +1,60 @@
+BUG-122 coordinated preview-heart repair — isolated fit assignment
+Date: 2026-10-13
+Cost class: High-risk
+Assignment state: bounded fit-only step; this is not behavioral acceptance or the complete implementation/verification Ready contract.
+
+Authority and ownership
+The user approved the coordinated repair recorded in wiki/internal/tickets/bug-122-level-preview-letter-mismatch.html#heart-repair-approved-20261013 and #heart-repair-approval-20261013. This assignment preserves that exact outcome, two target files, acceptance, and exclusions.
+
+Fit executor owns edits to only the two approved files inside repro/bug122-heart-fit-20261013/capsule, existing-compiler static assertion, three serial complete-profile builds/checkpoints, concise fit evidence, and a patch-only handoff. Root owns the frozen-input manifest, shared production tree/build, integration, emulator/GDB-MCP, and canonical ticket/wiki. Do not edit canonical source, commit, push, run runtime probes, change a limit, or touch wiki/ticket files.
+
+The capsule is frozen from the 266-input production manifest in repro/bug122-heart-fit-20261013/baseline-inputs.json. It identifies current-root ROM df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726 and starts with an empty build directory. Fit conclusions apply only to those frozen inputs. The later user edits in tiled/coco-attract-screen.tmx and tiled/coco-high-score-screen.tmx are outside this capsule and approved scope; do not import them or claim this fit qualifies them.
+
+Parent-owned reproduction evidence at wiki/internal/tickets/evidence/bug122/heart-current-baseline-20261013.json confirms the current df260e natural-preview defect: bounded phases 2.353 s and 0.759 s, zero target RAM writes, qualified resident/enemy/presentation/rate bytes and actual scanout, and full 30,720-byte FRONT SHA-256 29198d0425159eda1d4d7b7e0be9e4cb9a267eb79b6bbe850c929a4176a1fae9 matching the diagnosis. It is a reproduced baseline, not repair acceptance.
+
+Approved edit boundary
+- src/shared_text_stage.inc: change only the initial LDX destination $7544 to $6644, moving the first 16x16 letter anchor from pixel (136,136) to (136,112). Preserve LEAX -2552 and its observed +8-byte horizontal advance.
+- tiled/coco-level-start-screen.tmx: change only the 24 approved Level Start Panel cells. Clear columns 17–22 on rows 14–15 to GID 0. Restore row 17 [264,228,264,228,264,228] and row 18 [486,468,486,468,486,468]. Frozen original letter rows are row 14 [184,292,232,420,232,388] and row 15 [37,3,229,99,69,19]. Leave the Background layer unchanged.
+
+No other source/art change, RNG/entity/order/retention change, allocation, renderer protocol/ownership, loader/MMU/mapping, input/audio/cadence change, or capacity/timing-limit change is authorized. Compare the candidate against the frozen input; exactly these two paths may differ and the TMX delta must be these 24 cells.
+
+Fit procedure and exact commands
+Run in order, serially, from PowerShell at E:\projects\ladybug. Every profile uses the capsule's ordinary build directory. Explicitly unset LADYBUG_BUILD_DIR; its generated registry still assumes canonical build paths. Clean only capsule/build before each profile so stale adaptive artifacts cannot enter the nonadaptive result. After each build, run both existing static/capacity checks before the next clean.
+
+Before each profile:
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && env -u LADYBUG_BUILD_DIR bash scripts/build.sh clean"
+
+Keyboard adaptive:
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && env -u LADYBUG_BUILD_DIR LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_shared_text.py --build-dir build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_feat007_text.py --phase checkpoint --output /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/fit-evidence/keyboard-adaptive"
+
+Joystick adaptive:
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && env -u LADYBUG_BUILD_DIR LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_shared_text.py --build-dir build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_feat007_text.py --phase checkpoint --output /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/fit-evidence/joystick-adaptive"
+
+Keyboard nonadaptive:
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && env -u LADYBUG_BUILD_DIR LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_shared_text.py --build-dir build"
+  wsl -e bash -lc "cd /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/capsule && python3 scripts/verify_feat007_text.py --phase checkpoint --output /mnt/e/projects/ladybug/repro/bug122-heart-fit-20261013/fit-evidence/keyboard-nonadaptive"
+
+The three commands set LADYBUG_PROFILE=complete and cover adaptive keyboard, adaptive joystick, and nonadaptive keyboard. scripts/build.sh build runs its unchanged full profile/layout/packing/identity guards. verify_shared_text reuses the existing presentation compiler/static-map verifier. verify_feat007_text checkpoint records measured capacity. The only allowed build output destination is capsule/build; the checkpoint outputs above use fresh unique 2026-10-13 fit-evidence directories. Do not write to historical QA evidence paths.
+
+Static panel gate
+For each build, require verify_shared_text to pass. Separately inspect the exact TMX source delta against the frozen original: only the twelve listed letter cells become zero and only the twelve listed heart cells are restored. The existing compiler's static level-start map/frame must compile successfully with the restored heart pattern and clear letter area. This is a static authored-map/compiler gate only; it does not establish runtime FRONT pixels, dynamic selected-letter identity, natural publication, or behavior acceptance.
+
+Fit targets and retained evidence
+Current integrated baseline resident-free observations, in profile order keyboard adaptive / joystick adaptive / keyboard nonadaptive, are 110 / 74 / 42 bytes; assets-free are 17 / 17 / 58 bytes. They are baseline observations, not projected post-fix values. Keep the existing limits: resident <=8192 bytes across $C000–$DFFF with at least 32 bytes free; assets <=7680 bytes, asset_start=$E000 and asset_end<=$FE00; presentation module <=1280 bytes; highscore_phase_helper_end<=$B880. All other stock build guards remain active. Report measured used/limit/free for every profile and retain the checkpoint JSON, ROM/source-receipt/module hashes, and concise main/presentation/helper maps.
+
+Do not preserve every build tree or large passing logs. For keyboard-adaptive and keyboard-nonadaptive profiles, retain only the files required by the existing runtime verifier: ladybug.rom, ladybug-runtime.rom, ladybug.map, ladybug-presentation-runtime.bin, ladybug-presentation-cold.bin, ladybug_screen.inc, ladybug-highscore-helper.bin, ladybug-highscore-helper.map, ladybug-sparse-layout.json, ladybug-audio-runtime.bin, ladybug-audio-runtime.map, and ladybug-enemy-runtime.rom when emitted. Preserve the source-build receipt and a fresh retention.json listing exactly the retained files for the nonadaptive artifact; refresh its identity from this frozen candidate rather than reuse the historical ROM pin. Preserve no ladybug-adaptive-active.bin in the nonadaptive artifact. For joystick adaptive, retain only concise maps, checkpoint, source-receipt hash, ROM/module hashes, and measured margins. Retain full command output only on failure. Do not overwrite or mutate the immutable repro/bug122-parent/baseline or any historical evidence.
+
+Fit passes only when all three ordinary builds and both checks per profile exit 0, the candidate changes only the approved two files/24 TMX cells, every unchanged capacity/packing guard passes, and resident free is >=32 in all three profiles. Asset use may grow only within the unchanged limit. Any build/check failure, unexplained source delta, or capacity miss is FAIL: preserve failing output and measured values; stop without recovery/limit changes.
+
+Patch-only handoff
+Return one patch against the frozen inputs for exactly src/shared_text_stage.inc and tiled/coco-level-start-screen.tmx. Include base/input identity, both original/candidate file hashes, patch hash, each command/exit, three measured capacity rows, checkpoint receipts, retained artifact manifest, and failed/rejected experiment status. Do not commit or edit the canonical source tree. Fit pass authorizes parent review and the separate runtime-verification preparation; it is not behavior acceptance.
+
+Separate runtime-verification gate
+The existing BUG-122 runtime harness is not valid for this repaired layout unchanged: pixel_oracle.py is pinned to y136 marker cells and its baseline-underlay mutation rule; its letter crop anchors must move to y112 and it must assert hearts at y136. Its current initial case samples only natural FRONT pixels, so owner-specific isolated-preview coverage remains outstanding. The existing nonadaptive case also has a historical ROM pin that must be refreshed to the exact retained fit artifact. The terminal/demo adapter has an independent screen-2 release observer defect: on screen 2 neutral DSCAN is proven by $A9==0; $D0/MENU_EVENT may remain stale until a proven released-key screen-3 scan. Its candidate ROM pin must be refreshed for the final integrated build.
+
+Treat those as a separate Ready runtime-verifier assignment after the fit handoff. Copy/retarget the existing verifier into a unique repro/bug122-heart-verification-20261013 scratch directory and route all new receipts there; do not edit the historical repro/bugpass-20261010/luna122-qa-plan files/evidence or the immutable baseline. Reuse its already-authorized fixtures and exact acceptance scenarios; add no fixture fields or broader cases for this repair. Keep focused natural sequence, isolated owner, one nonadaptive handoff, and required terminal/default-demo coverage. Root owns the current integrated rebuild, artifact qualification, GDB-MCP/runtime lease, and final acceptance.
