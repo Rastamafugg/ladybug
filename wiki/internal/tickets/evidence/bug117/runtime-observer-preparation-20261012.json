@@ -36,21 +36,24 @@
       "Quiet terminal audio is generation-bound: preserve the first actual mute plus same-generation post-PSG busy-zero proof immutably; accept a later exact-model shadow-suppressed refresh only for the same cue/start ordinal/entry, with no audible stores and a prior busy-zero proof; retain refresh records separately.",
       "On natural-contact timeout, serialize the last already-read low-RAM player/enemy-timer snapshot, 32-byte enemy table, input-only held direction and at most 64 action/event records, plus current three-entry/proof/lifecycle context; no timeout-time memory or status RPC is issued.",
       "On the exact natural-contact-search $A2D2 PAR5 page-$20-versus-$3D guard rejection, preserve the original failure and capture halted stop identity, raw/masked PAR5, bounded CPU-window and physical page-$20/$3D spans, reference hashes, and byte comparisons; no classification or guard relaxation.",
-      "At registered audio-address execution breakpoints mapped to page $20, classify only after exact halted PC/breakpoint/register identity, current receipt/source/manifest identity for the 5,751-byte synthesized perimeter helper, one complete physical page-$20 match, and a per-stop 16-byte CPU/physical/source match. Record phase and original audio address label separately; do not dispatch audio END/mix/busy handlers. Page-$3D audio, bootstrap reset ordering, PSG watchpoints, and unknown pages remain strict. The existing get_run_state monitor control is used without protocol changes."
+      "At registered audio-address execution breakpoints mapped to page $20, classify only after exact halted PC/breakpoint/register identity, current receipt/source/manifest identity for the 5,751-byte synthesized perimeter helper, one complete physical page-$20 match, and a per-stop 16-byte CPU/physical/source match. Record phase and original audio address label separately; do not dispatch audio END/mix/busy handlers. Page-$3D audio, bootstrap reset ordering, PSG watchpoints, and unknown pages remain strict. The existing get_run_state monitor control is used without protocol changes.",
+      "For a natural-contact-search selected cue-13 service rejected solely for no audible tone, retain the unchanged audible-output requirement except for a receipt-bound exact authored muted WAIT prefix after an immutable same-generation actual audible output and post-publication busy-one proof. Replay emitted note/VOFF/WAIT commands, compare the selected slot and modeled mixer state, and compare the bounded stream prefix against CPU and physical page $3D bytes; keep ownership, queues, model, busy, terminal, and FRONT gates strict.",
+      "At natural qualified mainloop contact stops only, validate PAR5=$34 and read ENTITY_COUNT*4 bytes (maximum 48) from physical page $34 at mapped ENTITY_TABLE=$A380. Preserve the JSON-safe bytes/hash and source-qualified marker, then filter the existing input-only driver at prospective centers and step-3 in-flight direction; malformed mapping/count/coordinates fail closed.",
+      "After each natural held-input final release join, run a separate 45-second neutral ordinary-enemy-release-roam phase. A success marker requires source-qualified mainloop state with ENEMY_RELEASED increased from the cached phase baseline, ENEMY_ACTIVE consistent with source-tagged occupied rows, at least one active row outside (12,12), and saved-background-valid=1. This marker does not count as an enemy contact."
     ],
-    "natural_route": "At source-qualified mainloop observations, keep the selected DSCAN direction held as the player pose changes. Reset no-progress age on a changed (cell_x, cell_y, PLAYER_STEP) tuple; rotate to the next existing binding only after eight repeated unchanged step-0 center observations indicate no progress. Release on entry/death/target isolation. This prevents per-cell opposite reversals without a new planner or guest writes. The retry records observed non-progress only; it does not claim the cause is a wall or enemy state.",
+    "natural_route": "Natural-only: the existing four input-only bindings remain held across legal pose progress and rotate only after eight repeated unchanged step-0 observations. Input is disabled until each entry held-South challenge passes and is released; it is active only in the bounded contact phase. At source-qualified mainloop stops, decode the bounded page-$34 ENTITY_TABLE snapshot and avoid active skull cells at the next center and at a step-3 in-flight move. A malformed or unavailable snapshot fails closed. No planner, guest-state write, forced enemy state, or deadline extension is added.",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
     "forced_order_entry": "front-first and music-first runs use ordinary input-only route search through two genuine contacts and replacements, then write only at lives=0 / HUD marker column x=33 (pixel x=264) / row-derived player x=320.",
     "natural_held_input_challenge": "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge.",
     "bootstrap_reset_stores": "Source-derived from current complete receipt, bootstrap source/listing/map, staged boot image, and packaged ROM raw bank-zero prefix; watched reset events remain separate from runtime cue-owned PSG events.",
     "natural_contact_waypoint_discriminator": {
-      "policy": "hold the existing source-ordered Up/Down/Left/Right binding across legal pose progress; retry the next direction only after eight identical source-qualified step-0 poses indicate observed no progress",
+      "policy": "After the held-input final release join, require a neutral source-qualified ordinary-enemy-release-roam marker phase (45 seconds), then use the existing hold-until-progress input-only route during a separate 45-second contact phase; retain eight unchanged step-0 observations as retry threshold.",
       "progress_key": [
         "PLAYER_CELL_X",
         "PLAYER_CELL_Y",
         "PLAYER_STEP"
       ],
-      "isolation": "release immediately on nonzero INITIAL_ENTRY_STATE or DEATH_STATE; no route search during entry/death or held-South challenge",
+      "isolation": "Release on entry/death/target isolation. Natural route remains disabled during held-South challenge and ordinary release-roam; it runs only in contact phase. Forced fixture scenarios are not requalified by this step.",
       "cached_low_ram_fields": [
         "PLAYER_DIR",
         "PLAYER_WANT",
@@ -58,19 +61,23 @@
         "ENEMY_TIMER",
         "ENEMY_ACTIVE",
         "ENEMY_RELEASED",
+        "ENTITY_COUNT",
+        "STAGE",
         "FREEZE_TIMER (16-bit big-endian)"
       ],
       "cached_enemy_records": "existing 32-byte ENEMY_TABLE snapshot encoded as hex with length and SHA-256",
-      "failure_projection": "phase/deadline and last qualified stop plus JSON-safe current/last three entries, proof and lifecycle ledgers, contact count, and bounded last-64 route/input events; no additional monitor RPC",
+      "failure_projection": "Phase/deadline and last qualified stop plus cached low-RAM player, enemy and entity counts/timers, 32-byte enemy table, latest bounded 48-byte skull table, route/hazard/input tails, ordinary-release marker, and current three-entry/proof/lifecycle ledgers; JSON-safe and no timeout-time RPC.",
       "route_scope": "existing input-only bindings and hold/waypoint semantics only; no new planner, module, protocol, guest-state writes, forced enemy state, or deadline extension",
       "classification_limit": "Observed no progress does not prove a wall blockage. A collectible/vegetable pause, enemy freeze, or other game-state cause remains unresolved; retain timer/enemy snapshots and report uncertainty without attributing cause.",
-      "no_progress_retry_threshold_repeated_observations": 8
+      "no_progress_retry_threshold_repeated_observations": 8,
+      "hazard_entity_table": "At source-qualified natural mainloop in contact phase, require PAR5 masked=$34 and ENTITY_TABLE=$A380, count 1..12, 4-byte records, x/y<24; retain at most 48 bytes plus SHA-256. Entity type 1 is the skull hazard. Check the prospective next cell at step 0 and PLAYER_DIR in-flight at step 3; never inject if all adjacent cells are skulls.",
+      "ordinary_release_marker": "Separate neutral 45-second phase after the entry held-input release join; require ENEMY_RELEASED greater than the cached phase baseline, ENEMY_ACTIVE equal to occupied source-tagged rows, and an active outside-nest (not 12,12) row with saved-background-valid=1 at qualified mainloop."
     }
   },
   "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
   "runtime_probe_performed": true,
   "runtime_ready": false,
-  "runtime_ready_reason": "The parent-owned unchanged-ROM run reached the first qualified entry release at event 4595 but observed no genuine contact during the 45-second natural-contact-search phase, which ended at event 17388. Its last full mainloop was frame 2010 at cell (12,18), step 1; post-release movement among (12,18), (12,17), and (11,18) disproves a constant-position stall. The prior input policy reversed at each accepted center. This offline observer correction preserves a direction across source-qualified pose progress, rotates after eight repeated no-progress center observations, and retains cached timer/enemy/route/entry/ledger state on timeout. No runtime rerun is included in this preparation; natural contacts, deaths, and replacements remain unproven.",
+  "runtime_ready_reason": "Frozen observer requires parent review and one bounded natural probe; acceptance remains unobserved.",
   "first_natural_runtime_attempt": {
     "receipt": "repro/bug117-integration-20261012/runtime-natural-20261013/bug117-natural-runtime.json",
     "observer_script_sha256_at_attempt": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
@@ -136,9 +143,9 @@
     },
     "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
   },
-  "blocked_observable": "The latest natural trace rejects at ordinal 4519 after the first terminal service passed with nine exact modeled stores, three mute attenuations, zero audible stores, and busy=0. The following same-entry quiet refresh passed the exact model with three latch-only stores, zero audible stores, and busy=0; shadow equality suppressed unchanged mute writes. The prior observer incorrectly required another physical mute. The bounded correction retains the first actual-mute/busy-zero proof and gates any refresh on the same cue/start ordinal/entry, exact model, idle state, and no audible output. Cue 6 pending-candidate lifetime now ends only at the actual release join; cue 13 ends only at its validated replacement lifecycle join. Ordinary post-release gameplay FX conflict is source-motivated but not live-reproduced. No production change or target write is implicated; natural release/death acceptance is still incomplete.",
+  "blocked_observable": "Latest retained natural evidence proves a prior actual cue-13 audible onset followed by an authored muted WAIT service; the generic per-service audible-tone rejection was too strict. The correction allows only the exact emitted muted-WAIT continuation for the same cue/start/entry after actual output and post-publication busy proof, while preserving transaction/model/queue/terminal/FRONT guards. Natural contact and ordinary-enemy release are not yet accepted. The route adds bounded skull exclusion and a neutral ordinary-release discriminator without guest writes or deadline extensions; reachability remains a live question. Forced fixture routes remain not requalified.",
   "scenario": "natural",
-  "prepared_at": "updated for audio rejection context and cep_skull source marker; offline only",
+  "prepared_at": "updated for authored quiet-WAIT continuation and bounded natural release/contact discriminator; offline only",
   "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
   "deadlines_seconds": {
     "each_named_phase": 45,
@@ -152,7 +159,8 @@
       "audio-terminal": 45,
       "cue13-normal-drain": 45,
       "replacement-entry": 45,
-      "irq-front-release": 45
+      "irq-front-release": 45,
+      "ordinary-enemy-release-roam": 45
     }
   },
   "gameplay_worklist_cycle_target_max": 27000,
@@ -168,16 +176,16 @@
     "no_same_batch_player_or_enemy_mutation"
   ],
   "report_kind": "observer-only current audio-rejection context and skull death-source qualification; runtime acceptance pending parent-owned natural rerun",
-  "preparation_status": "OFFLINE_CAPTURE_CONTEXT_AND_SKULL_MARKER_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
-  "observer_script_sha256": "eb3fcf583eadaa430b0698fd5c41ebdfb6a5a2e0e4987a11081df829f9f4557e",
+  "preparation_status": "OFFLINE_SILENT_WAIT_AND_NATURAL_ROUTE_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
+  "observer_script_sha256": "d10796ec9dd8dfb62a0bdfdd502d20b88d3680180448e71031eacfae242a9697",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
-  "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
+  "runtime_directory_copy_status": "The pre-existing scratch copy remains historical and was not refreshed because it is outside the two-file ownership boundary. Parent should invoke the reviewed frozen source or refresh its copy before any later probe.",
   "offline_verification": {
     "py_compile": "PASS",
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 376,
+      "negative_checks": 418,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -213,11 +221,16 @@
         "current cep_skull map/listing/source/staged marker and prepared binding; marker collision and malformed binding rejected",
         "source-qualified skull death writer remains separate from genuine enemy-contact and lifecycle records; live byte mismatch rejected",
         "selected-cue audio guard failure retains the already-read raw slot/queue/mixer snapshot, pure model, cached alias proof, source bindings and death-source events",
-        "original GuardFailure class/message survives rethrow and outer report serialization without extra monitor rereads"
+        "original GuardFailure class/message survives rethrow and outer report serialization without extra monitor rereads",
+        "Authored cue-13 muted WAIT after an earlier WAIT: replay command prefix, compare source-derived mute periods/attenuation/noise to selected slot and pure model, bind same-generation/entry actual-output and busy proof, and compare exact CPU/physical/staged page-$3D prefix; audible or malformed continuation remains rejected.",
+        "Natural mainloop hazard capture: qualified source/PC and PAR5=$34, page-$34 physical ENTITY_TABLE=$A380, bounded 1..12 four-byte entities and at most 48 bytes; malformed PC/source/entry/PAR/count/table/coordinates fail before key injection.",
+        "Existing input-only route: prospective center and step-3 in-flight skull avoidance, all-neighbors-blocked no-injection case, source-direction bindings, and no route input outside the natural contact phase.",
+        "Neutral ordinary-release marker: starts only after held-input challenge pass/release and with no pressed key; requires increased release count, consistent source-tagged occupied records, an outside-nest active actor, and saved-background validity; malformed active tag/count, nest-only, missing increment, or missing background rejected.",
+        "Natural route phase integration and cached failure projection retain JSON-safe entity bytes, player/enemy/entity timers, route/hazard tails and phase marker without timeout-time RPC; forced fixture routes explicitly remain unqualified."
       ],
       "parent_independent_self_test": "Pending parent review; local self-test passes 345 checks."
     },
-    "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped; import did not start emulator, open monitor socket, or load the maintained monitor client template",
+    "guarded_import_no_launch": "PASS for the final observer hash; subprocess.Popen/socket blocked and untouched",
     "prepare_only": {
       "natural": "PASS; static only, runtime route/order unobserved",
       "front-first": "PASS; static only, runtime route/order unobserved",
@@ -225,8 +238,8 @@
       "prior-music": "PASS; static only, runtime route/order unobserved"
     },
     "static_candidate_checks": "PASS for the current root build: complete source-receipt bootstrap raw prefix, staged boot artifact/map/listing hashes, packaged bank-zero raw prefix and reset/post-PC spans, current ROM/layout identity, maps, cue descriptors, player art, and complete/adaptive/keyboard gate. Offline only; no runtime scenario is accepted.",
-    "runtime_probe_build_target_write_git": "This context-retention change ran no runtime probe, build, or target write; only the two assigned evidence files are in scope",
-    "runtime_probe_build_target_write": "NONE during this observer correction; retired-tail occupancy uses offline models only. Parent owns the next bounded natural rerun after source review.",
+    "runtime_probe_build_target_write_git": "NONE during this step",
+    "runtime_probe_build_target_write": "NONE during this step",
     "current_root_profile_gate": {
       "result": "PASS",
       "candidate_build": "E:\\projects\\ladybug\\build",
@@ -247,12 +260,12 @@
       "delivery_receipt_consumed_by_first_natural_attempt": true,
       "delivery_receipt_sha256_by_first_natural_attempt": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef"
     },
-    "guarded_import": "PASS: subprocess.Popen and socket.create_connection denied; import made no calls",
-    "parent_independent_self_test": "PENDING parent review of frozen source",
-    "live_runtime": "NOT RUN: parent owns next natural runtime qualification",
-    "runtime_probe_build_target_writes": null,
-    "observer_script_sha256": "c5abd92392f53856618dd8588753e8a6ed7f6ef6da67787070cee04fbfc7a819",
-    "current_step_static_prepare": "NOT RUN; this bounded observer step makes no build or current-candidate preparation claim.",
+    "guarded_import": "PASS; subprocess.Popen and socket.create_connection trapped and untouched during import; read-only prepare(build) then validated 11 current candidate files",
+    "parent_independent_self_test": "PENDING parent frozen-source review",
+    "live_runtime": "NOT RUN; parent owns the next bounded natural probe after review",
+    "runtime_probe_build_target_writes": "NONE during this step",
+    "observer_script_sha256": "d10796ec9dd8dfb62a0bdfdd502d20b88d3680180448e71031eacfae242a9697",
+    "current_step_static_prepare": "PASS; read-only prepare(build) validated the current candidate without build, emulator launch, monitor connection, or target write",
     "latest_bank_boundary_capture_step": {
       "py_compile": "PASS",
       "cli_help": "PASS",
@@ -340,7 +353,8 @@
       },
       "runtime_probe": "NOT RUN; parent owns one unchanged-ROM natural rerun after review",
       "build_or_target_write": "NONE during this step"
-    }
+    },
+    "current_candidate_prepare": "PASS; current root build read-only preparation completed with 11 candidate artifacts"
   },
   "reproduction_commands_run": [
     "python -B -m py_compile wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py",
@@ -371,7 +385,7 @@
   "phase_and_measurement_contract": {
     "phase_deadline_seconds": 45,
     "monitor_stop_wait_max_seconds": 10,
-    "timeout_meaning": "The named event/order was absent within its phase; timeout does not establish target slowness.",
+    "timeout_meaning": "The named event/order was absent within its own 45-second phase; timeout does not establish target slowness. Ordinary-release and contact phases are separate, each with stop waits no longer than 10 seconds.",
     "gameplay_worklist_cycles_target_max": 27000,
     "historical_gameplay_worklist_cycles": {
       "ordinary_north": 42541,
@@ -397,7 +411,7 @@
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "The observer-only audio rejection context and cep_skull source marker are frozen for parent review. Current-page audible and lifecycle guards remain unchanged. Compilation, CLI help, guarded import, read-only current preparation, and 376 offline checks pass; no build, live probe, or target write was run.",
+  "ready_verdict": "Quiet cue-13 WAIT continuation is source-stream and same-generation qualified after the immutable actual-mute/busy-zero proof. Natural contact input is limited to its named phase and excludes source-qualified skull cells. A separate neutral 45-second release-roam phase must observe an increased release count and an active outside-nest actor with saved background after the held-input join. 418 offline checks, guarded import, CLI help, compilation, and read-only current prepare pass. No live probe/build/target write occurred. Forced fixture routes are not requalified by this natural-only step.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -1033,7 +1047,7 @@
     "status": "Observer-only restoration proof implemented and independently reviewed. Offline checks pass; parent owns the next natural runtime reassessment.",
     "implemented_observer_correction": {
       "status": "IMPLEMENTED_AWAITING_PARENT_NATURAL_REASSESSMENT",
-      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner\u2019s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
+      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner’s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
       "owner_timing": "Each state-3 stop validates only the committed FRONT owner; both metadata bits need not be clear on the same stop. A valid FRONT metadata byte at a state-3 retirement stop fails closed.",
       "snapshot_storage": "Raw 8x16 actual and saved-under bytes are held only in private observer memory keyed by entry generation and owner. Entry/event JSON retains pointer, clipped width, ordinal, frame, SHA-256 digests, and restoration outcome; the private byte map is not serialized.",
       "gate_sources": [
@@ -1149,7 +1163,7 @@
       "live_probe": "NOT RUN by this step"
     }
   },
-  "current_step_runtime_probe": "NOT RUN; parent owns one unchanged-ROM natural rerun with existing 45-second phases and 10-second stop waits after source review.",
+  "current_step_runtime_probe": "NOT RUN; parent review and one natural 45-second/10-second-stop diagnostic remain pending.",
   "bank_boundary_page20_reference": {
     "cpu_pc": 41682,
     "cpu_window": 40960,
@@ -1231,7 +1245,7 @@
     "observer_script_sha256": "eb3fcf583eadaa430b0698fd5c41ebdfb6a5a2e0e4987a11081df829f9f4557e",
     "parent_independent_self_test": "PENDING parent frozen-source review"
   },
-  "guarded_import_no_launch": "PASS for the frozen observer source; subprocess.Popen and socket.create_connection trapped and untouched",
+  "guarded_import_no_launch": "PASS for final observer hash; Popen/socket blocked and untouched; read-only current prepare validated 11 artifacts",
   "historical_perimeter_alias_classifier": {
     "ready_source": "wiki/internal/tickets/bug-117-new-life-entry-music.html#perimeter-alias-correction-ready-20261013",
     "baseline_observer_commit": "b45696a1bd9a0b55a9535e8cda213ed803b70f90",
@@ -1320,5 +1334,26 @@
     "observer_script_sha256": "f994e34224d7ac426aa14f6b198b307a845418fff6e4044303a076ca4b66063b",
     "parent_independent_self_test": "PENDING parent review of frozen source",
     "status": "OFFLINE_ALIAS_CLASSIFIER_PASS_AWAITING_PARENT_REVIEW"
+  },
+  "forced_fixture_route_qualification": "NOT QUALIFIED by this natural-only step; front-first/music-first/prior-music routes retain existing behavior and require a separate Ready qualification before fixture execution.",
+  "latest_silent_wait_route_correction": {
+    "ready_source": "wiki/internal/tickets/bug-117-new-life-entry-music.html#silent-wait-route-correction-ready-20261013",
+    "scope": "observer and preparation evidence files only; no production/wiki paths, build, live capture, guest writes, protocol change, or deadline extension",
+    "observer_script_sha256": "d10796ec9dd8dfb62a0bdfdd502d20b88d3680180448e71031eacfae242a9697",
+    "quiet_wait_correction": "Current emitted cue-13 prefix is replayed through the exact final authored WAIT; prior WAIT commands are replayed normally. Only a pure zero-audible model can opt into the service guard exception, after the same cue/start/entry has an immutable actual audible, actual mute, and post-publication busy proof. Exact active slot policy/priority/owner, queues/counts/busy, replayed periods/attenuation/noise, CPU bytes, physical page-$3D bytes, staged emitted prefix, END and final terminal/FRONT gates remain strict.",
+    "natural_route_correction": "Natural only. The held-input challenge must pass and release before neutral phases. A 45-second neutral ordinary-release phase requires ENEMY_RELEASED growth, active count/source-tagged actor consistency, outside nest, saved background valid. The next separate 45-second contact phase enables existing input-only routing and at qualified mainloop stops reads at most 48 page-$34 entity bytes after source/PC/PAR5 checks; prospective center and step-3 in-flight skull cells are excluded. No new planner or target writes.",
+    "focused_checks": {
+      "result": "PASS",
+      "negative_checks": 418,
+      "target_writes": 0,
+      "emulator_launches": 0,
+      "py_compile": "PASS",
+      "cli_help": "PASS",
+      "guarded_import_no_launch": "PASS",
+      "read_only_current_prepare": "PASS"
+    },
+    "forced_fixture_routes": "NOT QUALIFIED by this natural-only step; no fixture execution is authorized by this result.",
+    "runtime_probe": "NOT RUN; parent review required before the next natural 45-second phase / 10-second stop-wait probe.",
+    "build_or_target_write": "NONE during this step"
   }
 }

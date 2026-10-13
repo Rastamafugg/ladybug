@@ -37,6 +37,8 @@ COIN5_DSCAN_KEY = 5
 ENTRY_SOUTH_BINDING_INDEX = 1
 ENTRY_EAST_DIRECTION = 1
 ENTRY_NORTH_DIRECTION = 0
+SEARCH_SOURCE_DIRECTIONS = (0, 2, 3, 1)  # default map codes: north, south, west, east
+SOURCE_DIRECTION_DELTAS = {0: (0, -1), 1: (1, 0), 2: (0, 1), 3: (-1, 0)}
 ROOT = next((p for p in Path(__file__).resolve().parents if (p / "scripts/build.sh").is_file()), None)
 MONITOR_TEMPLATE = (ROOT / "scripts/verify_bug009_monitor_input.py") if ROOT else None
 MONITOR_SOURCE = (ROOT / "docs/reference/xroar/src/monitor.c") if ROOT else None
@@ -76,6 +78,7 @@ AUDIO_Q_COUNT = 0x00EE
 AUDIO_CREDIT_PENDING = 0x02DD
 WATCHED_PHASES = {
     "initial-entry": 45,
+    "ordinary-enemy-release-roam": 45,
     "natural-contact-search": 45,
     "death-animation-blank": 45,
     "fixture-boundary": 45,
@@ -1347,7 +1350,8 @@ def prepare(build: Path) -> dict[str, Any]:
                  "PLAYER_TICK_PENDING", "PLAYER_BG_PTR",
                  "PLAYER_BG_VALID", "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
                  "FB_META_A", "FB_META_B", "FBM_PLAYER_VALID",
-                 "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE",
+                  "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE", "ENTITY_TABLE", "ENTITY_COUNT",
+                  "STAGE", "DIR_NORTH", "DIR_EAST", "DIR_SOUTH", "DIR_WEST",
                  "asset_end",
                  "marker_entry_begin", "iet_offscreen", "iet_maze_entry", "iet_final_wait",
                  "cep_skull",
@@ -1386,7 +1390,11 @@ def prepare(build: Path) -> dict[str, Any]:
     source_text = {name: re.sub(r"\s+", " ", re.sub(r";[^\n]*", " ", p.read_text(encoding="utf-8")))
                    for name, p in sources.items()}
     source_assertions = {
-        "main.s": (r"DEATH_TIMER\s+equ\s+\$003A", r"iet_final_wait",
+        "main.s": (r"DEATH_TIMER\s+equ\s+\$003A",
+                   r"ENTITY_COUNT\s+equ\s+\$0032",
+                   r"ENTITY_TABLE\s+equ\s+\$A380",
+                   r"DIR_NORTH\s+equ\s+0.*?DIR_EAST\s+equ\s+1.*?DIR_SOUTH\s+equ\s+2.*?DIR_WEST\s+equ\s+3",
+                   r"iet_final_wait",
                    r"cep_skull\s+ldx\s+#ENTITY_TABLE.*?lda\s+#1\s+sta\s+DEATH_STATE\s+lda\s+#DIR_NONE\s+sta\s+PLAYER_DIR\s+sta\s+PLAYER_WANT\s+lbsr\s+enemy_tick"),
         "audio_runtime.s": (r"lda\s+,u\s+sta\s+2,y", r"lda\s+2,x\s+bita\s+#1",
                              r"audio_mix_write_done\s+jsr\s+audio_music_busy\s+sta\s+AUDIO_MUSIC_PUBLISHED_BUSY",
@@ -1900,7 +1908,8 @@ def live_audio_snapshot(client: Any, symbols: dict[str, int], page: int = 0x3D) 
 
 
 def verify_live_music_mix(snapshot: dict[str, Any], cue_id: int,
-                          expected_policy: int, expected_priority: int) -> dict[str, Any]:
+                          expected_policy: int, expected_priority: int,
+                          allow_authored_quiet_wait: bool = False) -> dict[str, Any]:
     model = model_exclusive_mix(snapshot["slots"], cue_id)
     selected = model["selected"]
     if selected["policy"] != expected_policy or selected["priority"] != expected_priority:
@@ -1913,8 +1922,11 @@ def verify_live_music_mix(snapshot: dict[str, Any], cue_id: int,
         raise GuardFailure("live mixed attenuation does not match selected cue voices")
     if snapshot["mix_noise"] != model["noise_bytes"]:
         raise GuardFailure("live mixed noise state does not match selected cue source")
-    if model["audible_voice_count"] < 1 or not model["channel_sources"]:
+    if ((model["audible_voice_count"] < 1 or not model["channel_sources"]) and
+            not allow_authored_quiet_wait):
         raise GuardFailure("selected cue has no audible tone channel in this mixer service")
+    if allow_authored_quiet_wait and (model["audible_voice_count"] != 0 or model["channel_sources"]):
+        raise GuardFailure("authored quiet-WAIT service unexpectedly models an audible tone channel")
     model["mix_match"] = True
     return model
 
@@ -2002,6 +2014,63 @@ def stream_waits_remaining(image: bytes, stream_start: int, terminator: int,
             raise GuardFailure(f"unsupported future stream command ${op:02X} at ${pos:04X}")
     return {"current_wait_ticks": current_wait, "future_wait_ticks": future_waits,
             "remaining_audio_ticks": current_wait + future_waits}
+
+
+def current_authored_wait(image: bytes, stream_start: int, terminator: int,
+                          pointer: int, current_wait: int) -> dict[str, Any]:
+    """Replay the emitted prefix and prove the live cursor is after its current WAIT."""
+    stream_waits_remaining(image, stream_start, terminator, pointer, current_wait)
+    if current_wait < 1 or pointer - 2 < stream_start:
+        raise GuardFailure("live cue cursor has no active authored WAIT command")
+    periods = bytearray.fromhex("010001000100")
+    attenuation = bytearray((15, 15, 15))
+    noise = bytearray((0, 15))
+    pos = stream_start
+    last_command: tuple[int, int] | None = None
+    while pos < pointer:
+        op = image[pos]
+        if op == 2:
+            size = 2
+        elif 0x10 <= op <= 0x12:
+            size = 4
+            voice = op - 0x10
+            periods[voice * 2:voice * 2 + 2] = image[pos + 1:pos + 3]
+            attenuation[voice] = image[pos + 3]
+        elif op == 0x1C:
+            size = 3
+            noise[:] = image[pos + 1:pos + 3]
+        elif op == 0x1D:
+            size = 2
+            noise[1] = image[pos + 1]
+        elif op == 0x1E:
+            size = 2
+            mask = image[pos + 1]
+            for voice in range(3):
+                if mask & (1 << voice):
+                    attenuation[voice] = 15
+            if mask & 8:
+                noise[1] = 15
+        else:
+            raise GuardFailure(f"unsupported authored cue prefix command ${op:02X}")
+        if pos + size > pointer:
+            raise GuardFailure("authored cue command crosses the live WAIT cursor")
+        last_command = (pos, size)
+        pos += size
+    if pos != pointer or last_command != (pointer - 2, 2) or image[pointer - 2] != 2:
+        raise GuardFailure("live cue cursor is not immediately after an emitted WAIT")
+    authored_ticks = image[pointer - 1] or 1
+    if current_wait > authored_ticks:
+        raise GuardFailure("live cue dwell exceeds the authored WAIT interval")
+    return {"command_offset": pointer - 2, "command_hex": image[pointer - 2:pointer].hex(),
+            "command": "WAIT", "authored_ticks": authored_ticks,
+            "current_wait_ticks": current_wait, "cursor_offset": pointer,
+            "stream_start_offset": stream_start, "terminator_offset": terminator,
+            "emitted_stream_cursor_boundary": True,
+            "prefix_period_bytes_hex": bytes(periods).hex(),
+            "prefix_attenuation_hex": bytes(attenuation).hex(),
+            "prefix_noise_hex": bytes(noise).hex(),
+            "prefix_span_hex": image[stream_start:pointer].hex(),
+            "prefix_span_sha256": sha(image[stream_start:pointer])}
 
 
 @dataclass(frozen=True)
@@ -2098,14 +2167,21 @@ class BoundedMonitorEventPump:
 
 class InputOnlySearch:
     """Pulse only existing keyboard bindings at stopped, live gameplay centers."""
-    def __init__(self, client: Any, bindings: bytes):
+    def __init__(self, client: Any, bindings: bytes,
+                 source_directions: tuple[int, int, int, int] = SEARCH_SOURCE_DIRECTIONS,
+                 direction_vectors: dict[int, tuple[int, int]] = SOURCE_DIRECTION_DELTAS):
         if len(bindings) != 5:
             raise GuardFailure("live keyboard binding table is incomplete")
         if len(set(bindings)) != 5:
             raise GuardFailure("live gameplay/enter bindings are not unique")
+        if (len(source_directions) != 4 or len(set(source_directions)) != 4 or
+                any(direction not in direction_vectors for direction in source_directions)):
+            raise GuardFailure("source direction map does not resolve all four input-only bindings")
         self.client = client
         self.matrix_bindings = bindings
         self.bindings = bytes(matrix_binding_to_dscan(value) for value in bindings)
+        self.source_directions = source_directions
+        self.direction_vectors = dict(direction_vectors)
         self.direction = 0
         self.held: int | None = None
         self.held_matrix: int | None = None
@@ -2113,6 +2189,7 @@ class InputOnlySearch:
         self.last_pose: tuple[int, int, int] | None = None
         self.age_stops = 0
         self.actions: list[dict[str, Any]] = []
+        self.hazard_events: list[dict[str, Any]] = []
 
     def _inject(self, key: int, matrix_key: int | None, action: str,
                 ordinal: int, reason: str) -> None:
@@ -2132,12 +2209,66 @@ class InputOnlySearch:
             self.last_pose = None
             self.age_stops = 0
 
+    def _next_cell_is_blocked(self, direction: int, cell_x: int, cell_y: int,
+                              hazard_cells: set[tuple[int, int]]) -> bool:
+        dx, dy = self.direction_vectors[self.source_directions[direction]]
+        return (cell_x + dx, cell_y + dy) in hazard_cells
+
+    def _press_safe_direction(self, ordinal: int, cell_x: int, cell_y: int,
+                              hazard_cells: set[tuple[int, int]]) -> bool:
+        for skipped in range(4):
+            if not self._next_cell_is_blocked(self.direction, cell_x, cell_y, hazard_cells):
+                matrix_key = self.matrix_bindings[self.direction]
+                key = self.bindings[self.direction]
+                self.held = key
+                self.held_matrix = matrix_key
+                self.origin = (cell_x, cell_y)
+                self.last_pose = (cell_x, cell_y, 0)
+                self.age_stops = 0
+                self._inject(key, matrix_key, "press", ordinal,
+                    "hold-until-progress-or-blockage-with-source-qualified-skull-exclusion")
+                return True
+            self.hazard_events.append({"ordinal": ordinal, "cell": [cell_x, cell_y],
+                "direction_index": self.direction,
+                "source_direction": self.source_directions[self.direction],
+                "blocked_cell": [cell_x + self.direction_vectors[
+                    self.source_directions[self.direction]][0],
+                    cell_y + self.direction_vectors[
+                    self.source_directions[self.direction]][1]],
+                "action": "skip-skull-cell", "attempt": skipped + 1,
+                "target_memory_write": False})
+            self.direction = (self.direction + 1) % 4
+        self.hazard_events.append({"ordinal": ordinal, "cell": [cell_x, cell_y],
+            "action": "no-safe-adjacent-cell", "target_memory_write": False})
+        return False
+
     def at_gameplay_center(self, ordinal: int, entry: int, death: int,
-                           step: int, cell_x: int, cell_y: int) -> None:
+                           step: int, cell_x: int, cell_y: int,
+                           hazard_cells: set[tuple[int, int]] | None = None,
+                           player_dir: int | None = None) -> None:
+        hazards = hazard_cells or set()
         if entry != 0 or death != 0:
             self.release(ordinal, "entry-or-death-isolation")
             return
+        if step == 3 and hazards:
+            vector = self.direction_vectors.get(player_dir)
+            if vector is None:
+                raise GuardFailure("step-3 player direction is absent from the source-qualified direction map")
+            blocked_cell = (cell_x + vector[0], cell_y + vector[1])
+            if blocked_cell in hazards:
+                self.hazard_events.append({"ordinal": ordinal, "cell": [cell_x, cell_y],
+                    "step": step, "player_direction": player_dir,
+                    "blocked_cell": list(blocked_cell), "action": "release-before-skull-cell",
+                    "target_memory_write": False})
+                self.release(ordinal, "source-qualified-in-flight-skull-exclusion")
+                return
         if self.held is not None:
+            if step == 0 and self._next_cell_is_blocked(
+                    self.direction, cell_x, cell_y, hazards):
+                self.release(ordinal, "source-qualified-center-skull-exclusion")
+                self.direction = (self.direction + 1) % 4
+                self._press_safe_direction(ordinal, cell_x, cell_y, hazards)
+                return
             pose = (cell_x, cell_y, step)
             if pose != self.last_pose:
                 self.last_pose = pose
@@ -2152,14 +2283,7 @@ class InputOnlySearch:
                 return
         if step != 0:
             return
-        matrix_key = self.matrix_bindings[self.direction]
-        key = self.bindings[self.direction]
-        self.held = key
-        self.held_matrix = matrix_key
-        self.origin = (cell_x, cell_y)
-        self.last_pose = (cell_x, cell_y, step)
-        self.age_stops = 0
-        self._inject(key, matrix_key, "press", ordinal, "hold-until-source-qualified-progress-or-blockage")
+        self._press_safe_direction(ordinal, cell_x, cell_y, hazards)
 
 
 def decode_contact_search_state(low: bytes, symbols: dict[str, int]) -> dict[str, int]:
@@ -2179,8 +2303,62 @@ def decode_contact_search_state(low: bytes, symbols: dict[str, int]) -> dict[str
         "enemy_timer": byte("ENEMY_TIMER"),
         "enemy_active": byte("ENEMY_ACTIVE"),
         "enemy_released": byte("ENEMY_RELEASED"),
+        "entity_count": byte("ENTITY_COUNT"),
+        "stage": byte("STAGE"),
         "freeze_timer": int.from_bytes(low[freeze_address:freeze_address + 2], "big"),
     }
+
+
+def decode_skull_hazard_cells(raw: bytes, entity_count: int) -> list[tuple[int, int]]:
+    """Decode the bounded live entity table and return active skull cells."""
+    if type(entity_count) is not int or not 1 <= entity_count <= 12:
+        raise GuardFailure("live entity count is outside the source table bound 1..12")
+    if type(raw) is not bytes or len(raw) != entity_count * 4 or len(raw) > 48:
+        raise GuardFailure("live entity snapshot does not match its bounded four-byte record count")
+    skull_cells: list[tuple[int, int]] = []
+    for offset in range(0, len(raw), 4):
+        cell_x, cell_y, entity_type, _variant = raw[offset:offset + 4]
+        if cell_x >= 24 or cell_y >= 24:
+            raise GuardFailure("live entity coordinate is outside the 24-by-24 maze")
+        if entity_type == 1:
+            skull_cells.append((cell_x, cell_y))
+    return skull_cells
+
+
+def ordinary_enemy_release_marker(state: dict[str, Any], baseline_released: int) -> dict[str, Any] | None:
+    """Recognize only a released active record outside the source-defined nest."""
+    raw = state.get("enemy_raw")
+    if type(raw) is not bytes or len(raw) != 32:
+        raise GuardFailure("ordinary enemy release marker requires all four cached actor records")
+    active_count = state.get("enemy_active")
+    released = state.get("enemy_released")
+    if (type(active_count) is not int or not 0 <= active_count <= 4 or
+            type(released) is not int or type(baseline_released) is not int or
+            not 0 <= released <= 0xFF or not 0 <= baseline_released <= 0xFF):
+        raise GuardFailure("ordinary enemy release counters are malformed")
+    records = [raw[offset:offset + 8] for offset in range(0, 32, 8)]
+    active_records = []
+    for index, record in enumerate(records):
+        tag = record[0]
+        if tag:
+            if (tag & 0x0F) != 1 or tag & 0x80:
+                raise GuardFailure("ordinary enemy actor type/occupied tag is not source-encoded")
+            if record[4] >= 24 or record[5] >= 24 or record[6] not in (0, 1):
+                raise GuardFailure("ordinary enemy actor cell or saved-background flag is malformed")
+            active_records.append((index, record))
+    if len(active_records) != active_count:
+        raise GuardFailure("ordinary enemy active counter differs from its four source records")
+    if released <= baseline_released or active_count == 0:
+        return None
+    for index, record in active_records:
+        cell = (record[4], record[5])
+        if cell != (12, 12) and record[6] == 1:
+            return {"enemy_released_baseline": baseline_released,
+                "enemy_released_observed": released, "enemy_active": active_count,
+                "record_index": index, "cell": list(cell),
+                "outside_nest": True, "saved_background_valid": True,
+                "marker_kind": "source-qualified-ordinary-enemy-release-roam"}
+    return None
 
 
 class LiveRuntimeObserver:
@@ -2279,6 +2457,11 @@ class LiveRuntimeObserver:
         self.pressed: set[int] = set()
         self.bindings: bytes | None = None
         self.search: InputOnlySearch | None = None
+        self.contact_input_enabled = False
+        self.contact_hazard_snapshot: dict[str, Any] | None = None
+        self.ordinary_release_context: dict[str, Any] | None = None
+        self.ordinary_release_marker: dict[str, Any] | None = None
+        self.ordinary_release_timeout_context: dict[str, Any] | None = None
         self.start_state = "coin-not-sent"
         self.cold_credited_start = False
         self.credit_baseline: int | None = None
@@ -2300,6 +2483,7 @@ class LiveRuntimeObserver:
         self.cue_stream_active = {6: False, 13: False}
         self.cue_entry_owner: dict[int, int | None] = {}
         self.cue_start_ordinal: dict[int, int] = {}
+        self.cue_audible_proofs: dict[int, dict[str, Any]] = {}
         self.lifecycle_cue13_output = False
         self.cue_terminal: dict[int, dict[str, Any]] = {}
         self.quiet_tail: dict[int, dict[str, Any]] = {}
@@ -2912,10 +3096,83 @@ class LiveRuntimeObserver:
             "enemy_sha256": sha(enemy_raw)}
 
     def _audio_snapshot(self) -> dict[str, Any]:
-        page = monitor_bytes(self.client, PAR5, 1)[0] & 0x3F
+        raw_par = monitor_bytes(self.client, PAR5, 1)[0]
+        page = raw_par & 0x3F
         if page != 0x3D:
             raise GuardFailure(f"live PAR5 page ${page:02X} does not map candidate audio page $3D")
-        return live_audio_snapshot(self.client, self.audio, page)
+        snapshot = live_audio_snapshot(self.client, self.audio, page)
+        snapshot["par5_raw"] = raw_par
+        snapshot["par5_masked"] = page
+        return snapshot
+
+    def _qualify_cue13_quiet_wait(self, snapshot: dict[str, Any],
+                                  slot0: dict[str, Any], wait: dict[str, Any],
+                                  audible_proof: dict[str, Any],
+                                  start_ordinal: int, entry_owner: int) -> dict[str, Any]:
+        """Qualify only a source-authored muted WAIT after real output in this generation."""
+        counts = {name: snapshot.get(name) for name in (
+            "music_count", "effect_queue_count", "credit_pending", "mix_count", "published_busy")}
+        if (snapshot.get("par5_masked") != 0x3D or
+                type(snapshot.get("par5_raw")) is not int or
+                snapshot["par5_raw"] & 0x3F != 0x3D):
+            raise GuardFailure("quiet cue13 WAIT lacks the strict live page-$3D mapping")
+        if (len(snapshot.get("slots", [])) != 4 or slot0.get("id") != 13 or
+                slot0.get("policy") != 0xD3 or slot0.get("priority") != 6 or
+                snapshot.get("best_slot") != 0 or snapshot.get("best_priority") != 6 or
+                any(slot.get("id") != 0xFF for slot in snapshot["slots"][1:])):
+            raise GuardFailure("quiet cue13 WAIT does not retain exclusive slot-zero ownership")
+        queue = snapshot.get("music_queue")
+        if type(queue) is not bytes or len(queue) != 8:
+            raise GuardFailure("quiet cue13 WAIT music queue is not the exact eight-byte source buffer")
+        expected_counts = {"music_count": 0, "effect_queue_count": 0,
+            "credit_pending": 0, "mix_count": 0, "published_busy": 1}
+        if any(type(counts[name]) is not int or counts[name] != value
+               for name, value in expected_counts.items()):
+            raise GuardFailure("quiet cue13 WAIT has active queued work or lacks published busy one")
+        owner = self.current_entry.get("index") if isinstance(self.current_entry, dict) else None
+        if (type(owner) is not int or owner != entry_owner or
+                self.cue_stream_active.get(13) is not True or
+                self.cue_start_ordinal.get(13) != start_ordinal or
+                self.cue_entry_owner.get(13) != entry_owner or
+                audible_proof.get("cue_id") != 13 or
+                audible_proof.get("start_ordinal") != start_ordinal or
+                audible_proof.get("entry") != entry_owner or
+                type(audible_proof.get("first_audible_store_ordinal")) is not int or
+                type(audible_proof.get("post_psg_busy_ordinal")) is not int or
+                audible_proof.get("post_psg_busy") != 1):
+            raise GuardFailure("quiet cue13 WAIT lacks prior audible output in the live current generation")
+        prefix_hex = wait.get("prefix_span_hex")
+        prefix = bytes.fromhex(prefix_hex) if isinstance(prefix_hex, str) else b""
+        stream_start = wait.get("stream_start_offset")
+        cursor = wait.get("cursor_offset")
+        if (type(stream_start) is not int or type(cursor) is not int or
+                not 0 < len(prefix) <= 0x0200 or cursor - stream_start != len(prefix) or
+                prefix != self.audio_image[stream_start:cursor]):
+            raise GuardFailure("quiet cue13 WAIT emitted source span is invalid or exceeds its bound")
+        slot_periods = b"".join(int(period).to_bytes(2, "little")
+                                 for period in slot0.get("periods", []))
+        slot_attenuation = bytes(slot0.get("attenuation", []))
+        slot_noise = bytes((slot0.get("noise", -1), slot0.get("noise_attenuation", -1)))
+        if (wait.get("prefix_period_bytes_hex") != slot_periods.hex() or
+                wait.get("prefix_attenuation_hex") != slot_attenuation.hex() or
+                wait.get("prefix_noise_hex") != slot_noise.hex() or
+                any(value != 15 for value in slot_attenuation) or
+                slot_noise[1] != 15):
+            raise GuardFailure("cue13 slot voice state differs from the emitted muted-note/WAIT prefix")
+        cpu = monitor_bytes(self.client, 0xA000 + stream_start, len(prefix))
+        physical = physical_page_read(self.client, 0x3D, stream_start, len(prefix))
+        if cpu != prefix or physical != prefix:
+            raise GuardFailure("quiet cue13 authored muted-note/WAIT bytes differ across CPU, physical, and staged images")
+        return {"stream_span_offset": stream_start, "stream_span_length": len(prefix),
+            "stream_span_hex": prefix.hex(), "stream_span_sha256": sha(prefix),
+            "cpu_span_sha256": sha(cpu), "physical_page": 0x3D,
+            "physical_span_sha256": sha(physical), "cpu_physical_staged_match": True,
+            "emitted_voice_state_matches_slot": True, "counts": counts,
+            "published_busy": 1, "current_entry_owner": owner,
+            "cue_start_ordinal": start_ordinal,
+            "prior_audible_store_ordinal": audible_proof["first_audible_store_ordinal"],
+            "prior_audible_busy_ordinal": audible_proof["post_psg_busy_ordinal"],
+            "authored_wait": wait}
 
     def _audio_mix_rejection_context(self, stop: MonitorStop,
                                      qualification: dict[str, Any], snapshot: dict[str, Any],
@@ -3334,7 +3591,13 @@ class LiveRuntimeObserver:
                 return
             self.credit_baseline = state["credits"]
             self.bindings = monitor_bytes(self.client, 0x0287, 5)
-            self.search = InputOnlySearch(self.client, self.bindings)
+            source_directions = (self.main["DIR_NORTH"], self.main["DIR_SOUTH"],
+                self.main["DIR_WEST"], self.main["DIR_EAST"])
+            direction_vectors = {self.main["DIR_NORTH"]: (0, -1),
+                self.main["DIR_EAST"]: (1, 0), self.main["DIR_SOUTH"]: (0, 1),
+                self.main["DIR_WEST"]: (-1, 0)}
+            self.search = InputOnlySearch(self.client, self.bindings,
+                source_directions, direction_vectors)
             self._press(COIN5_DSCAN_KEY, "press", stop, "cold-credit-5",
                         matrix_key=COIN5_MATRIX_KEY)
             self.start_state = "coin-held"
@@ -3407,8 +3670,42 @@ class LiveRuntimeObserver:
         cue = slot0["id"]
         if cue in (6, 13):
             policy, priority = (0xB3, 5) if cue == 6 else (0xD3, 6)
+            quiet_wait = None
+            if cue == 13:
+                start, terminator = (self.boundaries["cue13"]["stream_start"],
+                                     self.boundaries["cue13"]["terminator_address"])
+                try:
+                    quiet_wait = current_authored_wait(self.audio_image, start - 0xA000,
+                        terminator - 0xA000, slot0["stream_pointer"] - 0xA000,
+                        slot0["wait"])
+                except GuardFailure:
+                    quiet_wait = None
+            start_ordinal = self.cue_start_ordinal.get(cue)
+            entry_owner = self.cue_entry_owner.get(cue)
+            audible_proof = self.cue_audible_proofs.get(cue)
+            same_generation_audible = (cue == 13 and self.cue_stream_active.get(cue) is True and
+                type(start_ordinal) is int and isinstance(audible_proof, dict) and
+                audible_proof.get("cue_id") == cue and
+                audible_proof.get("start_ordinal") == start_ordinal and
+                audible_proof.get("entry") == entry_owner and
+                type(audible_proof.get("first_audible_store_ordinal")) is int and
+                type(audible_proof.get("post_psg_busy_ordinal")) is int and
+                audible_proof.get("post_psg_busy") == 1 and
+                audible_proof["post_psg_busy_ordinal"] < stop.ordinal)
+            quiet_wait_proof = None
+            allow_quiet_wait = False
             try:
-                model = verify_live_music_mix(snapshot, cue, policy, priority)
+                candidate_model = model_exclusive_mix(snapshot["slots"], cue)
+                silent_model = (candidate_model["audible_voice_count"] == 0 and
+                                not candidate_model["channel_sources"])
+                if (cue == 13 and silent_model and quiet_wait is not None and
+                        same_generation_audible and type(entry_owner) is int and
+                        type(start_ordinal) is int):
+                    quiet_wait_proof = self._qualify_cue13_quiet_wait(snapshot, slot0,
+                        quiet_wait, audible_proof, start_ordinal, entry_owner)
+                    allow_quiet_wait = True
+                model = verify_live_music_mix(snapshot, cue, policy, priority,
+                    allow_authored_quiet_wait=allow_quiet_wait)
             except GuardFailure as exc:
                 try:
                     context = self._audio_mix_rejection_context(
@@ -3439,6 +3736,13 @@ class LiveRuntimeObserver:
                         self.errors.append("cue13-admission-without-genuine-gameplay-contact-context")
                         if self.current_entry is not None:
                             self.entry_contact_violation = True
+            if model["audible_voice_count"] == 0:
+                if not allow_quiet_wait or quiet_wait is None or not same_generation_audible:
+                    raise GuardFailure("silent cue13 service lacks its same-generation authored-WAIT proof")
+                self._record(stop, "cue13-authored-silent-wait-service", qualification,
+                    cue_id=cue, cue_start_ordinal=start_ordinal, entry_owner=entry_owner,
+                    authored_wait=quiet_wait, quiet_wait_proof=quiet_wait_proof,
+                    prior_audible_proof=audible_proof, quiet_mix_matches_model=True)
             if cue == 6:
                 state = self._state()
                 self.cue6_services += 1
@@ -3453,7 +3757,8 @@ class LiveRuntimeObserver:
                 "model": model, "transaction": PSGTransaction(model, snapshot),
                 "first_store": None, "first_audible": None, "first_audible_frame": None,
                 "audible_count": 0, "mute_store": None,
-                "entry": self.cue_entry_owner.get(cue)}
+                "entry": self.cue_entry_owner.get(cue),
+                "generation_start_ordinal": self.cue_start_ordinal.get(cue)}
             return
         if self.pending_terminal_cues:
             cue = max(self.pending_terminal_cues,
@@ -3623,6 +3928,15 @@ class LiveRuntimeObserver:
                 raise GuardFailure("mixer transaction has no cue identity")
             if tx["first_audible"] is not None:
                 self.cue_output[cue] = True
+                self.cue_audible_proofs[cue] = {
+                    "cue_id": cue,
+                    "start_ordinal": tx.get("generation_start_ordinal"),
+                    "entry": tx.get("entry"),
+                    "first_audible_store_ordinal": tx["first_audible"],
+                    "post_psg_busy_ordinal": stop.ordinal,
+                    "post_psg_busy": busy,
+                    "actual_audible_transaction": True,
+                }
                 if cue == 13 and self.lifecycle is not None:
                     self.lifecycle_cue13_output = True
                 if cue == 6 and tx["entry"] in self.proofs:
@@ -4127,6 +4441,8 @@ class LiveRuntimeObserver:
         self.last_runtime_state_stop = dict(getattr(self, "current_stop_context", None) or {
             "phase": stop.phase, "phase_deadline_seconds": PHASE_SECONDS,
             "pc": stop.pc, "bp_id": stop.bp_id, "ordinal": stop.ordinal})
+        self.last_runtime_state_stop["source_staged_live_match"] = (
+            qualification.get("source_staged_live_match") is True)
         if self.current_entry is not None and state["entry"] == 4:
             self._guard_first_maze_entry(stop, qualification, state)
         self._record(stop, "mainloop", qualification, entry=state["entry"], death=state["death"],
@@ -4151,6 +4467,25 @@ class LiveRuntimeObserver:
         if self.current_entry is not None and state["entry"] != 0 and state["death"] != 0:
             self.errors.append("death-state-entered-during-life-entry")
             self.entry_contact_violation = True
+        if (getattr(self, "scenario", None) == "natural" and
+                getattr(self, "ordinary_release_context", None) is not None and
+                getattr(self, "ordinary_release_marker", None) is None and
+                stop.phase == "ordinary-enemy-release-roam"):
+            if (qualification.get("source_staged_live_match") is True and
+                    state["entry"] == 0 and state["death"] == 0 and not self.pressed and
+                    (self.search is None or self.search.held is None)):
+                marker = ordinary_enemy_release_marker(
+                    state, self.ordinary_release_context["enemy_released_baseline"])
+                if marker is not None:
+                    self.ordinary_release_marker = {**marker,
+                        "phase": stop.phase, "event_ordinal": stop.ordinal,
+                        "stop_pc": stop.pc, "source_staged_live_match": True,
+                        "neutral_input": True, "stage": state["stage"],
+                        "box_timer": state["box_timer"],
+                        "enemy_timer": state["enemy_timer"],
+                        "freeze_timer": state["freeze_timer"]}
+                    self._record(stop, "ordinary-enemy-release-roam-marker", qualification,
+                        **self.ordinary_release_marker)
         if self.lifecycle is not None:
             previous = self._previous_state
             if state["entry"] == 0 and state["death"] == 1 and (previous is None or previous["death"] != 1):
@@ -4176,13 +4511,22 @@ class LiveRuntimeObserver:
             else:
                 self.errors.append("player-or-enemy-mutated-after-entry-release")
             self.release_snapshot = None
-        if self.search is not None and self.cold_credited_start:
+        if (self.search is not None and self.cold_credited_start and
+                (getattr(self, "scenario", None) != "natural" or
+                 getattr(self, "contact_input_enabled", False))):
             contact_target = 2 if self.scenario == "natural" else 1
             if self.scenario in ("front-first", "music-first"):
                 contact_target = 2
             if self.contact_count < contact_target:
+                hazard_cells: set[tuple[int, int]] = set()
+                if self.scenario == "natural":
+                    self.contact_hazard_snapshot = self._capture_contact_hazard_snapshot(
+                        stop, qualification, state)
+                    hazard_cells = {tuple(cell) for cell in
+                        self.contact_hazard_snapshot["skull_cells"]}
                 self.search.at_gameplay_center(stop.ordinal, state["entry"], state["death"],
-                    state["step"], state["cell_x"], state["cell_y"])
+                    state["step"], state["cell_x"], state["cell_y"],
+                    hazard_cells, state["player_dir"])
             else:
                 self.search.release(stop.ordinal, "approved-contact-target-reached")
         if state["death"] != 0 and self.search is not None:
@@ -4190,6 +4534,47 @@ class LiveRuntimeObserver:
         if self.fixture is not None and self.fixture_result is None:
             self._maybe_write_fixture(stop, state, qualification)
         self._previous_state = state
+
+    def _capture_contact_hazard_snapshot(self, stop: MonitorStop,
+                                         qualification: dict[str, Any],
+                                         state: dict[str, Any]) -> dict[str, Any]:
+        """Read the bounded source-owned entity table only at a qualified natural mainloop."""
+        if (stop.pc != self.main["mainloop"] or stop.phase != "natural-contact-search" or
+                qualification.get("source_staged_live_match") is not True or
+                state.get("entry") != 0 or state.get("death") != 0):
+            raise GuardFailure("natural skull filter requires a qualified gameplay mainloop stop")
+        table = self.main.get("ENTITY_TABLE")
+        if table != 0xA380:
+            raise GuardFailure("live entity table map differs from source-qualified $A380")
+        raw_par = monitor_bytes(self.client, PAR5, 1)[0]
+        masked_par = raw_par & 0x3F
+        if masked_par != 0x34:
+            raise GuardFailure(f"natural entity table requires PAR5=$34, observed ${masked_par:02X}")
+        count = state.get("entity_count")
+        if type(count) is not int or not 1 <= count <= 12:
+            raise GuardFailure("natural entity count is outside the source table bound 1..12")
+        raw = physical_page_read(self.client, 0x34, table - 0xA000, count * 4)
+        skulls = decode_skull_hazard_cells(raw, count)
+        return {"phase": stop.phase, "event_ordinal": stop.ordinal,
+            "stop_pc": stop.pc, "source_staged_live_match": True,
+            "mapping": {"par5_raw": raw_par, "par5_masked": masked_par,
+                "physical_page": 0x34, "entity_table_address": table,
+                "physical_offset": table - 0xA000},
+            "entity_count": count, "stage": state["stage"],
+            "raw_entities": byte_evidence(raw),
+            "skull_cells": [list(cell) for cell in skulls],
+            "player_cell": [state["cell_x"], state["cell_y"]],
+            "player_step": state["step"], "player_dir": state["player_dir"],
+            "target_memory_write": False}
+
+    def _natural_entry_release_ready(self) -> bool:
+        if self.scenario != "natural":
+            return True
+        entry = self.current_entry
+        witness = entry.get("held_input_challenge") if isinstance(entry, dict) else None
+        return (isinstance(witness, dict) and witness.get("pass") is True and
+            type(witness.get("release_ordinal")) is int and not self.pressed and
+            (self.search is None or self.search.held is None))
 
     def _natural_contact_search_context(self, phase: dict[str, Any]) -> dict[str, Any]:
         """Project the last cached search state without issuing monitor reads."""
@@ -4199,7 +4584,7 @@ class LiveRuntimeObserver:
             fields = ("entry", "death", "timer", "lives", "frames", "player_fb",
                       "cell_x", "cell_y", "step", "dir", "want", "player_dir",
                       "player_want", "box_timer", "enemy_timer", "enemy_active",
-                      "enemy_released", "freeze_timer", "enemy_sha256")
+                      "enemy_released", "entity_count", "stage", "freeze_timer", "enemy_sha256")
             last_state = {key: state[key] for key in fields if key in state}
             enemy_raw = state.get("enemy_raw")
             if isinstance(enemy_raw, (bytes, bytearray)):
@@ -4208,6 +4593,7 @@ class LiveRuntimeObserver:
                     "length": len(enemy_bytes), "sha256": sha(enemy_bytes)}
         search = getattr(self, "search", None)
         actions = list(getattr(search, "actions", [])) if search is not None else []
+        hazard_events = list(getattr(search, "hazard_events", [])) if search is not None else []
         entries = list(getattr(self, "entries", []))[-3:]
         entry_fields = ("index", "seed_ordinal", "marker_call_ordinal", "state2_ordinal",
             "lives_before_marker_body", "seed_lives", "seed_frame", "seed_death_timer",
@@ -4268,7 +4654,14 @@ class LiveRuntimeObserver:
                 "no_progress_stops": getattr(search, "age_stops", None),
                 "action_count": len(actions), "action_tail_limit": 64,
                 "actions_tail": json_safe(actions[-64:]),
+                "hazard_event_count": len(hazard_events),
+                "hazard_event_tail_limit": 64,
+                "hazard_events_tail": json_safe(hazard_events[-64:]),
             },
+            "contact_input_enabled": getattr(self, "contact_input_enabled", False),
+            "cached_hazard_snapshot": json_safe(getattr(self, "contact_hazard_snapshot", None)),
+            "ordinary_release_context": json_safe(getattr(self, "ordinary_release_context", None)),
+            "ordinary_release_marker": json_safe(getattr(self, "ordinary_release_marker", None)),
             "input_event_count": len(getattr(self, "input_events", [])),
             "input_events_tail_limit": 64,
             "input_events_tail": json_safe(list(getattr(self, "input_events", []))[-64:]),
@@ -4389,6 +4782,12 @@ class LiveRuntimeObserver:
 
     def _final_entry_wait(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
+        self.last_runtime_state = state
+        self.last_runtime_state_stop = dict(getattr(self, "current_stop_context", None) or {
+            "phase": stop.phase, "phase_deadline_seconds": PHASE_SECONDS,
+            "pc": stop.pc, "bp_id": stop.bp_id, "ordinal": stop.ordinal})
+        self.last_runtime_state_stop["source_staged_live_match"] = (
+            qualification.get("source_staged_live_match") is True)
         if self.current_entry is None or state["entry"] != 4 or state["cell_y"] != 18:
             self._record(stop, "unexpected-final-entry-wait-state", qualification,
                          entry=state["entry"], cell_y=state["cell_y"])
@@ -4461,10 +4860,16 @@ class LiveRuntimeObserver:
                 self.failure_context["stop"] = stop_context
             self.failure_context["error"] = f"{type(exc).__name__}: {exc}"
             if (getattr(self, "scenario", None) == "natural" and
-                    stop_context["phase"] == "natural-contact-search"):
-                self.failure_context["natural_contact_search"] = self._natural_contact_search_context({
+                    stop_context["phase"] in ("natural-contact-search",
+                                               "ordinary-enemy-release-roam")):
+                context = self._natural_contact_search_context({
                     "name": stop_context["phase"], "status": "dispatch-failure",
                     "deadline_seconds": PHASE_SECONDS})
+                if stop_context["phase"] == "ordinary-enemy-release-roam":
+                    self.ordinary_release_timeout_context = context
+                else:
+                    self.contact_search_timeout_context = context
+                self.failure_context["natural_route_context"] = context
             raise
 
     def _dispatch_qualified(self, stop: MonitorStop) -> None:
@@ -4537,8 +4942,12 @@ class LiveRuntimeObserver:
                         "observation_timeouts": self.pump.consecutive_timeouts,
                         "timeout_meaning": "the required event was not observed across two bounded waits; stop and reassess"}
                     self.phases.append(phase)
-                    if name == "natural-contact-search" and self.scenario == "natural":
-                        self.contact_search_timeout_context = self._natural_contact_search_context(phase)
+                    if name in ("natural-contact-search", "ordinary-enemy-release-roam") and self.scenario == "natural":
+                        context = self._natural_contact_search_context(phase)
+                        if name == "ordinary-enemy-release-roam":
+                            self.ordinary_release_timeout_context = context
+                        else:
+                            self.contact_search_timeout_context = context
                     return False
                 continue
             self.client._bug117_phase_deadline = deadline
@@ -4551,8 +4960,12 @@ class LiveRuntimeObserver:
                     "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
                     "timeout_meaning": "monitor event processing exhausted the named phase deadline"}
                 self.phases.append(phase)
-                if name == "natural-contact-search" and self.scenario == "natural":
-                    self.contact_search_timeout_context = self._natural_contact_search_context(phase)
+                if name in ("natural-contact-search", "ordinary-enemy-release-roam") and self.scenario == "natural":
+                    context = self._natural_contact_search_context(phase)
+                    if name == "ordinary-enemy-release-roam":
+                        self.ordinary_release_timeout_context = context
+                    else:
+                        self.contact_search_timeout_context = context
                 return False
             if predicate():
                 self.phases.append({"name": name, "status": "marker-observed",
@@ -4563,13 +4976,19 @@ class LiveRuntimeObserver:
             "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
             "timeout_meaning": "required event was absent within the named phase"}
         self.phases.append(phase)
-        if name == "natural-contact-search" and self.scenario == "natural":
-            self.contact_search_timeout_context = self._natural_contact_search_context(phase)
+        if name in ("natural-contact-search", "ordinary-enemy-release-roam") and self.scenario == "natural":
+            context = self._natural_contact_search_context(phase)
+            if name == "ordinary-enemy-release-roam":
+                self.ordinary_release_timeout_context = context
+            else:
+                self.contact_search_timeout_context = context
         return False
 
     def _phase_initial(self, require_visible: bool) -> bool:
         def ready() -> bool:
             if self.current_entry is None or not self.cue_output[6]:
+                return False
+            if not self._natural_entry_release_ready():
                 return False
             if require_visible:
                 return self.current_entry.get("first_maze_visible_frame") is not None
@@ -4580,7 +4999,49 @@ class LiveRuntimeObserver:
         return self._phase("fixture-boundary", lambda: self.fixture_result is not None)
 
     def _phase_natural_contact(self, target: int) -> bool:
-        return self._phase("natural-contact-search", lambda: self.contact_count >= target)
+        if self.scenario == "natural" and not self._natural_entry_release_ready():
+            self.errors.append("natural contact phase began before the held-input release join")
+            return False
+        self.contact_input_enabled = True
+        if self.scenario == "natural":
+            self.contact_hazard_snapshot = None
+        try:
+            return self._phase("natural-contact-search", lambda: self.contact_count >= target)
+        finally:
+            self.contact_input_enabled = False
+            if self.contact_count >= target and self.search is not None:
+                self.search.release(max(1, self.pump.ordinal), "approved-contact-target-reached")
+
+    def _phase_ordinary_enemy_release_roam(self) -> bool:
+        if self.scenario != "natural":
+            return True
+        if not self._natural_entry_release_ready():
+            self.errors.append("ordinary enemy release phase began before the held-input release join")
+            return False
+        state = self.last_runtime_state
+        stop = self.last_runtime_state_stop
+        if (not isinstance(state, dict) or not isinstance(stop, dict) or
+                stop.get("source_staged_live_match") is not True or
+                type(state.get("enemy_released")) is not int or
+                not 0 <= state["enemy_released"] <= 0xFF):
+            self.errors.append("ordinary enemy release phase lacks a cached qualified source state")
+            return False
+        if self.pressed or (self.search is not None and self.search.held is not None):
+            self.errors.append("ordinary enemy release phase did not start with neutral input")
+            return False
+        self.contact_input_enabled = False
+        self.ordinary_release_marker = None
+        self.ordinary_release_timeout_context = None
+        self.ordinary_release_context = {
+            "entry_generation": self.current_entry.get("index"),
+            "enemy_released_baseline": state["enemy_released"],
+            "start_ordinal": stop.get("ordinal"),
+            "start_cell": [state.get("cell_x"), state.get("cell_y")],
+            "start_enemy_active": state.get("enemy_active"),
+            "neutral_input": True,
+            "target_memory_write": False}
+        return self._phase("ordinary-enemy-release-roam",
+            lambda: self.ordinary_release_marker is not None)
 
     def _phase_death_blank(self) -> bool:
         return self._phase("death-animation-blank", lambda: self.lifecycle is not None and
@@ -4592,7 +5053,8 @@ class LiveRuntimeObserver:
 
     def _phase_replacement(self, index: int) -> bool:
         return self._phase("replacement-entry", lambda: self.current_entry is not None and
-            self.current_entry["index"] == index and self.current_entry.get("first_maze_visible_frame") is not None)
+            self.current_entry["index"] == index and self.current_entry.get("first_maze_visible_frame") is not None and
+            self._natural_entry_release_ready())
 
     def _phase_audio_and_release(self) -> bool:
         if not self._phase("audio-cue6", lambda: self.cue_output[6]):
@@ -4628,6 +5090,8 @@ class LiveRuntimeObserver:
                 return False
             return self._phase_audio_and_release()
         for contact in (1, 2):
+            if self.scenario == "natural" and not self._phase_ordinary_enemy_release_roam():
+                return False
             if not self._phase_natural_contact(contact):
                 return False
             if not self._phase_death_blank() or not self._phase_cue13_idle():
@@ -4694,6 +5158,12 @@ class LiveRuntimeObserver:
                 all(entry.get("seed_verified") is True and entry.get("released") is True and
                     entry.get("input_isolated_at_seed") is True for entry in self.entries[:3]) and
                 held_input_status["pass"] is True and
+                sum(phase.get("name") == "ordinary-enemy-release-roam" and
+                    phase.get("status") == "marker-observed" for phase in self.phases) == 2 and
+                all(marker.get("source_staged_live_match") is True and
+                    marker.get("neutral_input") is True and marker.get("outside_nest") is True and
+                    marker.get("saved_background_valid") is True for marker in
+                    ([self.ordinary_release_marker] if self.ordinary_release_marker is not None else [])) and
                 all_ledgers_pass and all_lifecycles_pass and not self.errors and
                 not self.entry_contact_violation)
         elif self.scenario == "prior-music":
@@ -4730,6 +5200,13 @@ class LiveRuntimeObserver:
                 "scenario_scope": "natural only; forced fixture routes do not run this challenge",
                 "witnesses": [entry.get("held_input_challenge") for entry in self.entries
                               if isinstance(entry.get("held_input_challenge"), dict)]},
+            "ordinary_enemy_release": {
+                "context": self.ordinary_release_context,
+                "marker": self.ordinary_release_marker,
+                "timeout_context": self.ordinary_release_timeout_context,
+                "source_qualified": (self.ordinary_release_marker or {}).get(
+                    "source_staged_live_match") is True,
+                "target_memory_write_count": self.write_count},
             "offscreen_remaining_death_timer": offscreen_remainders,
             "seed_death_timer": [x.get("seed_death_timer") for x in self.entries],
             "cue_relative_first_maze_visibility_frames": relative,
@@ -4746,6 +5223,7 @@ class LiveRuntimeObserver:
             "front_pose_count": len(self.pose_hashes), "front_pose_sha256": self.pose_hashes,
             "phases": self.phases, "input_events": self.input_events,
             "natural_contact_search_context": self.contact_search_timeout_context,
+            "ordinary_enemy_release_context": self.ordinary_release_timeout_context,
             "cold_credit_evidence": self.credit_evidence,
             "monitor_stop_timeouts": self.pump.timeout_records, "errors": self.errors,
             "entry_contact_violation": self.entry_contact_violation,
@@ -4804,6 +5282,9 @@ def run_live_capture(binary: Path, build: Path, output: Path, scenario: str,
             result["failure_context"] = exc.failure_context
         if observer is not None and observer.contact_search_timeout_context is not None:
             result["natural_contact_search_context"] = observer.contact_search_timeout_context
+        if (observer is not None and
+                getattr(observer, "ordinary_release_timeout_context", None) is not None):
+            result["ordinary_enemy_release_context"] = observer.ordinary_release_timeout_context
     finally:
         if observer is not None and client is not None:
             try:
@@ -5035,16 +5516,18 @@ def self_test() -> dict[str, Any]:
 
     search_symbols = {"PLAYER_DIR": 0x06, "PLAYER_WANT": 0x0F,
         "BOX_TIMER": 0x4A, "ENEMY_TIMER": 0x55, "ENEMY_ACTIVE": 0x58,
-        "ENEMY_RELEASED": 0x59, "FREEZE_TIMER": 0x5B}
+        "ENEMY_RELEASED": 0x59, "ENTITY_COUNT": 0x32, "STAGE": 0x31,
+        "FREEZE_TIMER": 0x5B}
     low_snapshot = bytearray(0x300)
     for name, value in (("PLAYER_DIR", 3), ("PLAYER_WANT", 2), ("BOX_TIMER", 7),
-                        ("ENEMY_TIMER", 19), ("ENEMY_ACTIVE", 4), ("ENEMY_RELEASED", 11)):
+                        ("ENEMY_TIMER", 19), ("ENEMY_ACTIVE", 4), ("ENEMY_RELEASED", 11),
+                        ("ENTITY_COUNT", 12), ("STAGE", 1)):
         low_snapshot[search_symbols[name]] = value
     low_snapshot[0x5B:0x5D] = bytes.fromhex("1234")
     search_state = decode_contact_search_state(bytes(low_snapshot), search_symbols)
     assert search_state == {"player_dir": 3, "player_want": 2, "box_timer": 7,
         "enemy_timer": 19, "enemy_active": 4, "enemy_released": 11,
-        "freeze_timer": 0x1234}
+        "entity_count": 12, "stage": 1, "freeze_timer": 0x1234}
     tested += 1
     try:
         decode_contact_search_state(bytes(0x100), search_symbols)
@@ -5053,6 +5536,279 @@ def self_test() -> dict[str, Any]:
         tested += 1
     else:
         raise AssertionError("contact search decoded an incomplete low-RAM snapshot")
+
+    entity_bytes = bytes((4, 5, 1, 0, 8, 9, 2, 0, 12, 12, 0, 0))
+    assert decode_skull_hazard_cells(entity_bytes, 3) == [(4, 5)]
+    tested += 1
+    for bad_entities, bad_count in ((entity_bytes[:-1], 3), (bytes((24, 0, 1, 0)), 1),
+                                    (bytes(4), 0), (bytes(52), 13)):
+        try:
+            decode_skull_hazard_cells(bad_entities, bad_count)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError("malformed or unbounded natural skull table passed")
+
+    ordinary_enemy_bytes = bytearray(32)
+    ordinary_enemy_bytes[0:8] = bytes((0x11, 0x4D, 0xEC, 0, 13, 12, 1, 0))
+    release_state = {"enemy_raw": bytes(ordinary_enemy_bytes), "enemy_active": 1,
+        "enemy_released": 1}
+    release_marker = ordinary_enemy_release_marker(release_state, 0)
+    assert release_marker is not None and release_marker["cell"] == [13, 12]
+    assert release_marker["saved_background_valid"] is True
+    tested += 1
+    for bad_state, baseline in (
+            ({**release_state, "enemy_released": 0}, 0),
+            ({**release_state, "enemy_raw": bytes((0x11, 0x4D, 0xEC, 0, 12, 12, 1, 0)) + bytes(24)}, 0),
+            ({**release_state, "enemy_raw": bytes((0x11, 0x4D, 0xEC, 0, 13, 12, 0, 0)) + bytes(24)}, 0),
+            ({**release_state, "enemy_active": 2}, 0),
+            ({**release_state, "enemy_raw": bytes((0x12, 0x4D, 0xEC, 0, 13, 12, 1, 0)) + bytes(24)}, 0),
+            ({**release_state, "enemy_raw": bytes((0x11, 0x4D, 0xEC, 0, 24, 12, 1, 0)) + bytes(24)}, 0),
+    ):
+        try:
+            ordinary_enemy_release_marker(bad_state, baseline)
+        except GuardFailure:
+            tested += 1
+        else:
+            assert ordinary_enemy_release_marker(bad_state, baseline) is None
+            tested += 1
+
+    class FakeHazardSnapshotClient:
+        def __init__(self, entity_raw: bytes, par5: int = 0x34):
+            self.entity_raw, self.par5 = entity_raw, par5
+            self.calls: list[dict[str, Any]] = []
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            assert method == "read_memory"
+            assert isinstance(params, dict)
+            self.calls.append(dict(params))
+            if params["space"] == "cpu":
+                assert params["addr"] == PAR5 and params["length"] == 1
+                raw = bytes((self.par5,))
+            else:
+                assert params["space"] == "physical"
+                assert params["addr"] == 0x34 * PHYSICAL_PAGE_BYTES + 0x380
+                assert params["length"] == len(self.entity_raw) <= 48
+                raw = self.entity_raw
+            return {"data": raw.hex(), "space": params["space"]}
+    hazard_observer = object.__new__(LiveRuntimeObserver)
+    hazard_observer.main = {"mainloop": 0xC123, "ENTITY_TABLE": 0xA380}
+    hazard_observer.client = FakeHazardSnapshotClient(entity_bytes)
+    hazard_stop = MonitorStop("natural-contact-search", 0xC123, 4,
+        {"pc": 0xC123}, 55, time.monotonic())
+    hazard_state = {"entry": 0, "death": 0, "entity_count": 3, "stage": 1,
+        "cell_x": 12, "cell_y": 18, "step": 2, "player_dir": 1}
+    hazard_snapshot = hazard_observer._capture_contact_hazard_snapshot(
+        hazard_stop, {"source_staged_live_match": True}, hazard_state)
+    assert hazard_snapshot["skull_cells"] == [[4, 5]]
+    assert hazard_snapshot["raw_entities"]["hex"] == entity_bytes.hex()
+    assert [call["space"] for call in hazard_observer.client.calls] == ["cpu", "physical"]
+    assert hazard_snapshot["target_memory_write"] is False
+    tested += 1
+    for stop, qualification, state, par5 in (
+            (MonitorStop("natural-contact-search", 0xC124, 4, {"pc": 0xC124}, 56,
+                         time.monotonic()), {"source_staged_live_match": True}, hazard_state, 0x34),
+            (hazard_stop, {"source_staged_live_match": False}, hazard_state, 0x34),
+            (hazard_stop, {"source_staged_live_match": True},
+             {**hazard_state, "entry": 2}, 0x34),
+            (hazard_stop, {"source_staged_live_match": True}, hazard_state, 0x20),
+            (hazard_stop, {"source_staged_live_match": True},
+             {**hazard_state, "entity_count": 13}, 0x34)):
+        fake_client = FakeHazardSnapshotClient(entity_bytes, par5)
+        hazard_observer.client = fake_client
+        try:
+            hazard_observer._capture_contact_hazard_snapshot(stop, qualification, state)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError("unqualified or malformed entity-table capture passed")
+        if stop.pc != 0xC123 or qualification.get("source_staged_live_match") is not True or state.get("entry") != 0:
+            assert fake_client.calls == []
+        elif par5 != 0x34 or state.get("entity_count") == 13:
+            assert len(fake_client.calls) == 1
+
+    challenge_gate = object.__new__(LiveRuntimeObserver)
+    challenge_gate.scenario = "natural"
+    challenge_gate.current_entry = {"held_input_challenge": {"pass": True,
+        "release_ordinal": 80}}
+    challenge_gate.pressed = set()
+    challenge_gate.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    assert challenge_gate._natural_entry_release_ready() is True
+    challenge_gate.pressed.add(43)
+    assert challenge_gate._natural_entry_release_ready() is False
+    challenge_gate.pressed.clear()
+    challenge_gate.search.at_gameplay_center(81, 0, 0, 0, 5, 7)
+    assert challenge_gate._natural_entry_release_ready() is False
+    challenge_gate.search.release(82, "fake-release")
+    challenge_gate.current_entry["held_input_challenge"]["pass"] = False
+    assert challenge_gate._natural_entry_release_ready() is False
+    tested += 1
+
+    release_phase = object.__new__(LiveRuntimeObserver)
+    release_phase.scenario = "natural"
+    release_phase.current_entry = {"index": 1, "held_input_challenge": {
+        "pass": True, "release_ordinal": 80}}
+    release_phase.pressed = set()
+    release_phase.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    release_phase.last_runtime_state = {**release_state, "enemy_released": 7,
+        "cell_x": 12, "cell_y": 18}
+    release_phase.last_runtime_state_stop = {"source_staged_live_match": True,
+        "ordinal": 81}
+    release_phase.contact_input_enabled = False
+    release_phase.ordinary_release_marker = None
+    release_phase.ordinary_release_timeout_context = None
+    release_phase._natural_entry_release_ready = lambda: True
+    def fake_release_phase(name: str, predicate: Any) -> bool:
+        assert name == "ordinary-enemy-release-roam"
+        assert release_phase.contact_input_enabled is False and not release_phase.pressed
+        assert release_phase.ordinary_release_context["enemy_released_baseline"] == 7
+        observed = {**release_state, "enemy_released": 8}
+        release_phase.ordinary_release_marker = ordinary_enemy_release_marker(observed, 7)
+        return predicate()
+    release_phase._phase = fake_release_phase
+    assert release_phase._phase_ordinary_enemy_release_roam() is True
+    assert release_phase.ordinary_release_marker["cell"] == [13, 12]
+    assert WATCHED_PHASES["ordinary-enemy-release-roam"] == PHASE_SECONDS == 45
+    tested += 1
+
+    route_mainloop_client = FakeHazardSnapshotClient(bytes((5, 6, 1, 0,
+        8, 9, 2, 0, 12, 12, 0, 0)))
+    route_mainloop = object.__new__(LiveRuntimeObserver)
+    route_mainloop.main = {"mainloop": 0xC123, "ENTITY_TABLE": 0xA380}
+    route_mainloop.client = route_mainloop_client
+    route_mainloop.scenario = "natural"
+    route_mainloop.contact_input_enabled = True
+    route_mainloop.contact_hazard_snapshot = None
+    route_mainloop.ordinary_release_context = None
+    route_mainloop.ordinary_release_marker = None
+    route_mainloop.current_entry = None
+    route_mainloop._state = lambda: {"entry": 0, "death": 0, "timer": 80,
+        "lives": 3, "player_fb": 0x60000, "cell_x": 5, "cell_y": 7,
+        "step": 0, "player_dir": 0, "pending": 0, "front": 0,
+        "commit_seq": 0, "frames": 20, "mode": 0,
+        "enemy_raw": bytes(32), "enemy_sha256": sha(bytes(32)),
+        "enemy_active": 0, "enemy_released": 1, "entity_count": 3,
+        "stage": 1, "box_timer": 4, "enemy_timer": 12, "freeze_timer": 0}
+    route_mainloop._record = lambda *args, **kwargs: None
+    route_mainloop._start_inputs = lambda *args: None
+    route_mainloop._confirm_start_credit = lambda *args: None
+    route_mainloop._observe_entry_input_challenge = lambda *args: None
+    route_mainloop.cold_credited_start = True
+    route_mainloop.contact_count = 0
+    route_mainloop.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    route_mainloop.pressed = set()
+    route_mainloop.lifecycle = None
+    route_mainloop._previous_state = None
+    route_mainloop.release_snapshot = None
+    route_mainloop.fixture = None
+    route_mainloop.errors = []
+    route_mainloop.entry_contact_violation = False
+    route_mainloop._mainloop(MonitorStop("natural-contact-search", 0xC123, 4,
+        {"pc": 0xC123}, 93, time.monotonic()), {"source_staged_live_match": True})
+    assert route_mainloop.contact_hazard_snapshot["skull_cells"] == [[5, 6]]
+    assert route_mainloop.search.held == 44 and route_mainloop.search.direction == 1
+    assert route_mainloop_client.calls[1]["space"] == "physical"
+    assert json.loads(json.dumps(route_mainloop.contact_hazard_snapshot)) == route_mainloop.contact_hazard_snapshot
+    tested += 1
+    bad_route_mainloop = object.__new__(LiveRuntimeObserver)
+    for name, value in route_mainloop.__dict__.items():
+        setattr(bad_route_mainloop, name, value)
+    bad_route_client = FakeHazardSnapshotClient(bytes((5, 6, 1, 0,
+        8, 9, 2, 0, 12, 12, 0, 0)))
+    bad_route_mainloop.client = bad_route_client
+    bad_route_mainloop.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    try:
+        bad_route_mainloop._mainloop(MonitorStop("natural-contact-search", 0xC123, 4,
+            {"pc": 0xC123}, 94, time.monotonic()), {"source_staged_live_match": False})
+    except GuardFailure:
+        assert bad_route_client.calls == [] and bad_route_mainloop.search.held is None
+        tested += 1
+    else:
+        raise AssertionError("natural mainloop route accepted source-unqualified hazard bytes")
+
+    release_mainloop = object.__new__(LiveRuntimeObserver)
+    for name, value in release_phase.__dict__.items():
+        setattr(release_mainloop, name, value)
+    release_mainloop.contact_input_enabled = False
+    release_mainloop.ordinary_release_context = {"enemy_released_baseline": 7}
+    release_mainloop.ordinary_release_marker = None
+    release_mainloop.contact_hazard_snapshot = None
+    release_mainloop.last_runtime_state_stop = None
+    release_mainloop.main = {"mainloop": 0xC123, "ENTITY_TABLE": 0xA380}
+    release_mainloop._state = lambda: {"entry": 0, "death": 0, "timer": 80,
+        "lives": 3, "player_fb": 0x60000, "cell_x": 12, "cell_y": 18,
+        "step": 0, "player_dir": 0, "pending": 0, "front": 0,
+        "commit_seq": 0, "frames": 21, "mode": 0,
+        "enemy_raw": bytes((0x11, 0x4D, 0xEC, 0, 13, 12, 1, 0)) + bytes(24),
+        "enemy_sha256": "f" * 64, "enemy_active": 1, "enemy_released": 8,
+        "entity_count": 3, "stage": 1, "box_timer": 4, "enemy_timer": 12,
+        "freeze_timer": 0}
+    release_mainloop._record = lambda *args, **kwargs: None
+    release_mainloop._start_inputs = lambda *args: None
+    release_mainloop._confirm_start_credit = lambda *args: None
+    release_mainloop.current_entry = None
+    release_mainloop.scenario = "natural"
+    release_mainloop.contact_count = 0
+    release_mainloop.cold_credited_start = True
+    release_mainloop.search = None
+    release_mainloop.pressed = set()
+    release_mainloop.lifecycle = None
+    release_mainloop._previous_state = None
+    release_mainloop.release_snapshot = None
+    release_mainloop.fixture = None
+    release_mainloop.errors = []
+    release_mainloop.entry_contact_violation = False
+    release_mainloop._mainloop(MonitorStop("ordinary-enemy-release-roam", 0xC123, 4,
+        {"pc": 0xC123}, 95, time.monotonic()), {"source_staged_live_match": True})
+    assert release_mainloop.ordinary_release_marker["cell"] == [13, 12]
+    assert release_mainloop.ordinary_release_marker["source_staged_live_match"] is True
+    assert release_mainloop.ordinary_release_marker["neutral_input"] is True
+    assert release_mainloop.search is None and release_mainloop.contact_hazard_snapshot is None
+    tested += 1
+
+    contact_phase = object.__new__(LiveRuntimeObserver)
+    contact_phase.scenario = "natural"
+    contact_phase.contact_count = 0
+    contact_phase.contact_input_enabled = False
+    contact_phase.contact_hazard_snapshot = None
+    contact_phase.current_entry = {"held_input_challenge": {"pass": True,
+        "release_ordinal": 90}}
+    contact_phase.pressed = set()
+    contact_phase.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    contact_phase.pump = type("FakePumpOrdinal", (), {"ordinal": 91})()
+    contact_phase._natural_entry_release_ready = lambda: True
+    def fake_contact_phase(name: str, predicate: Any) -> bool:
+        assert name == "natural-contact-search" and contact_phase.contact_input_enabled
+        contact_phase.search.at_gameplay_center(92, 0, 0, 0, 5, 7)
+        contact_phase.contact_count = 1
+        return predicate()
+    contact_phase._phase = fake_contact_phase
+    assert contact_phase._phase_natural_contact(1) is True
+    assert contact_phase.contact_input_enabled is False and contact_phase.search.held is None
+    assert [params["action"] for _, params in contact_phase.search.client.calls] == ["press", "release"]
+    tested += 1
+
+    skull_route_client = FakeInputClient()
+    skull_route = InputOnlySearch(skull_route_client, canonical_matrix)
+    skull_route.at_gameplay_center(1, 0, 0, 0, 5, 7, {(5, 6)}, 0)
+    assert skull_route.held == 44 and skull_route.direction == 1
+    assert skull_route.hazard_events[0]["blocked_cell"] == [5, 6]
+    tested += 1
+    inflight_client = FakeInputClient()
+    inflight_route = InputOnlySearch(inflight_client, canonical_matrix)
+    inflight_route.at_gameplay_center(2, 0, 0, 0, 5, 7)
+    inflight_route.at_gameplay_center(3, 0, 0, 3, 5, 7, {(5, 6)}, 0)
+    assert inflight_route.held is None and inflight_route.direction == 0
+    assert [params["action"] for _, params in inflight_client.calls] == ["press", "release"]
+    assert inflight_route.hazard_events[-1]["action"] == "release-before-skull-cell"
+    tested += 1
+    no_safe_client = FakeInputClient()
+    no_safe_route = InputOnlySearch(no_safe_client, canonical_matrix)
+    blocked_neighbors = {(5, 6), (5, 8), (4, 7), (6, 7)}
+    no_safe_route.at_gameplay_center(4, 0, 0, 0, 5, 7, blocked_neighbors, 0)
+    assert no_safe_route.held is None and no_safe_client.calls == []
+    assert no_safe_route.hazard_events[-1]["action"] == "no-safe-adjacent-cell"
+    tested += 1
 
     search.at_gameplay_center(1, 0, 0, 0, 5, 7)
     assert search.held == 43 and input_client.calls == [("inject_key", {"key": 43, "action": "press"})]
@@ -6877,6 +7633,167 @@ def self_test() -> dict[str, Any]:
 
     selected_raw = [audio_slot_fixture(i) for i in range(4)]
     selected_slots = [model_from_audio_slot(raw, i) for i, raw in enumerate(selected_raw)]
+    quiet_stream_fixture = bytes.fromhex("10f8030f11f8030f0208")
+    quiet_wait = current_authored_wait(quiet_stream_fixture + b"\x00", 0, 10, 10, 8)
+    assert quiet_wait["command_hex"] == "0208"
+    assert quiet_wait["prefix_period_bytes_hex"] == "f803f8030100"
+    assert quiet_wait["prefix_attenuation_hex"] == "0f0f0f"
+    assert quiet_wait["prefix_noise_hex"] == "000f"
+    tested += 1
+    for bad_pointer, bad_wait in ((8, 8), (10, 9), (10, 0)):
+        try:
+            current_authored_wait(quiet_stream_fixture + b"\x00", 0, 10,
+                                  bad_pointer, bad_wait)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError("quiet WAIT decoder accepted a stale/non-WAIT cursor")
+    quiet_mix = model_exclusive_mix(selected_slots, 13)
+    quiet_snapshot_for_model = {"slots": selected_slots, "best_slot": 0,
+        "best_priority": 6, "mix_period_bytes": quiet_mix["period_bytes"],
+        "mix_attenuation": quiet_mix["attenuation_bytes"],
+        "mix_noise": quiet_mix["noise_bytes"]}
+    try:
+        verify_live_music_mix(quiet_snapshot_for_model, 13, 0xD3, 6)
+    except GuardFailure as exc:
+        assert "no audible tone channel" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("silent selected cue passed without authored-WAIT eligibility")
+    assert verify_live_music_mix(quiet_snapshot_for_model, 13, 0xD3, 6,
+        allow_authored_quiet_wait=True)["audible_voice_count"] == 0
+    tested += 1
+    audible_slots = [dict(slot, periods=list(slot["periods"]),
+        attenuation=list(slot["attenuation"])) for slot in selected_slots]
+    audible_slots[0]["attenuation"][0] = 0
+    audible_mix = model_exclusive_mix(audible_slots, 13)
+    audible_snapshot = {**quiet_snapshot_for_model, "slots": audible_slots,
+        "mix_period_bytes": audible_mix["period_bytes"],
+        "mix_attenuation": audible_mix["attenuation_bytes"],
+        "mix_noise": audible_mix["noise_bytes"]}
+    try:
+        verify_live_music_mix(audible_snapshot, 13, 0xD3, 6,
+            allow_authored_quiet_wait=True)
+    except GuardFailure as exc:
+        assert "unexpectedly models an audible" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("quiet-WAIT option accepted a source model with audible channels")
+
+    quiet_audio_image = (current_build / "ladybug-audio-runtime.bin").read_bytes()
+    quiet_boundary = current_boot_prep["emitted_stream_boundaries"]["cue13"]
+    quiet_stream_start = quiet_boundary["stream_start"] - 0xA000
+    quiet_terminator = quiet_boundary["terminator_address"] - 0xA000
+    quiet_cursor = quiet_stream_start
+    prior_waits = 0
+    actual_quiet_wait = None
+    while quiet_cursor < quiet_terminator:
+        command = quiet_audio_image[quiet_cursor]
+        command_size = (2 if command == 2 or command in (0x1D, 0x1E) else
+                        4 if 0x10 <= command <= 0x12 else
+                        3 if command == 0x1C else 0)
+        if command_size == 0 or quiet_cursor + command_size > quiet_terminator:
+            raise AssertionError("current cue13 stream contains an unsupported test command")
+        if command == 2:
+            ticks = quiet_audio_image[quiet_cursor + 1] or 1
+            candidate_wait = current_authored_wait(quiet_audio_image,
+                quiet_stream_start, quiet_terminator, quiet_cursor + 2, ticks)
+            prefix_voice_state = (bytes.fromhex(candidate_wait["prefix_attenuation_hex"]) ==
+                b"\x0f\x0f\x0f" and
+                bytes.fromhex(candidate_wait["prefix_noise_hex"])[1] == 15)
+            if prior_waits and prefix_voice_state:
+                actual_quiet_wait = candidate_wait
+                break
+            prior_waits += 1
+        quiet_cursor += command_size
+    assert actual_quiet_wait is not None, "current cue13 stream lacks a muted WAIT after its earlier WAIT"
+    quiet_span = bytes.fromhex(actual_quiet_wait["prefix_span_hex"])
+    class FakeQuietWaitClient:
+        def __init__(self, corrupt: str | None = None):
+            self.corrupt = corrupt
+            self.calls: list[tuple[str, dict[str, Any] | None]] = []
+        def call(self, method: str, params=None, timeout=20.0):
+            self.calls.append((method, params))
+            if method != "read_memory":
+                raise AssertionError(f"quiet-WAIT path issued unexpected RPC {method}")
+            if params["space"] == "cpu":
+                assert params["addr"] == 0xA000 + quiet_stream_start
+                data = quiet_span
+                if self.corrupt == "cpu": data = bytes([data[0] ^ 1]) + data[1:]
+            else:
+                assert params["addr"] == 0x3D * PHYSICAL_PAGE_BYTES + quiet_stream_start
+                data = quiet_span
+                if self.corrupt == "physical": data = bytes([data[0] ^ 1]) + data[1:]
+            return {"data": data.hex(), "space": params["space"]}
+
+    def make_quiet_wait_observer(*, corrupt: str | None = None,
+                                 proof_delta: dict[str, Any] | None = None,
+                                 snapshot_delta: dict[str, Any] | None = None) -> LiveRuntimeObserver:
+        client = FakeQuietWaitClient(corrupt)
+        observer = LiveRuntimeObserver(client, current_build, "natural",
+            current_boot_prep, current_delivery)
+        observer.audio_image = quiet_audio_image
+        observer.boundaries = {"cue13": quiet_boundary}
+        raw_slot = bytearray(audio_slot_fixture(0))
+        raw_slot[4:6] = (0xA000 + actual_quiet_wait["cursor_offset"]).to_bytes(2, "big")
+        raw_slot[6:12] = bytes.fromhex(actual_quiet_wait["prefix_period_bytes_hex"])
+        raw_slot[12:15] = bytes.fromhex(actual_quiet_wait["prefix_attenuation_hex"])
+        raw_slot[15:17] = bytes.fromhex(actual_quiet_wait["prefix_noise_hex"])
+        slots = [model_from_audio_slot(bytes(raw_slot), 0)] + selected_slots[1:]
+        model = model_exclusive_mix(slots, 13)
+        snapshot = {"slots": slots, "slot_raw": [bytes(raw_slot), *selected_raw[1:]],
+            "best_slot": 0, "best_priority": 6,
+            "mix_period_bytes": model["period_bytes"],
+            "mix_attenuation": model["attenuation_bytes"],
+            "mix_noise": model["noise_bytes"], "mix_shadow": bytes(11),
+            "mix_order": bytes(4), "mix_count": 0, "music_count": 0,
+            "music_queue": bytes(8), "effect_queue_count": 0,
+            "credit_pending": 0, "published_busy": 1,
+            "par5_raw": 0x3D, "par5_masked": 0x3D}
+        snapshot.update(snapshot_delta or {})
+        observer._audio_snapshot = lambda: snapshot
+        observer.current_entry = {"index": 1}
+        observer.cue_stream_active = {6: False, 13: True}
+        observer.cue_start_ordinal = {13: 100}
+        observer.cue_entry_owner = {13: 1}
+        proof = {"cue_id": 13, "start_ordinal": 100, "entry": 1,
+            "first_audible_store_ordinal": 120, "post_psg_busy_ordinal": 125,
+            "post_psg_busy": 1, "actual_audible_transaction": True}
+        proof.update(proof_delta or {})
+        observer.cue_audible_proofs = {13: proof}
+        return observer
+
+    quiet_wait_observer = make_quiet_wait_observer()
+    quiet_wait_observer._audio_start(MonitorStop("fake-quiet-wait", 0xA410, 19,
+        {"pc": 0xA410}, 200, 200.0), {"source_staged_live_match": True})
+    quiet_event = next(event for event in quiet_wait_observer.events
+                       if event["label"] == "cue13-authored-silent-wait-service")
+    assert quiet_event["quiet_wait_proof"]["cpu_physical_staged_match"] is True
+    assert quiet_event["quiet_wait_proof"]["emitted_voice_state_matches_slot"] is True
+    tx = quiet_wait_observer.active_tx["transaction"]
+    for expected_store in tx.expected:
+        tx.store(expected_store.value)
+    assert tx.finish()["actual_store_count"] == len(tx.expected)
+    assert quiet_wait_observer.cue_audible_proofs[13]["first_audible_store_ordinal"] == 120
+    assert len(quiet_wait_observer.client.calls) == 2
+    tested += 1
+    for changes, snapshot_delta, corruption in (
+            ({"start_ordinal": 99}, None, None),
+            ({"entry": 2}, None, None),
+            ({}, {"music_count": 1}, None),
+            ({}, {"published_busy": 0}, None),
+            ({}, {"mix_attenuation": b"\x0f\x0e\x0f"}, None),
+            ({}, None, "cpu"), ({}, None, "physical")):
+        rejected_wait = make_quiet_wait_observer(corrupt=corruption,
+            proof_delta=changes, snapshot_delta=snapshot_delta)
+        try:
+            rejected_wait._audio_start(MonitorStop("fake-bad-quiet-wait", 0xA410, 19,
+                {"pc": 0xA410}, 200, 200.0), {"source_staged_live_match": True})
+        except QualificationFailure:
+            assert rejected_wait.active_tx is None and rejected_wait.events == []
+            tested += 1
+        else:
+            raise AssertionError("quiet-WAIT service accepted a stale proof, bad state, or mismatched bytes")
     rejected_audio_snapshot = {"slots": selected_slots, "slot_raw": selected_raw,
         "best_slot": 0, "best_priority": 6,
         "mix_period_bytes": b"\x01\x00" * 3,
@@ -7042,6 +7959,7 @@ def self_test() -> dict[str, Any]:
         observer.cue_stream_active = {6: True, 13: False}
         observer.cue_entry_owner = {6: entry}
         observer.cue_start_ordinal = {6: 100}
+        observer.cue_audible_proofs = {}
         observer.cue_terminal = {}
         observer.quiet_tail = {}
         observer.pending_terminal_cues = set()
@@ -7258,7 +8176,7 @@ def self_test() -> dict[str, Any]:
     blocked_new_generation.cue6_services = 0
     blocked_new_generation.frames_at_cue6 = None
     prior_verify_live_music_mix = globals()["verify_live_music_mix"]
-    globals()["verify_live_music_mix"] = lambda snapshot, cue, policy, priority: {
+    globals()["verify_live_music_mix"] = lambda snapshot, cue, policy, priority, **kwargs: {
         "audible_voice_count": 1, "channel_sources": []}
     try:
         try:
@@ -7528,7 +8446,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, natural skull table requires qualified mainloop PC/PAR5=$34/page-$34 mapping and bounded ENTITY_COUNT; malformed count/coordinates/mapping/source fail before injection; center-prospective and step-3 in-flight skulls skip/release through existing source-ordered bindings; all-blocked neighbors inject nothing; ordinary release-roam is a separate 45-second neutral phase after held-input release and requires increased ENEMY_RELEASED, an active source-tagged outside-nest record, and saved-background-valid=1; malformed active tags/counts and missing release/background fail; contact input is enabled only inside its bounded phase and released on exit, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
