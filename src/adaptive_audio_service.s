@@ -78,9 +78,9 @@ aas_admit
         lda $00A0
         ldb AUDIO_LAST_MODE
         sta AUDIO_LAST_MODE
-        cmpb #4
+        cmpb #2
         beq aas_poll
-        cmpa #4
+        cmpa #2
         bne aas_poll
         tst PRES_MODE
         bne aas_poll

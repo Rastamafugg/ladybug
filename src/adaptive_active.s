@@ -167,7 +167,8 @@ atb_live
         beq atb_normal
         jsr player_animation_tick
         jsr initial_entry_tick
-        bra atb_barrier
+        ; State release cannot permit normal movement in this same batch.
+        bra atb_popup_publish
 atb_normal
         jsr finish_gate_animation
         jsr player_animation_tick

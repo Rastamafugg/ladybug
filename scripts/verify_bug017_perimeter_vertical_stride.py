@@ -121,14 +121,21 @@ def static_contract(payload: bytes) -> tuple[dict[int, int], dict[str, object]]:
     prepare_begin = source.index("\nprepare_cell_tile\n")
     prepare_end = source.index("\n        rts", prepare_begin)
     preparation = source[prepare_begin:prepare_end]
+    baseline_rows = [0x2000 + row * 1280 for row in range(24)]
+    candidate_rows = [0x2000 + ((((row << 1) << 1) + row) << 8)
+                      for row in range(24)]
+    if candidate_rows != baseline_rows:
+        raise RuntimeError("shift/add row bases differ from all 24 baseline addresses")
     if "lbsr    prepare_cell_tile" not in incremental:
         raise RuntimeError("perimeter renderer does not use shared tile preparation")
     for fragment in (
-        "ldb     TEST_Y", "lslb", "rola",
-        "leay    cell_row_addresses,pcr", "ldx     d,y",
+        "lda     TEST_Y", "lsla", "adda    TEST_Y", "clrb",
+        "addd    #FB_VIRT", "tfr     d,x",
     ):
         if fragment not in preparation:
-            raise RuntimeError("incremental eight-pixel identity changed")
+            raise RuntimeError("incremental eight-pixel shift/add identity changed")
+    if "cell_row_addresses" in source:
+        raise RuntimeError("obsolete resident row-address table remains")
     bootstrap = (ROOT / "src/gmc_bootstrap.s").read_text(encoding="utf-8")
     if "LDD #value16 / STD address" not in bootstrap or "lda     #8" not in bootstrap:
         raise RuntimeError("boot paired-store/eight-row contract missing")
@@ -154,6 +161,7 @@ def static_contract(payload: bytes) -> tuple[dict[int, int], dict[str, object]]:
         "five_stride_mutation_rejected": True,
         "first_mutated_address": first_non_top,
         "incremental_renderer_shared_addressing": True,
+        "semantic_row_bases": baseline_rows,
     }
 
 

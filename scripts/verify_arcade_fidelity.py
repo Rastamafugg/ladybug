@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -148,19 +149,27 @@ def verify_hud_rows() -> None:
     hud = source[source.index("\ndraw_hud\n"):
                  source.index("\ndhu_mod10\n", source.index("\ndraw_hud\n"))]
     assert "lda     #6\n        sta     HUD_Y" in hud
-    assert "lda     #11\n        sta     HUD_Y" in hud
+    assert re.search(
+        r"ifne\s+COMPLETE_PROFILE\s+ldd\s+#\$250B\s+else\s+"
+        r"ldd\s+#\$260B\s+endc\s+std\s+HUD_X\b",
+        hud,
+    )
+    assert "jsr     asset_draw_part_value" in hud
     vegetable = source[source.index("\ndraw_vegetable_hud\n"):
                        source.index("\nvegetable_values\n")]
     assert "ldx     #$5C80" in vegetable
-    assert "lda     #13\n        sta     HUD_Y" in vegetable
+    assert "ldd     #$230D\n        std     HUD_X" in vegetable
+    player = source[source.index("\ninit_player\n"):
+                    source.index("\nread_joystick\n", source.index("\ninit_player\n"))]
+    assert "ldd     #$0C16\n        std     PLAYER_CELL_X" in player
 
     document = ET.parse(ROOT / "tiled/coco-screen.tmx").getroot()
     layer = next(item for item in document.findall("layer")
                  if item.get("name") == "HUD Placeholders")
     gids = [int(value) for value in (layer.findtext("data") or "").split(",")
             if value.strip()]
-    assert gids[9 * 40 + 33] == 0
-    assert gids[10 * 40 + 33] == 497
+    assert gids[9 * 40 + 33] == 497
+    assert gids[10 * 40 + 33] == 0
 
 
 def verify_player_restore_contract() -> None:

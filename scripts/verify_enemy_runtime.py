@@ -730,13 +730,18 @@ if mainloop.count("lbsr    render_frame") != 2:
     raise SystemExit("enemy proof: expected exclusive entry and normal render sites")
 entry_tick = mainloop[mainloop.index("\nmain_game_tick\n"):
                       mainloop.index("\nmain_game_tick_normal\n")]
-if not (
-    entry_tick.index("beq     main_game_tick_normal")
-    < entry_tick.index("lbsr    initial_entry_tick")
-    < entry_tick.index("lbsr    render_frame")
-    < entry_tick.index("bra     main_entry_audio")
-):
-    raise SystemExit("enemy proof: entry rendering can fall through to normal mutation")
+entry_order = re.search(
+    r"(?s)\bbeq\s+main_game_tick_normal\b.*?"
+    r"\blbsr\s+initial_entry_tick\b.*?"
+    r"\bjsr\s+AUDIO_ENGINE_EXEC\b.*?"
+    r"\blbsr\s+render_frame\b.*?"
+    r"\bbra\s+mainloop\b",
+    entry_tick,
+)
+if not entry_order:
+    raise SystemExit(
+        "enemy proof: entry must publish audio before rendering and bypass normal mutation"
+    )
 presentation_call = mainloop.index("jsr     $1900")
 active_assertion = mainloop.index("sta     FB_RENDER_ACTIVE")
 first_gameplay_mutation = mainloop.index("lbsr    finish_gate_animation")

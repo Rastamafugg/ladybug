@@ -265,7 +265,7 @@ ENTITY_X      equ $0036         ; entity/draw scratch
 ENTITY_Y      equ $0037
 ENTITY_TYPE   equ $0038
 ENTITY_VARIANT equ $0039
-DEATH_TIMER   equ $003A         ; nonzero while rotating death animation runs
+DEATH_TIMER   equ $003A         ; death age plus initial-entry wait/padding sentinel
 MULTIPLIER    equ $003B         ; score multiplier: 1,2,3,5
 SPECIAL_BITS equ $003C         ; collected SPECIAL letters, bit per HUD position
 EXTRA_BITS   equ $003D         ; collected EXTRA letters, bit per HUD position
@@ -337,6 +337,8 @@ RENDER_GATE_MODE equ $0089     ; first queued gate mode
 PLAYER_BG_PTR equ $00A2        ; selected A/B player save-under buffer
 INITIAL_ENTRY_STATE equ $00A0  ; live-only initial marker/maze-entry state
 PLAYER_VISIBLE_ROWS equ $00A1  ; selected owner's saved visible player rows
+; Audio-owned published snapshot; resident entry code reads, never writes.
+AUDIO_MUSIC_PUBLISHED_BUSY equ $02D4
 ENTRY_INACTIVE equ 0
 ENTRY_WAIT_STAGE equ 1
 ENTRY_WALKOUT equ 2
@@ -776,8 +778,10 @@ main_game_tick
         lda     #1
         sta     PLAYER_TICK_PENDING
 main_entry_render
+        ; Initial and replacement entries publish audio before the first pose.
+        jsr     AUDIO_ENGINE_EXEC
         lbsr    render_frame
-        bra     main_entry_audio
+        bra     mainloop
         endc
 main_game_tick_normal
         ; Keep every player restore/mutation/redraw at the front of Vbord.
@@ -821,6 +825,10 @@ main_death
         ; The perimeter release circuit is reset by the enemy death path and
         ; remains frozen until the replacement player has entered.
         lbsr    death_tick
+          ifeq    HIGHSCORE_TEST_PROFILE
+        tst     INITIAL_ENTRY_STATE
+        bne     main_entry_render
+          endc
         bra     main_render
 main_alive
         lda     PICKUP_TIMER
@@ -868,7 +876,7 @@ initial_entry_tick
         cmpa    #ENTRY_OFFSCREEN
         beq     iet_offscreen
         cmpa    #ENTRY_MAZE_ENTRY
-        beq     iet_maze_entry
+        lbeq    iet_maze_entry
         rts
 
 iet_wait_stage
@@ -878,22 +886,30 @@ iet_wait_stage
         bita    #RF_STAGE
         lbne    iet_done
 
+        ; Nonzero means death already consumed this reserve; hold until the
+        ; latest music publication is idle.  Zero begins fresh-game entry.
+        tst     DEATH_TIMER
+        bne     iet_wait_music
+
         ; The committed stage image is now the handoff boundary.  The
         ; rightmost marker and the entrant are one life unit.
         dec     LIVES
-; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm the consumed HUD marker departure without decrementing the life count.
+        tst     AUDIO_MUSIC_PUBLISHED_BUSY
+        beq     marker_entry_begin
+        inc     DEATH_TIMER
+        rts
+iet_wait_music
+        tst     AUDIO_MUSIC_PUBLISHED_BUSY
+        lbne    iet_done
+        clr     DEATH_TIMER
+; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm an already-consumed HUD marker departure, seed logical exit padding, and derive its full-width framebuffer address.
 marker_entry_begin
         lda     LIVES
         jsr     life_marker_position
-        lda     HUD_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        ldb     HUD_X
-        lslb
-        lslb
-        addd    #FB_VIRT
-        std     PLAYER_FB
+        lda     #80
+        sta     DEATH_TIMER
+        lbsr    hud_fb_address
+        stx     PLAYER_FB
         lda     #DIR_EAST
         sta     PLAYER_DIR
         sta     PLAYER_FACE
@@ -908,6 +924,7 @@ iet_walkout
         tst     PLAYER_TICK_PENDING
         beq     iet_done
         clr     PLAYER_TICK_PENDING
+        dec     DEATH_TIMER
         inc     PLAYER_FB+1    ; one packed byte = two pixels; HUD row is page aligned
         lda     PLAYER_FB+1
         cmpa    #160
@@ -923,10 +940,21 @@ iet_walkout_render
         rts
 
 iet_offscreen
+        ; Count only accepted logical ticks, but inspect owner histories on
+        ; every callback so restore completion cannot be skipped.
+        tst     PLAYER_TICK_PENDING
+        beq     iet_offscreen_owners
+        clr     PLAYER_TICK_PENDING
+        tst     DEATH_TIMER
+        beq     iet_offscreen_owners
+        dec     DEATH_TIMER
+iet_offscreen_owners
         ; The selected BACK owner is restored by the renderer after this
         ; dispatch.  Transition only after both owner ledgers are invalid.
         lda     FB_META_A+FBM_PLAYER_VALID
         ora     FB_META_B+FBM_PLAYER_VALID
+        bne     iet_done
+        tst     DEATH_TIMER
         bne     iet_done
         lbsr    init_player
         clr     PLAYER_TICK_PENDING
@@ -938,6 +966,9 @@ iet_offscreen
         rts
 
 iet_maze_entry
+        lda     PLAYER_CELL_Y
+        cmpa    #18
+        beq     iet_final_wait
         tst     PLAYER_TICK_PENDING
         beq     iet_done
         clr     PLAYER_TICK_PENDING
@@ -950,15 +981,17 @@ iet_maze_entry
         blo     iet_maze_render
         clr     PLAYER_STEP
         dec     PLAYER_CELL_Y
-        lda     PLAYER_CELL_Y
-        cmpa    #18
-        bne     iet_maze_render
-        lda     #ENTRY_INACTIVE
-        sta     INITIAL_ENTRY_STATE
 iet_maze_render
         lda     RENDER_FLAGS
         ora     #RF_PLAYER
         sta     RENDER_FLAGS
+        rts
+iet_final_wait
+        ; The mainloop's FB_RENDER_PENDING gate permits this callback only
+        ; after the final RF_PLAYER pose has been committed by the IRQ.
+        tst     AUDIO_MUSIC_PUBLISHED_BUSY
+        bne     iet_done
+        clr     INITIAL_ENTRY_STATE
 iet_done
         rts
         endc
@@ -1360,13 +1393,11 @@ draw_hud
         lbsr    draw_bcd_line
         endc
         ifne COMPLETE_PROFILE
-        lda     #37
+        ldd     #$250B
         else
-        lda     #38
+        ldd     #$260B
         endc
-        sta     HUD_X
-        lda     #11
-        sta     HUD_Y
+        std     HUD_X
         ifne COMPLETE_PROFILE
         lda     #TEXT_PART
         else
@@ -1376,8 +1407,7 @@ draw_hud
         lda     STAGE
         ifne COMPLETE_PROFILE
         jsr     asset_draw_part_value
-        bra     dhu_stage_done
-        endc
+        else
 dhu_mod10
         cmpa    #10
         blo     dhu_stage_digit
@@ -1389,7 +1419,7 @@ dhu_stage_digit
         else
         lbsr    draw_hud_digit
         endc
-dhu_stage_done
+        endc
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
 ; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
@@ -1414,10 +1444,8 @@ dvh_stage_ok
         lsla
         leau    vegetable_values,pcr
         leau    a,u
-        lda     #35
-        sta     HUD_X
-        lda     #13
-        sta     HUD_Y
+        ldd     #$230D
+        std     HUD_X
         ifne COMPLETE_PROFILE
         lda     #TEXT_BONUS
         else
@@ -1623,6 +1651,22 @@ dl_next
         endc
 
 clear_life_marker
+        bsr     hud_fb_address
+        lda     #16
+        sta     HUD_COUNT
+clm_row
+        ldd     #0
+        std     ,x++
+        std     ,x++
+        std     ,x++
+        std     ,x++
+        leax    152,x
+        dec     HUD_COUNT
+        bne     clm_row
+        rts
+
+; DOC-002 source-contract mirror contract hud_fb_address profile=render: Compute the framebuffer destination selected by HUD_X and HUD_Y.
+hud_fb_address
         lda     HUD_Y
         ldb     #5
         mul
@@ -1637,17 +1681,6 @@ clear_life_marker
         lslb
         rola
         leax    d,x
-        lda     #16
-        sta     HUD_COUNT
-clm_row
-        ldd     #0
-        std     ,x++
-        std     ,x++
-        std     ,x++
-        std     ,x++
-        leax    152,x
-        dec     HUD_COUNT
-        bne     clm_row
         rts
 
 draw_life_marker
@@ -1688,32 +1721,11 @@ draw_authored_hud_tile
         ldb     d,y
 draw_hud_tile
         stb     DRAW_TILE
-        lda     HUD_Y
-        ldb     #5
-        mul
-        tfr     b,a
-        clrb
-        addd    #FB_VIRT
-        tfr     d,x
-        clra
-        ldb     HUD_X
-        lslb
-        rola
-        lslb
-        rola
-        leax    d,x
+        bsr     hud_fb_address
         ldb     DRAW_TILE
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
+        lda     DRAW_TILE
+        ldb     #32
+        mul
         leay    screen_tiles,pcr
         leay    d,y
         lbsr    blit_tile
@@ -2620,16 +2632,14 @@ init_joystick
 ;   None
 ;
 ; Returns:
-;   A, D, CC — undefined
+;   A, B, D, CC — undefined
 ;
 ; Side effects:
 ;   Initializes direct-page player state.
 ;==============================================================================
 init_player
-        lda     #12
-        sta     PLAYER_CELL_X
-        lda     #22
-        sta     PLAYER_CELL_Y
+        ldd     #$0C16
+        std     PLAYER_CELL_X
         clr     PLAYER_DIR      ; initially face and move north
         clr     PLAYER_FACE
         clr     PLAYER_STEP
@@ -4241,7 +4251,15 @@ dt_finish_blank
         clr     FB_META_A+FBM_PLAYER_VALID
         clr     FB_META_B+FBM_PLAYER_VALID
         ifeq    HIGHSCORE_TEST_PROFILE
+        tst     AUDIO_MUSIC_PUBLISHED_BUSY
+        beq     dt_entry_music_idle
+        inc     DEATH_TIMER
+        lda     #ENTRY_WAIT_STAGE
+        sta     INITIAL_ENTRY_STATE
+        bra     dt_entry_done
+dt_entry_music_idle
         lbsr    marker_entry_begin ; death path already consumed the reserve
+dt_entry_done
         endc
         clr     DEATH_STATE
         rts
@@ -4324,40 +4342,24 @@ dmsc_draw
 ;==============================================================================
 prepare_cell_tile
         stb     DRAW_TILE
-        clra
-        ldb     TEST_Y
-        lslb
-        rola
-        leay    cell_row_addresses,pcr
-        ldx     d,y
+        lda     TEST_Y
+        lsla
+        lsla
+        adda    TEST_Y
+        clrb
+        addd    #FB_VIRT
+        tfr     d,x
         lda     TEST_X
         adda    #8
         lsla
         lsla
         leax    a,x
-        ldb     DRAW_TILE
-        clra
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
-        lslb
-        rola
+        lda     DRAW_TILE
+        ldb     #32
+        mul
         leay    screen_tiles,pcr
         leay    d,y
         rts
-
-cell_row_addresses
-        fdb     FB_VIRT+(0*1280),FB_VIRT+(1*1280),FB_VIRT+(2*1280),FB_VIRT+(3*1280)
-        fdb     FB_VIRT+(4*1280),FB_VIRT+(5*1280),FB_VIRT+(6*1280),FB_VIRT+(7*1280)
-        fdb     FB_VIRT+(8*1280),FB_VIRT+(9*1280),FB_VIRT+(10*1280),FB_VIRT+(11*1280)
-        fdb     FB_VIRT+(12*1280),FB_VIRT+(13*1280),FB_VIRT+(14*1280),FB_VIRT+(15*1280)
-        fdb     FB_VIRT+(16*1280),FB_VIRT+(17*1280),FB_VIRT+(18*1280),FB_VIRT+(19*1280)
-        fdb     FB_VIRT+(20*1280),FB_VIRT+(21*1280),FB_VIRT+(22*1280),FB_VIRT+(23*1280)
 
 ;==============================================================================
 ; draw_cell_tile

@@ -234,6 +234,15 @@
           ]
         },
         {
+          "name": "hud_fb_address",
+          "profile": "render",
+          "purpose": "Compute the framebuffer destination selected by HUD_X and HUD_Y.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-hud-fb-address"
+        },
+        {
           "name": "draw_life_marker",
           "profile": "render",
           "purpose": "Draw life marker.",
@@ -794,7 +803,7 @@
         {
           "name": "marker_entry_begin",
           "profile": "movement",
-          "purpose": "Arm the consumed HUD marker departure without decrementing the life count.",
+          "purpose": "Arm an already-consumed HUD marker departure, seed logical exit padding, and derive its full-width framebuffer address.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-marker-entry-begin"
         },
@@ -863,11 +872,6 @@
           "name": "asset_start",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
-        },
-        {
-          "name": "cell_row_addresses",
-          "kind": "data",
-          "reason": "Authored immutable framebuffer row-address table owned by the resident renderer"
         },
         {
           "name": "cm_entry_masks",
@@ -1040,6 +1044,11 @@
           "name": "main_game_tick",
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
+        },
+        {
+          "name": "main_entry_audio",
+          "routine": null,
+          "purpose": "Shared post-render audio service and return path for ordinary gameplay and demo frames."
         },
         {
           "name": "phase4_before_tick",

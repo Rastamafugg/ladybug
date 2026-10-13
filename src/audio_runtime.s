@@ -67,6 +67,8 @@ AUDIO_BEST_PRI     equ $00FF
 ; @audit {"id":"audio-mode-pending","kind":"scratch","symbol":"AUDIO_LAST_MODE","width":2,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
 ; @audit {"id":"audio-bank-guard","kind":"scratch","symbol":"AUDIO_GUARD_RAM","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed after boot_streams_retired; shares addresses with boot descriptors only in separate phases.","initialization":"audio_guard_copy","clobbers":"Retained bank-restoring guard; no descriptor consumer after initialization."}
 AUDIO_GUARD_RAM equ $02C0
+; @audit {"id":"audio-music-published-busy","kind":"scratch","symbol":"AUDIO_MUSIC_PUBLISHED_BUSY","width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Retained post-PSG status after boot retirement; entry state consumes the latest published snapshot.","initialization":"audio_init_impl after queue and slot reset, before AUDIO_INSTALLED","clobbers":"Audio rewrites after each PSG publication; readers consume only the last completed publication."}
+AUDIO_MUSIC_PUBLISHED_BUSY equ $02D4
 AUDIO_LAST_MODE equ $02DC
 AUDIO_CREDIT_PENDING equ $02DD
 ; @audit {"id":"audio-service-gateway","kind":"scratch","symbol":"AUDIO_SERVICE_GATEWAY","width":18,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
@@ -104,9 +106,9 @@ audio_tick
         lda     <$A0
         ldb     AUDIO_LAST_MODE
         sta     AUDIO_LAST_MODE
-        cmpb    #4              ; only a fresh maze-entry transition admits music
+        cmpb    #2              ; only the marker-departure edge admits music
         beq     audio_mode_ready
-        cmpa    #4
+        cmpa    #2
         bne     audio_mode_ready
         tst     PRES_MODE
         bne     audio_mode_ready
@@ -310,7 +312,7 @@ audio_find_free
         lda     #$FF
         sta     AUDIO_BEST_SLOT
 audio_find_low
-        lbsr    audio_slot_base
+        bsr     audio_slot_base
         lda     ,x
         cmpa    #$FF
         beq     audio_admit_start
@@ -344,7 +346,7 @@ audio_admit_start
         lsra
         lsra
         sta     AUDIO_BEST_PRI
-        lbsr    audio_slot_base
+        bsr     audio_slot_base
         tfr     x,y
         sta     1,y
         lda     ,u
@@ -387,7 +389,7 @@ audio_slot_base
 audio_advance_all
         clr     AUDIO_WORK_SLOT
 audio_advance_next
-        lbsr    audio_slot_base
+        bsr     audio_slot_base
         lda     ,x
         cmpa    #$FF
         beq     audio_advance_skip
@@ -404,7 +406,7 @@ audio_advance_wait
         dec     3,x
         bne     audio_advance_skip
 audio_advance_stream
-        lbsr    audio_advance_slot
+        bsr     audio_advance_slot
 audio_advance_skip
         inc     AUDIO_WORK_SLOT
         lda     AUDIO_WORK_SLOT
@@ -764,6 +766,8 @@ audio_write_noise_control_done
         bsr     audio_write
 audio_write_noise_atten_done
 audio_mix_write_done
+        jsr     audio_music_busy
+        sta     AUDIO_MUSIC_PUBLISHED_BUSY
         rts
 
 ; XRoar's GMC SN76489 accepts a write only after 32 reference-clock cycles.
@@ -901,7 +905,7 @@ audio_mix_all_next
         eora    #3
         sta     AUDIO_WORK_SLOT
         lbsr    audio_slot_base
-        lbsr    audio_mix_slot
+        bsr     audio_mix_slot
         inc     audio_mix_priority
         lda     audio_mix_priority
         cmpa    #4
