@@ -626,20 +626,31 @@ def model_quiet_mix(shadow: bytes) -> dict[str, Any]:
 
 
 def validate_quiet_terminal(snapshot: dict[str, Any]) -> dict[str, Any]:
-    """Require the terminal service to contain cue clear, actual quiet mix, and no competitor."""
+    """Require empty queue occupancy, inactive slots, and actual quiet mixer state."""
     if any(slot.get("id") != 0xFF for slot in snapshot.get("slots", [])):
         raise GuardFailure("terminal mute service has an active or competing audio slot")
     if len(snapshot.get("slots", [])) != 4:
         raise GuardFailure("terminal mute snapshot omits one or more physical audio slots")
-    if (snapshot.get("music_count") != 0 or snapshot.get("effect_queue_count") != 0 or
-            snapshot.get("credit_pending") != 0 or snapshot.get("mix_count") != 0 or
-            snapshot.get("music_queue") != b"\x00" * 8):
+    music_queue = snapshot.get("music_queue")
+    if type(music_queue) is not bytes or len(music_queue) != 8:
+        raise GuardFailure("terminal mute snapshot music queue must be exactly eight bytes")
+    counts = {name: snapshot.get(name) for name in (
+        "music_count", "effect_queue_count", "credit_pending", "mix_count")}
+    if any(type(value) is not int or not 0 <= value <= 0xFF
+           for value in counts.values()):
+        raise GuardFailure("terminal mute snapshot has malformed queue or mixer counts")
+    if counts["music_count"] > len(music_queue):
+        raise GuardFailure("terminal music count exceeds the eight-byte queue capacity")
+    if any(value != 0 for value in counts.values()):
         raise GuardFailure("terminal mute service has queued music, effects, credits, or mixer work")
     if (snapshot.get("mix_period_bytes") != b"\x01\x00" * 3 or
             snapshot.get("mix_attenuation") != b"\x0F" * 3 or
             snapshot.get("mix_noise") != b"\x00\x0F"):
         raise GuardFailure("terminal service buffers differ from audio_mix_clear's raw quiet defaults")
     return {"all_slots_clear": True, "all_queues_idle": True,
+            "music_queue_active_count": counts["music_count"],
+            "music_queue_capacity": len(music_queue),
+            "inactive_music_queue_tail_hex": music_queue[counts["music_count"]:].hex(),
             "quiet_period_bytes": snapshot["mix_period_bytes"].hex(),
             "quiet_attenuation": snapshot["mix_attenuation"].hex(),
             "quiet_noise": snapshot["mix_noise"].hex()}
@@ -4865,6 +4876,27 @@ def self_test() -> dict[str, Any]:
     else:
         raise AssertionError("terminal pure-mute proof accepted a competing active slot")
     tested += 1
+    retired_tail_snapshot = {**quiet_snapshot,
+        "music_queue": bytes.fromhex("0600000000000000")}
+    retired_tail_result = validate_quiet_terminal(retired_tail_snapshot)
+    assert retired_tail_result["all_queues_idle"] is True
+    assert retired_tail_result["music_queue_active_count"] == 0
+    assert retired_tail_result["music_queue_capacity"] == 8
+    assert retired_tail_result["inactive_music_queue_tail_hex"] == "0600000000000000"
+    tested += 1
+    for invalid_snapshot, description in (
+            ({**retired_tail_snapshot, "music_count": 1}, "active music occupancy"),
+            ({**retired_tail_snapshot, "music_queue": b"\x06"}, "short queue storage"),
+            ({**retired_tail_snapshot, "music_queue": "0600000000000000"}, "non-byte queue storage"),
+            ({**retired_tail_snapshot, "music_count": 9}, "count beyond queue capacity"),
+            ({**retired_tail_snapshot, "music_count": False}, "boolean music count"),
+            ({**retired_tail_snapshot, "effect_queue_count": 1}, "active effect occupancy")):
+        try:
+            validate_quiet_terminal(invalid_snapshot)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError(f"terminal occupancy guard accepted {description}")
 
     class FakeTerminalContextClient:
         def __init__(self, pc: int):
@@ -5113,7 +5145,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
