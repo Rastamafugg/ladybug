@@ -51,6 +51,8 @@ PAGE20_RESET_PAGE = 0x20
 PAGE20_RESET_ADDRESS = 0xA000
 BANK_BOUNDARY_CAPTURE_PC = 0xA2D2
 BANK_BOUNDARY_CAPTURE_SPAN_BYTES = 16
+PAGE20_ALIAS_SPAN_BYTES = 16
+PAGE20_ALIAS_MIN_INSTRUCTION_BYTES = 5
 SND_DATA = 0xFF51
 FB_FRONT_ID = 0x008F
 FB_BACK_ID = 0x0090
@@ -1384,7 +1386,8 @@ def prepare(build: Path) -> dict[str, Any]:
             "event_capture": ["source/staged/live bootstrap reset-store spans and PAR mapping before resident/runtime events",
                 "source/staged/live bytes and PAR", "selected cue PSG stores",
                 "emitted END and terminal slot-clear/mute/busy tail", "post-instruction IRQ sequence commit",
-                "physical FRONT pixels against candidate player frames", "same-stop fixture guard recapture"],
+                "physical FRONT pixels against candidate player frames", "same-stop fixture guard recapture",
+                "registered banked audio-address stops mapped to page $20 are classified as perimeter-reset aliases only after exact halted breakpoint identity, receipt/source/manifest helper identity, one complete physical helper comparison, and per-stop CPU/physical/source span equality; normal page-$3D audio and PSG watchpoints remain strict"],
             "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
             "natural_held_input_challenge": (
                 "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. "
@@ -2148,6 +2151,8 @@ class LiveRuntimeObserver:
         self.bootstrap_reset = preparation["bootstrap_reset_qualification"]
         self.bootstrap_reset_index = 0
         self.bootstrap_reset_events: list[dict[str, Any]] = []
+        self.perimeter_alias_events: list[dict[str, Any]] = []
+        self.page20_alias_full_check: dict[str, Any] | None = None
         self.player_frame_table, self.player_art_identity = candidate_player_frame_table(build)
         self.irq_marker = preparation["irq_commit_instruction"]
         self.bus_marker = preparation["audio_bus_store"]
@@ -2269,6 +2274,183 @@ class LiveRuntimeObserver:
         return qualify_live_span(self.client, pc, expected, PAR5, 0x3D,
                                  0xA000, 0xA000, self.audio_image, self.delivery,
                                  self.current_stop_context)
+
+    def _verify_page20_alias_reference(self, stop: MonitorStop) -> dict[str, Any]:
+        reference = self.bank_boundary_reference
+        page = reference.get("page20", {})
+        context = {"kind": "perimeter-reset-address-alias",
+            "phase": stop.phase, "original_address_label": self.labels.get(stop.pc),
+            "pc": stop.pc, "breakpoint_id": stop.bp_id,
+            "reference": {"page": page.get("page"), "address": page.get("address"),
+                "manifest_bytes": page.get("manifest_bytes"),
+                "manifest_sha256": page.get("manifest_sha256"),
+                "payload_sha256": page.get("payload_sha256"),
+                "sparse_layout_sha256": reference.get("sparse_layout_sha256"),
+                "source_build_receipt_sha256": reference.get("source_build_receipt_sha256"),
+                "source_hashes": reference.get("source_hashes")}}
+        try:
+            layout_path = self.build / "ladybug-sparse-layout.json"
+            receipt_path = self.build / "source-build-receipt.json"
+            layout_bytes = layout_path.read_bytes()
+            receipt_bytes = receipt_path.read_bytes()
+            layout = json.loads(layout_bytes)
+            receipt = json.loads(receipt_bytes)
+            manifest = layout.get("perimeter_reset")
+            receipt_inputs = {str(key).replace("\\", "/"): value
+                for key, value in receipt.get("inputs", {}).items()}
+            current_sources: dict[str, str] = {}
+            expected_source_names = {"src/gmc_bootstrap.s", "src/perimeter_reset_helper.s",
+                "scripts/build_sparse_sprites.py", "tiled/coco-special-screen.tmx"}
+            if set(reference.get("source_hashes", {})) != expected_source_names:
+                raise GuardFailure("page-$20 alias reference does not bind every required authored input")
+            for source_name, expected_hash in reference.get("source_hashes", {}).items():
+                current_hash = sha((self.build.parent / source_name).read_bytes())
+                if current_hash != expected_hash or receipt_inputs.get(source_name) != expected_hash:
+                    raise GuardFailure(f"page-$20 alias source identity changed: {source_name}")
+                current_sources[source_name] = current_hash
+            if (not isinstance(manifest, dict) or receipt.get("state") != "complete" or
+                    page.get("page") != PAGE20_RESET_PAGE or
+                    page.get("address") != PAGE20_RESET_ADDRESS or
+                    page.get("manifest_bytes") != 5751 or page.get("source_bytes") != 0 or
+                    page.get("boot_synthesized") is not True or
+                    manifest.get("page") != PAGE20_RESET_PAGE or
+                    manifest.get("address") != PAGE20_RESET_ADDRESS or
+                    manifest.get("bytes") != 5751 or manifest.get("source_bytes") != 0 or
+                    manifest.get("boot_synthesized") is not True or
+                    manifest.get("sha256") != page.get("manifest_sha256") or
+                    sha(self.page20_reset_image) != page.get("payload_sha256") or
+                    page.get("payload_sha256") != page.get("manifest_sha256") or
+                    len(self.page20_reset_image) != page.get("manifest_bytes") or
+                    sha(layout_bytes) != reference.get("sparse_layout_sha256") or
+                    sha(receipt_bytes) != reference.get("source_build_receipt_sha256") or
+                    receipt.get("artifacts", {}).get("ladybug-audio-runtime.bin") !=
+                        reference.get("page3d_audio", {}).get("artifact_sha256") or
+                    sha(self.audio_image) != reference.get("page3d_audio", {}).get("artifact_sha256") or
+                    reference.get("source_hashes") != current_sources or
+                    self.page20_reset_image != (self.build / "ladybug-perimeter-reset.bin").read_bytes()):
+                raise GuardFailure("page-$20 alias source/staged/manifest identity is incomplete or changed")
+        except Exception as exc:
+            context["reference_error"] = f"{type(exc).__name__}: {exc}"
+            raise QualificationFailure("page-$20 alias reference identity failed", context) from exc
+        return {"page": PAGE20_RESET_PAGE, "address": PAGE20_RESET_ADDRESS,
+            "length": len(self.page20_reset_image),
+            "payload_sha256": page["payload_sha256"],
+            "manifest_sha256": page["manifest_sha256"],
+            "sparse_layout_sha256": reference["sparse_layout_sha256"],
+            "source_build_receipt_sha256": reference["source_build_receipt_sha256"],
+            "source_hashes": current_sources,
+            "boot_synthesized": True, "source_bytes": 0,
+            "source_staged_manifest_identity_match": True}
+
+    def _qualify_page20_audio_alias(self, stop: MonitorStop, initial_raw_par: int,
+                                    original_label: str) -> dict[str, Any]:
+        reference = self.bank_boundary_reference
+        page = reference["page20"]
+        image = self.page20_reset_image
+        module_start = page["address"]
+        module_end = module_start + page["manifest_bytes"]
+        context: dict[str, Any] = {"kind": "perimeter-reset-address-alias",
+            "phase": stop.phase, "original_address_label": original_label,
+            "pc": stop.pc, "breakpoint_id": stop.bp_id, "ordinal": stop.ordinal,
+            "mapping": {"page_register_address": PAR5, "raw_initial": initial_raw_par,
+                "masked_initial": initial_raw_par & 0x3F,
+                "expected_page": PAGE20_RESET_PAGE},
+            "reference": {"page": page.get("page"), "address": page.get("address"),
+                "length": page.get("manifest_bytes"),
+                "manifest_sha256": page.get("manifest_sha256"),
+                "payload_sha256": page.get("payload_sha256")},
+            "stopped_status": {"state": "unavailable", "read_error": None},
+            "target_write_count": self.write_count}
+        if stop.phase not in WATCHED_PHASES:
+            raise QualificationFailure("page-$20 alias stop occurred outside an approved observer phase", context)
+        if (type(stop.bp_id) is not int or stop.bp_id < 1 or
+                stop.pc not in self.bp_ids or self.bp_ids.get(stop.pc) != stop.bp_id):
+            raise QualificationFailure("page-$20 alias requires its registered address breakpoint identity", context)
+        offset = stop.pc - module_start
+        remaining = module_end - stop.pc
+        if (page.get("page") != PAGE20_RESET_PAGE or page.get("address") != PAGE20_RESET_ADDRESS or
+                type(page.get("manifest_bytes")) is not int or page.get("manifest_bytes") != len(image) or
+                offset < 0 or remaining < PAGE20_ALIAS_MIN_INSTRUCTION_BYTES):
+            context["range"] = {"module_start": module_start, "module_end": module_end,
+                "offset": offset, "remaining_bytes": remaining,
+                "minimum_instruction_bytes": PAGE20_ALIAS_MIN_INSTRUCTION_BYTES}
+            raise QualificationFailure("page-$20 alias PC is outside the qualified executable span", context)
+        try:
+            status = monitor_call(self.client, "get_run_state", maximum=2.0)
+            context["stopped_status"] = {"state": status.get("state"),
+                "last_stop_reason": status.get("last_stop_reason"),
+                "last_stop_pc": status.get("last_stop_pc"),
+                "last_stop_bp_id": status.get("last_stop_bp_id"),
+                "reply": json_safe(status), "read_error": None}
+        except Exception as exc:
+            context["stopped_status"]["read_error"] = f"{type(exc).__name__}: {exc}"
+            raise QualificationFailure("page-$20 alias stopped-state identity is unavailable", context) from exc
+        stop_identity = (isinstance(status, dict) and status.get("state") == "halted" and
+            status.get("last_stop_reason") == "breakpoint" and
+            status.get("last_stop_pc") == stop.pc and status.get("last_stop_bp_id") == stop.bp_id and
+            stop.registers.get("pc") == stop.pc)
+        context["stopped_status"]["stop_identity_match"] = stop_identity
+        if not stop_identity:
+            raise QualificationFailure("page-$20 alias halted PC/breakpoint/register identity mismatch", context)
+        try:
+            raw_par = monitor_bytes(self.client, PAR5, 1)[0]
+            masked_par = raw_par & 0x3F
+            context["mapping"].update({"par_raw": raw_par, "par_masked": masked_par,
+                "par_raw_hex": f"${raw_par:02X}", "par_masked_hex": f"${masked_par:02X}",
+                "matches_initial_page20": masked_par == PAGE20_RESET_PAGE})
+        except Exception as exc:
+            context["mapping"]["read_error"] = f"{type(exc).__name__}: {exc}"
+            raise QualificationFailure("page-$20 alias PAR5 reread failed", context) from exc
+        if masked_par != PAGE20_RESET_PAGE or (initial_raw_par & 0x3F) != PAGE20_RESET_PAGE:
+            raise QualificationFailure("page-$20 alias mapping changed during stopped-state qualification", context)
+        identity = self._verify_page20_alias_reference(stop)
+        context["source_staged_manifest_identity"] = identity
+        if self.page20_alias_full_check is None:
+            try:
+                full_physical = physical_page_read(self.client, PAGE20_RESET_PAGE, 0, len(image))
+                full_check = {"read_once": True, "length": len(full_physical),
+                    "physical_sha256": sha(full_physical),
+                    "reference_sha256": identity["payload_sha256"],
+                    "matches_complete_synthesized_image": full_physical == image}
+                self.page20_alias_full_check = full_check
+            except Exception as exc:
+                context["full_physical_reference"] = {"read_error": f"{type(exc).__name__}: {exc}"}
+                raise QualificationFailure("page-$20 full physical helper comparison failed", context) from exc
+        context["full_physical_reference"] = dict(self.page20_alias_full_check)
+        if self.page20_alias_full_check.get("matches_complete_synthesized_image") is not True:
+            raise QualificationFailure("page-$20 full physical bytes differ from the synthesized helper", context)
+        span_length = min(PAGE20_ALIAS_SPAN_BYTES, remaining)
+        cpu_expected = image[offset:offset + span_length]
+        try:
+            cpu_live = monitor_bytes(self.client, stop.pc, span_length)
+            physical_live = physical_page_read(self.client, PAGE20_RESET_PAGE, offset, span_length)
+            context["span"] = {"cpu_address": stop.pc, "physical_page": PAGE20_RESET_PAGE,
+                "physical_address": PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES + offset,
+                "offset": offset, "length": span_length,
+                "source_staged_sha256": sha(cpu_expected),
+                "cpu_sha256": sha(cpu_live), "physical_sha256": sha(physical_live),
+                "cpu_matches_source_staged": cpu_live == cpu_expected,
+                "physical_matches_source_staged": physical_live == cpu_expected,
+                "cpu_matches_physical": cpu_live == physical_live}
+        except Exception as exc:
+            context["span_read_error"] = f"{type(exc).__name__}: {exc}"
+            raise QualificationFailure("page-$20 per-stop CPU/physical span read failed", context) from exc
+        comparisons = context["span"]
+        if not (comparisons["cpu_matches_source_staged"] and
+                comparisons["physical_matches_source_staged"] and
+                comparisons["cpu_matches_physical"]):
+            raise QualificationFailure("page-$20 per-stop source/staged/CPU/physical bytes differ", context)
+        if self.write_count != 0 and self.scenario == "natural":
+            raise QualificationFailure("natural page-$20 alias qualification observed target writes", context)
+        return {"module": "perimeter-reset-address-alias",
+            "phase": stop.phase, "original_address_label": original_label,
+            "original_audio_address": stop.pc, "page": PAGE20_RESET_PAGE,
+            "page_register_raw": raw_par, "page_register_masked": masked_par,
+            "source_staged_manifest_identity": identity,
+            "full_physical_reference": dict(self.page20_alias_full_check),
+            "span": dict(comparisons),
+            "stopped_status_qualified": True,
+            "target_write_count": self.write_count}
 
     def _is_page20_boundary_mismatch(self, stop: MonitorStop, exc: Exception) -> bool:
         match = re.fullmatch(r"live PAR \$FFA5 page \$([0-9A-Fa-f]{2}) != expected \$3D",
@@ -2549,6 +2731,16 @@ class LiveRuntimeObserver:
                 {"kind": "bootstrap-reset-incomplete-before-runtime", "stop": self.current_stop_context,
                  "observed_reset_count": self.bootstrap_reset_index,
                  "required_reset_count": len(reset_stores)})
+        address_label = self.labels.get(pc, "")
+        audio_address_labels = {"audio_mix_write", "audio_command_end", "post_psg_busy"}
+        if (type(stop.bp_id) is int and stop.bp_id > 0 and pc in self.bp_ids and
+                0xA000 <= pc < 0xC000 and
+                audio_address_labels.intersection(address_label.split("+"))):
+            if stop.bp_id != self.bp_ids[pc]:
+                raise GuardFailure(f"registered audio address breakpoint id at ${pc:04X} differs from installed id")
+            raw_par = monitor_bytes(self.client, PAR5, 1)[0]
+            if raw_par & 0x3F == PAGE20_RESET_PAGE:
+                return self._qualify_page20_audio_alias(stop, raw_par, address_label)
         if pc == self.bus_marker["stop_pc"]:
             par5 = monitor_bytes(self.client, PAR5, 1)[0]
             code = self._audio_code(self.bus_marker["instruction_pc"], 3)
@@ -4075,6 +4267,12 @@ class LiveRuntimeObserver:
                 "stop_pc": stop.pc, "breakpoint_id": stop.bp_id,
                 "stop_context": self.current_stop_context})
             return
+        if qualification.get("module") == "perimeter-reset-address-alias":
+            self.perimeter_alias_events.append({**qualification,
+                "event_ordinal": stop.ordinal, "stop_pc": stop.pc,
+                "breakpoint_id": stop.bp_id,
+                "stop_context": self.current_stop_context})
+            return
         if label is None and stop.pc == self.bus_marker["stop_pc"]:
             label = "SND_DATA"
         if label is None:
@@ -4307,6 +4505,11 @@ class LiveRuntimeObserver:
                 "source_staged_identity": self.bootstrap_reset,
                 "events": self.bootstrap_reset_events,
                 "classification": "bootstrap reset attenuation; excluded from runtime cue-owned PSG events"},
+            "perimeter_reset_address_aliases": {
+                "count": len(self.perimeter_alias_events),
+                "first_full_physical_reference_check": self.page20_alias_full_check,
+                "events": self.perimeter_alias_events,
+                "classification": "source/receipt/manifest-qualified page-$20 perimeter reset at registered audio-address breakpoints; excluded from audio END/mix/busy and PSG events"},
             "fixture": self.fixture_result, "target_write_count": self.write_count,
             "contacts": self.contacts, "contact_count": self.contact_count,
             "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
@@ -5911,6 +6114,266 @@ def self_test() -> dict[str, Any]:
             else:
                 raise AssertionError("mutated page-$20 manifest passed reference qualification")
 
+            class FakePerimeterAliasClient:
+                def __init__(self, pc, bp_id, *, par=0x60, status_delta=None,
+                             cpu_delta=False, physical_span_delta=False,
+                             full_physical_delta=False):
+                    self.pc = pc
+                    self.bp_id = bp_id
+                    self.par = par
+                    self.status_delta = status_delta or {}
+                    self.cpu_delta = cpu_delta
+                    self.physical_span_delta = physical_span_delta
+                    self.full_physical_delta = full_physical_delta
+                    self.calls: list[tuple[str, dict[str, Any] | None]] = []
+                    self._bug117_phase_deadline = time.monotonic() + PHASE_SECONDS
+                def set_stop(self, pc, bp_id):
+                    self.pc, self.bp_id = pc, bp_id
+                def call(self, method: str, params: dict[str, Any] | None = None,
+                         timeout: float = 20.0):
+                    self.calls.append((method, params))
+                    assert 0 < timeout <= STOP_WAIT_SECONDS
+                    if method == "get_run_state":
+                        return {"state": "halted", "last_stop_reason": "breakpoint",
+                            "last_stop_pc": self.pc, "last_stop_bp_id": self.bp_id,
+                            **self.status_delta}
+                    if method != "read_memory":
+                        raise AssertionError(f"unexpected alias qualification RPC {method}")
+                    address, length = params["addr"], params["length"]
+                    space = params.get("space", "cpu")
+                    page20_image = current_boot_prep["bank_boundary_page20_reference"]
+                    helper = (current_build / "ladybug-perimeter-reset.bin").read_bytes()
+                    audio = (current_build / "ladybug-audio-runtime.bin").read_bytes()
+                    if space == "cpu" and address == PAR5 and length == 1:
+                        payload = bytes((self.par,))
+                    elif space == "cpu" and 0xA000 <= address < 0xC000:
+                        if self.par & 0x3F == PAGE20_RESET_PAGE:
+                            offset = address - page20_image["page20"]["address"]
+                            payload = helper[offset:offset + length]
+                            if self.cpu_delta and payload:
+                                payload = bytes((payload[0] ^ 1,)) + payload[1:]
+                        else:
+                            offset = address - 0xA000
+                            payload = audio[offset:offset + length]
+                    elif space == "physical" and address == PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES:
+                        payload = helper[:length]
+                        if self.full_physical_delta and payload:
+                            payload = payload[:-1] + bytes((payload[-1] ^ 1,))
+                    elif space == "physical" and PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES < address < (
+                            PAGE20_RESET_PAGE + 1) * PHYSICAL_PAGE_BYTES:
+                        offset = address - PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES
+                        payload = helper[offset:offset + length]
+                        if self.physical_span_delta and payload:
+                            payload = bytes((payload[0] ^ 1,)) + payload[1:]
+                    elif space == "physical" and 0x3D * PHYSICAL_PAGE_BYTES <= address < (
+                            0x3D + 1) * PHYSICAL_PAGE_BYTES:
+                        offset = address - 0x3D * PHYSICAL_PAGE_BYTES
+                        payload = audio[offset:offset + length]
+                    else:
+                        raise AssertionError(f"unexpected alias read {space} ${address:04X}+{length}")
+                    assert len(payload) == length
+                    return {"data": payload.hex(), "space": space}
+
+            alias_stops = [
+                (current_boot_prep["mapped_symbols"]["audio"]["audio_mix_write"],
+                 "audio_mix_write", 31),
+                (current_boot_prep["mapped_symbols"]["audio"]["audio_command_end"],
+                 "audio_command_end", 32),
+                (current_boot_prep["post_psg_busy_marker"]["pc"], "post_psg_busy", 33),
+            ]
+            assert len({pc for pc, _, _ in alias_stops}) == len(alias_stops)
+            alias_client = FakePerimeterAliasClient(*alias_stops[0][::2])
+            alias_observer = LiveRuntimeObserver(alias_client, current_build, "natural",
+                current_boot_prep, current_delivery)
+            alias_observer.bootstrap_reset_index = len(alias_observer.bootstrap_reset["reset_stores"])
+            for pc, label, bp_id in alias_stops:
+                alias_observer.labels[pc] = label
+                alias_observer.bp_ids[pc] = bp_id
+            alias_handlers: list[str] = []
+            alias_observer._audio_start = lambda *args: alias_handlers.append("mix")
+            alias_observer._audio_end = lambda *args: alias_handlers.append("end")
+            alias_observer._busy_publication = lambda *args: alias_handlers.append("busy")
+            for ordinal, (pc, label, bp_id) in enumerate(alias_stops, 8641):
+                alias_client.set_stop(pc, bp_id)
+                alias_observer._dispatch(MonitorStop("natural-contact-search", pc, bp_id,
+                    {"pc": pc, "a": 0, "b": 0, "d": 0, "cc": 0, "dp": 0,
+                     "x": 0, "y": 0, "u": 0, "s": 0}, ordinal, time.monotonic()))
+                assert alias_observer.perimeter_alias_events[-1]["phase"] == "natural-contact-search"
+                assert alias_observer.perimeter_alias_events[-1]["original_address_label"] == label
+                assert alias_observer.perimeter_alias_events[-1]["span"][
+                    "cpu_matches_source_staged"] is True
+            alias_full_reads = [(method, params) for method, params in alias_client.calls
+                if method == "read_memory" and params.get("space") == "physical" and
+                params["addr"] == PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES and
+                params["length"] == len((current_build / "ladybug-perimeter-reset.bin").read_bytes())]
+            assert len(alias_observer.perimeter_alias_events) == 3
+            assert alias_observer.page20_alias_full_check["matches_complete_synthesized_image"] is True
+            assert len(alias_full_reads) == 1
+            assert len([1 for method, params in alias_client.calls if method == "read_memory" and
+                params.get("space") == "physical" and
+                PAGE20_RESET_PAGE * PHYSICAL_PAGE_BYTES < params["addr"] <
+                (PAGE20_RESET_PAGE + 1) * PHYSICAL_PAGE_BYTES and params["length"] == 16]) == 3
+            assert alias_handlers == [] and alias_observer.events == []
+            assert json.loads(json.dumps(alias_observer.perimeter_alias_events)) == alias_observer.perimeter_alias_events
+            tested += 1
+
+            cached_full_check = dict(alias_observer.page20_alias_full_check)
+            cached_alias_count = len(alias_observer.perimeter_alias_events)
+            for failure_index, (changed_span, comparison) in enumerate((
+                    ("cpu_delta", "cpu_matches_source_staged"),
+                    ("physical_span_delta", "physical_matches_source_staged"))):
+                setattr(alias_client, changed_span, True)
+                alias_client.set_stop(alias_stops[0][0], alias_stops[0][2])
+                cached_stop = MonitorStop("natural-contact-search", alias_stops[0][0],
+                    alias_stops[0][2], {"pc": alias_stops[0][0], "a": 0, "b": 0,
+                     "d": 0, "cc": 0, "dp": 0, "x": 0, "y": 0, "u": 0, "s": 0},
+                    8650 + failure_index, time.monotonic())
+                try:
+                    alias_observer._dispatch(cached_stop)
+                except QualificationFailure as caught:
+                    assert caught.failure_context["span"][comparison] is False
+                else:
+                    raise AssertionError(f"cached full helper proof hid changed {changed_span}")
+                setattr(alias_client, changed_span, False)
+                assert alias_observer.page20_alias_full_check == cached_full_check
+                assert len(alias_observer.perimeter_alias_events) == cached_alias_count
+                assert alias_handlers == [] and alias_observer.events == []
+                tested += 1
+
+            def direct_alias_check(client, *, pc=None, bp_id=41, label="audio_command_end"):
+                address = alias_stops[1][0] if pc is None else pc
+                observer = LiveRuntimeObserver(client, current_build, "natural",
+                    current_boot_prep, current_delivery)
+                observer.bootstrap_reset_index = len(observer.bootstrap_reset["reset_stores"])
+                observer.labels[address] = label
+                observer.bp_ids[address] = bp_id
+                stop = MonitorStop("natural-contact-search", address, bp_id,
+                    {"pc": address, "a": 0, "b": 0, "d": 0, "cc": 0, "dp": 0,
+                     "x": 0, "y": 0, "u": 0, "s": 0}, 9000, time.monotonic())
+                try:
+                    result = observer._qualify(stop)
+                    return observer, result, None
+                except Exception as exc:
+                    return observer, None, exc
+
+            alias_pc = alias_stops[1][0]
+            wrong_bp_client = FakePerimeterAliasClient(alias_pc, 41,
+                status_delta={"last_stop_bp_id": 42})
+            wrong_bp_observer, wrong_bp_result, wrong_bp_error = direct_alias_check(wrong_bp_client)
+            assert wrong_bp_result is None and isinstance(wrong_bp_error, QualificationFailure)
+            assert wrong_bp_observer.perimeter_alias_events == []
+            assert not any(method == "read_memory" and params.get("space") == "physical"
+                for method, params in wrong_bp_client.calls)
+            tested += 1
+
+            wrong_registered_client = FakePerimeterAliasClient(alias_pc, 41)
+            wrong_registered_observer = LiveRuntimeObserver(wrong_registered_client, current_build,
+                "natural", current_boot_prep, current_delivery)
+            wrong_registered_observer.bootstrap_reset_index = len(
+                wrong_registered_observer.bootstrap_reset["reset_stores"])
+            wrong_registered_observer.labels[alias_pc] = "audio_command_end"
+            wrong_registered_observer.bp_ids[alias_pc] = 99
+            try:
+                wrong_registered_observer._qualify(MonitorStop("natural-contact-search",
+                    alias_pc, 41, {"pc": alias_pc}, 9000, time.monotonic()))
+            except GuardFailure:
+                assert wrong_registered_client.calls == []
+            else:
+                raise AssertionError("unregistered breakpoint id passed page-$20 alias qualification")
+            assert wrong_registered_observer.perimeter_alias_events == []
+            tested += 1
+
+            out_of_range_pc = PAGE20_RESET_ADDRESS + len((current_build / "ladybug-perimeter-reset.bin").read_bytes()) - 4
+            range_client = FakePerimeterAliasClient(out_of_range_pc, 43)
+            range_observer, range_result, range_error = direct_alias_check(
+                range_client, pc=out_of_range_pc, bp_id=43)
+            assert range_result is None and isinstance(range_error, QualificationFailure)
+            assert range_error.failure_context["range"]["remaining_bytes"] == 4
+            assert range_observer.perimeter_alias_events == []
+            tested += 1
+
+            for client, comparison in (
+                    (FakePerimeterAliasClient(alias_pc, 41, cpu_delta=True),
+                     "cpu_matches_source_staged"),
+                    (FakePerimeterAliasClient(alias_pc, 41, physical_span_delta=True),
+                     "physical_matches_source_staged"),
+                    (FakePerimeterAliasClient(alias_pc, 41, full_physical_delta=True),
+                     "full_physical_reference")):
+                observer, result, error = direct_alias_check(client)
+                assert result is None and isinstance(error, QualificationFailure)
+                assert observer.perimeter_alias_events == []
+                if comparison == "full_physical_reference":
+                    assert error.failure_context[comparison][
+                        "matches_complete_synthesized_image"] is False
+                else:
+                    assert error.failure_context["span"][comparison] is False
+                tested += 1
+
+            corrupt_client = FakePerimeterAliasClient(alias_pc, 41)
+            corrupt_observer, _, corrupt_error = direct_alias_check(corrupt_client)
+            corrupt_observer.page20_reset_image = (corrupt_observer.page20_reset_image[:-1] +
+                bytes((corrupt_observer.page20_reset_image[-1] ^ 1,)))
+            corrupt_stop = MonitorStop("natural-contact-search", alias_pc, 41,
+                {"pc": alias_pc}, 9001, time.monotonic())
+            try:
+                corrupt_observer._qualify(corrupt_stop)
+            except QualificationFailure as caught:
+                assert "staged/manifest identity" in caught.failure_context["reference_error"].lower()
+            else:
+                raise AssertionError("helper corruption outside the current span passed alias qualification")
+            assert corrupt_observer.perimeter_alias_events == []
+            tested += 1
+
+            audio3d_client = FakePerimeterAliasClient(alias_pc, 44, par=0x7D)
+            audio3d_observer, audio3d_result, audio3d_error = direct_alias_check(
+                audio3d_client, bp_id=44)
+            assert audio3d_error is None and audio3d_result["module"] == "audio"
+            assert audio3d_observer.page20_alias_full_check is None
+            assert audio3d_observer.perimeter_alias_events == []
+            tested += 1
+
+            unknown_page_client = FakePerimeterAliasClient(alias_pc, 45, par=0x21)
+            unknown_observer, unknown_result, unknown_error = direct_alias_check(
+                unknown_page_client, bp_id=45)
+            assert unknown_result is None and isinstance(unknown_error, GuardFailure)
+            assert unknown_observer.page20_alias_full_check is None
+            assert unknown_observer.perimeter_alias_events == []
+            tested += 1
+
+            psg_watch_pc = current_boot_prep["audio_bus_store"]["stop_pc"]
+            psg_watch_client = FakePerimeterAliasClient(psg_watch_pc, 0, par=0x60)
+            psg_watch_observer = LiveRuntimeObserver(psg_watch_client, current_build, "natural",
+                current_boot_prep, current_delivery)
+            psg_watch_observer.bootstrap_reset_index = len(psg_watch_observer.bootstrap_reset["reset_stores"])
+            try:
+                psg_watch_observer._dispatch(MonitorStop("audio-terminal", psg_watch_pc, 0,
+                    {"pc": psg_watch_pc, "a": 0, "b": 0, "d": 0, "cc": 0, "dp": 0,
+                     "x": 0, "y": 0, "u": 0, "s": 0}, 9002, time.monotonic()))
+            except GuardFailure:
+                pass
+            else:
+                raise AssertionError("PSG watchpoint mapped to page-$20 bypassed strict audio mapping")
+            assert psg_watch_observer.perimeter_alias_events == []
+            assert psg_watch_observer.page20_alias_full_check is None
+            tested += 1
+
+            psg_watch_none_client = FakePerimeterAliasClient(psg_watch_pc, None, par=0x60)
+            psg_watch_none_observer = LiveRuntimeObserver(psg_watch_none_client, current_build,
+                "natural", current_boot_prep, current_delivery)
+            psg_watch_none_observer.bootstrap_reset_index = len(
+                psg_watch_none_observer.bootstrap_reset["reset_stores"])
+            try:
+                psg_watch_none_observer._dispatch(MonitorStop("audio-terminal", psg_watch_pc, None,
+                    {"pc": psg_watch_pc, "a": 0, "b": 0, "d": 0, "cc": 0, "dp": 0,
+                     "x": 0, "y": 0, "u": 0, "s": 0}, 9003, time.monotonic()))
+            except GuardFailure:
+                pass
+            else:
+                raise AssertionError("PSG watchpoint without breakpoint ID bypassed strict audio mapping")
+            assert psg_watch_none_observer.perimeter_alias_events == []
+            assert psg_watch_none_observer.page20_alias_full_check is None
+            tested += 1
+
             try:
                 validate_delivery_receipt({**receipt, "status": "unaccepted"}, candidate_prep)
             except GuardFailure:
@@ -6598,7 +7061,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; wrong stop identity, manifest reference, CPU bytes, and physical-page bytes rejected, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 

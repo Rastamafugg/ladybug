@@ -35,7 +35,8 @@
       "Treat audio_music_count as authoritative queue occupancy. Retain and validate music_queue as exactly eight bytes, enforce a numeric count in [0,8], and reject every active music/effect/credit/mixer count; inactive retired tail bytes may remain nonzero. Preserve inactive-slot, raw quiet-mixer, emitted END, actual PSG mute, post-service busy-zero, and final IRQ FRONT gates.",
       "Quiet terminal audio is generation-bound: preserve the first actual mute plus same-generation post-PSG busy-zero proof immutably; accept a later exact-model shadow-suppressed refresh only for the same cue/start ordinal/entry, with no audible stores and a prior busy-zero proof; retain refresh records separately.",
       "On natural-contact timeout, serialize the last already-read low-RAM player/enemy-timer snapshot, 32-byte enemy table, input-only held direction and at most 64 action/event records, plus current three-entry/proof/lifecycle context; no timeout-time memory or status RPC is issued.",
-      "On the exact natural-contact-search $A2D2 PAR5 page-$20-versus-$3D guard rejection, preserve the original failure and capture halted stop identity, raw/masked PAR5, bounded CPU-window and physical page-$20/$3D spans, reference hashes, and byte comparisons; no classification or guard relaxation."
+      "On the exact natural-contact-search $A2D2 PAR5 page-$20-versus-$3D guard rejection, preserve the original failure and capture halted stop identity, raw/masked PAR5, bounded CPU-window and physical page-$20/$3D spans, reference hashes, and byte comparisons; no classification or guard relaxation.",
+      "At registered audio-address execution breakpoints mapped to page $20, classify only after exact halted PC/breakpoint/register identity, current receipt/source/manifest identity for the 5,751-byte synthesized perimeter helper, one complete physical page-$20 match, and a per-stop 16-byte CPU/physical/source match. Record phase and original audio address label separately; do not dispatch audio END/mix/busy handlers. Page-$3D audio, bootstrap reset ordering, PSG watchpoints, and unknown pages remain strict. The existing get_run_state monitor control is used without protocol changes."
     ],
     "natural_route": "At source-qualified mainloop observations, keep the selected DSCAN direction held as the player pose changes. Reset no-progress age on a changed (cell_x, cell_y, PLAYER_STEP) tuple; rotate to the next existing binding only after eight repeated unchanged step-0 center observations indicate no progress. Release on entry/death/target isolation. This prevents per-cell opposite reversals without a new planner or guest writes. The retry records observed non-progress only; it does not claim the cause is a wall or enemy state.",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
@@ -167,8 +168,8 @@
     "no_same_batch_player_or_enemy_mutation"
   ],
   "report_kind": "observer-only natural contact waypoint and cached timeout-state qualification; runtime acceptance pending parent-owned natural rerun",
-  "preparation_status": "OFFLINE_A2D2_BANK_BOUNDARY_CAPTURE_PASS; PARENT_REVIEW_PENDING; LIVE_DIAGNOSTIC_NOT_RUN",
-  "observer_script_sha256": "3f26ccbad2170b6dce07cdaa5d6662bc4d4520bd6e2bed6f556bbf378f8f41e2",
+  "preparation_status": "OFFLINE_PERIMETER_ALIAS_CLASSIFIER_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
+  "observer_script_sha256": "f994e34224d7ac426aa14f6b198b307a845418fff6e4044303a076ca4b66063b",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
   "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
   "offline_verification": {
@@ -314,6 +315,27 @@
       "parent_independent_self_test": "PENDING parent review of frozen source",
       "live_probe": "NOT RUN; parent owns one bounded diagnostic rerun",
       "build_or_target_write": "NONE during this step"
+    },
+    "latest_perimeter_alias_classifier": {
+      "py_compile": "PASS",
+      "cli_help": "PASS",
+      "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped and untouched",
+      "read_only_current_prepare": "PASS; current root build references bound without build or target access",
+      "self_test": {
+        "result": "PASS",
+        "negative_checks": 363,
+        "emulator_launches": 0,
+        "target_writes": 0,
+        "focused_alias_cases": [
+          "three registered audio PCs ($A410 mix start, $A2D2 END, and $A498 busy publication) classify to separate alias records; complete physical image read once; 16-byte live comparisons repeated per stop; audio handlers are not called",
+          "registered BP mismatch and stopped PC/BP identity mismatch fail before alias publication",
+          "out-of-range PC and full helper corruption outside the per-stop window fail closed",
+          "complete physical helper mismatch and per-stop CPU or physical mismatch fail closed",
+          "normal page-$3D audio remains on its strict path; unknown page and both zero/absent PSG-watchpoint IDs cannot classify as aliases"
+        ]
+      },
+      "runtime_probe": "NOT RUN; parent owns one unchanged-ROM natural rerun after review",
+      "build_or_target_write": "NONE during this step"
     }
   },
   "reproduction_commands_run": [
@@ -371,7 +393,7 @@
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "The observer-only A2D2 bank-boundary byte-capture step is prepared for parent review. It preserves the exact PAR5 mismatch failure while retaining halted stop identity, raw/masked mapping, bounded CPU and physical page-$20/$3D bytes, and receipt/source-bound reference hashes without interpreting or relaxing the guard. Read-only current-candidate preparation, compile, CLI help, guarded import, and 351 offline checks pass; the parent-owned bounded live diagnostic has not run.",
+  "ready_verdict": "The observer-only perimeter address-alias classifier is prepared for parent review. It classifies only registered matching-ID audio address breakpoints when halted PAR5 maps page $20 and the current source/receipt/manifest, full physical helper and per-stop CPU/physical spans all agree. Qualified aliases are reported separately and bypass audio END/mix/busy handlers; the normal page-$3D path and PSG watchpoints remain strict. Compile, CLI help, guarded import, read-only current preparation, and 363 offline checks pass; no live probe, build, or target write was run.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -1007,7 +1029,7 @@
     "status": "Observer-only restoration proof implemented and independently reviewed. Offline checks pass; parent owns the next natural runtime reassessment.",
     "implemented_observer_correction": {
       "status": "IMPLEMENTED_AWAITING_PARENT_NATURAL_REASSESSMENT",
-      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner’s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
+      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner\u2019s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
       "owner_timing": "Each state-3 stop validates only the committed FRONT owner; both metadata bits need not be clear on the same stop. A valid FRONT metadata byte at a state-3 retirement stop fails closed.",
       "snapshot_storage": "Raw 8x16 actual and saved-under bytes are held only in private observer memory keyed by entry generation and owner. Entry/event JSON retains pointer, clipped width, ordinal, frame, SHA-256 digests, and restoration outcome; the private byte map is not serialized.",
       "gate_sources": [
@@ -1123,7 +1145,7 @@
       "live_probe": "NOT RUN by this step"
     }
   },
-  "current_step_runtime_probe": "NOT RUN; parent owns the one bounded A2D2 byte-capture diagnostic with the existing 45-second phase and 10-second stop-wait bounds.",
+  "current_step_runtime_probe": "NOT RUN; parent owns one unchanged-ROM natural rerun with existing 45-second phases and 10-second stop waits after source review.",
   "bank_boundary_page20_reference": {
     "cpu_pc": 41682,
     "cpu_window": 40960,
@@ -1156,5 +1178,95 @@
       "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
       "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
     }
-  }
+  },
+  "latest_perimeter_alias_classifier": {
+    "ready_source": "wiki/internal/tickets/bug-117-new-life-entry-music.html#perimeter-alias-correction-ready-20261013",
+    "baseline_observer_commit": "b45696a1bd9a0b55a9535e8cda213ed803b70f90",
+    "confirmed_diagnostic": "wiki/internal/tickets/evidence/bug117/banked-breakpoint-alias-confirmed-20261013.json",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "registered_audio_address_breakpoints": [
+      {
+        "label": "audio_mix_write",
+        "pc": 42000,
+        "pc_hex": "$A410"
+      },
+      {
+        "label": "audio_command_end",
+        "pc": 41682,
+        "pc_hex": "$A2D2"
+      },
+      {
+        "label": "post_psg_busy",
+        "pc": 42136,
+        "pc_hex": "$A498"
+      }
+    ],
+    "reference": {
+      "cpu_pc": 41682,
+      "cpu_window": 40960,
+      "offset": 722,
+      "span_bytes": 16,
+      "audio_command_end_pc": 41682,
+      "page20": {
+        "page": 32,
+        "address": 40960,
+        "manifest_bytes": 5751,
+        "boot_synthesized": true,
+        "source_bytes": 0,
+        "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "span_hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+        "span_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+      },
+      "page3d_audio": {
+        "page": 61,
+        "artifact": "ladybug-audio-runtime.bin",
+        "artifact_sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+        "span_hex": "86ffa7a43996a584fb270b863db7ffa5",
+        "span_sha256": "6c53b6412e399ef2b8f98b9ba736007779555aac46e606047116a3d6ddee48e7"
+      },
+      "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+      "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+      "source_hashes": {
+        "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+        "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+        "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+        "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+      }
+    },
+    "classification_contract": {
+      "trigger": "only a registered positive-ID address breakpoint with exact installed bp_id, an audio label, numeric PC in $A000-$BFFF, and current masked PAR5=$20",
+      "stop_identity": "require get_run_state halted/breakpoint with exact PC/bp ID and matching stopped-register PC; reread raw/masked PAR5 after status",
+      "page20_identity": "recheck exact current source receipt inputs, sparse manifest, staged 5,751-byte synthesized helper payload, complete source hash set, and audio artifact receipt binding",
+      "range_and_bytes": "require PC in the helper's 5,751-byte range with at least five bytes remaining; compare one full 5,751-byte physical page-$20 span at first alias and 16-byte CPU/physical/source spans at every alias",
+      "dispatch": "record numeric phase and original address label in a separate alias event, then return before audio END/mix/busy or PSG event handlers",
+      "unchanged_strict_paths": "normal PAR5=$3D audio, bootstrap reset order, PSG watchpoints with absent/zero bp IDs, unknown pages, wrong identity, out-of-range PCs, source/reference drift, and all lifecycle/FRONT guards remain fail-closed"
+    },
+    "offline_verification": {
+      "py_compile": "PASS",
+      "cli_help": "PASS",
+      "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped and untouched",
+      "read_only_current_prepare": "PASS; current root build references bound without build or target access",
+      "self_test": {
+        "result": "PASS",
+        "negative_checks": 365,
+        "emulator_launches": 0,
+        "target_writes": 0,
+        "focused_alias_cases": [
+          "three registered audio PCs ($A410 mix start, $A2D2 END, and $A498 busy publication) classify to separate alias records; complete physical image read once; 16-byte live comparisons repeated per stop; audio handlers are not called",
+          "registered BP mismatch and stopped PC/BP identity mismatch fail before alias publication",
+          "out-of-range PC and full helper corruption outside the per-stop window fail closed",
+          "complete physical helper mismatch and per-stop CPU or physical mismatch fail closed",
+          "normal page-$3D audio remains on its strict path; unknown page and both zero/absent PSG-watchpoint IDs cannot classify as aliases",
+          "after the complete physical image proof is cached, changed CPU and physical per-stop spans still fail without appending alias events or reaching audio handlers"
+        ]
+      },
+      "runtime_probe": "NOT RUN; parent owns one unchanged-ROM natural rerun after review",
+      "build_or_target_write": "NONE during this step"
+    },
+    "observer_script_sha256": "f994e34224d7ac426aa14f6b198b307a845418fff6e4044303a076ca4b66063b",
+    "parent_independent_self_test": "PENDING parent review of frozen source",
+    "status": "OFFLINE_ALIAS_CLASSIFIER_PASS_AWAITING_PARENT_REVIEW"
+  },
+  "guarded_import_no_launch": "PASS for the frozen alias classifier source; subprocess.Popen and socket.create_connection trapped and untouched"
 }
