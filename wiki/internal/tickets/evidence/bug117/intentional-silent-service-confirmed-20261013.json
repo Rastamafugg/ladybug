@@ -1,0 +1,669 @@
+{
+  "status": "DIAGNOSIS_CAPTURE_PASS_ACCEPTANCE_INCOMPLETE",
+  "observer_commit": "e2d44ccb16a6f3295753bc87db251e4594eb8137",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "full_trace_path": "repro/bug117-integration-20261012/runtime-natural-death-service-capture-20261013/bug117-natural-runtime.json",
+  "full_trace_sha256": "56ce9861dfae37e1be19dc970f7f16de216de4328745f8d97edea2ef473d0816",
+  "error": "QualificationFailure: selected cue has no audible tone channel in this mixer service",
+  "target_write_count": 0,
+  "captured_context": {
+    "kind": "selected-cue-mix-rejection",
+    "stop": {
+      "phase": "natural-contact-search",
+      "phase_deadline_seconds": 45,
+      "phase_deadline_monotonic": 21947.344626494,
+      "phase_remaining_seconds_at_dispatch": 28.99562588000117,
+      "pc": 42000,
+      "pc_hex": "$A410",
+      "bp_id": 8,
+      "ordinal": 8669,
+      "observed_monotonic": 21918.348994282,
+      "registers_at_stop": {
+        "a": 15,
+        "b": 2,
+        "d": 3842,
+        "cc": 196,
+        "dp": 0,
+        "x": 46523,
+        "y": 46523,
+        "u": 46535,
+        "s": 8182,
+        "pc": 42000
+      }
+    },
+    "registered_stop": {
+      "label": "audio_mix_write",
+      "pc": 42000,
+      "installed_bp_id": 8,
+      "observed_bp_id": 8
+    },
+    "qualified_code_identity": {
+      "module": "audio",
+      "cpu_address": 42000,
+      "page_register": 65445,
+      "mapped_page": 61,
+      "length": 3,
+      "sha256": "02634fd2fae0851ce87431403b41b5fc8fa9d4c2afe8687d48261ed72e391cf7",
+      "source_staged_live_match": true
+    },
+    "source_bindings": {
+      "candidate_source_sha256": {
+        "main.s": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+        "audio_runtime.s": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+        "enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+        "keybinding_runtime.s": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+        "presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c"
+      },
+      "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+      "delivery_receipt_sha256": "1d3b5cf201336c185b19f9d9a64653fe5622fef42052e58ca99c70eb1410ff2b",
+      "audio_mix_write_pc": 42000,
+      "cue_stream_boundary": {
+        "terminator_offset": 5101,
+        "terminal_next_offset": 5102,
+        "command_count": 110,
+        "terminator": 0,
+        "stream_start": 45697,
+        "terminator_address": 46061,
+        "terminal_x_expected": 46062
+      },
+      "death_markers": {
+        "cep_skull": {
+          "symbol": "cep_skull",
+          "source": "src/main.s",
+          "address": 53795,
+          "listing_label_line": 4012,
+          "source_instruction_line": 4013,
+          "source_instruction": "ldx     #ENTITY_TABLE",
+          "span_length": 3,
+          "span_hex": "8ea380",
+          "span_sha256": "0f450e30a5e59859c522ea36660d4489529ff135a6e3b965e5fff5c6b8859318",
+          "listing_sha256": "ad5ba89933232d85844295a8139e79c0c12ffeccb7f62efd232938422bf83e50",
+          "map_sha256": "393c43d830b405dcd17d881814d2c3bc80c341eea0988d7592872620d9255c5c",
+          "source_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+          "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+          "staged_sha256": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+          "source_listing_staged_match": true,
+          "classification": "skull-pickup death onset; not an enemy contact"
+        },
+        "et_player_death": {
+          "symbol": "et_player_death",
+          "source": "src/enemy_runtime.s",
+          "address": 2448,
+          "source_sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+          "classification": "enemy-player collision onset"
+        }
+      }
+    },
+    "cue_expectation": {
+      "cue_id": 13,
+      "policy": 211,
+      "priority": 6,
+      "selected_slot": 0
+    },
+    "audio_snapshot": {
+      "slots": [
+        {
+          "index": 0,
+          "id": 13,
+          "priority": 6,
+          "policy": 211,
+          "wait": 8,
+          "stream_pointer": 45717,
+          "periods": [
+            1016,
+            1016,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "860d90ae0fb0c100dfe0ff",
+            "length": 11
+          }
+        },
+        {
+          "index": 1,
+          "id": 255,
+          "priority": 2,
+          "policy": 74,
+          "wait": 0,
+          "stream_pointer": 43829,
+          "periods": [
+            570,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        },
+        {
+          "index": 2,
+          "id": 255,
+          "priority": 2,
+          "policy": 74,
+          "wait": 0,
+          "stream_pointer": 43829,
+          "periods": [
+            570,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        },
+        {
+          "index": 3,
+          "id": 255,
+          "priority": 0,
+          "policy": 0,
+          "wait": 0,
+          "stream_pointer": 0,
+          "periods": [
+            1,
+            1,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "0000000000000000000000",
+            "length": 11
+          }
+        }
+      ],
+      "slot_raw": [
+        {
+          "hex": "0d06d308b295f803f80301000f0f0f000f860d90ae0fb0c100dfe0ff",
+          "length": 28
+        },
+        {
+          "hex": "ff024a00ab353a02010001000f0f0f000f0000000000000000000000",
+          "length": 28
+        },
+        {
+          "hex": "ff024a00ab353a02010001000f0f0f000f0000000000000000000000",
+          "length": 28
+        },
+        {
+          "hex": "ff00000000000100010001000f0f0f000f0000000000000000000000",
+          "length": 28
+        }
+      ],
+      "best_slot": 0,
+      "best_priority": 6,
+      "mix_period_bytes": {
+        "hex": "010001000100",
+        "length": 6
+      },
+      "mix_attenuation": {
+        "hex": "0f0f0f",
+        "length": 3
+      },
+      "mix_noise": {
+        "hex": "000f",
+        "length": 2
+      },
+      "mix_shadow": {
+        "hex": "860d90ae0fb0c100dfe0ff",
+        "length": 11
+      },
+      "mix_order": {
+        "hex": "0e000000",
+        "length": 4
+      },
+      "mix_count": 0,
+      "music_count": 0,
+      "music_queue": {
+        "hex": "0d00000000000000",
+        "length": 8
+      },
+      "effect_queue_count": 0,
+      "credit_pending": 0,
+      "published_busy": 1
+    },
+    "pure_mixer_model": {
+      "result": {
+        "selected": {
+          "index": 0,
+          "id": 13,
+          "priority": 6,
+          "policy": 211,
+          "wait": 8,
+          "stream_pointer": 45717,
+          "periods": [
+            1016,
+            1016,
+            1
+          ],
+          "attenuation": [
+            15,
+            15,
+            15
+          ],
+          "noise": 0,
+          "noise_attenuation": 15,
+          "shadow": {
+            "hex": "860d90ae0fb0c100dfe0ff",
+            "length": 11
+          }
+        },
+        "periods": [
+          1,
+          1,
+          1
+        ],
+        "attenuation": [
+          15,
+          15,
+          15
+        ],
+        "noise": [
+          0,
+          15
+        ],
+        "channel_sources": [],
+        "audible_voice_count": 0,
+        "period_bytes": {
+          "hex": "010001000100",
+          "length": 6
+        },
+        "attenuation_bytes": {
+          "hex": "0f0f0f",
+          "length": 3
+        },
+        "noise_bytes": {
+          "hex": "000f",
+          "length": 2
+        }
+      },
+      "error": null
+    },
+    "cached_perimeter_alias_proof": {
+      "event_count": 4,
+      "events": [
+        {
+          "module": "perimeter-reset-address-alias",
+          "phase": "natural-contact-search",
+          "original_address_label": "audio_command_end",
+          "original_audio_address": 41682,
+          "page": 32,
+          "page_register_raw": 96,
+          "page_register_masked": 32,
+          "source_staged_manifest_identity": {
+            "page": 32,
+            "address": 40960,
+            "length": 5751,
+            "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+            "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+            "source_hashes": {
+              "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+              "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+              "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+              "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+            },
+            "boot_synthesized": true,
+            "source_bytes": 0,
+            "source_staged_manifest_identity_match": true
+          },
+          "full_physical_reference": {
+            "read_once": true,
+            "length": 5751,
+            "physical_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "reference_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "matches_complete_synthesized_image": true
+          },
+          "span": {
+            "cpu_address": 41682,
+            "physical_page": 32,
+            "physical_address": 262866,
+            "offset": 722,
+            "length": 16,
+            "source_staged_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "cpu_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "physical_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "cpu_matches_source_staged": true,
+            "physical_matches_source_staged": true,
+            "cpu_matches_physical": true
+          },
+          "stopped_status_qualified": true,
+          "target_write_count": 0,
+          "event_ordinal": 8641,
+          "stop_pc": 41682,
+          "breakpoint_id": 9,
+          "stop_context": {
+            "phase": "natural-contact-search",
+            "phase_deadline_seconds": 45,
+            "phase_deadline_monotonic": 21947.344626494,
+            "phase_remaining_seconds_at_dispatch": 29.2646732409994,
+            "pc": 41682,
+            "pc_hex": "$A2D2",
+            "bp_id": 9,
+            "ordinal": 8641,
+            "observed_monotonic": 21918.079942813,
+            "registers_at_stop": {
+              "a": 6,
+              "b": 102,
+              "d": 1638,
+              "cc": 208,
+              "dp": 0,
+              "x": 1389,
+              "y": 0,
+              "u": 43520,
+              "s": 8150,
+              "pc": 41682
+            }
+          }
+        },
+        {
+          "module": "perimeter-reset-address-alias",
+          "phase": "natural-contact-search",
+          "original_address_label": "post_psg_busy",
+          "original_audio_address": 42136,
+          "page": 32,
+          "page_register_raw": 96,
+          "page_register_masked": 32,
+          "source_staged_manifest_identity": {
+            "page": 32,
+            "address": 40960,
+            "length": 5751,
+            "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+            "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+            "source_hashes": {
+              "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+              "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+              "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+              "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+            },
+            "boot_synthesized": true,
+            "source_bytes": 0,
+            "source_staged_manifest_identity_match": true
+          },
+          "full_physical_reference": {
+            "read_once": true,
+            "length": 5751,
+            "physical_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "reference_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "matches_complete_synthesized_image": true
+          },
+          "span": {
+            "cpu_address": 42136,
+            "physical_page": 32,
+            "physical_address": 263320,
+            "offset": 1176,
+            "length": 16,
+            "source_staged_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "cpu_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "physical_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "cpu_matches_source_staged": true,
+            "physical_matches_source_staged": true,
+            "cpu_matches_physical": true
+          },
+          "stopped_status_qualified": true,
+          "target_write_count": 0,
+          "event_ordinal": 8642,
+          "stop_pc": 42136,
+          "breakpoint_id": 10,
+          "stop_context": {
+            "phase": "natural-contact-search",
+            "phase_deadline_seconds": 45,
+            "phase_deadline_monotonic": 21947.344626494,
+            "phase_remaining_seconds_at_dispatch": 29.24310527399939,
+            "pc": 42136,
+            "pc_hex": "$A498",
+            "bp_id": 10,
+            "ordinal": 8642,
+            "observed_monotonic": 21918.101514758,
+            "registers_at_stop": {
+              "a": 6,
+              "b": 102,
+              "d": 1638,
+              "cc": 208,
+              "dp": 0,
+              "x": 1389,
+              "y": 0,
+              "u": 43520,
+              "s": 8150,
+              "pc": 42136
+            }
+          }
+        },
+        {
+          "module": "perimeter-reset-address-alias",
+          "phase": "natural-contact-search",
+          "original_address_label": "audio_command_end",
+          "original_audio_address": 41682,
+          "page": 32,
+          "page_register_raw": 96,
+          "page_register_masked": 32,
+          "source_staged_manifest_identity": {
+            "page": 32,
+            "address": 40960,
+            "length": 5751,
+            "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+            "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+            "source_hashes": {
+              "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+              "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+              "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+              "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+            },
+            "boot_synthesized": true,
+            "source_bytes": 0,
+            "source_staged_manifest_identity_match": true
+          },
+          "full_physical_reference": {
+            "read_once": true,
+            "length": 5751,
+            "physical_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "reference_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "matches_complete_synthesized_image": true
+          },
+          "span": {
+            "cpu_address": 41682,
+            "physical_page": 32,
+            "physical_address": 262866,
+            "offset": 722,
+            "length": 16,
+            "source_staged_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "cpu_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "physical_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f",
+            "cpu_matches_source_staged": true,
+            "physical_matches_source_staged": true,
+            "cpu_matches_physical": true
+          },
+          "stopped_status_qualified": true,
+          "target_write_count": 0,
+          "event_ordinal": 8667,
+          "stop_pc": 41682,
+          "breakpoint_id": 9,
+          "stop_context": {
+            "phase": "natural-contact-search",
+            "phase_deadline_seconds": 45,
+            "phase_deadline_monotonic": 21947.344626494,
+            "phase_remaining_seconds_at_dispatch": 29.0363359519979,
+            "pc": 41682,
+            "pc_hex": "$A2D2",
+            "bp_id": 9,
+            "ordinal": 8667,
+            "observed_monotonic": 21918.308279962,
+            "registers_at_stop": {
+              "a": 6,
+              "b": 102,
+              "d": 1638,
+              "cc": 208,
+              "dp": 0,
+              "x": 1389,
+              "y": 0,
+              "u": 43264,
+              "s": 8150,
+              "pc": 41682
+            }
+          }
+        },
+        {
+          "module": "perimeter-reset-address-alias",
+          "phase": "natural-contact-search",
+          "original_address_label": "post_psg_busy",
+          "original_audio_address": 42136,
+          "page": 32,
+          "page_register_raw": 96,
+          "page_register_masked": 32,
+          "source_staged_manifest_identity": {
+            "page": 32,
+            "address": 40960,
+            "length": 5751,
+            "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+            "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+            "source_hashes": {
+              "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+              "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+              "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+              "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+            },
+            "boot_synthesized": true,
+            "source_bytes": 0,
+            "source_staged_manifest_identity_match": true
+          },
+          "full_physical_reference": {
+            "read_once": true,
+            "length": 5751,
+            "physical_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "reference_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+            "matches_complete_synthesized_image": true
+          },
+          "span": {
+            "cpu_address": 42136,
+            "physical_page": 32,
+            "physical_address": 263320,
+            "offset": 1176,
+            "length": 16,
+            "source_staged_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "cpu_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "physical_sha256": "24d79e343e5fc6bdfe67fd13e84e945c816797276d59ca8b1d7486533637104d",
+            "cpu_matches_source_staged": true,
+            "physical_matches_source_staged": true,
+            "cpu_matches_physical": true
+          },
+          "stopped_status_qualified": true,
+          "target_write_count": 0,
+          "event_ordinal": 8668,
+          "stop_pc": 42136,
+          "breakpoint_id": 10,
+          "stop_context": {
+            "phase": "natural-contact-search",
+            "phase_deadline_seconds": 45,
+            "phase_deadline_monotonic": 21947.344626494,
+            "phase_remaining_seconds_at_dispatch": 29.016052890998253,
+            "pc": 42136,
+            "pc_hex": "$A498",
+            "bp_id": 10,
+            "ordinal": 8668,
+            "observed_monotonic": 21918.328567582,
+            "registers_at_stop": {
+              "a": 6,
+              "b": 102,
+              "d": 1638,
+              "cc": 208,
+              "dp": 0,
+              "x": 1389,
+              "y": 0,
+              "u": 43264,
+              "s": 8150,
+              "pc": 42136
+            }
+          }
+        }
+      ],
+      "full_helper_result": {
+        "read_once": true,
+        "length": 5751,
+        "physical_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "reference_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "matches_complete_synthesized_image": true
+      },
+      "helper_identity": {
+        "page": 32,
+        "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+        "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+        "source_hashes": {
+          "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+          "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+          "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+          "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+        }
+      }
+    },
+    "death_source_events": [
+      {
+        "source": "skull-pickup",
+        "marker": "cep_skull",
+        "phase": "natural-contact-search",
+        "ordinal": 8631,
+        "pc": 53795,
+        "source_staged_live_match": true,
+        "qualification_sha256": "0f450e30a5e59859c522ea36660d4489529ff135a6e3b965e5fff5c6b8859318",
+        "genuine_enemy_contact": false,
+        "contact_count": 0
+      }
+    ],
+    "original_guard": {
+      "class": "GuardFailure",
+      "message": "selected cue has no audible tone channel in this mixer service"
+    },
+    "monitor_rereads_after_snapshot": 0,
+    "target_write_count": 0,
+    "error": "QualificationFailure: selected cue has no audible tone channel in this mixer service"
+  },
+  "source_interval": {
+    "address": 45707,
+    "end_pointer": 45717,
+    "bytes_hex": "10f8030f11f8030f0208",
+    "interpretation": "NOTE0 period1016 attenuation15; NOTE1 period1016 attenuation15; WAIT8",
+    "snapshot_matches_authored_notes_and_wait": true,
+    "live_mixer_matches_pure_selected_model": {
+      "periods": true,
+      "attenuation": true,
+      "noise": true
+    },
+    "first_cue13_audible_already_observed": true
+  },
+  "remaining": "Two genuine enemy contacts and later-life/fixture/HUD gates remain missing; no production change or full runtime acceptance."
+}
