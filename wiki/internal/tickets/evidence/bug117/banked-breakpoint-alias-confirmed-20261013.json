@@ -1,0 +1,135 @@
+{
+  "status": "DIAGNOSIS_CAPTURE_PASS_GUARD_RETAINED",
+  "observer_commit": "b45696a",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "full_trace_path": "repro/bug117-integration-20261012/runtime-natural-bank-byte-capture-20261013/bug117-natural-runtime.json",
+  "full_trace_sha256": "b41bf041b1e5e23156b75b25486bf8e15f7bffae5ae4a947eb16721ea2eb0ed5",
+  "target_writes": 0,
+  "capture": {
+    "kind": "bank-boundary-byte-capture",
+    "capture_status": "captured",
+    "guard_rethrown": true,
+    "original_guard": {
+      "class": "GuardFailure",
+      "message": "live PAR $FFA5 page $20 != expected $3D"
+    },
+    "stop": {
+      "phase": "natural-contact-search",
+      "phase_deadline_seconds": 45,
+      "phase_deadline_monotonic": 8498.132266416,
+      "phase_remaining_seconds_at_dispatch": 31.03448613799992,
+      "pc": 41682,
+      "pc_hex": "$A2D2",
+      "bp_id": 8,
+      "ordinal": 8640,
+      "observed_monotonic": 8467.097769928,
+      "registers_at_stop": {
+        "a": 6,
+        "b": 102,
+        "d": 1638,
+        "cc": 208,
+        "dp": 0,
+        "x": 1389,
+        "y": 0,
+        "u": 43520,
+        "s": 8150,
+        "pc": 41682
+      }
+    },
+    "target_write_count": 0,
+    "reference": {
+      "cpu_pc": 41682,
+      "cpu_window": 40960,
+      "offset": 722,
+      "span_bytes": 16,
+      "audio_command_end_pc": 41682,
+      "page20": {
+        "page": 32,
+        "address": 40960,
+        "manifest_bytes": 5751,
+        "boot_synthesized": true,
+        "source_bytes": 0,
+        "manifest_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "payload_sha256": "66933931203f442ce392de2f23a9ef9751906a4ef56da022bf4b4b46e0a1f5ae",
+        "span_hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+        "span_sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+      },
+      "page3d_audio": {
+        "page": 61,
+        "artifact": "ladybug-audio-runtime.bin",
+        "artifact_sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+        "span_hex": "86ffa7a43996a584fb270b863db7ffa5",
+        "span_sha256": "6c53b6412e399ef2b8f98b9ba736007779555aac46e606047116a3d6ddee48e7"
+      },
+      "sparse_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+      "source_build_receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+      "source_hashes": {
+        "src/gmc_bootstrap.s": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+        "src/perimeter_reset_helper.s": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+        "scripts/build_sparse_sprites.py": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+        "tiled/coco-special-screen.tmx": "4734e0ebcae4319b83cdfee04228d87cd0b100352a98182a0b22ed3074ad37e7"
+      }
+    },
+    "stopped_status": {
+      "state": "halted",
+      "last_stop_reason": "breakpoint",
+      "last_stop_pc": 41682,
+      "last_stop_bp_id": 8,
+      "reply": {
+        "state": "halted",
+        "last_stop_reason": "breakpoint",
+        "last_stop_pc": 41682,
+        "last_stop_bp_id": 8
+      },
+      "read_error": null,
+      "stop_identity_match": true
+    },
+    "mapping": {
+      "page_register_address": 65445,
+      "page_register_address_hex": "$FFA5",
+      "guard_observed_page": 32,
+      "guard_expected_page": 61,
+      "par_mask": 63,
+      "par_raw": 96,
+      "par_raw_hex": "$60",
+      "par_masked": 32,
+      "par_masked_hex": "$20",
+      "matches_guard_observed_page": true
+    },
+    "window": {
+      "cpu_address": 41682,
+      "cpu_address_hex": "$A2D2",
+      "cpu_window": 40960,
+      "offset": 722,
+      "physical_page20_address": 262866,
+      "physical_page3d_address": 500434,
+      "span_bytes": 16
+    },
+    "bytes": {
+      "live_cpu_window": {
+        "length": 16,
+        "hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+        "sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+      },
+      "live_physical_page20": {
+        "length": 16,
+        "hex": "fd2e3d8660b72e3fcc0666fd2edd8660",
+        "sha256": "16cd999df4bd5bedc3db2aceb6156762046552b6ed04336c1326adce33720f8f"
+      },
+      "live_physical_page3d": {
+        "length": 16,
+        "hex": "86ffa7a43996a584fb270b863db7ffa5",
+        "sha256": "6c53b6412e399ef2b8f98b9ba736007779555aac46e606047116a3d6ddee48e7"
+      }
+    },
+    "comparisons": {
+      "par5_matches_guard_observed_page": true,
+      "cpu_matches_physical_page20": true,
+      "physical_page20_matches_manifest_reference": true,
+      "cpu_matches_page20_manifest_reference": true,
+      "physical_page3d_matches_receipt_audio_span": true
+    },
+    "error": "GuardFailure: live PAR $FFA5 page $20 != expected $3D"
+  },
+  "confirmed_cause": "Numeric audio-command-END breakpoint A2D2 also belongs to legitimate page20 boot-synthesized perimeter-reset code. Actual halted CPU and physical20 span match its current source/manifest reference; physical3D span matches audio separately. Observer incorrectly assumes this numeric PC is always audio. No production mapping fault indicated by this qualified boundary."
+}

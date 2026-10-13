@@ -1,0 +1,74 @@
+BUG-058 — gameplay-first priority and diagnosis approval brief
+Prepared 2026-10-13
+
+Recommendation and decision
+
+Approve a bounded, current-artifact diagnosis of regular gameplay only. Measure naturally reached three-enemy worklists and four-enemy worklists if they occur, with music/audio state recorded alongside input, simulation, replay/render, and actual FRONT publication. Treat the user's audio/music concern as the first attribution question, not as a confirmed cause. Do not authorize optimization in this step. After diagnosis, any repair needs its own evidence-based proposal and approval.
+
+The user reports that even four enemies usually cause imperceptible slowdown and that the current game feels close to target. This is relevant user-impact evidence, but it is not an instrumented pass. The suspected audio/music cost is a hypothesis. The diagnostic must determine whether a repeated regular-gameplay cost is present and whether it affects response, simulation continuity, visible publication, or audio sequencing.
+
+Project-management classification
+
+- Objective: classify current regular-gameplay timing and perceived impact, then identify a measured next step if one is warranted.
+- Scope: current-artifact natural-play observation and causal accounting only. No source changes, optimization, cadence/clock/memory changes, altered target, new monitor protocol, or hardware claim.
+- Artifacts: BUG-058 remains the canonical Proposed ticket, High-risk. This report is the sole assigned output. The eventual runtime assignment must wait for explicit approval, a Ready contract, and qualification of the observer markers needed for this diagnosis.
+- Cost class: High-risk, retained from BUG-058 because the unresolved timing cause spans the 27,000-cycle active-worklist target, persistent FRONT publication, audio, and phase handoffs. A confirmed cause could change the verification scope.
+- Next role: business-analyst, because this brief sets user-impact, priority, and option rules. Debugger evidence guidance informs the discriminator; no runtime probe or implementation is authorized here.
+
+Evidence and baseline
+
+The benchmark is at most 27,000 fast CPU cycles per active worklist. It is measured from AD_WORK_EXEC entry through main-loop return as raw event_ticks/8; IRQ work is included and the preceding SYNC is excluded. For any later sample, overrun means measured cycles minus 27,000. Keep that benchmark unchanged. A benchmark miss is evidence, not by itself a blanket release block when the work is non-gameplay or has no demonstrated user-visible effect.
+
+Historical source 7cdc53f / ROM 283084f3: the natural post-entry north arm sampled 12 worklists; one reached 42,541 cycles and the other 11 were at most 23,281. A separate forced combined popup/nest arm reached 54,539 cycles. These are sampled maxima, not distributions or whole-game maxima. Neither arm records enemy count or establishes recurrence at three or four enemies. The forced arm does not establish natural event reachability.
+
+Current integrated artifact df260e has no new timing measurement. The approved BUG-117 integration/build and GDB copy checks passed, but observer qualification is incomplete: current evidence reaches only first-life output. Source/byte-qualified cost, input-release and FRONT/audio markers are prerequisites to Ready; BUG-117 three-life/fixture/HUD acceptance is not required for this diagnosis. BUG-117 Done and a timing pass are not dependencies. Older profile evidence from 163d0be used a null audio backend and is not evidence about current music output or current subsystem costs.
+
+Candidate comparison method
+
+The comparison below uses an explicit ordinal order, not a numerical payoff or potential/cost ratio. “Potential” means ability to improve regular-play performance, grounded first in recurring gameplay cost and observed input, simulation, FRONT, or audio-sequencing impact. High requires both recurring cost and demonstrated impact; medium means recurring cost without demonstrated impact; low means transition-only or isolated cost; unmeasured candidates stay unranked. “Cost” means the smallest measured or projected change surface and its build/test scope: low is a bounded existing path, medium spans several modules or scenarios, and high touches persistent ownership, timing policy, or a new runtime pattern. A Ready design should report changed-file count, byte delta where applicable, and distinct required verification scenarios; those costs remain unmeasured here. Risk and evidence confidence break ties: prefer lower risk and then stronger current-artifact evidence. The baseline is current artifact df260e with no timing ledger; the historical figures above are context only. The pass rule for pre-1.0 priority is a demonstrated recurring active-gameplay impact and a bounded high-yield remedy. None of these rows estimates cycle savings or authorizes a fix.
+
+| Candidate or action | Potential and confidence now | Cost and risk now | Ordinal disposition |
+|---|---|---|---|
+| Natural current-artifact diagnosis with audio-first attribution | No direct performance gain; high decision value. Confidence in cause remains low until required current-artifact coverage is captured. | Projected low-to-medium by reusing existing worklist/profile paths after observer qualification; exact file/byte/test scope is TBD. Observer and accounting validity are the material risks. | First action. Measure audio service/mix work, PSG writes, enemy work, replay/render work, input response, simulation advancement, and real FRONT commits in the same qualified natural worklists. |
+| Audio service/mix redundancy or arbitration work | Conditional high only if repeated audio CPU cost is linked to regular-play impact. Low cause confidence: the current artifact has no profile, and prior null-backend data cannot establish music cost. | Unmeasured. Audio sequencing, priority, and completion behavior raise regression risk. | Unranked until the current trace. Candidates include repeated service/mix work; do not merge ownership paths or change admission policy by assumption. |
+| Residual PSG latch/write and shadow-comparison cost | Conditional potential only if measured write work recurs during affected gameplay and contributes to impact. No current write count or cycle attribution. | Unmeasured. Must retain audible event order and required write spacing; output quality is not established by cycle counts. | Unranked until write/cycle counts are measured and a separate safe discriminator is proposed. |
+| Replay closure/render/FRONT work | Conditional high if a recurring render/replay cost delays real publication or player response. Current confidence is low; older profiles are stale for df260e. | Likely higher verification cost because persistent-buffer pixels, metadata, ownership, and natural replay interact; exact size is unmeasured. | Unranked until current cost and publication impact are measured. |
+| Per-enemy simulation work | Conditional high if cost grows with natural enemy count and interrupts input or simulation progress. Current confidence is low; user reports four-enemy slowdown is usually imperceptible. | Unmeasured, with behavioral risk to collision, AI, spawn cadence, and timers. | Unranked until three-enemy data exists; record four-enemy work only if naturally reached. |
+| Defer optimization and retain the measurement ledger | No direct speedup. It preserves scope while gameplay feels close and leaves the 27,000-cycle target visible. | Lowest implementation cost and risk; unresolved performance debt remains. | Valid fallback if diagnosis finds no recurring active-gameplay impact. Do not call a missing measurement a pass. |
+
+The best combined first move is the natural diagnosis, not an audio-only or renderer-only repair. It has the lowest available cost for resolving the most consequential uncertainty and can rank subsequent work from measured recurring cost plus actual player impact. If audio is confirmed, compare audio-service/mix and residual PSG latch/write work separately before proposing a bounded change. Source review confirms audio_mix_write already suppresses unchanged tone continuation, attenuation and noise writes through eleven retained shadows. It deliberately always sends each tone latch before a possible data-only write. Therefore adding generic unchanged-write suppression is not a new option; measure the residual mandatory latches, shadow comparisons, decoding/mixing and spacing cost, and preserve register-selection semantics before proposing any further reduction. If replay/render, enemy processing, or another path controls the affected worklist, follow that evidence instead. If there is no demonstrated impact, keep the cycle miss recorded and defer repair.
+
+Pre-1.0 versus post-1.0 priority
+
+| Window | Priority and decision rule | Included work |
+|---|---|---|
+| Before 1.0 | High-priority work only: a bounded fix may be proposed for a demonstrated recurring regular-gameplay impact, or for an audio sequencing/correctness fault, when a high-yield repair path is evidenced. A cycle count above 27,000 remains a benchmark failure but does not alone block release when play has no demonstrated impact. | First complete the current natural diagnosis. Then, only if justified, propose the smallest behavior-preserving repair for the measured controlling path. Three enemies are required coverage; four are recorded if naturally reached. |
+| After 1.0 | Carry remaining cycle misses as explicit technical debt and consider broader optimization with a separate approval. | Non-gameplay transitions, forced-only or rare paths, recurring but non-impacting active work, wider renderer/replay changes, enemy-work reductions, and nonessential audio-service tuning. |
+
+Diagnosis outcome, measures, and verification
+
+Success is a current-artifact ledger that either identifies a recurring regular-gameplay cost with its observed impact and a discriminating next step, or bounds what remains unknown. Record artifact/source and ROM identity, phase, natural enemy count, accepted input, repeated logical/timer/animation edges, music/audio state, executed worklist/replay/render operations, cycle total, audio-service/mix and PSG-write counts, input-to-response, simulation advancement, and actual FRONT commits. Count recurrence from observed logical/timer events, not routine call count. Separate inclusive cost from exclusive component cost, account for observer overhead, and reconcile components to the measured worklist. Do not compare unlike phases as a causal delta.
+
+Required coverage maps to distinct risks:
+
+- Natural active three-enemy worklists cover the original reported population and recurring gameplay cost. Missing the count is a failed coverage criterion, not a pass.
+- Four-enemy worklists cover the adjacent population only if naturally reached; absence remains missing and does not imply the user report is false.
+- A naturally occurring collection, spawn, popup, or color/replay event covers event-triggered gameplay cost only when observed; do not force it before natural reachability is established.
+- Naturally reached regular gameplay with its actual music/effect/quiet audio state, input available and actual FRONT commits covers the audio/control/publication interaction. Do not require music-active regular gameplay if the source lifecycle cannot naturally produce it; record that absence separately and measure gameplay effects and quiet output where reached. Track audio state and writes; a causal audio claim needs validated exclusive accounting and a separately reviewed matched discriminator.
+- Entry, death, stage, and other transition work is classified separately. It cannot be substituted for a regular-gameplay sample or made a pre-1.0 blocker by itself.
+
+Each named runtime phase has a 45-second maximum and a monitor stop of at most 10 seconds. Name its phase marker and success marker in the Ready assignment. Timeout means the marker was absent at that probe boundary, not that target code was slow. Missing required coverage leaves the diagnosis incomplete. After two rejected probes, two observation-tool timeouts, or one material cause expansion, stop and reassess class and next discriminator before another probe.
+
+Dependencies, risks, and exclusions
+
+1. User approval of this revised diagnosis outcome and priority rule keeps BUG-058 Proposed until approved.
+2. Before Ready, pin the exact df260e-derived source/build/ROM identity, qualification of the observer markers needed for this diagnosis beyond first-life output, validate real input release and FRONT/audio markers, and add exact guarded commands and evidence retention to the assignment.
+3. After approval and Ready, capture natural current-artifact gameplay. Parent reviews the ledger and prepares a separate optimization proposal only if evidence supports one.
+
+Main risks are incomplete natural enemy/event coverage, observer overhead or incorrect nested-cost accounting, audio state mistaken for audio CPU cost, and FRONT owner/worklist confounding. Mitigate them with source-validated markers, inclusive/exclusive reconciliation, actual accepted-input and commit evidence, and phase/worklist-first reporting. Keep audio or hardware-output quality claims separate from emulator CPU measurements.
+
+Exclude production optimization, target-state writes in the natural arm, altered logical cadence or budgets, increased CPU/memory limits, a blanket release gate for transition-only or non-impacting misses, new monitor protocol, hardware-defect attribution, and blanket timing waivers. A measured active-worklist miss remains a miss against 27,000; the diagnosis only changes how its pre-1.0 priority is decided.
+
+Approval requested
+
+Approve the bounded natural-gameplay diagnosis and the pre-1.0 high-priority rule above. Approval authorizes diagnosis preparation only; it does not authorize profiling until the assignment is Ready and does not approve any optimization. The user's current-feel report informs priority but is not a timing pass; the audio/music bottleneck remains a hypothesis until current-artifact causal evidence exists.
