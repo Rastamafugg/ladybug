@@ -33,6 +33,9 @@ TIMER_ADDRESS = 0x003A
 TIMER_VALUES = {"front-first": 0, "music-first": 255, "prior-music": 0}
 COIN5_MATRIX_KEY = 44
 COIN5_DSCAN_KEY = 5
+ENTRY_SOUTH_BINDING_INDEX = 1
+ENTRY_EAST_DIRECTION = 1
+ENTRY_NORTH_DIRECTION = 0
 ROOT = next((p for p in Path(__file__).resolve().parents if (p / "scripts/build.sh").is_file()), None)
 MONITOR_TEMPLATE = (ROOT / "scripts/verify_bug009_monitor_input.py") if ROOT else None
 MONITOR_SOURCE = (ROOT / "docs/reference/xroar/src/monitor.c") if ROOT else None
@@ -40,6 +43,8 @@ PLAYER_ART = (ROOT / "assets/arcade/sprites.json") if ROOT else None
 VISIBLE_BASE = 0x2000
 VISIBLE_BYTES = 30720
 PHYSICAL_PAGE_BYTES = 0x2000
+RESIDENT_IMAGE_BASE = 0xC000
+RESIDENT_IMAGE_BYTES = 0x4000
 PAR_BASE = 0xFFA0
 PAR5 = 0xFFA5
 SND_DATA = 0xFF51
@@ -360,6 +365,13 @@ def verify_candidate_player_art(build: Path) -> dict[str, Any]:
     finally:
         if added:
             sys.path.remove(scripts_dir)
+
+
+def validate_layout_final_image_identity(layout: dict[str, Any], rom_sha256: str) -> None:
+    """Require the sparse layout's final-image identity to match the current ROM."""
+    gmc = layout.get("gmc") if isinstance(layout, dict) else None
+    if not isinstance(gmc, dict) or gmc.get("final_image_sha256") != rom_sha256:
+        raise GuardFailure("sparse layout final-image identity differs from the current ROM")
 
 
 def candidate_player_frame(build: Path, face: int, animation: int) -> tuple[bytes, dict[str, Any]]:
@@ -895,15 +907,20 @@ def prepare(build: Path) -> dict[str, Any]:
     missing = [str(p) for p in files.values() if not p.is_file()]
     if missing:
         raise GuardFailure("candidate build is incomplete: " + ", ".join(missing))
+    rom_bytes = files["ladybug.rom"].read_bytes()
+    layout = json.loads(files["ladybug-sparse-layout.json"].read_text(encoding="utf-8"))
+    validate_layout_final_image_identity(layout, sha(rom_bytes))
     main, audio, enemy, presentation = (read_symbols(files[n]) for n in
         ("ladybug.map", "ladybug-audio-runtime.map", "ladybug-enemy-runtime.map",
          "ladybug-presentation-runtime.map"))
     required = {
         "main": ("DEATH_TIMER", "DEATH_STATE", "INITIAL_ENTRY_STATE", "PLAYER_CELL_X",
-                 "PLAYER_CELL_Y", "PLAYER_STEP", "PLAYER_FACE", "PLAYER_ANIM", "PLAYER_BG_PTR",
+                 "PLAYER_CELL_Y", "PLAYER_STEP", "PLAYER_DIR", "PLAYER_FACE", "PLAYER_ANIM",
+                 "PLAYER_TICK_PENDING", "PLAYER_BG_PTR",
                  "PLAYER_BG_VALID", "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
                  "FB_META_A", "FB_META_B", "FBM_PLAYER_VALID",
                  "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE",
+                 "asset_end",
                  "marker_entry_begin", "iet_offscreen", "iet_maze_entry", "iet_final_wait",
                  "mainloop"),
         "audio": ("audio_slot0", "audio_slot1", "audio_slot2", "audio_slot3",
@@ -1017,18 +1034,39 @@ def prepare(build: Path) -> dict[str, Any]:
                 "emitted END and terminal slot-clear/mute/busy tail", "post-instruction IRQ sequence commit",
                 "physical FRONT pixels against candidate player frames", "same-stop fixture guard recapture"],
             "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
+            "natural_held_input_challenge": (
+                "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. "
+                "Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. "
+                "Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. "
+                "Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge."),
         },
         "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
         "runtime_probe_performed": False,
         "runtime_ready": False,
         "observer_model_corrections": {
+            "resident_image_receipt": (
+                "The main runtime receipt assembles the raw resident prefix ending at map asset_end. "
+                "Compare that prefix hash to the invocation hash, compare the full 16 KiB staged image hash to the receipt artifact hash, "
+                "and require the remaining staged bytes to be FF."),
+            "source_receipt_layout_split": (
+                "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. "
+                "Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout."),
             "psg_period_data": "raw low/high bytes AD 02 produce latch 8D and data 2A",
             "quiet_default": "audio_mix_clear raw 01 00 is little-endian period 1",
-            "irq_commit": "candidate-emitted direct INC $93 at $0ED9 ends at $0EDB and requires DP=0",
+            "irq_commit": (
+                f"candidate-emitted {irq_marker['encoding']} INC $93 at ${irq_marker['pc']:04X} "
+                f"ends at ${irq_marker['end_pc']:04X}; " +
+                (f"requires DP=${irq_marker['required_dp']:02X}" if irq_marker["required_dp"] is not None
+                 else "extended form has no direct-page requirement")),
             "proof_order": "audio and FRONT are independent branches; release joins busy-zero and final FRONT",
             "replacement_order": "actual death-blank FRONT proof and cue13 normal drain both precede replacement entry",
             "cue6_wait_service": "tone-latch-only actual batches are accepted after onset; onset needs selected-source data/attenuation output",
             "selected_voice_minimum": "at least one selected audible cue voice; no fixed count of three",
+            "natural_held_south_challenge": (
+                "Natural only: hold the live South DSCAN binding from first state 2 of each initial/replacement entry through states 2/3/4. "
+                "Verify every programmed logical 2-pixel pose and actual FRONT pose without changing automatic direction/facing, link press/release events to that entry's live matrix binding, "
+                "and require three witnesses plus zero target RAM writes. Release only at state-4 final wait after actual terminal post-PSG busy-zero and IRQ-committed final FRONT. "
+                "The source may combine 318-to-320 and state-2-to-state-3 in one callback; the row-derived final walkout pose can first appear in state 3. Forced fixtures are challenge-free."),
         },
         "gameplay_worklist_timing": {
             "target_cycles_max_per_required_worklist": GAMEPLAY_WORKLIST_CYCLE_TARGET,
@@ -1036,13 +1074,10 @@ def prepare(build: Path) -> dict[str, Any]:
             "observer_preparation_measurement": "not measured; separate from runtime observer readiness",
         },
         "blocked_observable": (
-            "The live event adapter is implemented behind --run-live but no runtime scenario was captured "
-            "in this preparation step. Live execution still requires a complete adaptive keyboard build "
-            "and parent-accepted GDB-MCP delivery receipt; the retained accepted-fit capsule is nonadaptive "
-            "and must be rejected for live use. Natural cold start and two genuine enemy-contact "
-            "replacements use ordinary keyboard inputs only; if the route does not produce the required "
-            "events within named deadlines, the scenario fails closed. Parent aggregation and evidence "
-            "audit remain required before any production Ready claim."),
+            "The live event adapter is implemented behind --run-live, but this preparation step captures no runtime scenario and claims no natural held-input witness. "
+            "Live execution requires the exact complete adaptive keyboard build receipt, parent-accepted GDB-MCP delivery receipt, fresh output directory, and explicit scenario/XRoar binary. "
+            "Natural cold start and two genuine enemy-contact replacements use ordinary keyboard inputs only; missing required events or held-pose coverage fail closed within named deadlines. "
+            "Offline fakes are not runtime acceptance evidence; parent source/control review and runtime evidence audit remain required."),
     }
 
 
@@ -1067,14 +1102,20 @@ def require_adaptive_keyboard_profile(build: Path) -> dict[str, Any]:
         raise GuardFailure("live acceptance requires the keyboard input profile")
     if "-DCOMPLETE_PROFILE=1" not in arguments:
         raise GuardFailure("live acceptance requires the complete keyboard build invocation")
-    staged = build / "ladybug-runtime.rom"
-    if not staged.is_file() or sha(staged.read_bytes()) != final.get("assembled_sha256"):
-        raise GuardFailure("staged resident image differs from its final receipt invocation")
+    staged_path = build / "ladybug-runtime.rom"
+    if not staged_path.is_file():
+        raise GuardFailure("staged resident image is missing")
+    staged = staged_path.read_bytes()
     artifacts = receipt.get("artifacts", {})
-    for name in DELIVERY_HASH_FILES:
+    main_symbols = read_symbols(build / "ladybug.map")
+    resident_qualification = qualify_staged_resident_image(
+        main_symbols.get("asset_end"), staged, final.get("assembled_sha256"),
+        artifacts.get("ladybug-runtime.rom") if isinstance(artifacts, dict) else None)
+    candidate_artifact_hashes = {}
+    for name in SOURCE_RECEIPT_HASH_FILES:
         artifact = build / name
-        if not artifact.is_file() or artifacts.get(name) != sha(artifact.read_bytes()):
-            raise GuardFailure(f"candidate artifact {name} differs from its complete source-build receipt")
+        candidate_artifact_hashes[name] = sha(artifact.read_bytes()) if artifact.is_file() else None
+    validate_source_receipt_artifact_hashes(artifacts, candidate_artifact_hashes)
     source_inputs = {str(k).replace("\\", "/"): v for k, v in receipt.get("inputs", {}).items()}
     source_hashes = {}
     for name in ("main.s", "audio_runtime.s", "enemy_runtime.s", "keybinding_runtime.s",
@@ -1088,7 +1129,8 @@ def require_adaptive_keyboard_profile(build: Path) -> dict[str, Any]:
         source_hashes[name] = source_hash
     return {"receipt": str(receipt_path), "receipt_sha256": sha(receipt_path.read_bytes()),
             "profile": "complete / adaptive / keyboard", "invocation": final,
-            "staged_resident_sha256": sha(staged.read_bytes()),
+            "staged_resident_sha256": resident_qualification["staged_sha256"],
+            "resident_image_qualification": resident_qualification,
             "source_hashes": source_hashes}
 
 
@@ -1098,6 +1140,49 @@ DELIVERY_HASH_FILES = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map",
                        "ladybug-enemy-runtime.rom", "ladybug-enemy-runtime.map",
                        "ladybug-presentation-runtime.bin", "ladybug-presentation-runtime.map",
                        "ladybug-player-sparse.bin", "ladybug-sparse-layout.json")
+SOURCE_RECEIPT_HASH_FILES = tuple(name for name in DELIVERY_HASH_FILES
+                                  if name != "ladybug-sparse-layout.json")
+
+
+def qualify_staged_resident_image(asset_end: int | None, staged: bytes,
+                                  assembled_sha256: Any,
+                                  receipt_artifact_sha256: Any) -> dict[str, Any]:
+    """Bind the raw assembled prefix, map-derived padding boundary, and full staged artifact."""
+    if (type(asset_end) is not int or not RESIDENT_IMAGE_BASE < asset_end <=
+            RESIDENT_IMAGE_BASE + RESIDENT_IMAGE_BYTES):
+        raise GuardFailure("resident asset_end map symbol is outside the staged image")
+    raw_length = asset_end - RESIDENT_IMAGE_BASE
+    if len(staged) != RESIDENT_IMAGE_BYTES or not 0 < raw_length <= len(staged):
+        raise GuardFailure("staged resident image size or map-derived raw length is invalid")
+    raw_sha256 = sha(staged[:raw_length])
+    if not isinstance(assembled_sha256, str) or raw_sha256 != assembled_sha256:
+        raise GuardFailure("map-derived staged resident prefix differs from its assembly invocation")
+    staged_sha256 = sha(staged)
+    if not isinstance(receipt_artifact_sha256, str) or staged_sha256 != receipt_artifact_sha256:
+        raise GuardFailure("full staged resident image differs from its source receipt artifact")
+    if staged[raw_length:] != b"\xFF" * (len(staged) - raw_length):
+        raise GuardFailure("staged resident image has non-FF bytes after mapped asset_end")
+    return {"asset_end": asset_end, "raw_length": raw_length,
+            "raw_prefix_sha256": raw_sha256, "assembled_sha256": assembled_sha256,
+            "staged_sha256": staged_sha256,
+            "padding_bytes": len(staged) - raw_length, "padding_byte": "FF"}
+
+
+def validate_source_receipt_artifact_hashes(receipt_artifacts: Any,
+                                            candidate_hashes: dict[str, Any]) -> None:
+    """Check the ten source-receipt artifacts; sparse-layout identity is checked separately."""
+    if not isinstance(receipt_artifacts, dict):
+        raise GuardFailure("complete source receipt has no artifact hash table")
+    missing = [name for name in SOURCE_RECEIPT_HASH_FILES
+               if not isinstance(receipt_artifacts.get(name), str) or
+               not isinstance(candidate_hashes.get(name), str)]
+    if missing:
+        raise GuardFailure("source receipt or candidate is missing required artifacts: " + ", ".join(missing))
+    mismatched = [name for name in SOURCE_RECEIPT_HASH_FILES
+                  if receipt_artifacts[name] != candidate_hashes[name]]
+    if mismatched:
+        raise GuardFailure("candidate artifacts differ from the complete source-build receipt: " +
+                           ", ".join(mismatched))
 
 
 def validate_delivery_receipt(receipt: dict[str, Any], preparation: dict[str, Any]) -> dict[str, Any]:
@@ -1200,6 +1285,57 @@ def entry_row_x(pointer: int, entry_start_fb: int, marker_x: int) -> int:
     if not 0 <= byte_column <= 160:
         raise GuardFailure("walkout pointer escaped its marker row before x=320")
     return byte_column * 2
+
+
+def natural_held_input_status(entries: list[dict[str, Any]],
+                              input_events: list[dict[str, Any]],
+                              target_memory_write_count: int) -> dict[str, Any]:
+    """Require one complete held-South witness and press/release pair per natural life."""
+    by_generation = {entry.get("index"): entry.get("held_input_challenge")
+                     for entry in entries if isinstance(entry.get("held_input_challenge"), dict)}
+    challenge_events = [event for event in input_events if event.get("reason") in (
+        "natural-entry-held-south-isolation", "natural-entry-audio-and-final-front-release")]
+    event_sequences = {
+        generation: [event for event in challenge_events
+                     if event.get("entry_generation") == generation]
+        for generation in (1, 2, 3)}
+    def event_pair_matches_witness(generation: int, events: list[dict[str, Any]]) -> bool:
+        witness = by_generation.get(generation)
+        if not isinstance(witness, dict) or len(events) != 2:
+            return False
+        matrix_key = witness.get("matrix_key")
+        try:
+            expected_dscan = matrix_binding_to_dscan(matrix_key)
+        except GuardFailure:
+            return False
+        return (witness.get("dscan_key") == expected_dscan and
+            events[0].get("key") == expected_dscan and events[1].get("key") == expected_dscan and
+            events[0].get("matrix_key") == matrix_key and events[1].get("matrix_key") == matrix_key and
+            events[0].get("ordinal") == witness.get("press_ordinal") and
+            events[1].get("ordinal") == witness.get("release_ordinal"))
+    event_pairs_valid = all(
+        len(events) == 2 and [event.get("action") for event in events] == ["press", "release"] and
+        all(event.get("direction") == "south" and event.get("key_namespace") == "DSCAN" and
+            event.get("target_memory_write") is False for event in events) and
+        events[0].get("key") == events[1].get("key") and
+        event_pair_matches_witness(generation, events)
+        for generation, events in event_sequences.items()) and len(challenge_events) == 6
+    witnesses_valid = len(entries) == 3 and all(
+        isinstance(by_generation.get(generation), dict) and
+        by_generation[generation].get("entry_generation") == generation and
+        by_generation[generation].get("pass") is True and
+        by_generation[generation].get("release_ordinal") is not None and
+        by_generation[generation].get("press_ordinal", 0) <
+            by_generation[generation].get("release_ordinal", 0)
+        for generation in (1, 2, 3))
+    no_target_writes = (target_memory_write_count == 0 and all(
+        event.get("target_memory_write") is False for event in input_events))
+    return {"required_witness_count": 3, "witness_count": len(by_generation),
+        "pass_count": sum(item.get("pass") is True for item in by_generation.values()),
+        "event_pairs_valid": event_pairs_valid,
+        "target_memory_write_count": target_memory_write_count,
+        "no_target_memory_writes": no_target_writes,
+        "pass": witnesses_valid and event_pairs_valid and no_target_writes}
 
 
 def fixture_audio_page(client: Any, stop_pc: int, mainloop_pc: int) -> int:
@@ -1722,7 +1858,8 @@ class LiveRuntimeObserver:
             "back": byte("FB_BACK_ID"), "commit_seq": word("FB_COMMIT_SEQ"),
             "frames": word("FRAMES"), "player_fb": word("PLAYER_FB"),
             "cell_x": byte("PLAYER_CELL_X"), "cell_y": byte("PLAYER_CELL_Y"),
-            "step": byte("PLAYER_STEP"), "face": byte("PLAYER_FACE"),
+            "step": byte("PLAYER_STEP"), "dir": byte("PLAYER_DIR"),
+            "face": byte("PLAYER_FACE"), "tick_pending": byte("PLAYER_TICK_PENDING"),
             "anim": byte("PLAYER_ANIM"), "mode": byte("PRES_MODE"),
             "presentation_magic": low[0x00A4], "credits": low[PRES_CREDITS_ADDRESS],
             "presentation_event": low[0x00A9],
@@ -1752,6 +1889,281 @@ class LiveRuntimeObserver:
         self.input_events.append({"key": key, "key_namespace": "DSCAN", "matrix_key": matrix_key,
             "action": action, "ordinal": stop.ordinal,
             "reason": reason, "target_memory_write": False})
+
+    def _begin_entry_input_challenge(self, stop: MonitorStop,
+                                     state: dict[str, Any]) -> None:
+        """Hold the live South binding through one natural automatic entry."""
+        entry = self.current_entry
+        if entry is None or getattr(self, "scenario", None) != "natural":
+            return
+        if (self.bindings is None or len(self.bindings) != 5 or
+                self.search is None or entry.get("marker_x") not in (296, 280, 264)):
+            raise GuardFailure("natural entry lacks its live five-key binding and seeded marker")
+        if self.search.held is not None:
+            self.search.release(stop.ordinal, "natural-entry-adversarial-input-begins")
+        if self.pressed:
+            raise GuardFailure("natural entry reached state 2 with an unrelated DSCAN key still held")
+        matrix_key = self.bindings[ENTRY_SOUTH_BINDING_INDEX]
+        key = matrix_binding_to_dscan(matrix_key)
+        other_bindings = tuple(value for index, value in enumerate(self.search.bindings)
+                               if index != ENTRY_SOUTH_BINDING_INDEX)
+        if key == COIN5_DSCAN_KEY or key in other_bindings:
+            raise GuardFailure("natural South challenge collides with an active control binding")
+        witness = {
+            "status": "HOLDING",
+            "entry_generation": entry["index"],
+            "direction": "south",
+            "matrix_binding_index": ENTRY_SOUTH_BINDING_INDEX,
+            "matrix_key": matrix_key,
+            "key_namespace": "DSCAN",
+            "dscan_key": key,
+            "press_ordinal": stop.ordinal,
+            "press_frame": state["frames"],
+            "press_monotonic": stop.observed_monotonic,
+            "release_ordinal": None,
+            "release_frame": None,
+            "release_monotonic": None,
+            "held_states_observed": [],
+            "state_sample_counts": {"2": 0, "3": 0, "4": 0},
+            "logical_pose_changes": [],
+            "front_pose_positions": [],
+            "front_pose_ordinals": [],
+            "walkout_last_x": entry["marker_x"],
+            "maze_start_fb": None,
+            "maze_last_fb": None,
+            "maze_last_step": None,
+            "maze_last_cell_y": None,
+            "walkout_steps": 0,
+            "maze_steps": 0,
+            "valid": True,
+            "pass": False,
+            "release_requires": ["cue6 terminal post-PSG busy zero", "actual final IRQ FRONT proof",
+                                 "state 4 final wait before entry state clear"],
+            "movement_contract": {
+                "state2": "automatic East; row-derived x advances exactly two pixels to 320",
+                "state3": "offscreen at row-derived x=320 until owner histories retire",
+                "state4": "automatic North from cell_y=22 to 18; each accepted 2-pixel pose advances PLAYER_FB by -320",
+                "held_direction": "South DSCAN binding must not alter automatic direction, facing, or any logical 2-pixel pose"
+            }
+        }
+        entry["held_input_challenge"] = witness
+        self._press(key, "press", stop, "natural-entry-held-south-isolation", matrix_key=matrix_key)
+        self.input_events[-1]["direction"] = "south"
+        self.input_events[-1]["entry_generation"] = entry["index"]
+
+    def _observe_entry_input_challenge(self, stop: MonitorStop,
+                                       state: dict[str, Any], source: str) -> None:
+        entry = self.current_entry
+        witness = entry.get("held_input_challenge") if entry is not None else None
+        if (getattr(self, "scenario", None) != "natural" or not isinstance(witness, dict) or
+                witness.get("release_ordinal") is not None):
+            return
+        key = witness["dscan_key"]
+        if self.pressed != {key} or (self.search is not None and self.search.held is not None):
+            witness["valid"] = False
+            self.errors.append("natural-entry-held-direction-was-missing-or-mixed-with-another-input")
+        if state["death"] != 0 or state["lives"] != entry.get("seed_lives"):
+            witness["valid"] = False
+            self.errors.append("natural-entry-held-direction-crossed-death-or-life-count-change")
+        entry_state = state["entry"]
+        if entry_state not in (2, 3, 4):
+            witness["valid"] = False
+            self.errors.append("natural-entry-held-direction-was-not-released-before-entry-state-clear")
+            return
+        state_key = str(entry_state)
+        witness["state_sample_counts"][state_key] += 1
+        if entry_state not in witness["held_states_observed"]:
+            witness["held_states_observed"].append(entry_state)
+        signature: tuple[int, ...]
+        pose: dict[str, Any]
+        if entry_state in (2, 3):
+            x = entry_row_x(state["player_fb"], entry["entry_start_fb"], entry["marker_x"])
+            if x < entry["marker_x"] or x > 320 or x % 2:
+                witness["valid"] = False
+                self.errors.append("held-input walkout escaped its even-pixel marker row")
+            if state["face"] != ENTRY_EAST_DIRECTION or state["dir"] != ENTRY_EAST_DIRECTION:
+                witness["valid"] = False
+                self.errors.append("South input changed automatic East walkout direction or facing")
+            if entry_state == 2:
+                previous_x = witness["walkout_last_x"]
+                if x < previous_x or (x != previous_x and x - previous_x != 2):
+                    witness["valid"] = False
+                    self.errors.append("held-input walkout skipped or reversed a programmed 2-pixel pose")
+                if x != previous_x:
+                    witness["walkout_steps"] += 1
+                    witness["walkout_last_x"] = x
+                if x == 320:
+                    witness["walkout_reached_x320"] = True
+            else:
+                previous_x = witness["walkout_last_x"]
+                if x != 320:
+                    witness["valid"] = False
+                    self.errors.append("held-input offscreen phase is not row-derived x=320")
+                if previous_x == 318 and x == 320:
+                    # iet_walkout increments PLAYER_FB and changes state to 3 in
+                    # the same callback, so the first observable state 3 owns
+                    # the final 318-to-320 programmed pose.
+                    witness["walkout_steps"] += 1
+                    witness["walkout_last_x"] = 320
+                    witness["walkout_reached_x320"] = True
+                elif previous_x != 320:
+                    witness["valid"] = False
+                    self.errors.append("held-input offscreen transition skipped the final 2-pixel pose")
+            signature = (entry_state, x, state["face"], state["dir"])
+            pose = {"entry_state": entry_state, "x": x, "player_fb": state["player_fb"],
+                    "face": state["face"], "dir": state["dir"]}
+        else:
+            face = state["face"]
+            direction = state["dir"]
+            if face != ENTRY_NORTH_DIRECTION or direction != ENTRY_NORTH_DIRECTION:
+                witness["valid"] = False
+                self.errors.append("South input changed automatic North maze-entry direction or facing")
+            if witness["maze_start_fb"] is None:
+                if state["cell_y"] != 22 or state["step"] != 0:
+                    witness["valid"] = False
+                    self.errors.append("held-input maze entry did not begin at authored cell_y=22, step=0")
+                witness["maze_start_fb"] = state["player_fb"]
+                witness["maze_last_fb"] = state["player_fb"]
+                witness["maze_last_step"] = state["step"]
+                witness["maze_last_cell_y"] = state["cell_y"]
+            else:
+                delta = state["player_fb"] - witness["maze_last_fb"]
+                if delta not in (0, -320):
+                    witness["valid"] = False
+                    self.errors.append("held-input maze entry skipped or reversed a programmed 2-pixel pose")
+                if delta == 0:
+                    if (state["step"] != witness["maze_last_step"] or
+                            state["cell_y"] != witness["maze_last_cell_y"]):
+                        witness["valid"] = False
+                        self.errors.append("held-input maze logical cell changed without a 2-pixel pose")
+                else:
+                    prior_step = witness["maze_last_step"]
+                    expected_step = (prior_step + 1) & 3
+                    expected_cell_y = witness["maze_last_cell_y"] - (1 if prior_step == 3 else 0)
+                    if state["step"] != expected_step or state["cell_y"] != expected_cell_y:
+                        witness["valid"] = False
+                        self.errors.append("held-input maze pose step/cell cadence differs from authored four-step cells")
+                    witness["maze_steps"] += 1
+                    witness["maze_last_fb"] = state["player_fb"]
+                    witness["maze_last_step"] = state["step"]
+                    witness["maze_last_cell_y"] = state["cell_y"]
+            signature = (entry_state, state["player_fb"], state["cell_y"], state["step"], face, direction)
+            pose = {"entry_state": entry_state, "player_fb": state["player_fb"],
+                    "cell_y": state["cell_y"], "step": state["step"],
+                    "face": face, "dir": direction}
+        witness.setdefault("observation_count", 0)
+        witness["observation_count"] += 1
+        witness["last_observation"] = {"ordinal": stop.ordinal, "frame": state["frames"],
+            "source": source, "entry_state": entry_state, "player_fb": state["player_fb"],
+            "face": state["face"], "dir": state["dir"], "held_dscan": key}
+        previous = witness.get("last_logical_pose")
+        if signature != previous:
+            witness["logical_pose_changes"].append({"ordinal": stop.ordinal, "frame": state["frames"],
+                "source": source, **pose})
+            witness["last_logical_pose"] = signature
+
+    def _record_challenge_front_pose(self, stop: MonitorStop,
+                                     state: dict[str, Any], pose: dict[str, Any] | None) -> None:
+        entry = self.current_entry
+        witness = entry.get("held_input_challenge") if entry is not None else None
+        if (getattr(self, "scenario", None) != "natural" or not isinstance(witness, dict) or
+                witness.get("release_ordinal") is not None or pose is None or
+                state["entry"] not in (2, 4)):
+            return
+        if state["entry"] == 2:
+            x = entry_row_x(state["player_fb"], entry["entry_start_fb"], entry["marker_x"])
+            if x >= 320:
+                return
+            position = (state["entry"], x, state["face"], state["anim"])
+        else:
+            position = (state["entry"], state["player_fb"], state["face"], state["anim"])
+        witness["front_pose_positions"].append(list(position))
+        witness["front_pose_ordinals"].append(stop.ordinal)
+        if (pose.get("entry") != state["entry"] or pose.get("player_fb") != state["player_fb"] or
+                pose.get("face") != state["face"] or pose.get("animation") != state["anim"] or
+                pose.get("candidate_art_identity_qualified") is not True):
+            witness["valid"] = False
+            self.errors.append("actual FRONT challenge pose differs from the live logical or candidate-art pose")
+        if (self.pressed != {witness["dscan_key"]} or
+                (self.search is not None and self.search.held is not None)):
+            witness["valid"] = False
+            self.errors.append("actual FRONT pose was published without the designated held South DSCAN")
+
+    def _release_entry_input_challenge(self, stop: MonitorStop, state: dict[str, Any],
+                                       *, audio_idle: bool, front_proof: bool) -> bool:
+        entry = self.current_entry
+        witness = entry.get("held_input_challenge") if entry is not None else None
+        if getattr(self, "scenario", None) != "natural":
+            return True
+        if not isinstance(witness, dict) or witness.get("release_ordinal") is not None:
+            self.errors.append("natural entry final wait lacks one active held-direction challenge")
+            return False
+        ledger = self.proofs.get(entry["index"])
+        records = ledger.records if ledger is not None else []
+        terminal_record = next((r for r in records
+                                if r["name"] == "terminal_post_psg_busy_zero"), None)
+        front_record = next((r for r in records
+                             if r["name"] == "final_pose_in_front_after_irq_commit"), None)
+        terminal_ordinal = terminal_record.get("event_ordinal") if terminal_record else None
+        front_ordinal = front_record.get("irq_commit_event_ordinal") if front_record else None
+        proofs_precede_release = (
+            type(terminal_ordinal) is int and terminal_ordinal < stop.ordinal and
+            type(front_ordinal) is int and front_ordinal < stop.ordinal)
+        if not (audio_idle and front_proof and proofs_precede_release and
+                state["entry"] == 4 and state["cell_y"] == 18):
+            return False
+        expected_walkout = (320 - entry["marker_x"]) // 2
+        expected_front_x = list(range(entry["marker_x"], 320, 2))
+        expected_front_maze = [witness["maze_start_fb"] - step * 320
+                                for step in range(17)] if witness["maze_start_fb"] is not None else []
+        actual_front_x = sorted({p[1] for p in witness["front_pose_positions"] if p[0] == 2})
+        actual_front_maze = sorted({p[1] for p in witness["front_pose_positions"] if p[0] == 4}, reverse=True)
+        observed_walkout_x = [p["x"] for p in witness["logical_pose_changes"]
+                              if p["entry_state"] in (2, 3)]
+        expected_walkout_x = list(range(entry["marker_x"], 321, 2))
+        observed_maze_poses = [(p["player_fb"], p["cell_y"], p["step"])
+                               for p in witness["logical_pose_changes"] if p["entry_state"] == 4]
+        expected_maze_poses = [
+            (witness["maze_start_fb"] - n * 320, 22 - n // 4, n % 4)
+            for n in range(17)] if witness["maze_start_fb"] is not None else []
+        passed = (witness["valid"] is True and witness["dscan_key"] in self.pressed and
+            set(witness["held_states_observed"]) == {2, 3, 4} and
+            witness.get("walkout_reached_x320") is True and
+            witness["walkout_steps"] == expected_walkout and
+            observed_walkout_x == expected_walkout_x and
+            witness["maze_start_fb"] is not None and witness["maze_steps"] == 16 and
+            witness["maze_last_cell_y"] == 18 and witness["maze_last_step"] == 0 and
+            observed_maze_poses == expected_maze_poses and
+            actual_front_x == expected_front_x and actual_front_maze == expected_front_maze)
+        self._press(witness["dscan_key"], "release", stop,
+                    "natural-entry-audio-and-final-front-release", matrix_key=witness["matrix_key"])
+        self.input_events[-1]["direction"] = "south"
+        self.input_events[-1]["entry_generation"] = entry["index"]
+        witness["release_ordinal"] = stop.ordinal
+        witness["release_frame"] = state["frames"]
+        witness["release_monotonic"] = stop.observed_monotonic
+        witness["release_join"] = {"terminal_audio_idle": audio_idle,
+            "terminal_busy_zero_event_ordinal": terminal_ordinal,
+            "actual_final_front_proof": front_proof,
+            "actual_final_front_commit_event_ordinal": front_ordinal,
+            "release_stop_pc": stop.pc, "entry_state": state["entry"],
+            "cell_y": state["cell_y"], "before_entry_state_clear": True}
+        witness["expected_walkout_steps"] = expected_walkout
+        witness["expected_front_walkout_x"] = expected_front_x
+        witness["expected_maze_steps"] = 16
+        witness["expected_front_maze_player_fb"] = expected_front_maze
+        witness["observed_front_walkout_x"] = actual_front_x
+        witness["observed_front_maze_player_fb"] = actual_front_maze
+        witness["observed_walkout_logical_x"] = observed_walkout_x
+        witness["expected_walkout_logical_x"] = expected_walkout_x
+        witness["observed_maze_logical_poses"] = [list(pose) for pose in observed_maze_poses]
+        witness["expected_maze_logical_poses"] = [list(pose) for pose in expected_maze_poses]
+        witness["pass"] = passed
+        witness["status"] = "HELD_DIRECTION_ISOLATED" if passed else "HELD_DIRECTION_ISOLATION_FAILED"
+        entry["held_input_challenge_pass"] = passed
+        if not passed:
+            self.errors.append("natural held South challenge missed entry state, 2-pixel cadence, facing, or FRONT pose coverage")
+        return passed
 
     def _start_inputs(self, stop: MonitorStop, state: dict[str, Any]) -> None:
         if self.cold_credited_start:
@@ -2153,6 +2565,7 @@ class LiveRuntimeObserver:
             front_id=state["front"], irq_commit_end_pc=self.irq_inc["pc"])
         if state["death"] == 0 and self.current_entry is not None:
             pose = self._front_pose(stop, qualification, state)
+            self._record_challenge_front_pose(stop, state, pose)
             if pose is None:
                 self.errors.append("live-player-front-pose-missing-at-irq-commit")
             elif state["entry"] == 4 and state["cell_y"] == 18:
@@ -2263,6 +2676,8 @@ class LiveRuntimeObserver:
         self._record(stop, "entry-state2-observed", qualification,
             entry_generation=entry["index"], lives=state["lives"],
             player_fb=state["player_fb"], input_isolated=isolated)
+        if getattr(self, "scenario", None) == "natural":
+            self._begin_entry_input_challenge(stop, state)
 
     def _enemy_contact(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
@@ -2297,6 +2712,8 @@ class LiveRuntimeObserver:
         self._confirm_start_credit(stop, qualification, state)
         if self.current_entry is not None and state["entry"] == 2:
             self._confirm_entry_state(stop, qualification, state)
+        if self.current_entry is not None and getattr(self, "scenario", None) == "natural":
+            self._observe_entry_input_challenge(stop, state, "mainloop")
         if self.current_entry is not None and state["entry"] == 3:
             if self.current_entry.get("offscreen_remaining_death_timer") is None:
                 self.current_entry["offscreen_remaining_death_timer"] = state["timer"]
@@ -2468,12 +2885,18 @@ class LiveRuntimeObserver:
         if (front_proof["entry_marker_x"] != self.current_entry.get("marker_x") or
                 front_proof["entry_seed_lives"] != self.current_entry.get("seed_lives")):
             raise GuardFailure("final FRONT IRQ proof belongs to a different seeded entry")
-        audio_idle = any(r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records)
-        if busy == 0 and audio_idle and not any(
+        audio_idle = busy == 0 and any(
+            r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records)
+        if audio_idle and not any(
                 r["name"] == "release_after_audio_and_front_commit" for r in ledger.records):
+            held_input_pass = None
+            if getattr(self, "scenario", None) == "natural":
+                held_input_pass = self._release_entry_input_challenge(
+                    stop, state, audio_idle=audio_idle, front_proof=True)
             ledger.record("release_after_audio_and_front_commit", {
                 "busy_zero_precedes_release": True, "front_commit_precedes_release": True,
                 "front_commit_event_ordinal": front_proof["irq_commit_event_ordinal"],
+                "held_input_challenge_pass": held_input_pass,
                 "event_ordinal": stop.ordinal})
             self.release_snapshot = {"player": (state["player_fb"], state["cell_x"],
                 state["cell_y"], state["step"], state["face"], state["anim"]),
@@ -2644,6 +3067,15 @@ class LiveRuntimeObserver:
                              if self.current_entry is not None else None)
             fixture_order = fixture_order_status(
                 self.scenario, target_ledger.records if target_ledger is not None else [])
+        held_input_status = (natural_held_input_status(
+            self.entries, self.input_events, self.write_count) if self.scenario == "natural" else {
+                "required_witness_count": 0,
+                "witness_count": sum(isinstance(entry.get("held_input_challenge"), dict)
+                                      for entry in self.entries),
+                "pass_count": sum(entry.get("held_input_challenge", {}).get("pass") is True
+                                  for entry in self.entries),
+                "event_pairs_valid": None, "target_memory_write_count": self.write_count,
+                "no_target_memory_writes": self.write_count == 0, "pass": None})
         if self.scenario == "natural":
             success = (success and len(self.entries) == 3 and self.contact_count == 2 and equal_relative and
                 self.credit_evidence is not None and
@@ -2659,6 +3091,7 @@ class LiveRuntimeObserver:
                 sorted(offscreen_remainders[:3]) == [52, 60, 68] and
                 all(entry.get("seed_verified") is True and entry.get("released") is True and
                     entry.get("input_isolated_at_seed") is True for entry in self.entries[:3]) and
+                held_input_status["pass"] is True and
                 all_ledgers_pass and all_lifecycles_pass and not self.errors and
                 not self.entry_contact_violation)
         elif self.scenario == "prior-music":
@@ -2680,6 +3113,10 @@ class LiveRuntimeObserver:
             "fixture": self.fixture_result, "target_write_count": self.write_count,
             "contacts": self.contacts, "contact_count": self.contact_count,
             "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
+            "held_input_challenges": {**held_input_status,
+                "scenario_scope": "natural only; forced fixture routes do not run this challenge",
+                "witnesses": [entry.get("held_input_challenge") for entry in self.entries
+                              if isinstance(entry.get("held_input_challenge"), dict)]},
             "offscreen_remaining_death_timer": offscreen_remainders,
             "seed_death_timer": [x.get("seed_death_timer") for x in self.entries],
             "cue_relative_first_maze_visibility_frames": relative,
@@ -2695,6 +3132,7 @@ class LiveRuntimeObserver:
             "monitor_stop_timeouts": self.pump.timeout_records, "errors": self.errors,
             "entry_contact_violation": self.entry_contact_violation,
             "emulator_launches": 1, "target_writes": self.write_count,
+            "target_memory_write_count": self.write_count,
             "timing": {"phase_deadline_seconds": PHASE_SECONDS,
                 "stop_wait_max_seconds": STOP_WAIT_SECONDS,
                 "gameplay_worklist_target_cycles_max": GAMEPLAY_WORKLIST_CYCLE_TARGET,
@@ -2811,6 +3249,67 @@ def _good(scenario: str) -> dict[str, Any]:
 
 def self_test() -> dict[str, Any]:
     tested = 0
+    raw_length = 0xFDEF - RESIDENT_IMAGE_BASE
+    raw_fixture = bytes((index * 37 + 11) & 0xFF for index in range(raw_length))
+    staged_fixture = raw_fixture + b"\xFF" * (RESIDENT_IMAGE_BYTES - raw_length)
+    resident = qualify_staged_resident_image(0xFDEF, staged_fixture, sha(raw_fixture),
+                                              sha(staged_fixture))
+    assert resident["raw_length"] == raw_length and resident["padding_bytes"] == 529
+    tested += 1
+    try:
+        qualify_staged_resident_image(0xFDEF, staged_fixture, "0" * 64, sha(staged_fixture))
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("wrong raw assembled-prefix hash passed resident qualification")
+    try:
+        qualify_staged_resident_image(0xFDEF, staged_fixture, sha(raw_fixture), "0" * 64)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("wrong full staged artifact hash passed resident qualification")
+    non_ff_padding = bytearray(staged_fixture)
+    non_ff_padding[raw_length] = 0
+    try:
+        qualify_staged_resident_image(0xFDEF, bytes(non_ff_padding), sha(raw_fixture),
+                                      sha(bytes(non_ff_padding)))
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("non-FF resident image padding passed qualification")
+    try:
+        qualify_staged_resident_image(0xBFFF, staged_fixture, sha(raw_fixture), sha(staged_fixture))
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("invalid map-derived resident asset_end passed qualification")
+    artifact_hashes = {name: sha(name.encode("ascii")) for name in SOURCE_RECEIPT_HASH_FILES}
+    validate_source_receipt_artifact_hashes(artifact_hashes, artifact_hashes)
+    missing_artifact_hashes = dict(artifact_hashes)
+    del missing_artifact_hashes["ladybug-audio-runtime.bin"]
+    try:
+        validate_source_receipt_artifact_hashes(artifact_hashes, missing_artifact_hashes)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("source receipt gate accepted a missing non-resident artifact")
+    valid_layout = {"gmc": {"final_image_sha256": "a" * 64}}
+    validate_layout_final_image_identity(valid_layout, "a" * 64)
+    try:
+        validate_layout_final_image_identity(valid_layout, "b" * 64)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("sparse layout accepted a different final ROM identity")
+    if ROOT is not None and (ROOT / "build/source-build-receipt.json").is_file():
+        current_profile = require_adaptive_keyboard_profile(ROOT / "build")
+        assert current_profile["profile"] == "complete / adaptive / keyboard"
+        qualification = current_profile["resident_image_qualification"]
+        assert (qualification["raw_prefix_sha256"] == current_profile["invocation"]["assembled_sha256"] and
+                qualification["staged_sha256"] == current_profile["staged_resident_sha256"] and
+                qualification["padding_byte"] == "FF")
+        tested += 1
+
     class FakePumpClient:
         def __init__(self, hit: dict[str, Any] | None = None, wait: dict[str, Any] | None = None):
             self.hit = hit
@@ -2915,6 +3414,173 @@ def self_test() -> dict[str, Any]:
     assert all(method == "inject_key" for method, _ in input_client.calls)
     assert all(not event["target_memory_write"] for event in search.actions)
     assert all(event["key_namespace"] == "DSCAN" for event in search.actions)
+    tested += 1
+
+    class FakeChallengeClient(FakeInputClient):
+        def call(self, method: str, params: dict[str, Any], timeout: float = 20.0):
+            self.calls.append((method, params))
+            if method == "read_memory" and params["addr"] == 0x02D4:
+                return {"data": "00", "space": "cpu"}
+            return {}
+
+    def fake_held_entry(generation: int, marker_x: int, *, include_state3: bool = True,
+                        omit_front: tuple[int, int] | None = None,
+                        mutate_front: tuple[int, int] | None = None) -> tuple[dict[str, Any], list[dict[str, Any]], list[str]]:
+        client = FakeChallengeClient()
+        observer = object.__new__(LiveRuntimeObserver)
+        observer.client = client
+        observer.scenario = "natural"
+        observer.current_entry = {"index": generation, "marker_x": None,
+            "pose_count": 0, "first_maze_visible_frame": None}
+        observer.errors = []
+        observer.input_events = []
+        observer.pressed = set()
+        observer.bindings = canonical_matrix
+        observer.search = InputOnlySearch(client, canonical_matrix)
+        observer.lifecycle = None
+        observer.contact_count = 0
+        observer._record = lambda *args, **kwargs: None
+        lives = 3 - generation
+        start_fb = VISIBLE_BASE + 10 * 160 + marker_x // 2
+        state = {"entry": 2, "death": 0, "lives": lives, "timer": 80,
+            "frames": 100 + generation, "player_fb": start_fb,
+            "cell_x": 4, "cell_y": 22, "step": 0, "face": 1, "dir": 1, "anim": 0}
+        start_stop = MonitorStop("fake-entry-state2", 0xC000, 1,
+                                 {"pc": 0xC000}, generation * 100, 100.0 + generation)
+        observer._confirm_entry_state(start_stop, {}, state)
+        key = matrix_binding_to_dscan(canonical_matrix[ENTRY_SOUTH_BINDING_INDEX])
+        assert observer.current_entry["held_input_challenge"]["dscan_key"] == key == 44
+        assert observer.pressed == {key}
+        assert observer.input_events[0]["action"] == "press"
+        assert observer.input_events[0]["matrix_key"] == canonical_matrix[ENTRY_SOUTH_BINDING_INDEX]
+
+        def observe(sample: dict[str, Any], ordinal: int) -> MonitorStop:
+            stop = MonitorStop("fake-held-entry", 0xC000, 1, {"pc": 0xC000},
+                               ordinal, 200.0 + ordinal)
+            observer._observe_entry_input_challenge(stop, sample, "fake-mainloop")
+            return stop
+
+        def front(sample: dict[str, Any], ordinal: int, *, wrong: bool = False) -> None:
+            stop = MonitorStop("fake-held-front", 0xC000, 1, {"pc": 0xC000},
+                               ordinal, 300.0 + ordinal)
+            pose = {"entry": sample["entry"], "player_fb": sample["player_fb"],
+                "face": sample["face"], "animation": sample["anim"],
+                "candidate_art_identity_qualified": True}
+            if wrong:
+                pose["face"] = (sample["face"] + 1) & 3
+            observer._record_challenge_front_pose(stop, sample, pose)
+
+        ordinal = generation * 100 + 1
+        for x in range(marker_x, 320, 2):
+            walk = dict(state, player_fb=start_fb + (x - marker_x) // 2,
+                        frames=state["frames"] + ordinal)
+            stop = observe(walk, ordinal)
+            front_missing = omit_front == (2, x)
+            front_wrong = mutate_front == (2, x)
+            if not front_missing:
+                front(walk, ordinal, wrong=front_wrong)
+            ordinal += 1
+        if include_state3:
+            offscreen = dict(state, entry=3, player_fb=start_fb + (320 - marker_x) // 2,
+                             frames=state["frames"] + ordinal)
+            observe(offscreen, ordinal)
+            observe(dict(offscreen), ordinal + 1)
+            ordinal += 2
+        maze_fb = VISIBLE_BASE + 50 * 160 + 70
+        for n in range(17):
+            maze = {"entry": 4, "death": 0, "lives": lives, "frames": state["frames"] + ordinal,
+                "player_fb": maze_fb - n * 320, "cell_x": 4, "cell_y": 22 - n // 4,
+                "step": n % 4, "face": 0, "dir": 0, "anim": 0}
+            observe(maze, ordinal)
+            front_missing = omit_front == (4, n)
+            front_wrong = mutate_front == (4, n)
+            if not front_missing:
+                front(maze, ordinal, wrong=front_wrong)
+            ordinal += 1
+        final_state = {"entry": 4, "death": 0, "lives": lives, "frames": state["frames"] + ordinal,
+            "player_fb": maze_fb - 16 * 320, "cell_x": 4, "cell_y": 18,
+            "step": 0, "face": 0, "anim": 0, "enemy_raw": b"same"}
+        observer.audio = {"AUDIO_MUSIC_PUBLISHED_BUSY": 0x02D4}
+        observer.proofs = {generation: ProofLedger()}
+        observer.proofs[generation].record("terminal_post_psg_busy_zero", {
+            "busy": 0, "all_slots_queues_credit_idle": True,
+            "busy_read_after_psg": True, "event_ordinal": generation * 1000 + 1})
+        observer.proofs[generation].record("final_pose_in_front_after_irq_commit", {
+            "irq_commit_observed": True, "front_pixels_match_opaque_player": True,
+            "live_code_span_qualified": True, "irq_live_opcode_match": True,
+            "front_mapping_qualified": True, "same_stop_busy_sample": True,
+            "opaque_pixels_compared": 72, "visible_width_bytes": 8,
+            "published_music_busy": 0, "irq_commit_end_pc": 0x0EDB,
+            "front_id": 1, "front_owner_voff1_shadow": 0xB0,
+            "front_owner_voff2_shadow": 0, "front_physical_base": 0x58000,
+            "entry_marker_x": marker_x, "entry_seed_lives": lives,
+            "irq_commit_event_ordinal": generation * 1000 + 2,
+            "event_ordinal": generation * 1000 + 2})
+        observer._state = lambda: final_state
+        observer.release_snapshot = None
+        observer._record = lambda *args, **kwargs: None
+        final_stop = MonitorStop("fake-final-wait", 0xC000, 1, {"pc": 0xC000},
+                                 generation * 1000 + 3, 900.0 + generation)
+        assert not observer._release_entry_input_challenge(
+            final_stop, final_state, audio_idle=False, front_proof=True)
+        assert not observer._release_entry_input_challenge(
+            final_stop, final_state, audio_idle=True, front_proof=False)
+        assert observer.pressed == {key}
+        observer._final_entry_wait(final_stop, {})
+        witness = observer.current_entry["held_input_challenge"]
+        assert observer.current_entry["released"] is True
+        assert witness["release_ordinal"] == final_stop.ordinal
+        assert observer.proofs[generation].records[-1]["name"] == "release_after_audio_and_front_commit"
+        assert observer.pressed == set()
+        return observer.current_entry, observer.input_events, observer.errors
+
+    held_entries = []
+    held_events = []
+    held_errors: list[str] = []
+    for generation, marker_x in enumerate((296, 280, 264), 1):
+        entry, events, errors = fake_held_entry(generation, marker_x)
+        assert entry["held_input_challenge"]["pass"] is True and not errors
+        held_entries.append(entry)
+        held_events.extend(events)
+        held_errors.extend(errors)
+    held_status = natural_held_input_status(held_entries, held_events, 0)
+    assert held_status["pass"] and held_status["witness_count"] == 3
+    assert held_status["target_memory_write_count"] == 0
+    assert not natural_held_input_status(held_entries[:2], held_events, 0)["pass"]
+    assert not natural_held_input_status(held_entries, held_events, 1)["pass"]
+    wrong_challenge_key_events = [dict(event) for event in held_events]
+    wrong_challenge_key_events[0]["key"] = 43
+    assert not natural_held_input_status(held_entries, wrong_challenge_key_events, 0)["pass"]
+    tested += 5
+
+    missing_state3_entry, _, missing_state3_errors = fake_held_entry(1, 296, include_state3=False)
+    assert missing_state3_entry["held_input_challenge"]["pass"] is False and missing_state3_errors
+    tested += 1
+    mutated_front_entry, _, mutated_front_errors = fake_held_entry(1, 296, mutate_front=(4, 5))
+    assert mutated_front_entry["held_input_challenge"]["pass"] is False and mutated_front_errors
+    tested += 1
+    missing_front_entry, _, missing_front_errors = fake_held_entry(1, 296, omit_front=(4, 7))
+    assert missing_front_entry["held_input_challenge"]["pass"] is False
+    assert missing_front_entry["held_input_challenge"]["observed_front_maze_player_fb"] != \
+        missing_front_entry["held_input_challenge"]["expected_front_maze_player_fb"]
+    tested += 1
+
+    forced_entry_observer = object.__new__(LiveRuntimeObserver)
+    forced_entry_observer.scenario = "front-first"
+    forced_entry_observer.current_entry = {"index": 1, "pose_count": 0}
+    forced_entry_observer.errors = []
+    forced_entry_observer.input_events = []
+    forced_entry_observer.pressed = set()
+    forced_entry_observer.search = None
+    forced_entry_observer.lifecycle = None
+    forced_entry_observer.contact_count = 0
+    forced_entry_observer._record = lambda *args, **kwargs: None
+    forced_entry_observer._confirm_entry_state(
+        MonitorStop("fixture-entry-state2", 0xC000, 1, {"pc": 0xC000}, 1, 1.0), {},
+        {"entry": 2, "lives": 2, "frames": 1, "timer": 80,
+         "player_fb": VISIBLE_BASE + 10 * 160 + 148})
+    assert "held_input_challenge" not in forced_entry_observer.current_entry
+    assert not forced_entry_observer.input_events
     tested += 1
 
     credit_client = FakeInputClient()
@@ -3646,7 +4312,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, input-only direction/death isolation, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "model_checks": "bounded monitor event pump and timeout races, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
