@@ -22,6 +22,7 @@
     ],
     "event_capture": [
       "source/staged/live bytes and PAR",
+      "On a physical-versus-staged mismatch, numeric stopped PC/breakpoint/ordinal and phase deadline, CPU/physical bytes, staged/caller bytes, raw/masked PAR and physical window/address, plus read-only halted status before any marker-label interpretation",
       "selected cue PSG stores",
       "emitted END and terminal slot-clear/mute/busy tail",
       "post-instruction IRQ sequence commit",
@@ -35,8 +36,31 @@
     "natural_held_input_challenge": "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge."
   },
   "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
-  "runtime_probe_performed": false,
+  "runtime_probe_performed": true,
   "runtime_ready": false,
+  "runtime_ready_reason": "The first natural invocation failed closed on a physical-versus-staged byte mismatch before any stop/event/phase context was retained. The source now retains that context for the parent-owned single diagnostic rerun; no runtime acceptance is claimed.",
+  "first_natural_runtime_attempt": {
+    "receipt": "repro/bug117-integration-20261012/runtime-natural-20261013/bug117-natural-runtime.json",
+    "observer_script_sha256_at_attempt": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "status": "INCOMPLETE_FAIL_CLOSED",
+    "error": "GuardFailure: live physical module bytes differ from staged candidate bytes",
+    "elapsed_seconds_reported_by_parent": 2.7,
+    "emulator_launches": 1,
+    "target_write_count": 0,
+    "events": [],
+    "phases": [],
+    "errors": [],
+    "stop_context_retained_by_attempt": false,
+    "stop_context_missing": ["PC", "breakpoint id", "ordinal", "phase/deadline", "CPU-window bytes", "physical address/window/page", "raw and masked PAR", "halted status"],
+    "parent_delivery_receipt_sha256": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef",
+    "parent_reported_same_rom_delivery_result": "all live copies and PAR mapping qualified in the accepted GDB-MCP round trip; the failed observer read does not establish corruption",
+    "unconfirmed_candidates": [
+      "The maintained XRoar launcher passes -monitor-halt-on-start. The current root map places entry at $C002, startup PAR setup at $C033, and marker_entry_begin at $C1AB in the same resident $C000-$DFFF window, but not at the same instruction addresses. The previous receipt omitted the stopped PC, so it cannot show whether startup interception or a marker stop was involved; this remains unconfirmed.",
+      "A live physical-read, active mapping, or startup-time mapping disagreement remains possible despite the parent-reported successful copy/PAR round trip; no cause is established."
+    ],
+    "next_probe_owner_and_bound": "Parent-owned single deterministic diagnostic rerun; named 45-second phase, stop waits capped at 10 seconds; retain the numeric stop and bytes before any symbol interpretation."
+  },
   "observer_model_corrections": {
     "psg_period_data": "raw low/high bytes AD 02 produce latch 8D and data 2A",
     "quiet_default": "audio_mix_clear raw 01 00 is little-endian period 1",
@@ -66,9 +90,9 @@
     },
     "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
   },
-  "blocked_observable": "No live scenario was captured during this offline preparation; no natural held-input witness or runtime release ordering is claimed. The frozen root build passes the current complete/adaptive/keyboard profile and resident source-receipt gate for ROM SHA-256 df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726. Parent separately reports all five live copies/PAR qualified and the parent-accepted GDB-MCP delivery receipt is ready; that receipt was not consumed by this offline check. Actual natural timing/contact/held-input acceptance and each requested forced completion order remain unobserved; missing markers/orders fail closed. Parent owns prelaunch receipt validation and runtime evidence aggregation.",
+  "blocked_observable": "The first natural runtime attempt launched once and failed closed with a physical-versus-staged byte mismatch before retaining any event, phase, or stop context; target writes were zero. Its receipt is retained above. The same df260 ROM passed the parent-reported accepted GDB-MCP live-copy/PAR round trip, so the observer failure does not establish corruption. The previous receipt lacks stop PC/breakpoint/ordinal and CPU/physical/PAR/status details. This source change retains those facts on a mismatch without relaxing byte or mapping gates. The halt-on-start/shared-resident-window startup-interception possibility is unconfirmed. No held-input witness, runtime release ordering, natural timing/contact acceptance, or forced completion order is claimed. Parent owns the single next bounded diagnostic rerun and runtime evidence aggregation.",
   "scenario": "natural",
-  "prepared_at": "pre-runtime; no emulator launch and no target writes",
+  "prepared_at": "updated after first natural runtime fail-closed attempt; this context-retention change was verified offline only and made no emulator launch or target write",
   "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
   "deadlines_seconds": {
     "each_named_phase": 45,
@@ -97,17 +121,17 @@
     "release_after_audio_and_front_commit",
     "no_same_batch_player_or_enemy_mutation"
   ],
-  "report_kind": "bounded observer implementation preparation; no runtime capture",
-  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_GATE_PASS; PARENT_SOURCE_CONTROL_REVIEW_PENDING; LIVE_CAPTURE_NOT_RUN",
-  "observer_script_sha256": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
+  "report_kind": "bounded observer failure-context retention update after a failed natural runtime attempt; no acceptance capture",
+  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_GATE_PASS; FIRST_NATURAL_ATTEMPT_FAILED_CLOSED; FAILURE_CONTEXT_RETENTION_ADDED; PARENT_REVIEW_PENDING; NEXT_DIAGNOSTIC_NOT_RUN",
+  "observer_script_sha256": "89938b09e1923bebf8d1c7ee56b1d4eee4b6fea9b12dc1f50ac41d09dd66fd3b",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
-  "runtime_directory_copy_status": "Pre-existing scratch copy was not refreshed because it is outside the two-file owned commit boundary; use the owned observer-script hash for review and refresh the scratch copy before any runtime invocation.",
+  "runtime_directory_copy_status": "Pre-existing scratch copy was not refreshed because it is outside the two-file owned commit boundary; the next diagnostic must invoke the owned observer source at the updated hash or parent must refresh its runtime copy before launching.",
   "offline_verification": {
     "py_compile": "PASS",
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 292,
+      "negative_checks": 293,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -130,7 +154,8 @@
         "Natural-only held-South challenge starts at each initial/replacement entry state 2 using live $0287 South binding matrix 35 -> DSCAN 44; each event pair is linked to that binding and witness; forced fixtures remain challenge-free",
         "Three-entry end-to-end fake covers full state-2/state-3/state-4 logical and FRONT poses, including source transition 318-to-320 at state 3; missing state 3, mutated/missing FRONT, fewer than three witnesses, wrong DSCAN event key, or any target RAM write fails",
         "Resident receipt gate positively qualifies the current complete/adaptive/keyboard root profile: map-derived raw prefix hash, full 16 KiB staged receipt hash, and exact FF padding; wrong raw/full hash, bad map boundary, non-FF padding, or missing nonresident artifact fails",
-        "Sparse layout must bind final_image_sha256 to the current ROM; source-build receipt checks its ten artifact hashes, while parent delivery receipt retains all eleven hashes including the sparse layout"
+        "Sparse layout must bind final_image_sha256 to the current ROM; source-build receipt checks its ten artifact hashes, while parent delivery receipt retains all eleven hashes including the sparse layout",
+        "A full observer-dispatch fake physical-byte mismatch retains exact numeric stop phase/deadline/PC/breakpoint/ordinal/registers, CPU and physical bytes, staged/caller bytes, raw and masked PAR, physical window/address, and halted status; it emits no event and performs no target write"
       ]
     },
     "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped; import did not load the maintained monitor client template",
@@ -141,8 +166,8 @@
       "prior-music": "PASS; static only, runtime route/order unobserved"
     },
     "static_candidate_checks": "PASS for the frozen root build: current ROM/layout identity, maps, source patterns, cue descriptors, player art, and complete/adaptive/keyboard source-receipt gate. Offline only; no runtime scenario is accepted.",
-    "runtime_probe_build_target_write_git": "No runtime probe, build, or target write during verification; only the two assigned evidence files are in scope for this commit",
-    "runtime_probe_build_target_write": "NONE; preparation commands only; self-test writes used fake clients",
+    "runtime_probe_build_target_write_git": "This context-retention change ran no runtime probe, build, or target write; only the two assigned evidence files are in scope",
+    "runtime_probe_build_target_write": "NONE during this change; the earlier parent-run natural attempt launched once and wrote zero target bytes; new self-test mismatch uses fake clients only",
     "current_root_profile_gate": {
       "result": "PASS",
       "candidate_build": "E:\\projects\\ladybug\\build",
@@ -159,7 +184,9 @@
         "padding_bytes": 529,
         "padding_byte": "FF"
       },
-      "delivery_receipt_consumed": false
+      "delivery_receipt_consumed_by_offline_preparation": false,
+      "delivery_receipt_consumed_by_first_natural_attempt": true,
+      "delivery_receipt_sha256_by_first_natural_attempt": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef"
     }
   },
   "reproduction_commands_run": [
@@ -209,13 +236,13 @@
     "forced_order_fixtures": "Both completion-order runs retain the approved HUD column x=33 (pixel264) and require lives0. Reach that third entry by two genuine input-only contacts/replacements in each fresh run; require actual row-derived player x320 and compare final-FRONT versus terminal-busy-zero ordinals and the busy byte sampled at FRONT."
   },
   "prospective_runtime_cli_after_gates": {
-    "status": "IMPLEMENTED_BUT_NOT_EXECUTED; current root complete/adaptive/keyboard profile gate passes; parent owns prelaunch delivery-receipt validation and live scenarios",
+    "status": "FIRST_NATURAL_ATTEMPT_FAILED_CLOSED; mismatch context retention is implemented and offline-tested but has not been run live; parent owns the single next diagnostic and all runtime scenarios",
     "natural": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-natural-dir> --scenario natural --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "front-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-front-first-dir> --scenario front-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "Observer implementation, current root build source/profile gate, and offline control checks are reviewable for parent source/control audit. The parent delivery receipt is reported ready but was not consumed here. No live acceptance scenario is claimed; parent owns prelaunch/receipt validation and all runtime captures.",
+  "ready_verdict": "Observer implementation now retains failure context for a physical-versus-staged mismatch while preserving all fail-closed gates. Offline tests pass. The first natural attempt failed before any stop context was retained, with zero target writes; parent-reported GDB delivery qualification passed for the same ROM. No live acceptance scenario or root cause is claimed. Parent owns review and one bounded diagnostic rerun.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {

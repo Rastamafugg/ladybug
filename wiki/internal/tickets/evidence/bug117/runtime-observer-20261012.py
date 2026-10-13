@@ -85,6 +85,13 @@ class GuardFailure(RuntimeError):
     pass
 
 
+class QualificationFailure(GuardFailure):
+    """Fail closed while retaining byte and stopped-monitor evidence."""
+    def __init__(self, message: str, failure_context: dict[str, Any]):
+        super().__init__(message)
+        self.failure_context = failure_context
+
+
 def monitor_call(client: Any, method: str, params: dict[str, Any] | None = None,
                  maximum: float = STOP_WAIT_SECONDS) -> dict[str, Any]:
     """Cap live RPC work by the active phase deadline when called during dispatch."""
@@ -1245,6 +1252,54 @@ def physical_page_read(client: Any, page: int, offset: int, length: int) -> byte
     return monitor_bytes(client, page * PHYSICAL_PAGE_BYTES + offset, length, "physical")
 
 
+def byte_evidence(data: bytes) -> dict[str, Any]:
+    return {"length": len(data), "hex": data.hex(), "sha256": sha(data)}
+
+
+def live_span_mismatch_context(client: Any, cpu_address: int, expected: bytes,
+                               staged: bytes, physical: bytes, page_register: int,
+                               raw_par: int, mapped_page: int, cpu_window: int,
+                               stop_context: dict[str, Any] | None) -> dict[str, Any]:
+    """Retain numeric stop, mapping, byte, and halted-state facts before symbol use."""
+    context: dict[str, Any] = {
+        "kind": "live-physical-byte-mismatch",
+        "interpretation_order": "numeric stopped PC and caller/candidate/CPU/physical bytes retained before observer marker-label interpretation",
+        "stop": stop_context,
+        "span": {
+            "cpu_address": cpu_address, "cpu_address_hex": f"${cpu_address:04X}",
+            "length": len(expected), "cpu_window": cpu_window,
+            "cpu_window_end_exclusive": cpu_window + PHYSICAL_PAGE_BYTES,
+            "page_register_address": page_register,
+            "page_register_address_hex": f"${page_register:04X}",
+            "expected_page": mapped_page, "expected_page_hex": f"${mapped_page:02X}",
+            "physical_page": mapped_page,
+            "physical_offset": cpu_address - cpu_window,
+            "physical_address": mapped_page * PHYSICAL_PAGE_BYTES + cpu_address - cpu_window,
+        },
+        "mapping": {"par_raw": raw_par, "par_raw_hex": f"${raw_par:02X}",
+            "par_mask": 0x3F, "par_masked": raw_par & 0x3F,
+            "par_masked_hex": f"${raw_par & 0x3F:02X}",
+            "expected_page": mapped_page},
+        "bytes": {"caller_expected": byte_evidence(expected),
+            "candidate_staged": byte_evidence(staged),
+            "live_physical": byte_evidence(physical)},
+        "stopped_status": {"state": "not-read", "read_error": None},
+    }
+    try:
+        cpu_live = monitor_bytes(client, cpu_address, len(expected))
+        context["bytes"]["live_cpu_window"] = byte_evidence(cpu_live)
+    except Exception as exc:
+        context["bytes"]["live_cpu_window_read_error"] = f"{type(exc).__name__}: {exc}"
+    try:
+        status = monitor_call(client, "status", maximum=2.0)
+        context["stopped_status"] = {"state": status.get("state"),
+            "status_reply": status, "read_error": None}
+    except Exception as exc:
+        context["stopped_status"] = {"state": "unavailable",
+            "read_error": f"{type(exc).__name__}: {exc}"}
+    return context
+
+
 def require_current_paused_stop(client: Any, expected_pc: int) -> dict[str, int]:
     """Prove the target is still halted at the exact event before fresh guard reads."""
     status = monitor_call(client, "status")
@@ -1350,7 +1405,8 @@ def fixture_audio_page(client: Any, stop_pc: int, mainloop_pc: int) -> int:
 
 def qualify_live_span(client: Any, cpu_address: int, expected: bytes, page_register: int,
                       mapped_page: int, cpu_window: int, linked_origin: int,
-                      linked_image: bytes, delivery: dict[str, Any]) -> dict[str, Any]:
+                      linked_image: bytes, delivery: dict[str, Any],
+                      stop_context: dict[str, Any] | None = None) -> dict[str, Any]:
     """Compare receipt-qualified source/staged identity and live physical bytes at a stop."""
     if (delivery.get("schema") != DELIVERY_RECEIPT_SCHEMA or
             delivery.get("status") != "parent-accepted" or
@@ -1361,7 +1417,8 @@ def qualify_live_span(client: Any, cpu_address: int, expected: bytes, page_regis
     if (cpu_address < cpu_window or cpu_address + len(expected) > cpu_window + PHYSICAL_PAGE_BYTES or
             mapped_page >= 64):
         raise GuardFailure("live code span is outside its qualified 8-KiB mapping window")
-    live_map = monitor_bytes(client, page_register, 1)[0] & 0x3F
+    raw_par = monitor_bytes(client, page_register, 1)[0]
+    live_map = raw_par & 0x3F
     if live_map != mapped_page:
         raise GuardFailure(f"live PAR ${page_register:04X} page ${live_map:02X} != expected ${mapped_page:02X}")
     image_offset = cpu_address - linked_origin
@@ -1370,7 +1427,9 @@ def qualify_live_span(client: Any, cpu_address: int, expected: bytes, page_regis
         raise GuardFailure("caller expected bytes differ from candidate staged image")
     physical = physical_page_read(client, mapped_page, cpu_address - cpu_window, len(expected))
     if physical != staged:
-        raise GuardFailure("live physical module bytes differ from staged candidate bytes")
+        context = live_span_mismatch_context(client, cpu_address, expected, staged,
+            physical, page_register, raw_par, mapped_page, cpu_window, stop_context)
+        raise QualificationFailure("live physical module bytes differ from staged candidate bytes", context)
     return {"cpu_address": cpu_address, "page_register": page_register,
             "mapped_page": mapped_page, "length": len(expected),
             "sha256": sha(physical), "source_staged_live_match": True}
@@ -1682,6 +1741,8 @@ class LiveRuntimeObserver:
         self.events: list[dict[str, Any]] = []
         self.phases: list[dict[str, Any]] = []
         self.errors: list[str] = []
+        self.failure_context: dict[str, Any] | None = None
+        self.current_stop_context: dict[str, Any] | None = None
         self.input_events: list[dict[str, Any]] = []
         self.pressed: set[int] = set()
         self.bindings: bytes | None = None
@@ -1772,7 +1833,8 @@ class LiveRuntimeObserver:
         if len(expected) != size:
             raise GuardFailure("resident marker span exceeds the staged image")
         return qualify_live_span(self.client, pc, expected, reg, page,
-                                 window, 0xC000, self.main_image, self.delivery)
+                                 window, 0xC000, self.main_image, self.delivery,
+                                 self.current_stop_context)
 
     def _audio_code(self, pc: int, size: int = 3) -> dict[str, Any]:
         offset = pc - 0xA000
@@ -1780,7 +1842,8 @@ class LiveRuntimeObserver:
         if offset < 0 or len(expected) != size:
             raise GuardFailure("audio marker span exceeds the staged image")
         return qualify_live_span(self.client, pc, expected, PAR5, 0x3D,
-                                 0xA000, 0xA000, self.audio_image, self.delivery)
+                                 0xA000, 0xA000, self.audio_image, self.delivery,
+                                 self.current_stop_context)
 
     def _enemy_code(self, pc: int, size: int = 3) -> dict[str, Any]:
         if not 0x0800 <= pc < 0x0800 + len(self.enemy_image):
@@ -2908,7 +2971,25 @@ class LiveRuntimeObserver:
                          terminal_audio_idle=True)
 
     def _dispatch(self, stop: MonitorStop) -> None:
-        qualification = self._qualify(stop)
+        phase_deadline = getattr(self.client, "_bug117_phase_deadline", None)
+        stop_context = {"phase": stop.phase, "phase_deadline_seconds": PHASE_SECONDS,
+            "phase_deadline_monotonic": phase_deadline,
+            "phase_remaining_seconds_at_dispatch": (max(0.0, phase_deadline - time.monotonic())
+                if isinstance(phase_deadline, (float, int)) else None),
+            "pc": stop.pc, "pc_hex": f"${stop.pc:04X}", "bp_id": stop.bp_id,
+            "ordinal": stop.ordinal, "observed_monotonic": stop.observed_monotonic,
+            "registers_at_stop": dict(stop.registers)}
+        self.current_stop_context = stop_context
+        try:
+            qualification = self._qualify(stop)
+        except Exception as exc:
+            context = getattr(exc, "failure_context", None)
+            self.failure_context = (context if isinstance(context, dict) else {
+                "kind": "observer-dispatch-failure", "stop": stop_context})
+            if "stop" not in self.failure_context or self.failure_context.get("stop") is None:
+                self.failure_context["stop"] = stop_context
+            self.failure_context["error"] = f"{type(exc).__name__}: {exc}"
+            raise
         label = self.labels.get(stop.pc)
         if label is None and stop.pc == self.bus_marker["stop_pc"]:
             label = "SND_DATA"
@@ -3178,6 +3259,10 @@ def run_live_capture(binary: Path, build: Path, output: Path, scenario: str,
             "events": observer.events if observer is not None else [],
             "phases": observer.phases if observer is not None else [],
             "errors": observer.errors if observer is not None else [str(exc)]}
+        if observer is not None and observer.failure_context is not None:
+            result["failure_context"] = observer.failure_context
+        elif isinstance(getattr(exc, "failure_context", None), dict):
+            result["failure_context"] = exc.failure_context
     finally:
         if observer is not None and client is not None:
             try:
@@ -4088,6 +4173,71 @@ def self_test() -> dict[str, Any]:
                 tested += 1
             else:
                 raise AssertionError("mismatched live physical instruction bytes passed qualification")
+            class FakeResidentMismatchClient:
+                def __init__(self, pc: int, expected: bytes):
+                    self.pc = pc
+                    self.expected = expected
+                    self._bug117_phase_deadline = time.monotonic() + PHASE_SECONDS
+                def call(self, method: str, params: dict[str, Any] | None = None,
+                         timeout: float = 20.0):
+                    if method == "status":
+                        return {"state": "halted"}
+                    if method != "read_memory":
+                        raise AssertionError(f"unexpected mismatch-context RPC {method}")
+                    address = params["addr"]
+                    length = params["length"]
+                    space = params.get("space", "cpu")
+                    if space == "cpu" and address == 0xFFA6:
+                        data = b"\xBE"
+                    elif space == "cpu" and address == self.pc:
+                        data = self.expected[:length]
+                    elif space == "physical":
+                        assert address == 0x3E * PHYSICAL_PAGE_BYTES + self.pc - 0xC000
+                        data = bytearray(self.expected[:length])
+                        if data:
+                            data[0] ^= 1
+                        data = bytes(data)
+                    else:
+                        raise AssertionError(f"unexpected mismatch-context read {space} ${address:04X}")
+                    return {"data": data.hex(), "space": space}
+            mismatch_pc = read_symbols(pinned / "ladybug.map")["marker_entry_begin"]
+            mismatch_expected = (pinned / "ladybug-runtime.rom").read_bytes()[
+                mismatch_pc - 0xC000:mismatch_pc - 0xC000 + 3]
+            mismatch_client = FakeResidentMismatchClient(mismatch_pc, mismatch_expected)
+            mismatch_observer = LiveRuntimeObserver(mismatch_client, pinned, "natural",
+                                                     candidate_prep, delivery)
+            mismatch_observer.labels[mismatch_pc] = "marker_entry_begin"
+            mismatch_observer.bp_ids[mismatch_pc] = 17
+            mismatch_stop = MonitorStop("initial-entry", mismatch_pc, 17,
+                {"pc": mismatch_pc, "dp": 0, "a": 0}, 23, time.monotonic())
+            try:
+                mismatch_observer._dispatch(mismatch_stop)
+            except GuardFailure:
+                context = mismatch_observer.failure_context
+                assert context is not None and mismatch_observer.events == []
+                assert mismatch_observer.write_count == 0
+                assert json.loads(json.dumps(context)) == context
+                assert context["kind"] == "live-physical-byte-mismatch"
+                assert context["stop"]["phase"] == "initial-entry"
+                assert context["stop"]["pc"] == mismatch_pc
+                assert context["stop"]["bp_id"] == 17 and context["stop"]["ordinal"] == 23
+                assert context["stop"]["phase_deadline_seconds"] == PHASE_SECONDS
+                assert context["mapping"]["par_raw"] == 0xBE
+                assert context["mapping"]["par_masked"] == 0x3E
+                assert context["span"]["cpu_window"] == 0xC000
+                assert context["span"]["physical_page"] == 0x3E
+                assert context["span"]["physical_address"] == (
+                    0x3E * PHYSICAL_PAGE_BYTES + mismatch_pc - 0xC000)
+                assert context["bytes"]["caller_expected"]["hex"] == mismatch_expected.hex()
+                assert context["bytes"]["candidate_staged"]["hex"] == mismatch_expected.hex()
+                assert context["bytes"]["live_cpu_window"]["hex"] == mismatch_expected.hex()
+                assert context["bytes"]["live_physical"]["hex"] != mismatch_expected.hex()
+                assert context["stopped_status"]["state"] == "halted"
+                assert context["error"] == (
+                    "QualificationFailure: live physical module bytes differ from staged candidate bytes")
+                tested += 1
+            else:
+                raise AssertionError("resident physical mismatch passed or failed to retain context")
             try:
                 validate_delivery_receipt({**receipt, "status": "unaccepted"}, candidate_prep)
             except GuardFailure:
