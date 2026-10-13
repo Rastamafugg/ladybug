@@ -1,17 +1,22 @@
 #!/usr/bin/env python3
-"""Offline BUG-117 observer preparation and fixture-write safety gate.
+"""BUG-117 observer preparation and guarded runtime capture.
 
-No emulator, monitor, build, or target is started by import, --help,
---prepare-only, or --self-test. Live observation remains deliberately gated
-until the parent accepts the exact current-build runtime adapter.
+Import, --help, --prepare-only, and --self-test never start an emulator,
+monitor, build, or target. Live capture is implemented but requires an explicit
+--run-live plus a complete adaptive source-build receipt and parent-accepted
+GDB-MCP delivery qualification receipt for the exact candidate artifacts.
 """
 from __future__ import annotations
 
 import argparse
 import hashlib
+import importlib.util
 import json
+import os
 import re
+import socket
 import sys
+import time
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
@@ -19,13 +24,75 @@ from typing import Any
 SCENARIOS = ("natural", "front-first", "music-first", "prior-music")
 PHASE_SECONDS = 45
 STOP_WAIT_SECONDS = 10
+GAMEPLAY_WORKLIST_CYCLE_TARGET = 27000
+HISTORICAL_GAMEPLAY_WORKLIST_CYCLES = {
+    "ordinary_north": 42541,
+    "one_roamer_plus_popup_nest": 54539,
+}
 TIMER_ADDRESS = 0x003A
 TIMER_VALUES = {"front-first": 0, "music-first": 255, "prior-music": 0}
+COIN5_MATRIX_KEY = 44
+COIN5_DSCAN_KEY = 5
 ROOT = next((p for p in Path(__file__).resolve().parents if (p / "scripts/build.sh").is_file()), None)
+MONITOR_TEMPLATE = (ROOT / "scripts/verify_bug009_monitor_input.py") if ROOT else None
+MONITOR_SOURCE = (ROOT / "docs/reference/xroar/src/monitor.c") if ROOT else None
+PLAYER_ART = (ROOT / "assets/arcade/sprites.json") if ROOT else None
+VISIBLE_BASE = 0x2000
+VISIBLE_BYTES = 30720
+PHYSICAL_PAGE_BYTES = 0x2000
+PAR_BASE = 0xFFA0
+PAR5 = 0xFFA5
+SND_DATA = 0xFF51
+FB_FRONT_ID = 0x008F
+FB_BACK_ID = 0x0090
+FB_RENDER_PENDING = 0x0091
+FB_COMMIT_SEQ = 0x0092
+INITIAL_ENTRY_STATE = 0x00A0
+PRES_CREDITS_ADDRESS = 0x00A8
+MODE_ATTRACT = 2
+DEATH_STATE = 0x004D
+PLAYER_FB = 0x000B
+PLAYER_FACE = 0x0007
+PLAYER_ANIM = 0x004F
+PLAYER_BG_PTR = 0x00A2
+PLAYER_BG_VALID = 0x006A
+PLAYER_CELL_X = 0x0009
+PLAYER_CELL_Y = 0x000A
+PLAYER_STEP = 0x0008
+MUSIC_BUSY = 0x02D4
+AUDIO_Q_COUNT = 0x00EE
+AUDIO_CREDIT_PENDING = 0x02DD
+WATCHED_PHASES = {
+    "initial-entry": 45,
+    "natural-contact-search": 45,
+    "death-animation-blank": 45,
+    "fixture-boundary": 45,
+    "audio-cue6": 45,
+    "audio-terminal": 45,
+    "cue13-normal-drain": 45,
+    "replacement-entry": 45,
+    "irq-front-release": 45,
+}
+LIVE_CAPTURE_IMPLEMENTED = True
 
 
 class GuardFailure(RuntimeError):
     pass
+
+
+def monitor_call(client: Any, method: str, params: dict[str, Any] | None = None,
+                 maximum: float = STOP_WAIT_SECONDS) -> dict[str, Any]:
+    """Cap live RPC work by the active phase deadline when called during dispatch."""
+    deadline = getattr(client, "_bug117_phase_deadline", None)
+    timeout = maximum
+    if deadline is not None:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise GuardFailure(f"phase deadline expired before monitor {method} call")
+        timeout = min(maximum, remaining)
+    if not 0 < timeout <= STOP_WAIT_SECONDS:
+        raise GuardFailure("monitor RPC timeout exceeds the approved 10-second bound")
+    return client.call(method, params, timeout=timeout)
 
 
 def sha(data: bytes) -> str:
@@ -63,6 +130,389 @@ def stream_terminal(image: bytes, start: int, limit: int) -> dict[str, Any]:
     raise GuardFailure("linked stream has no emitted zero-command terminator")
 
 
+@dataclass(frozen=True)
+class PSGStore:
+    kind: str
+    channel: int | None
+    value: int
+    selected_slot: int | None = None
+    source_voice: int | None = None
+
+
+def mix_exclusive_slot(slots: list[dict[str, Any]], expected_id: int) -> dict[str, Any]:
+    """Reconstruct exclusive selection and physical voices from live slot bytes."""
+    if len(slots) != 4:
+        raise GuardFailure("mixer snapshot must contain all four physical slots")
+    exclusive = [s for s in slots if s["id"] != 0xFF and (s["policy"] & 1)]
+    if not exclusive:
+        raise GuardFailure("no active exclusive music source owns this mix")
+    selected = sorted(exclusive, key=lambda s: (-s["priority"], s["index"]))[0]
+    if selected["id"] != expected_id or selected["index"] != 0:
+        raise GuardFailure("expected cue is not the mixer-selected slot-0 source")
+    if selected["priority"] != (selected["policy"] >> 5):
+        raise GuardFailure("selected slot priority disagrees with its descriptor policy")
+    # audio_mix_clear writes raw bytes 01 00; as a little-endian period this is 1.
+    periods = [1, 1, 1]
+    attenuation = [15, 15, 15]
+    channel_sources: list[dict[str, int]] = []
+    out_channel = 0
+    for voice in range(3):
+        source_atten = selected["attenuation"][voice]
+        if source_atten >= 15 or out_channel >= 3:
+            continue
+        periods[out_channel] = selected["periods"][voice]
+        attenuation[out_channel] = source_atten
+        channel_sources.append({"channel": out_channel, "slot": selected["index"], "voice": voice})
+        out_channel += 1
+    noise = [0, 15]
+    if selected["noise_attenuation"] < 15 and noise[1] >= 15:
+        noise = [selected["noise"], selected["noise_attenuation"]]
+    return {"selected": selected, "periods": periods, "attenuation": attenuation,
+            "noise": noise, "channel_sources": channel_sources,
+            "audible_voice_count": sum(v < 15 for v in selected["attenuation"])}
+
+
+def expected_psg_transaction(period_bytes: bytes, attenuation: bytes,
+                             noise: bytes, shadow: bytes,
+                             channel_sources: list[dict[str, int]]) -> list[PSGStore]:
+    """Model audio_mix_write's actual ordered SND_DATA stores, including muted latches."""
+    if len(period_bytes) != 6 or len(attenuation) != 3 or len(noise) != 2 or len(shadow) != 11:
+        raise GuardFailure("PSG mixer snapshot has an unexpected byte width")
+    by_channel = {x["channel"]: x for x in channel_sources}
+    stores: list[PSGStore] = []
+    for ch in range(3):
+        lo, hi = period_bytes[ch * 2:ch * 2 + 2]
+        source = by_channel.get(ch)
+        stores.append(PSGStore("tone-latch", ch, 0x80 | (ch << 5) | (lo & 0x0F),
+                               source["slot"] if source else None,
+                               source["voice"] if source else None))
+        # audio_mix_write loads the low byte into A and the high byte into B.
+        data = ((hi << 4) | (lo >> 4)) & 0x3F
+        if data != shadow[ch * 3 + 1]:
+            stores.append(PSGStore("period-data", ch, data,
+                                   source["slot"] if source else None,
+                                   source["voice"] if source else None))
+        volume = 0x90 | (ch << 5) | attenuation[ch]
+        if volume != shadow[ch * 3 + 2]:
+            stores.append(PSGStore("attenuation", ch, volume,
+                                   source["slot"] if source else None,
+                                   source["voice"] if source else None))
+    noise_control = noise[0] | 0xE0
+    if noise_control != shadow[9]:
+        stores.append(PSGStore("noise-control", None, noise_control))
+    noise_volume = noise[1] | 0xF0
+    if noise_volume != shadow[10]:
+        stores.append(PSGStore("noise-attenuation", None, noise_volume))
+    return stores
+
+
+def prove_audible_psg_source(model: dict[str, Any], observed: list[PSGStore]) -> dict[str, Any]:
+    """Require a selected-source data/attenuation write, never a tone latch alone."""
+    sources = {x["channel"]: x for x in model["channel_sources"]}
+    proven = [s for s in observed if s.kind in ("period-data", "attenuation") and
+              s.channel in sources and s.selected_slot == 0 and
+              s.source_voice == sources[s.channel]["voice"]]
+    if not proven:
+        raise GuardFailure("actual PSG transaction has no selected audible cue voice data/attenuation store")
+    return {"store_count": len(observed), "audible_store_count": len(proven),
+            "audible_channels": sorted({s.channel for s in proven if s.channel is not None})}
+
+
+def bug011_image_api() -> Any:
+    """Load the maintained BUG-011 sprite conversion/blend oracle without running it."""
+    if ROOT is None:
+        raise GuardFailure("project root is unavailable for the maintained pixel oracle")
+    scripts_dir = str(ROOT / "scripts")
+    added = scripts_dir not in sys.path
+    if added:
+        sys.path.insert(0, scripts_dir)
+    try:
+        path = ROOT / "scripts/verify_bug011_rendering.py"
+        spec = importlib.util.spec_from_file_location("bug117_bug011_rendering_model", path)
+        if spec is None or spec.loader is None:
+            raise GuardFailure("cannot load the maintained BUG-011 pixel oracle")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[spec.name] = module
+        spec.loader.exec_module(module)
+        return module
+    finally:
+        if added:
+            sys.path.remove(scripts_dir)
+
+
+def classify_post_store(pc: int, a: int, par5: int, live_instruction: bytes,
+                        expected_pc: int) -> dict[str, int]:
+    """Reject non-STA/watchpoint stops; live opcode bytes decide the post-store PC."""
+    if pc != expected_pc:
+        raise GuardFailure(f"unexpected SND_DATA watch stop PC ${pc:04X}, expected ${expected_pc:04X}")
+    if live_instruction != b"\xB7\xFF\x51":
+        raise GuardFailure("live stop-PC-3 bytes are not the expected emitted STA $FF51")
+    if par5 & 0x3F != 0x3D:
+        raise GuardFailure("PSG store stop is not in the live audio page $3D")
+    if type(a) is not int or not 0 <= a <= 0xFF:
+        raise GuardFailure("live A register is absent or outside one byte")
+    return {"pc": pc, "value": a, "par5": par5}
+
+
+def player_expected_rect(background: bytes, packed_sprite: bytes) -> bytes:
+    """Apply the BUG-011 native-frame/transparency rules to one 8x16 player rect."""
+    if len(background) != 128:
+        raise GuardFailure("player background must be a complete 8x16 saved-under")
+    if len(packed_sprite) != 64:
+        raise GuardFailure("authored player frame must be 16x16 packed 2bpp")
+    oracle = bug011_image_api()
+    start = oracle.runtime.VISIBLE_START
+    frame = oracle.native_frame(packed_sprite)
+    if len(frame) != 128:
+        raise GuardFailure("BUG-011 native-frame conversion returned an unexpected size")
+    target = bytearray(VISIBLE_BYTES)
+    for row in range(16):
+        target[row * 160:row * 160 + 8] = background[row * 8:row * 8 + 8]
+    oracle.blend_frame(target, start, frame)
+    return oracle.frame_rect(bytes(target), start)
+
+
+def compare_opaque_player_pixels(expected: bytes, actual: bytes, packed_sprite: bytes,
+                                 visible_width_bytes: int = 8) -> dict[str, int]:
+    """Compare opaque pixels inside the clipped visible row width only."""
+    if len(expected) != 128 or len(actual) != 128 or len(packed_sprite) != 64:
+        raise GuardFailure("player pixel comparison requires complete 8x16 rectangles")
+    if type(visible_width_bytes) is not int or not 1 <= visible_width_bytes <= 8:
+        raise GuardFailure("player pixel comparison has an invalid visible row width")
+    native = bug011_image_api().native_frame(packed_sprite)
+    compared = mismatches = 0
+    for index, (want, got, art) in enumerate(zip(expected, actual, native)):
+        if index % 8 >= visible_width_bytes:
+            continue
+        for shift in (4, 0):
+            if (art >> shift) & 0x0F:
+                compared += 1
+                if ((want >> shift) & 0x0F) != ((got >> shift) & 0x0F):
+                    mismatches += 1
+    if mismatches:
+        raise GuardFailure(f"front player sprite differs at {mismatches}/{compared} opaque pixels")
+    return {"opaque_pixels_compared": compared, "mismatches": mismatches,
+            "visible_width_bytes": visible_width_bytes,
+            "visible_width_pixels": visible_width_bytes * 2}
+
+
+def visible_rect_matches_background(actual: bytes, background: bytes,
+                                    visible_width_bytes: int) -> bool:
+    """Compare only framebuffer bytes that belong to the visible clipped rows."""
+    if len(actual) != 128 or len(background) != 128 or not 1 <= visible_width_bytes <= 8:
+        raise GuardFailure("clipped background comparison requires two 8x16 rectangles")
+    return all(actual[row * 8:row * 8 + visible_width_bytes] ==
+               background[row * 8:row * 8 + visible_width_bytes] for row in range(16))
+
+
+def visible_row_width_bytes(pointer: int) -> int:
+    if type(pointer) is not int or not VISIBLE_BASE <= pointer < VISIBLE_BASE + VISIBLE_BYTES:
+        raise GuardFailure("player framebuffer pointer is outside the visible image")
+    return min(8, 160 - ((pointer - VISIBLE_BASE) % 160))
+
+
+def verify_candidate_player_art(build: Path) -> dict[str, Any]:
+    """Bind authored player frames to the candidate's indexed sparse payload bytes."""
+    if ROOT is None or PLAYER_ART is None:
+        raise GuardFailure("player art compiler/source is unavailable from this workspace")
+    receipt_path = build / "source-build-receipt.json"
+    layout_path = build / "ladybug-sparse-layout.json"
+    sparse_path = build / "ladybug-player-sparse.bin"
+    if not receipt_path.is_file() or not layout_path.is_file() or not sparse_path.is_file():
+        raise GuardFailure("candidate lacks sprite source receipt, sparse layout, or player payload")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    inputs = {str(k).replace("\\", "/"): v for k, v in receipt.get("inputs", {}).items()}
+    sparse = json.loads(layout_path.read_text(encoding="utf-8"))
+    art_hash = sha(PLAYER_ART.read_bytes())
+    if inputs.get("assets/arcade/sprites.json") != art_hash:
+        raise GuardFailure("candidate build receipt does not bind the current authored player sprite source")
+    script_inputs = {name: (ROOT / name) for name in
+                     ("scripts/build_screen.py", "scripts/build_sparse_sprites.py")}
+    for name, path in script_inputs.items():
+        if inputs.get(name) != sha(path.read_bytes()):
+            raise GuardFailure(f"candidate build receipt does not bind the player frame compiler {name}")
+    scripts_dir = str(ROOT / "scripts")
+    added = scripts_dir not in sys.path
+    if added:
+        sys.path.insert(0, scripts_dir)
+    try:
+        screen = importlib.import_module("build_screen")
+        sparse_builder = importlib.import_module("build_sparse_sprites")
+        frames = screen.compile_player_sprites(PLAYER_ART)
+        payload = sparse_path.read_bytes()
+        player = sparse.get("player", {})
+        index = player.get("index", [])
+        if len(frames) != 16 or player.get("frames") != len(frames) or len(index) != len(frames):
+            raise GuardFailure("candidate player index does not contain all sixteen authored poses")
+        if player.get("sha256") != sha(payload) or player.get("bytes") != len(payload):
+            raise GuardFailure("candidate player sparse payload differs from its generated layout identity")
+        pen_map = tuple(sparse_builder.PLAYER_PEN_MAP)
+        for frame_index, (frame, entry) in enumerate(zip(frames, index)):
+            expected = sparse_builder.encode_sparse_frame(frame, pen_map)
+            start, length = entry.get("payload_offset"), entry.get("length")
+            if type(start) is not int or type(length) is not int or payload[start:start + length] != expected:
+                raise GuardFailure(f"candidate player frame {frame_index} differs from authored compiled art")
+        return {"frame_count": len(frames), "art_source_sha256": art_hash,
+                "player_sparse_sha256": sha(payload), "player_layout_sha256": sha(layout_path.read_bytes()),
+                "build_screen_sha256": sha(script_inputs["scripts/build_screen.py"].read_bytes()),
+                "sparse_encoder_sha256": sha(script_inputs["scripts/build_sparse_sprites.py"].read_bytes()),
+                "all_frame_payloads_match": True}
+    finally:
+        if added:
+            sys.path.remove(scripts_dir)
+
+
+def candidate_player_frame(build: Path, face: int, animation: int) -> tuple[bytes, dict[str, Any]]:
+    """Return one authored packed 16x16 frame after candidate index/payload identity checks."""
+    if type(face) is not int or not 0 <= face < 4 or type(animation) is not int or not 0 <= animation < 4:
+        raise GuardFailure("live player pose face/animation values must each be in range 0..3")
+    verify_candidate_player_art(build)
+    scripts_dir = str(ROOT / "scripts")
+    added = scripts_dir not in sys.path
+    if added:
+        sys.path.insert(0, scripts_dir)
+    try:
+        screen = importlib.import_module("build_screen")
+        frame_index = face * 4 + animation
+        frame = screen.compile_player_sprites(PLAYER_ART)[frame_index]
+        return frame, {"frame_index": frame_index, "face": face, "animation": animation,
+                       "candidate_art_identity_qualified": True}
+    finally:
+        if added:
+            sys.path.remove(scripts_dir)
+
+
+def candidate_player_frame_table(build: Path) -> tuple[tuple[bytes, ...], dict[str, Any]]:
+    """Verify art/payload identity once, then compile the sixteen live pose choices."""
+    identity = verify_candidate_player_art(build)
+    scripts_dir = str(ROOT / "scripts")
+    added = scripts_dir not in sys.path
+    if added:
+        sys.path.insert(0, scripts_dir)
+    try:
+        screen = importlib.import_module("build_screen")
+        frames = tuple(screen.compile_player_sprites(PLAYER_ART))
+        if len(frames) != 16:
+            raise GuardFailure("candidate player compiler did not produce sixteen face/animation poses")
+        return frames, identity
+    finally:
+        if added:
+            sys.path.remove(scripts_dir)
+
+
+def model_exclusive_mix(slots: list[dict[str, Any]], expected_id: int) -> dict[str, Any]:
+    """Return expected mixer buffers from the selected exclusive slot and source voices."""
+    model = mix_exclusive_slot(slots, expected_id)
+    period_bytes = b"".join(int(p).to_bytes(2, "little") for p in model["periods"])
+    attenuation = bytes(model["attenuation"])
+    noise = bytes(model["noise"])
+    return {**model, "period_bytes": period_bytes, "attenuation_bytes": attenuation,
+            "noise_bytes": noise}
+
+
+def model_quiet_mix(shadow: bytes) -> dict[str, Any]:
+    """Model the source-defined no-active-slot mixer clear and mute stores."""
+    if len(shadow) != 11:
+        raise GuardFailure("quiet mixer shadow must contain eleven PSG latch bytes")
+    return {"selected": None, "periods": [1, 1, 1], "attenuation": [15, 15, 15],
+            "noise": [0, 15], "channel_sources": [], "audible_voice_count": 0,
+            "period_bytes": b"\x01\x00" * 3, "attenuation_bytes": b"\x0F" * 3,
+            "noise_bytes": b"\x00\x0F", "shadow": shadow}
+
+
+def validate_quiet_terminal(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Require the terminal service to contain cue clear, actual quiet mix, and no competitor."""
+    if any(slot.get("id") != 0xFF for slot in snapshot.get("slots", [])):
+        raise GuardFailure("terminal mute service has an active or competing audio slot")
+    if len(snapshot.get("slots", [])) != 4:
+        raise GuardFailure("terminal mute snapshot omits one or more physical audio slots")
+    if (snapshot.get("music_count") != 0 or snapshot.get("effect_queue_count") != 0 or
+            snapshot.get("credit_pending") != 0 or snapshot.get("mix_count") != 0 or
+            snapshot.get("music_queue") != b"\x00" * 8):
+        raise GuardFailure("terminal mute service has queued music, effects, credits, or mixer work")
+    if (snapshot.get("mix_period_bytes") != b"\x01\x00" * 3 or
+            snapshot.get("mix_attenuation") != b"\x0F" * 3 or
+            snapshot.get("mix_noise") != b"\x00\x0F"):
+        raise GuardFailure("terminal service buffers differ from audio_mix_clear's raw quiet defaults")
+    return {"all_slots_clear": True, "all_queues_idle": True,
+            "quiet_period_bytes": snapshot["mix_period_bytes"].hex(),
+            "quiet_attenuation": snapshot["mix_attenuation"].hex(),
+            "quiet_noise": snapshot["mix_noise"].hex()}
+
+
+def model_from_audio_slot(raw: bytes, index: int) -> dict[str, Any]:
+    if len(raw) != 28:
+        raise GuardFailure(f"audio slot {index} must be the complete 28-byte slot")
+    return {"index": index, "id": raw[0], "priority": raw[1], "policy": raw[2],
+            "wait": raw[3], "stream_pointer": int.from_bytes(raw[4:6], "big"),
+            "periods": [int.from_bytes(raw[6 + i * 2:8 + i * 2], "little") for i in range(3)],
+            "attenuation": list(raw[12:15]), "noise": raw[15], "noise_attenuation": raw[16],
+            "shadow": bytes(raw[17:28])}
+
+
+def verify_stop_opcode(pc: int, opcode_bytes: bytes, expected: bytes,
+                       label: str) -> int:
+    """Return instruction end only when the candidate's emitted bytes match."""
+    if opcode_bytes != expected:
+        raise GuardFailure(f"live {label} instruction bytes {opcode_bytes.hex()} != {expected.hex()}")
+    return pc + len(opcode_bytes)
+
+
+def qualify_irq_commit_stop(marker: dict[str, Any], pc: int, dp: int,
+                            live_opcode: bytes) -> dict[str, Any]:
+    """Qualify the actual post-INC stop, including direct-page addressing semantics."""
+    if pc != marker.get("end_pc"):
+        raise GuardFailure(f"IRQ commit stop PC ${pc:04X} is not emitted instruction end ${marker.get('end_pc', 0):04X}")
+    expected = bytes.fromhex(marker.get("opcode_bytes", ""))
+    if not expected or live_opcode != expected:
+        raise GuardFailure("live IRQ INC opcode bytes differ from the emitted candidate instruction")
+    required_dp = marker.get("required_dp")
+    if required_dp is not None and dp != required_dp:
+        raise GuardFailure(f"direct INC $93 requires DP=${required_dp:02X}; live DP=${dp:02X}")
+    return {"pc": pc, "dp": dp, "encoding": marker["encoding"],
+            "opcode_bytes": live_opcode.hex(), "post_instruction": True}
+
+
+def post_busy_marker(audio_image: bytes, audio_map: dict[str, int]) -> int:
+    """Derive the after-store marker from the actual linked JSR/STA byte sequence."""
+    start = audio_map["audio_mix_write_done"] - 0xA000
+    code = audio_image[start:start + 6]
+    busy_routine = audio_map.get("audio_music_busy")
+    if (len(code) != 6 or code[0] != 0xBD or
+            int.from_bytes(code[1:3], "big") != busy_routine or
+            code[3:6] != b"\xB7\x02\xD4"):
+        raise GuardFailure("linked post-PSG busy sequence is not JSR + STA $02D4")
+    return audio_map["audio_mix_write_done"] + len(code)
+
+
+def audio_bus_write_marker(audio_image: bytes, audio_map: dict[str, int]) -> dict[str, Any]:
+    """Derive the write watchpoint's post-STA stop PC from the linked routine bytes."""
+    address = audio_map["audio_write"]
+    offset = address - 0xA000
+    opcode = audio_image[offset:offset + 3]
+    if opcode != b"\xB7\xFF\x51":
+        raise GuardFailure("linked audio_write does not begin with emitted STA $FF51")
+    return {"instruction_pc": address, "stop_pc": address + len(opcode),
+            "opcode_bytes": opcode.hex(), "stop_pc_derived_from_emitted_bytes": True}
+
+
+def irq_commit_marker(enemy_image: bytes, enemy_map: dict[str, int]) -> dict[str, Any]:
+    """Find the emitted direct/extended INC and report its derived stop PC."""
+    start = enemy_map["fbiq_publish"] - 0x0800
+    span = enemy_image[start:start + 64]
+    base = enemy_map["fbiq_publish"]
+    direct = [i for i in range(len(span) - 1) if span[i:i + 2] == b"\x0C\x93"]
+    extended = [i for i in range(len(span) - 2) if span[i:i + 3] == b"\x7C\x00\x93"]
+    candidates = [(i, "direct", 2, 0) for i in direct]
+    candidates += [(i, "extended", 3, None) for i in extended]
+    if len(candidates) != 1:
+        raise GuardFailure("emitted IRQ region has no unique INC of FB_COMMIT_SEQ+1")
+    offset, encoding, length, required_dp = candidates[0]
+    return {"pc": base + offset, "end_pc": base + offset + length,
+            "encoding": encoding, "required_dp": required_dp,
+            "opcode_bytes": span[offset:offset + length].hex()}
+
+
 def require_snapshot(scenario: str, s: dict[str, Any]) -> int:
     """Return the sole approved value, or deny on any absent/false guard."""
     if scenario == "natural":
@@ -84,6 +534,8 @@ def require_snapshot(scenario: str, s: dict[str, Any]) -> int:
         common.update({
             "entry_state": 3,
             "death_state": 0,
+            "marker_x": 264,
+            "lives": 0,
             "player_x": 320,
             "cue_active_id": 6,
             "slot0_id": 6,
@@ -116,6 +568,12 @@ def require_snapshot(scenario: str, s: dict[str, Any]) -> int:
     missing = [k for k in common if k not in s]
     if missing:
         raise GuardFailure("missing guards: " + ", ".join(missing))
+    wrong_types = [k for k, expected in common.items()
+                   if ((type(expected) is int and type(s[k]) is not int) or
+                       (type(expected) is bool and type(s[k]) is not bool))]
+    if wrong_types:
+        raise GuardFailure("numeric guards must be measured integer bytes/addresses: " +
+                           ", ".join(wrong_types))
     wrong = [(k, s[k], v) for k, v in common.items() if s[k] != v]
     if wrong:
         raise GuardFailure("guard mismatch: " + repr(wrong))
@@ -134,41 +592,33 @@ def require_snapshot(scenario: str, s: dict[str, Any]) -> int:
     return TIMER_VALUES[scenario]
 
 
-@dataclass(frozen=True)
-class Permit:
-    scenario: str
-    address: int
-    value: int
-
-
 class FixtureWriter:
-    """Single-attempt writer; reserves its one write before the monitor call."""
+    """Revalidate the current stopped target, then issue its sole approved write."""
     def __init__(self, scenario: str, timer_address: int):
         self.scenario = scenario
         self.timer_address = timer_address
         self.attempts = 0
-        self._permit: Permit | None = None
 
-    def authorize(self, snapshot: dict[str, Any]) -> Permit:
-        if self._permit is not None:
-            raise GuardFailure("fixture already authorized; use a fresh monitor run")
-        value = require_snapshot(self.scenario, snapshot)
-        self._permit = Permit(self.scenario, TIMER_ADDRESS, value)
-        return self._permit
-
-    def write(self, client: Any, permit: Permit, address: int, value: int) -> None:
+    def write_from_paused_stop(self, client: Any, expected_pc: int,
+                               snapshot_reader: Any) -> dict[str, Any]:
+        """Recapture every guard, then recheck the same halted PC immediately before one write."""
         if self.scenario == "natural":
             raise GuardFailure("natural scenario forbids target writes")
-        if not isinstance(permit, Permit) or permit is not self._permit:
-            raise GuardFailure("fixture permit does not match this scenario")
-        if self.timer_address != TIMER_ADDRESS or address != TIMER_ADDRESS or permit.address != TIMER_ADDRESS:
+        if not callable(snapshot_reader):
+            raise GuardFailure("live fixture write requires a current-stop guard reader")
+        if self.timer_address != TIMER_ADDRESS:
             raise GuardFailure("the only permitted target is map-resolved DEATH_TIMER $003A")
-        if value != permit.value or value != TIMER_VALUES[self.scenario]:
-            raise GuardFailure("fixture value is outside the approved scenario value")
         if self.attempts:
             raise GuardFailure("fixture write budget already consumed")
-        self.attempts += 1
-        client.call("write_memory", {"addr": TIMER_ADDRESS, "data": f"{value:02x}"})
+        snapshot = snapshot_reader(client)
+        if not isinstance(snapshot, dict):
+            raise GuardFailure("current-stop guard reader did not return a fresh snapshot")
+        value = require_snapshot(self.scenario, snapshot)
+        require_current_paused_stop(client, expected_pc)
+        self.attempts = 1
+        monitor_call(client, "write_memory", {"addr": TIMER_ADDRESS, "data": f"{value:02x}"})
+        return {"scenario": self.scenario, "address": TIMER_ADDRESS,
+                "value": value, "fresh_snapshot": True, "attempts": self.attempts}
 
 
 REQUIRED_PROOFS = (
@@ -181,48 +631,310 @@ REQUIRED_PROOFS = (
     "release_after_audio_and_front_commit",
     "no_same_batch_player_or_enemy_mutation",
 )
+LIFECYCLE_EVENTS = ("death_state_1", "death_state_2", "death_blank_timer37",
+                    "cue13_published_idle", "replacement_entry_seed", "replacement_cue6_output")
 
 
-def acceptance_status(events: dict[str, Any]) -> dict[str, Any]:
-    missing = [name for name in REQUIRED_PROOFS if events.get(name) is not True]
-    return {"status": "INCOMPLETE" if missing else "OBSERVATIONS_PRESENT",
-            "missing_proofs": missing,
-            "pass": not missing}
+class ProofLedger:
+    """Validate independently ordered audio/FRONT branches and their release join."""
+    DEPENDENCIES = {
+        "first_cue6_owned_psg_transaction": (),
+        "first_post_psg_busy_one": ("first_cue6_owned_psg_transaction",),
+        "cue6_terminal_stream_end_owned": ("first_post_psg_busy_one",),
+        "terminal_actual_psg_mute_transaction": ("cue6_terminal_stream_end_owned",),
+        "terminal_post_psg_busy_zero": ("terminal_actual_psg_mute_transaction",),
+        "final_pose_in_front_after_irq_commit": (),
+        "release_after_audio_and_front_commit": (
+            "terminal_post_psg_busy_zero", "final_pose_in_front_after_irq_commit"),
+        "no_same_batch_player_or_enemy_mutation": ("release_after_audio_and_front_commit",),
+    }
+
+    def __init__(self) -> None:
+        self.records: list[dict[str, Any]] = []
+
+    def record(self, name: str, evidence: dict[str, Any]) -> None:
+        if name not in REQUIRED_PROOFS:
+            raise GuardFailure(f"unknown acceptance proof {name!r}")
+        if any(item["name"] == name for item in self.records):
+            raise GuardFailure(f"acceptance proof {name} was recorded more than once")
+        ordinal = evidence.get("event_ordinal")
+        if type(ordinal) is not int or ordinal < 1:
+            raise GuardFailure(f"proof {name} requires a positive observed event_ordinal")
+        if any(item["event_ordinal"] == ordinal for item in self.records):
+            raise GuardFailure(f"proof {name} reuses an event_ordinal")
+        self._validate(name, evidence)
+        self.records.append({"name": name, **evidence})
+
+    @staticmethod
+    def _validate(name: str, e: dict[str, Any]) -> None:
+        checks: dict[str, tuple[tuple[str, Any], ...]] = {
+            "first_cue6_owned_psg_transaction": (("selected_id", 6), ("slot", 0),
+                ("policy", 0xB3), ("best_slot", 0), ("best_priority", 5), ("mix_match", True)),
+            "first_post_psg_busy_one": (("busy", 1), ("derived_marker", True),
+                ("busy_read_after_psg", True)),
+            "cue6_terminal_stream_end_owned": (("slot_id", 6), ("x_matches_emitted_end", True),
+                ("terminator_byte", 0), ("stream_decoder_matches_emitted_bytes", True)),
+            "terminal_actual_psg_mute_transaction": (("slot_clear_observed", True),
+                ("all_mix_stores_match", True), ("quiet_state_verified", True)),
+            "terminal_post_psg_busy_zero": (("busy", 0), ("all_slots_queues_credit_idle", True),
+                ("busy_read_after_psg", True)),
+            "final_pose_in_front_after_irq_commit": (("irq_commit_observed", True),
+                ("front_pixels_match_opaque_player", True), ("live_code_span_qualified", True),
+                ("irq_live_opcode_match", True), ("front_mapping_qualified", True),
+                ("same_stop_busy_sample", True)),
+            "release_after_audio_and_front_commit": (("busy_zero_precedes_release", True),
+                ("front_commit_precedes_release", True)),
+            "no_same_batch_player_or_enemy_mutation": (("player_unchanged", True),
+                ("enemy_unchanged", True)),
+        }
+        missing = [key for key, _ in checks[name] if key not in e]
+        if missing:
+            raise GuardFailure(f"proof {name} lacks observed fields {missing}")
+        wrong = [(key, e[key], want) for key, want in checks[name] if e[key] != want]
+        if wrong:
+            raise GuardFailure(f"proof {name} evidence mismatch: {wrong}")
+        if name == "first_cue6_owned_psg_transaction":
+            if type(e.get("audible_store_count")) is not int or e["audible_store_count"] < 1:
+                raise GuardFailure("cue6 evidence requires at least one actual selected-source data/attenuation store")
+        if name == "terminal_actual_psg_mute_transaction":
+            if type(e.get("actual_mute_attenuation_stores")) is not int or e["actual_mute_attenuation_stores"] < 1:
+                raise GuardFailure("terminal proof requires actual muted attenuation stores")
+            if type(e.get("actual_store_count")) is not int or e["actual_store_count"] < 3:
+                raise GuardFailure("terminal proof requires the actual complete PSG transaction store count")
+        if name == "final_pose_in_front_after_irq_commit":
+            if type(e.get("opaque_pixels_compared")) is not int or e["opaque_pixels_compared"] <= 0:
+                raise GuardFailure("final-maze FRONT proof requires visible opaque pixels")
+            if type(e.get("visible_width_bytes")) is not int or e["visible_width_bytes"] != 8:
+                raise GuardFailure("final-maze FRONT proof requires the complete 16-pixel pose width")
+            if type(e.get("published_music_busy")) is not int or e["published_music_busy"] not in (0, 1):
+                raise GuardFailure("front-pose proof requires the same-stop published music-busy byte")
+            if type(e.get("irq_commit_end_pc")) is not int or e["irq_commit_end_pc"] <= 0:
+                raise GuardFailure("front-pose proof requires the emitted IRQ commit instruction end PC")
+            if (type(e.get("irq_commit_event_ordinal")) is not int or
+                    e["irq_commit_event_ordinal"] != e["event_ordinal"]):
+                raise GuardFailure("front-pose proof ordinal must be the qualified IRQ-commit stop")
+            if type(e.get("front_owner_voff1_shadow")) is not int:
+                raise GuardFailure("front-pose proof requires the monitor's VOFF1 shadow")
+            if e.get("front_owner_voff1_shadow") != (0xC0 if e.get("front_id") == 0 else 0xB0):
+                raise GuardFailure("front-pose VOFF1 shadow does not identify its owner")
+            if e.get("front_owner_voff2_shadow") != 0:
+                raise GuardFailure("front-pose proof requires VOFF2=$00")
+            if e.get("front_physical_base") != (0x60000 if e.get("front_id") == 0 else 0x58000):
+                raise GuardFailure("front-pose GIME shadows do not select the owner's framebuffer base")
+            if type(e.get("front_id")) is not int or not 0 <= e["front_id"] <= 3:
+                raise GuardFailure("front-pose proof requires the published front owner id")
+
+    def _order_failures(self) -> list[str]:
+        by_name = {item["name"]: item for item in self.records}
+        failures = []
+        for name, dependencies in self.DEPENDENCIES.items():
+            record = by_name.get(name)
+            if record is None:
+                continue
+            for dependency in dependencies:
+                required = by_name.get(dependency)
+                if required is None:
+                    failures.append(f"{name} lacks prerequisite {dependency}")
+                elif required["event_ordinal"] >= record["event_ordinal"]:
+                    failures.append(f"{dependency} does not precede {name}")
+        return failures
+
+    def status(self) -> dict[str, Any]:
+        present = {item["name"] for item in self.records}
+        missing = [name for name in REQUIRED_PROOFS if name not in present]
+        order_failures = self._order_failures()
+        return {"status": "INCOMPLETE" if missing or order_failures else "OBSERVATIONS_PRESENT",
+                "missing_proofs": missing, "order_failures": order_failures,
+                "pass": not missing and not order_failures,
+                "proof_records": sorted(self.records, key=lambda item: item["event_ordinal"])}
+
+
+def acceptance_status(ledger: ProofLedger | Any) -> dict[str, Any]:
+    if not isinstance(ledger, ProofLedger):
+        ledger = ProofLedger()
+    return ledger.status()
+
+
+class LifecycleOrder:
+    """Track death visual and cue-13 drain branches before replacement entry."""
+    DEPENDENCIES = {
+        "death_state_1": (),
+        "death_state_2": ("death_state_1",),
+        "death_blank_timer37": ("death_state_2",),
+        "cue13_published_idle": (),
+        "replacement_entry_seed": ("death_blank_timer37", "cue13_published_idle"),
+        "replacement_cue6_output": ("replacement_entry_seed",),
+    }
+
+    def __init__(self) -> None:
+        self.records: list[dict[str, Any]] = []
+
+    def record(self, name: str, observed: dict[str, Any]) -> None:
+        if name not in LIFECYCLE_EVENTS:
+            raise GuardFailure(f"unknown life-cycle event {name!r}")
+        if any(item["name"] == name for item in self.records):
+            raise GuardFailure(f"life-cycle event {name} was duplicated")
+        ordinal = observed.get("event_ordinal")
+        if type(ordinal) is not int or ordinal < 1:
+            raise GuardFailure(f"life-cycle event {name} requires a positive observed event_ordinal")
+        if any(item["event_ordinal"] == ordinal for item in self.records):
+            raise GuardFailure(f"life-cycle event {name} reuses an event_ordinal")
+        required: dict[str, dict[str, Any]] = {
+            "death_state_1": {"death_state": 1, "genuine_contact_live_bytes": True},
+            "death_state_2": {"death_state": 2, "genuine_contact_live_bytes": True},
+            "death_blank_timer37": {"death_state": 3, "death_timer": 37,
+                                     "entry_state": 0, "source_bytes_match": True,
+                                     "death_blank_front_commit_observed": True,
+                                     "death_blank_pixels_match_oracle": True,
+                                     "death_blank_irq_commit_observed": True,
+                                     "death_blank_live_code_span_qualified": True,
+                                     "death_blank_front_mapping_qualified": True},
+            "cue13_published_idle": {"cue13_actual_output": True, "published_busy": 0,
+                                      "normal_drain": True,
+                                      "cue13_emitted_end_observed": True,
+                                      "actual_terminal_mute_observed": True},
+            "replacement_entry_seed": {"prior_death_blank_observed": True,
+                                       "prior_cue13_idle_observed": True, "entry_state": 2},
+            "replacement_cue6_output": {"entry_seed_precedes_cue6": True, "selected_id": 6},
+        }
+        want = required[name]
+        missing = [k for k in want if k not in observed]
+        if missing:
+            raise GuardFailure(f"life-cycle event {name} lacks live observations {missing}")
+        bad = [(k, observed[k], v) for k, v in want.items() if observed[k] != v]
+        if bad:
+            raise GuardFailure(f"life-cycle event {name} does not meet its observed contract: {bad}")
+        if name == "replacement_cue6_output" and (
+                type(observed.get("audible_store_count")) is not int or observed["audible_store_count"] < 1):
+            raise GuardFailure("replacement cue6 requires an actual selected-source audible store")
+        if name == "death_blank_timer37" and (
+                type(observed.get("death_blank_opaque_pixels_compared")) is not int or
+                observed["death_blank_opaque_pixels_compared"] <= 0):
+            raise GuardFailure("death blank proof requires an actual pixel-oracle comparison")
+        self.records.append({"name": name, **observed})
+
+    def _order_failures(self) -> list[str]:
+        by_name = {item["name"]: item for item in self.records}
+        failures = []
+        for name, dependencies in self.DEPENDENCIES.items():
+            record = by_name.get(name)
+            if record is None:
+                continue
+            for dependency in dependencies:
+                required = by_name.get(dependency)
+                if required is None:
+                    failures.append(f"{name} lacks prerequisite {dependency}")
+                elif required["event_ordinal"] >= record["event_ordinal"]:
+                    failures.append(f"{dependency} does not precede {name}")
+        return failures
+
+    def status(self) -> dict[str, Any]:
+        present = {item["name"] for item in self.records}
+        missing = [name for name in LIFECYCLE_EVENTS if name not in present]
+        order_failures = self._order_failures()
+        return {"status": "INCOMPLETE" if missing or order_failures else "ORDER_OBSERVED",
+                "missing_events": missing, "order_failures": order_failures,
+                "pass": not missing and not order_failures,
+                "events": sorted(self.records, key=lambda item: item["event_ordinal"])}
+
+
+def fixture_order_status(scenario: str, records: list[dict[str, Any]]) -> dict[str, Any]:
+    """Require the requested observable FRONT/audio completion order for an order fixture."""
+    if scenario not in ("front-first", "music-first"):
+        raise GuardFailure("fixture order comparison applies only to forced order scenarios")
+    by_name = {record.get("name"): record for record in records}
+    front = by_name.get("final_pose_in_front_after_irq_commit")
+    idle = by_name.get("terminal_post_psg_busy_zero")
+    missing = [name for name, record in (("final_pose_in_front_after_irq_commit", front),
+                                          ("terminal_post_psg_busy_zero", idle))
+               if record is None]
+    if missing:
+        return {"pass": False, "status": "MISSING_EVIDENCE", "missing": missing}
+    front_ordinal = front.get("irq_commit_event_ordinal")
+    front_record_ordinal = front.get("event_ordinal")
+    idle_ordinal = idle.get("event_ordinal")
+    front_busy = front.get("published_music_busy")
+    if (type(front_ordinal) is not int or type(front_record_ordinal) is not int or
+            front_record_ordinal != front_ordinal or
+            front.get("same_stop_busy_sample") is not True or
+            type(idle_ordinal) is not int or
+            type(front_busy) is not int or front_busy not in (0, 1)):
+        return {"pass": False, "status": "INVALID_EVIDENCE",
+                "front_irq_commit_ordinal": front_ordinal,
+                "front_record_ordinal": front_record_ordinal,
+                "same_stop_busy_sample": front.get("same_stop_busy_sample"),
+                "terminal_busy_zero_ordinal": idle_ordinal,
+                "published_music_busy_at_front": front_busy}
+    if scenario == "front-first":
+        passed = front_ordinal < idle_ordinal and front_busy == 1
+        expected = "final FRONT pose before terminal busy-zero while published busy remains one"
+    else:
+        passed = idle_ordinal < front_ordinal and front_busy == 0
+        expected = "terminal busy-zero before final FRONT pose while published busy is zero"
+    if (passed and (front.get("entry_marker_x") != 264 or
+                    front.get("entry_seed_lives") != 0 or
+                    front.get("visible_width_bytes") != 8 or
+                    type(front.get("opaque_pixels_compared")) is not int or
+                    front.get("opaque_pixels_compared", 0) <= 0)):
+        passed = False
+    return {"pass": passed, "status": "ORDER_OBSERVED" if passed else "ORDER_MISMATCH",
+            "expected": expected, "front_ordinal": front_ordinal,
+            "front_record_ordinal": front_record_ordinal,
+            "terminal_busy_zero_ordinal": idle_ordinal,
+            "published_music_busy_at_front": front_busy}
 
 
 def prepare(build: Path) -> dict[str, Any]:
     build = build.resolve(strict=True)
-    names = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map",
+    names = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map", "ladybug-sparse-layout.json",
+             "ladybug-player-sparse.bin",
              "ladybug-audio-runtime.bin", "ladybug-audio-runtime.map",
-             "ladybug-enemy-runtime.rom", "ladybug-enemy-runtime.map")
+             "ladybug-enemy-runtime.rom", "ladybug-enemy-runtime.map",
+             "ladybug-presentation-runtime.bin", "ladybug-presentation-runtime.map")
     files = {name: build / name for name in names}
     missing = [str(p) for p in files.values() if not p.is_file()]
     if missing:
         raise GuardFailure("candidate build is incomplete: " + ", ".join(missing))
-    main, audio, enemy = (read_symbols(files[n]) for n in
-                          ("ladybug.map", "ladybug-audio-runtime.map", "ladybug-enemy-runtime.map"))
+    main, audio, enemy, presentation = (read_symbols(files[n]) for n in
+        ("ladybug.map", "ladybug-audio-runtime.map", "ladybug-enemy-runtime.map",
+         "ladybug-presentation-runtime.map"))
     required = {
         "main": ("DEATH_TIMER", "DEATH_STATE", "INITIAL_ENTRY_STATE", "PLAYER_CELL_X",
-                 "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
-                 "FB_META_A", "FB_META_B"),
-        "audio": ("audio_slot0", "audio_mix_periods", "audio_mix_atten", "audio_mix_noise",
+                 "PLAYER_CELL_Y", "PLAYER_STEP", "PLAYER_FACE", "PLAYER_ANIM", "PLAYER_BG_PTR",
+                 "PLAYER_BG_VALID", "FB_RENDER_PENDING", "FB_COMMIT_SEQ", "FB_FRONT_ID", "PLAYER_FB",
+                 "FB_META_A", "FB_META_B", "FBM_PLAYER_VALID",
+                 "FRAMES", "LIVES", "PRES_MODE", "ENEMY_TABLE",
+                 "marker_entry_begin", "iet_offscreen", "iet_maze_entry", "iet_final_wait",
+                 "mainloop"),
+        "audio": ("audio_slot0", "audio_slot1", "audio_slot2", "audio_slot3",
+                  "audio_music_count", "audio_music_queue", "audio_mix_order", "AUDIO_MIX_COUNT",
+                  "AUDIO_Q_COUNT", "AUDIO_CREDIT_PENDING", "audio_mix_periods", "audio_mix_atten", "audio_mix_noise",
                   "audio_mix_shadow", "AUDIO_BEST_SLOT", "AUDIO_BEST_PRI",
                   "AUDIO_MUSIC_PUBLISHED_BUSY", "audio_mix_write", "audio_mix_write_done",
-                  "audio_write", "audio_command_end", "gmc_cue_descriptors",
+                  "audio_write", "audio_music_busy", "audio_command_end", "gmc_cue_descriptors",
                   "gmc_cue_stream_06", "gmc_cue_stream_13", "gmc_sound_data_end"),
-        "enemy": ("fbiq_publish",),
+        "enemy": ("framebuffer_irq_impl", "fbiq_publish", "fbiq_done", "et_player_death",
+                  "FBM_PLAYER_FB"),
+        "presentation": ("presentation_flow_tick", "add_credit", "pft_ready",
+                         "pft_single_credit", "PRES_MAGIC", "PRES_CREDITS", "PRES_EVENT",
+                         "MODE_ATTRACT"),
     }
-    maps = {"main": main, "audio": audio, "enemy": enemy}
+    maps = {"main": main, "audio": audio, "enemy": enemy, "presentation": presentation}
     absent = [f"{domain}.{symbol}" for domain, symbols in required.items()
               for symbol in symbols if symbol not in maps[domain]]
     if absent:
         raise GuardFailure("required map symbols absent: " + ", ".join(absent))
     if main["DEATH_TIMER"] != TIMER_ADDRESS:
         raise GuardFailure(f"DEATH_TIMER map resolves to ${main['DEATH_TIMER']:04X}, not $003A")
+    if (presentation["presentation_flow_tick"] != 0x1900 or
+            presentation["PRES_CREDITS"] != PRES_CREDITS_ADDRESS or
+            presentation["PRES_EVENT"] != 0x00A9 or presentation["MODE_ATTRACT"] != MODE_ATTRACT):
+        raise GuardFailure("presentation map disagrees with the source-qualified cold-credit state")
     audio_bin = files["ladybug-audio-runtime.bin"].read_bytes()
     source_dir = build.parent / "src"
     sources = {name: source_dir / name for name in
-               ("main.s", "audio_runtime.s", "enemy_runtime.s")}
+               ("main.s", "audio_runtime.s", "enemy_runtime.s", "keybinding_runtime.s",
+                "presentation_runtime.s")}
     if any(not p.is_file() for p in sources.values()):
         raise GuardFailure("candidate source audit files are missing beside the build")
     source_text = {name: re.sub(r"\s+", " ", re.sub(r";[^\n]*", " ", p.read_text(encoding="utf-8")))
@@ -234,6 +946,12 @@ def prepare(build: Path) -> dict[str, Any]:
                              r"audio_write\s+sta\s+SND_DATA",
                              r"audio_command_end\s+lda\s+#\$FF\s+sta\s+,y\s+rts"),
         "enemy_runtime.s": (r"fbiq_publish\s+sta\s+GIME_VOFF1", r"inc\s+FB_COMMIT_SEQ\+1"),
+        "keybinding_runtime.s": (r"KB_BIND\s+equ\s+\$0287", r"INPUT_JOYSTICK\s+equ\s+0",
+                                 r"KB_FIXED_COIN_5\s+equ\s+44"),
+        "presentation_runtime.s": (r"org\s+\$1900", r"PRES_CREDITS\s+equ\s+\$00A8",
+                                   r"PRES_MAGIC\s+equ\s+\$00A4", r"PRES_EVENT\s+equ\s+\$00A9",
+                                   r"MODE_ATTRACT\s+equ\s+2",
+                                   r"pft_single_credit\s+bsr\s+add_credit"),
     }
     checked_source_patterns = {}
     for name, patterns in source_assertions.items():
@@ -260,6 +978,11 @@ def prepare(build: Path) -> dict[str, Any]:
                                 audio["gmc_sound_data_end"] - 0xA000)
     if audio["audio_mix_write_done"] + 6 > audio["audio_write"]:
         raise GuardFailure("audio post-publication marker ordering is inconsistent with map")
+    enemy_image = files["ladybug-enemy-runtime.rom"].read_bytes()
+    irq_marker = irq_commit_marker(enemy_image, enemy)
+    post_busy_pc = post_busy_marker(audio_bin, audio)
+    bus_marker = audio_bus_write_marker(audio_bin, audio)
+    player_art = verify_candidate_player_art(build)
     identity = {name: {"bytes": p.stat().st_size, "sha256": sha(p.read_bytes())}
                 for name, p in files.items()}
     return {
@@ -276,14 +999,1784 @@ def prepare(build: Path) -> dict[str, Any]:
             "cue13": {**cue13_end, "stream_start": audio["gmc_cue_stream_13"],
                       "terminator_address": 0xA000 + cue13_end["terminator_offset"],
                       "terminal_x_expected": 0xA000 + cue13_end["terminal_next_offset"]}},
+        "irq_commit_instruction": irq_marker,
+        "audio_bus_store": bus_marker,
+        "post_psg_busy_marker": {"pc": post_busy_pc,
+            "derived_from_linked_jsr_and_sta": True},
+        "player_art_identity": player_art,
+        "observer_adapter": {
+            "implemented": LIVE_CAPTURE_IMPLEMENTED,
+            "monitor_controls": ["events.subscribe", "set_breakpoint", "set_watchpoint",
+                "run", "read_registers", "wait_for_stop", "pause", "read_memory",
+                "inject_key", "single guarded write_memory for forced fixtures"],
+            "offline_only_in_this_preparation": True,
+            "live_invocation_requires": ["complete adaptive keyboard source-build receipt",
+                "parent-accepted GDB-MCP delivery receipt", "fresh output directory",
+                "explicit scenario and XRoar binary"],
+            "event_capture": ["source/staged/live bytes and PAR", "selected cue PSG stores",
+                "emitted END and terminal slot-clear/mute/busy tail", "post-instruction IRQ sequence commit",
+                "physical FRONT pixels against candidate player frames", "same-stop fixture guard recapture"],
+            "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
+        },
         "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
         "runtime_probe_performed": False,
         "runtime_ready": False,
+        "observer_model_corrections": {
+            "psg_period_data": "raw low/high bytes AD 02 produce latch 8D and data 2A",
+            "quiet_default": "audio_mix_clear raw 01 00 is little-endian period 1",
+            "irq_commit": "candidate-emitted direct INC $93 at $0ED9 ends at $0EDB and requires DP=0",
+            "proof_order": "audio and FRONT are independent branches; release joins busy-zero and final FRONT",
+            "replacement_order": "actual death-blank FRONT proof and cue13 normal drain both precede replacement entry",
+            "cue6_wait_service": "tone-latch-only actual batches are accepted after onset; onset needs selected-source data/attenuation output",
+            "selected_voice_minimum": "at least one selected audible cue voice; no fixed count of three",
+        },
+        "gameplay_worklist_timing": {
+            "target_cycles_max_per_required_worklist": GAMEPLAY_WORKLIST_CYCLE_TARGET,
+            "historical_production_observations": HISTORICAL_GAMEPLAY_WORKLIST_CYCLES,
+            "observer_preparation_measurement": "not measured; separate from runtime observer readiness",
+        },
         "blocked_observable": (
-            "The guarded offline preparation and write permit are implemented; the live event loop that "
-            "qualifies actual $FF51 stores, terminal stream-end continuity, post-PSG busy publication, "
-            "IRQ/FRONT pixel identity, and release ordering is not yet implemented. No runtime pass is asserted."),
+            "The live event adapter is implemented behind --run-live but no runtime scenario was captured "
+            "in this preparation step. Live execution still requires a complete adaptive keyboard build "
+            "and parent-accepted GDB-MCP delivery receipt; the retained accepted-fit capsule is nonadaptive "
+            "and must be rejected for live use. Natural cold start and two genuine enemy-contact "
+            "replacements use ordinary keyboard inputs only; if the route does not produce the required "
+            "events within named deadlines, the scenario fails closed. Parent aggregation and evidence "
+            "audit remain required before any production Ready claim."),
     }
+
+
+def require_adaptive_keyboard_profile(build: Path) -> dict[str, Any]:
+    """Reject isolated/nonadaptive receipts before process creation."""
+    receipt_path = build / "source-build-receipt.json"
+    if not receipt_path.is_file():
+        raise GuardFailure("live run requires a complete source-build-receipt.json")
+    receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    if receipt.get("state") != "complete" or receipt.get("profile") != "complete":
+        raise GuardFailure("live run requires a completed complete-profile source receipt")
+    invocations = [x for x in receipt.get("invocations", [])
+                   if x.get("source", "").replace("\\", "/") == "src/main.s" and
+                   Path(str(x.get("output", ""))).name == "ladybug-runtime.rom"]
+    if not invocations:
+        raise GuardFailure("receipt has no main runtime assembly invocation")
+    final = invocations[-1]
+    arguments = final.get("arguments", [])
+    if "-DADAPTIVE_RENDERING=1" not in arguments:
+        raise GuardFailure("live acceptance requires the adaptive main runtime profile")
+    if "-DINPUT_JOYSTICK=0" not in arguments:
+        raise GuardFailure("live acceptance requires the keyboard input profile")
+    if "-DCOMPLETE_PROFILE=1" not in arguments:
+        raise GuardFailure("live acceptance requires the complete keyboard build invocation")
+    staged = build / "ladybug-runtime.rom"
+    if not staged.is_file() or sha(staged.read_bytes()) != final.get("assembled_sha256"):
+        raise GuardFailure("staged resident image differs from its final receipt invocation")
+    artifacts = receipt.get("artifacts", {})
+    for name in DELIVERY_HASH_FILES:
+        artifact = build / name
+        if not artifact.is_file() or artifacts.get(name) != sha(artifact.read_bytes()):
+            raise GuardFailure(f"candidate artifact {name} differs from its complete source-build receipt")
+    source_inputs = {str(k).replace("\\", "/"): v for k, v in receipt.get("inputs", {}).items()}
+    source_hashes = {}
+    for name in ("main.s", "audio_runtime.s", "enemy_runtime.s", "keybinding_runtime.s",
+                 "presentation_runtime.s"):
+        source = build.parent / "src" / name
+        if not source.is_file():
+            raise GuardFailure(f"complete-profile source {name} is unavailable beside the candidate build")
+        source_hash = sha(source.read_bytes())
+        if source_inputs.get(f"src/{name}") != source_hash:
+            raise GuardFailure(f"candidate {name} source hash is not the one captured by the build receipt")
+        source_hashes[name] = source_hash
+    return {"receipt": str(receipt_path), "receipt_sha256": sha(receipt_path.read_bytes()),
+            "profile": "complete / adaptive / keyboard", "invocation": final,
+            "staged_resident_sha256": sha(staged.read_bytes()),
+            "source_hashes": source_hashes}
+
+
+DELIVERY_RECEIPT_SCHEMA = "ladybug.gdb-mcp-delivery-qualification.v1"
+DELIVERY_HASH_FILES = ("ladybug.rom", "ladybug-runtime.rom", "ladybug.map",
+                       "ladybug-audio-runtime.bin", "ladybug-audio-runtime.map",
+                       "ladybug-enemy-runtime.rom", "ladybug-enemy-runtime.map",
+                       "ladybug-presentation-runtime.bin", "ladybug-presentation-runtime.map",
+                       "ladybug-player-sparse.bin", "ladybug-sparse-layout.json")
+
+
+def validate_delivery_receipt(receipt: dict[str, Any], preparation: dict[str, Any]) -> dict[str, Any]:
+    """Require an explicit parent-accepted GDB-MCP copy/map qualification receipt."""
+    if receipt.get("schema") != DELIVERY_RECEIPT_SCHEMA or receipt.get("status") != "parent-accepted":
+        raise GuardFailure("live run requires a parent-accepted GDB-MCP delivery qualification receipt")
+    hashes = receipt.get("artifact_sha256")
+    if not isinstance(hashes, dict):
+        raise GuardFailure("delivery receipt has no artifact_sha256 table")
+    expected = {name: preparation.get("files", {}).get(name, {}).get("sha256")
+                for name in DELIVERY_HASH_FILES}
+    absent = [name for name, value in expected.items() if not value]
+    if absent:
+        raise GuardFailure("candidate identity lacks required delivery artifacts: " + ", ".join(absent))
+    mismatched = [name for name, value in expected.items() if hashes.get(name) != value]
+    if mismatched:
+        raise GuardFailure("GDB-MCP delivery receipt artifact hashes differ: " + ", ".join(mismatched))
+    for field in ("source_to_staged_bytes_match", "staged_sparse_copy_identity",
+                  "destination_live_bytes_match", "live_par_mapping_qualified"):
+        if receipt.get(field) is not True:
+            raise GuardFailure(f"delivery receipt lacks required qualification {field}")
+    return {"schema": DELIVERY_RECEIPT_SCHEMA, "status": "parent-accepted",
+            "receipt_sha256": sha(json.dumps(receipt, sort_keys=True).encode()),
+            "artifact_sha256": expected, "mapping_and_copy_qualified": True,
+            "source_to_staged_bytes_match": True, "staged_sparse_copy_identity": True,
+            "destination_live_bytes_match": True, "live_par_mapping_qualified": True}
+
+
+def monitor_api() -> Any:
+    """Import the maintained protocol/control definitions without calling launch()."""
+    if MONITOR_TEMPLATE is None or not MONITOR_TEMPLATE.is_file():
+        raise GuardFailure("maintained BUG-009 monitor client template is unavailable")
+    name = "bug117_guarded_monitor_template"
+    spec = importlib.util.spec_from_file_location(name, MONITOR_TEMPLATE)
+    if spec is None or spec.loader is None:
+        raise GuardFailure("cannot load maintained monitor client template")
+    module = importlib.util.module_from_spec(spec)
+    sys.modules[name] = module
+    spec.loader.exec_module(module)
+    return module
+
+
+def monitor_bytes(client: Any, address: int, length: int, space: str = "cpu") -> bytes:
+    if space not in ("cpu", "physical") or type(address) is not int or type(length) is not int or length < 0:
+        raise GuardFailure("invalid read-only monitor byte request")
+    result = monitor_call(client, "read_memory", {"addr": address, "length": length, "space": space})
+    data = bytes.fromhex(result.get("data", ""))
+    if len(data) != length or result.get("space", space) != space:
+        raise GuardFailure("monitor returned an incomplete or wrong-space byte read")
+    return data
+
+
+def monitor_word(client: Any, address: int) -> int:
+    return int.from_bytes(monitor_bytes(client, address, 2), "big")
+
+
+def physical_page_read(client: Any, page: int, offset: int, length: int) -> bytes:
+    if not 0 <= page < 64 or offset < 0 or length < 0 or offset + length > PHYSICAL_PAGE_BYTES:
+        raise GuardFailure("physical page read crosses an 8-KiB bank or 512-KiB RAM")
+    return monitor_bytes(client, page * PHYSICAL_PAGE_BYTES + offset, length, "physical")
+
+
+def require_current_paused_stop(client: Any, expected_pc: int) -> dict[str, int]:
+    """Prove the target is still halted at the exact event before fresh guard reads."""
+    status = monitor_call(client, "status")
+    regs = monitor_call(client, "read_registers")
+    if status.get("state") != "halted" or regs.get("pc") != expected_pc:
+        raise GuardFailure("fresh fixture read is not at the same paused monitor stop")
+    return regs
+
+
+def matrix_binding_to_dscan(matrix_key: int) -> int:
+    """Translate CoCo column*8+row identity to XRoar's CoCo DSCAN identity."""
+    if type(matrix_key) is not int or not 0 <= matrix_key < 64:
+        raise GuardFailure("live keyboard matrix binding is outside the eight-column table")
+    column, physical_row = divmod(matrix_key, 8)
+    if physical_row == 7:
+        raise GuardFailure("live keyboard matrix binding names an absent CoCo row")
+    scan_row = 6 if physical_row == 6 else (physical_row + 2) % 6
+    dscan = scan_row * 8 + column
+    if not 0 <= dscan < 0x3F:
+        raise GuardFailure("live keyboard matrix binding has no XRoar CoCo scan code")
+    return dscan
+
+
+def framebuffer_row_x(pointer: int) -> int:
+    if type(pointer) is not int or not VISIBLE_BASE <= pointer < VISIBLE_BASE + VISIBLE_BYTES:
+        raise GuardFailure("player framebuffer pointer is outside the visible image")
+    return ((pointer - VISIBLE_BASE) % 160) * 2
+
+
+def entry_row_x(pointer: int, entry_start_fb: int, marker_x: int) -> int:
+    """Recover the walkout x position from its known start row, including x=320."""
+    if type(marker_x) is not int or marker_x < 0 or marker_x > 318 or marker_x % 2:
+        raise GuardFailure("entry marker x is not an even visible pixel coordinate")
+    if type(pointer) is not int or type(entry_start_fb) is not int:
+        raise GuardFailure("entry framebuffer pointer is not an integer")
+    row_base = entry_start_fb - marker_x // 2
+    byte_column = pointer - row_base
+    if not 0 <= byte_column <= 160:
+        raise GuardFailure("walkout pointer escaped its marker row before x=320")
+    return byte_column * 2
+
+
+def fixture_audio_page(client: Any, stop_pc: int, mainloop_pc: int) -> int:
+    """Allow physical audio-page reads only at the mapped resident fixture stop."""
+    if stop_pc != mainloop_pc:
+        raise GuardFailure("physical fixture audio reads are restricted to the resident mainloop stop")
+    par5 = monitor_bytes(client, PAR5, 1)[0] & 0x3F
+    if par5 != 0x34:
+        raise GuardFailure(f"fixture mainloop requires restored PAR5=$34, observed ${par5:02X}")
+    return 0x3D
+
+
+def qualify_live_span(client: Any, cpu_address: int, expected: bytes, page_register: int,
+                      mapped_page: int, cpu_window: int, linked_origin: int,
+                      linked_image: bytes, delivery: dict[str, Any]) -> dict[str, Any]:
+    """Compare receipt-qualified source/staged identity and live physical bytes at a stop."""
+    if (delivery.get("schema") != DELIVERY_RECEIPT_SCHEMA or
+            delivery.get("status") != "parent-accepted" or
+            not all(delivery.get(k) is True for k in (
+                "source_to_staged_bytes_match", "staged_sparse_copy_identity",
+                "destination_live_bytes_match", "live_par_mapping_qualified"))):
+        raise GuardFailure("live code interpretation requires parent-accepted source/staged/delivery qualification")
+    if (cpu_address < cpu_window or cpu_address + len(expected) > cpu_window + PHYSICAL_PAGE_BYTES or
+            mapped_page >= 64):
+        raise GuardFailure("live code span is outside its qualified 8-KiB mapping window")
+    live_map = monitor_bytes(client, page_register, 1)[0] & 0x3F
+    if live_map != mapped_page:
+        raise GuardFailure(f"live PAR ${page_register:04X} page ${live_map:02X} != expected ${mapped_page:02X}")
+    image_offset = cpu_address - linked_origin
+    staged = linked_image[image_offset:image_offset + len(expected)]
+    if staged != expected:
+        raise GuardFailure("caller expected bytes differ from candidate staged image")
+    physical = physical_page_read(client, mapped_page, cpu_address - cpu_window, len(expected))
+    if physical != staged:
+        raise GuardFailure("live physical module bytes differ from staged candidate bytes")
+    return {"cpu_address": cpu_address, "page_register": page_register,
+            "mapped_page": mapped_page, "length": len(expected),
+            "sha256": sha(physical), "source_staged_live_match": True}
+
+
+def live_audio_snapshot(client: Any, symbols: dict[str, int], page: int = 0x3D) -> dict[str, Any]:
+    def audio_read(address: int, length: int) -> bytes:
+        if not 0xA000 <= address < 0xC000 or address + length > 0xC000:
+            raise GuardFailure("audio symbol is outside the page-$3D window")
+        return physical_page_read(client, page, address - 0xA000, length)
+    slots = [model_from_audio_slot(audio_read(symbols[f"audio_slot{i}"], 28), i)
+             for i in range(4)]
+    return {"slots": slots,
+            "best_slot": monitor_bytes(client, symbols["AUDIO_BEST_SLOT"], 1)[0],
+            "best_priority": monitor_bytes(client, symbols["AUDIO_BEST_PRI"], 1)[0],
+            "mix_period_bytes": audio_read(symbols["audio_mix_periods"], 6),
+            "mix_attenuation": audio_read(symbols["audio_mix_atten"], 3),
+            "mix_noise": audio_read(symbols["audio_mix_noise"], 2),
+            "mix_shadow": audio_read(symbols["audio_mix_shadow"], 11),
+            "mix_order": audio_read(symbols["audio_mix_order"], 4),
+            "mix_count": monitor_bytes(client, symbols["AUDIO_MIX_COUNT"], 1)[0],
+            "music_count": audio_read(symbols["audio_music_count"], 1)[0],
+            "music_queue": audio_read(symbols["audio_music_queue"], 8),
+            "effect_queue_count": monitor_bytes(client, symbols["AUDIO_Q_COUNT"], 1)[0],
+            "credit_pending": monitor_bytes(client, symbols["AUDIO_CREDIT_PENDING"], 1)[0],
+            "published_busy": monitor_bytes(client, symbols["AUDIO_MUSIC_PUBLISHED_BUSY"], 1)[0]}
+
+
+def verify_live_music_mix(snapshot: dict[str, Any], cue_id: int,
+                          expected_policy: int, expected_priority: int) -> dict[str, Any]:
+    model = model_exclusive_mix(snapshot["slots"], cue_id)
+    selected = model["selected"]
+    if selected["policy"] != expected_policy or selected["priority"] != expected_priority:
+        raise GuardFailure("selected cue descriptor policy/priority differs from the approved route")
+    if snapshot["best_slot"] != 0 or snapshot["best_priority"] != expected_priority:
+        raise GuardFailure("live AUDIO_BEST_SLOT/PRI does not select cue slot zero")
+    if snapshot["mix_period_bytes"] != model["period_bytes"]:
+        raise GuardFailure("live mixed tone periods do not match selected cue voices")
+    if snapshot["mix_attenuation"] != model["attenuation_bytes"]:
+        raise GuardFailure("live mixed attenuation does not match selected cue voices")
+    if snapshot["mix_noise"] != model["noise_bytes"]:
+        raise GuardFailure("live mixed noise state does not match selected cue source")
+    if model["audible_voice_count"] < 1 or not model["channel_sources"]:
+        raise GuardFailure("selected cue has no audible tone channel in this mixer service")
+    model["mix_match"] = True
+    return model
+
+
+class PSGTransaction:
+    """Enforce exact live-store order between audio_mix_write and its post-PSG label."""
+    def __init__(self, model: dict[str, Any], snapshot: dict[str, Any], require_audible: bool = False):
+        self.model = model
+        self.before = snapshot
+        self.require_audible = require_audible
+        self.expected = expected_psg_transaction(snapshot["mix_period_bytes"],
+            snapshot["mix_attenuation"], snapshot["mix_noise"], snapshot["mix_shadow"],
+            model["channel_sources"])
+        self.observed: list[PSGStore] = []
+
+    def store(self, a: int) -> None:
+        i = len(self.observed)
+        if i >= len(self.expected):
+            raise GuardFailure("unexpected extra SND_DATA store inside audio_mix_write")
+        expected = self.expected[i]
+        if a != expected.value:
+            raise GuardFailure(f"SND_DATA A=${a:02X} differs from modeled {expected.kind} ${expected.value:02X}")
+        self.observed.append(expected)
+
+    def finish(self) -> dict[str, Any]:
+        if self.observed != self.expected:
+            raise GuardFailure(f"actual PSG store sequence ended {len(self.observed)}/{len(self.expected)} stores")
+        audible = (prove_audible_psg_source(self.model, self.observed)
+                   if self.require_audible else {"audible_store_count": 0, "audible_channels": []})
+        muted = sum(s.kind == "attenuation" and (s.value & 0x0F) == 15 for s in self.observed)
+        return {"actual_store_count": len(self.observed), "modeled_store_count": len(self.expected),
+                "audible_store_count": audible["audible_store_count"],
+                "audible_channels": audible["audible_channels"],
+                "actual_mute_attenuation_stores": muted,
+                "all_mix_stores_match": True}
+
+
+def stream_waits_remaining(image: bytes, stream_start: int, terminator: int,
+                           pointer: int, current_wait: int) -> dict[str, int]:
+    """Decode remaining authored waits from a live slot cursor and dwell byte."""
+    if type(current_wait) is not int or not 0 <= current_wait <= 0xFF:
+        raise GuardFailure("live stream dwell is not an unsigned byte")
+    boundaries = {stream_start}
+    pos = stream_start
+    waits = 0
+    while pos <= terminator:
+        op = image[pos]
+        if op == 0:
+            if pos != terminator:
+                raise GuardFailure("decoded stream terminator differs from the candidate boundary")
+            boundaries.add(pos + 1)
+            break
+        if op == 2:
+            size = 2
+            ticks = image[pos + 1] or 1
+            waits += ticks
+        elif 0x10 <= op <= 0x12:
+            size = 4
+        elif op == 0x1C:
+            size = 3
+        elif op in (0x1D, 0x1E):
+            size = 2
+        else:
+            raise GuardFailure(f"unsupported stream command ${op:02X} at ${pos:04X}")
+        if pos + size > terminator:
+            raise GuardFailure("stream command overlaps its emitted terminator")
+        pos += size
+        boundaries.add(pos)
+    if pointer not in boundaries or not stream_start <= pointer <= terminator + 1:
+        raise GuardFailure("live slot cursor is not an emitted cue command boundary")
+    future_waits = 0
+    pos = pointer
+    while pos < terminator:
+        op = image[pos]
+        if op == 2:
+            future_waits += image[pos + 1] or 1
+            pos += 2
+        elif 0x10 <= op <= 0x12:
+            pos += 4
+        elif op == 0x1C:
+            pos += 3
+        elif op in (0x1D, 0x1E):
+            pos += 2
+        else:
+            raise GuardFailure(f"unsupported future stream command ${op:02X} at ${pos:04X}")
+    return {"current_wait_ticks": current_wait, "future_wait_ticks": future_waits,
+            "remaining_audio_ticks": current_wait + future_waits}
+
+
+@dataclass(frozen=True)
+class MonitorStop:
+    phase: str
+    pc: int
+    bp_id: int | None
+    registers: dict[str, int]
+    ordinal: int
+    observed_monotonic: float
+
+
+class BoundedMonitorEventPump:
+    """Run only to subscribed monitor stops; each wait and phase is bounded."""
+    def __init__(self, client: Any, clock: Any = time.monotonic,
+                 stop_wait_seconds: int = STOP_WAIT_SECONDS):
+        if not 1 <= stop_wait_seconds <= STOP_WAIT_SECONDS:
+            raise GuardFailure("monitor stop wait exceeds the approved 10-second bound")
+        self.client = client
+        self.clock = clock
+        self.stop_wait_seconds = stop_wait_seconds
+        self.ordinal = 0
+        self.timeout_records: list[dict[str, Any]] = []
+        self.consecutive_timeouts = 0
+
+    def _timeout(self, phase: str, wait: float, reason: str) -> None:
+        self.timeout_records.append({"phase": phase, "wait_seconds": wait, "reason": reason})
+        self.consecutive_timeouts += 1
+
+    def next_stop(self, phase: str, deadline: float) -> MonitorStop | None:
+        remaining = deadline - self.clock()
+        if remaining <= 0:
+            return None
+        wait = min(float(self.stop_wait_seconds), remaining)
+        client_events = getattr(self.client, "events", None)
+        event_offset = len(client_events) if isinstance(client_events, list) else 0
+        state: dict[str, Any] = {}
+        run_deadline_remaining = deadline - self.clock()
+        if run_deadline_remaining <= 0:
+            self._timeout(phase, wait, "phase-deadline-before-run")
+            return None
+        try:
+            self.client.call("run", timeout=min(self.stop_wait_seconds, run_deadline_remaining))
+            remaining = deadline - self.clock()
+            if remaining > 0:
+                bounded_wait = min(float(self.stop_wait_seconds), remaining)
+                state = self.client.call("wait_for_stop",
+                    {"timeout_ms": max(0, int(bounded_wait * 1000))}, timeout=bounded_wait)
+        except (TimeoutError, socket.timeout):
+            # Recheck a stop that raced the bounded synchronous monitor wait.
+            state = {}
+        if state.get("reason") == "breakpoint" and type(state.get("pc")) is int:
+            hit = {"pc": state.get("pc"), "bp_id": state.get("bp_id"),
+                   "reason": state.get("reason")}
+        else:
+            remaining = deadline - self.clock()
+            if remaining <= 0:
+                self._timeout(phase, wait, "phase-deadline-before-stop-recheck")
+                return None
+            state = self.client.call("wait_for_stop", {"timeout_ms": 0},
+                                     timeout=min(self.stop_wait_seconds, remaining))
+            if state.get("reason") == "breakpoint" and type(state.get("pc")) is int:
+                hit = {"pc": state.get("pc"), "bp_id": state.get("bp_id"),
+                       "reason": state.get("reason")}
+            else:
+                remaining = deadline - self.clock()
+                if remaining <= 0:
+                    self._timeout(phase, wait, "phase-deadline-before-pause-recheck")
+                    return None
+                self.client.call("pause", timeout=min(self.stop_wait_seconds, remaining))
+                current_events = getattr(self.client, "events", None)
+                raced = current_events[event_offset:] if isinstance(current_events, list) else []
+                bp = next((item for item in reversed(raced) if item.get("method") == "bp" and
+                           type(item.get("params", {}).get("pc")) is int), None)
+                if bp is not None:
+                    hit = {**bp["params"], "reason": "breakpoint"}
+                else:
+                    self._timeout(phase, wait, "no-stop-before-bounded-wait")
+                    return None
+        if not isinstance(hit, dict) or type(hit.get("pc")) is not int:
+            raise GuardFailure(f"monitor stop for {phase} lacks an actual integer PC")
+        remaining = deadline - self.clock()
+        if remaining <= 0:
+            self._timeout(phase, wait, "phase-deadline-before-register-read")
+            return None
+        regs = self.client.call("read_registers", timeout=min(self.stop_wait_seconds, remaining))
+        if type(regs.get("pc")) is not int or regs["pc"] != hit["pc"]:
+            raise GuardFailure("monitor event PC differs from the stopped 6809 PC")
+        self.consecutive_timeouts = 0
+        self.ordinal += 1
+        return MonitorStop(phase, hit["pc"], hit.get("bp_id"), regs,
+                           self.ordinal, self.clock())
+
+
+class InputOnlySearch:
+    """Pulse only existing keyboard bindings at stopped, live gameplay centers."""
+    def __init__(self, client: Any, bindings: bytes):
+        if len(bindings) != 5:
+            raise GuardFailure("live keyboard binding table is incomplete")
+        if len(set(bindings)) != 5:
+            raise GuardFailure("live gameplay/enter bindings are not unique")
+        self.client = client
+        self.matrix_bindings = bindings
+        self.bindings = bytes(matrix_binding_to_dscan(value) for value in bindings)
+        self.direction = 0
+        self.held: int | None = None
+        self.held_matrix: int | None = None
+        self.origin: tuple[int, int] | None = None
+        self.age_stops = 0
+        self.actions: list[dict[str, Any]] = []
+
+    def _inject(self, key: int, matrix_key: int | None, action: str,
+                ordinal: int, reason: str) -> None:
+        monitor_call(self.client, "inject_key", {"key": key, "action": action})
+        self.actions.append({"key": key, "key_namespace": "DSCAN", "matrix_key": matrix_key,
+                             "action": action, "stop_ordinal": ordinal,
+                             "reason": reason, "target_memory_write": False})
+
+    def release(self, ordinal: int, reason: str) -> None:
+        if self.held is not None:
+            self._inject(self.held, self.held_matrix, "release", ordinal, reason)
+            self.held = None
+            self.held_matrix = None
+            self.origin = None
+            self.age_stops = 0
+
+    def at_gameplay_center(self, ordinal: int, entry: int, death: int,
+                           step: int, cell_x: int, cell_y: int) -> None:
+        if entry != 0 or death != 0:
+            self.release(ordinal, "entry-or-death-isolation")
+            return
+        if self.held is not None:
+            self.age_stops += 1
+            if step == 0 and self.origin is not None and (cell_x, cell_y) != self.origin:
+                self.release(ordinal, "next-accepted-center")
+            elif self.age_stops >= 8:
+                self.release(ordinal, "bounded-stuck-direction-retry")
+            else:
+                return
+        if step != 0:
+            return
+        matrix_key = self.matrix_bindings[self.direction]
+        key = self.bindings[self.direction]
+        self.direction = (self.direction + 1) % 4
+        self.held = key
+        self.held_matrix = matrix_key
+        self.origin = (cell_x, cell_y)
+        self.age_stops = 0
+        self._inject(key, matrix_key, "press", ordinal, "accepted-gameplay-center-route-search")
+
+
+class LiveRuntimeObserver:
+    """Bounded live event pump using only the maintained monitor controls."""
+    def __init__(self, client: Any, build: Path, scenario: str,
+                 preparation: dict[str, Any], delivery: dict[str, Any]):
+        self.client = client
+        self.build = build.resolve(strict=True)
+        self.scenario = scenario
+        self.preparation = preparation
+        self.delivery = delivery
+        self.pump = BoundedMonitorEventPump(client)
+        self.main = read_symbols(build / "ladybug.map")
+        self.audio = read_symbols(build / "ladybug-audio-runtime.map")
+        self.enemy = read_symbols(build / "ladybug-enemy-runtime.map")
+        self.main_image = (build / "ladybug-runtime.rom").read_bytes()
+        self.audio_image = (build / "ladybug-audio-runtime.bin").read_bytes()
+        self.enemy_image = (build / "ladybug-enemy-runtime.rom").read_bytes()
+        self.presentation_image = (build / "ladybug-presentation-runtime.bin").read_bytes()
+        self.presentation = read_symbols(build / "ladybug-presentation-runtime.map")
+        self.player_frame_table, self.player_art_identity = candidate_player_frame_table(build)
+        self.irq_marker = preparation["irq_commit_instruction"]
+        self.bus_marker = preparation["audio_bus_store"]
+        self.post_busy_pc = preparation["post_psg_busy_marker"]["pc"]
+        self.boundaries = preparation["emitted_stream_boundaries"]
+        self.labels: dict[int, str] = {}
+        self.bp_ids: dict[int, int] = {}
+        self.watch_id: int | None = None
+        self.events: list[dict[str, Any]] = []
+        self.phases: list[dict[str, Any]] = []
+        self.errors: list[str] = []
+        self.input_events: list[dict[str, Any]] = []
+        self.pressed: set[int] = set()
+        self.bindings: bytes | None = None
+        self.search: InputOnlySearch | None = None
+        self.start_state = "coin-not-sent"
+        self.cold_credited_start = False
+        self.credit_baseline: int | None = None
+        self.credit_call: dict[str, Any] | None = None
+        self.credit_evidence: dict[str, Any] | None = None
+        self.entry_count = 0
+        self.entries: list[dict[str, Any]] = []
+        self.current_entry: dict[str, Any] | None = None
+        self.pending_entry_seed: dict[str, Any] | None = None
+        self.proofs: dict[int, ProofLedger] = {}
+        self.lifecycle: LifecycleOrder | None = None
+        self.lifecycle_records: list[LifecycleOrder] = []
+        self.previous_death: tuple[int, int] | None = None
+        self.contact_count = 0
+        self.contacts: list[dict[str, Any]] = []
+        self.entry_contact_violation = False
+        self.cue_output = {6: False, 13: False}
+        self.cue_stream_active = {6: False, 13: False}
+        self.cue_entry_owner: dict[int, int | None] = {}
+        self.cue_start_ordinal: dict[int, int] = {}
+        self.lifecycle_cue13_output = False
+        self.cue_terminal: dict[int, dict[str, Any]] = {}
+        self.quiet_tail: dict[int, dict[str, Any]] = {}
+        self.latest_mix: dict[int, dict[str, Any]] = {}
+        self.active_tx: dict[str, Any] | None = None
+        self.irq_before: dict[str, Any] | None = None
+        self.irq_inc: dict[str, Any] | None = None
+        self.fixture = None if scenario == "natural" else FixtureWriter(scenario, TIMER_ADDRESS)
+        self.fixture_result: dict[str, Any] | None = None
+        self.write_count = 0
+        self.frames_at_cue6: int | None = None
+        self.cue6_services = 0
+        self.dwell_checks: list[dict[str, Any]] = []
+        self.pose_hashes: list[str] = []
+        self.last_pose: dict[str, Any] | None = None
+        self.owner_history: dict[tuple[int, int], dict[str, Any]] = {}
+        self.release_snapshot: dict[str, Any] | None = None
+        self._previous_state: dict[str, Any] | None = None
+        if self.main.get("DEATH_TIMER") != TIMER_ADDRESS:
+            raise GuardFailure("candidate DEATH_TIMER map no longer resolves to $003A")
+
+    def install(self) -> None:
+        monitor_call(self.client, "events.subscribe", {"kinds": ["bp"]})
+        wanted = {
+            "marker_entry_begin": self.main["marker_entry_begin"],
+            "iet_offscreen": self.main["iet_offscreen"],
+            "iet_maze_entry": self.main["iet_maze_entry"],
+            "iet_final_wait": self.main["iet_final_wait"],
+            "mainloop": self.main["mainloop"],
+            "add_credit": self.presentation["add_credit"],
+            "audio_mix_write": self.audio["audio_mix_write"],
+            "audio_command_end": self.audio["audio_command_end"],
+            "post_psg_busy": self.post_busy_pc,
+            "et_player_death": self.enemy["et_player_death"],
+            "fbiq_publish": self.enemy["fbiq_publish"],
+            "irq_commit_instruction_end": self.irq_marker["end_pc"],
+            "fbiq_done": self.enemy["fbiq_done"],
+        }
+        for label, address in wanted.items():
+            if address in self.labels:
+                self.labels[address] += "+" + label
+                continue
+            result = monitor_call(self.client, "set_breakpoint", {"addr": address, "kind": "exec"})
+            ident = result.get("id")
+            if type(ident) is not int or ident < 1:
+                raise GuardFailure(f"monitor did not install breakpoint {label}")
+            self.labels[address] = label
+            self.bp_ids[address] = ident
+        watch = monitor_call(self.client, "set_watchpoint",
+                             {"addr": SND_DATA, "length": 1, "kind": "w"})
+        if type(watch.get("id")) is not int or watch["id"] < 1:
+            raise GuardFailure("monitor did not install the SND_DATA write watchpoint")
+        self.watch_id = watch["id"]
+
+    def _resident_code(self, pc: int, size: int = 3) -> dict[str, Any]:
+        if 0xC000 <= pc < 0xE000:
+            reg, page, window = 0xFFA6, 0x3E, 0xC000
+        elif 0xE000 <= pc <= 0xFFFF:
+            reg, page, window = 0xFFA7, 0x3F, 0xE000
+        else:
+            raise GuardFailure(f"unexpected resident PC ${pc:04X}")
+        offset = pc - 0xC000
+        expected = self.main_image[offset:offset + size]
+        if len(expected) != size:
+            raise GuardFailure("resident marker span exceeds the staged image")
+        return qualify_live_span(self.client, pc, expected, reg, page,
+                                 window, 0xC000, self.main_image, self.delivery)
+
+    def _audio_code(self, pc: int, size: int = 3) -> dict[str, Any]:
+        offset = pc - 0xA000
+        expected = self.audio_image[offset:offset + size]
+        if offset < 0 or len(expected) != size:
+            raise GuardFailure("audio marker span exceeds the staged image")
+        return qualify_live_span(self.client, pc, expected, PAR5, 0x3D,
+                                 0xA000, 0xA000, self.audio_image, self.delivery)
+
+    def _enemy_code(self, pc: int, size: int = 3) -> dict[str, Any]:
+        if not 0x0800 <= pc < 0x0800 + len(self.enemy_image):
+            raise GuardFailure(f"PC ${pc:04X} is outside the copied enemy module")
+        par0 = monitor_bytes(self.client, 0xFFA0, 1)[0] & 0x3F
+        if par0 != 0x38:
+            raise GuardFailure(f"enemy module requires PAR0=$38; live PAR0=${par0:02X}")
+        offset = pc - 0x0800
+        expected = self.enemy_image[offset:offset + size]
+        live = physical_page_read(self.client, 0x38, pc & 0x1FFF, size)
+        if len(expected) != size or live != expected:
+            raise GuardFailure("live copied enemy-module bytes differ from the candidate")
+        return {"cpu_address": pc, "mapped_page": 0x38, "page_register": 0xFFA0,
+                "length": size, "sha256": sha(live), "source_staged_live_match": True}
+
+    def _presentation_code(self, pc: int, size: int = 3) -> dict[str, Any]:
+        origin = self.presentation["presentation_flow_tick"]
+        offset = pc - origin
+        expected = self.presentation_image[offset:offset + size]
+        if offset < 0 or len(expected) != size:
+            raise GuardFailure("presentation marker span exceeds its staged low-RAM image")
+        live = monitor_bytes(self.client, pc, size)
+        if live != expected:
+            raise GuardFailure("live low-RAM presentation bytes differ from the staged candidate")
+        return {"cpu_address": pc, "module_origin": origin, "length": size,
+                "sha256": sha(live), "source_staged_live_match": True,
+                "low_ram_copy_qualified": True}
+
+    def _qualify(self, stop: MonitorStop) -> dict[str, Any]:
+        pc = stop.pc
+        if pc == self.bus_marker["stop_pc"]:
+            par5 = monitor_bytes(self.client, PAR5, 1)[0]
+            code = self._audio_code(self.bus_marker["instruction_pc"], 3)
+            proof = classify_post_store(pc, stop.registers.get("a"), par5,
+                bytes.fromhex(self.bus_marker["opcode_bytes"]), self.bus_marker["stop_pc"])
+            return {"module": "audio", **code, **proof}
+        if pc == self.irq_marker["end_pc"]:
+            size = len(bytes.fromhex(self.irq_marker["opcode_bytes"]))
+            code = self._enemy_code(self.irq_marker["pc"], size)
+            marker = qualify_irq_commit_stop(self.irq_marker, pc, stop.registers.get("dp"),
+                bytes.fromhex(self.irq_marker["opcode_bytes"]))
+            return {"module": "enemy", **code, **marker}
+        if pc == self.post_busy_pc:
+            start = self.audio["audio_mix_write_done"]
+            code = self._audio_code(start, 6)
+            expected = (b"\xBD" + self.audio["audio_music_busy"].to_bytes(2, "big") + b"\xB7\x02\xD4")
+            if self.audio_image[start - 0xA000:start - 0xA000 + 6] != expected:
+                raise GuardFailure("post-PSG busy marker is not the emitted JSR+STA sequence")
+            if pc != start + len(expected):
+                raise GuardFailure("post-PSG stop PC is not derived from emitted bytes")
+            return {"module": "audio", **code, "pc": pc, "derived_from_emitted_bytes": True}
+        if 0xA000 <= pc < 0xC000:
+            return {"module": "audio", **self._audio_code(pc)}
+        origin = self.presentation["presentation_flow_tick"]
+        if origin <= pc < origin + len(self.presentation_image):
+            return {"module": "presentation", **self._presentation_code(pc)}
+        if 0x0800 <= pc < 0x0800 + len(self.enemy_image):
+            return {"module": "enemy", **self._enemy_code(pc)}
+        return {"module": "resident", **self._resident_code(pc)}
+
+    def _state(self) -> dict[str, Any]:
+        low = monitor_bytes(self.client, 0, 0x0300)
+        def byte(name: str) -> int:
+            return low[self.main[name]]
+        def word(name: str) -> int:
+            addr = self.main[name]
+            return int.from_bytes(low[addr:addr + 2], "big")
+        metas = physical_page_read(self.client, 0x34, 0x0900, 0x0200)
+        meta_a, meta_b = metas[:0x100], metas[0x100:]
+        enemy_raw = physical_page_read(self.client, 0x34, self.main["ENEMY_TABLE"] - 0xA000, 32)
+        return {"low": low, "meta_a": meta_a, "meta_b": meta_b, "enemy_raw": enemy_raw,
+            "entry": byte("INITIAL_ENTRY_STATE"), "death": byte("DEATH_STATE"),
+            "timer": byte("DEATH_TIMER"), "lives": byte("LIVES"),
+            "pending": byte("FB_RENDER_PENDING"), "front": byte("FB_FRONT_ID"),
+            "back": byte("FB_BACK_ID"), "commit_seq": word("FB_COMMIT_SEQ"),
+            "frames": word("FRAMES"), "player_fb": word("PLAYER_FB"),
+            "cell_x": byte("PLAYER_CELL_X"), "cell_y": byte("PLAYER_CELL_Y"),
+            "step": byte("PLAYER_STEP"), "face": byte("PLAYER_FACE"),
+            "anim": byte("PLAYER_ANIM"), "mode": byte("PRES_MODE"),
+            "presentation_magic": low[0x00A4], "credits": low[PRES_CREDITS_ADDRESS],
+            "presentation_event": low[0x00A9],
+            "valid_a": meta_a[2], "valid_b": meta_b[2],
+            "meta_fb_a": int.from_bytes(meta_a[4:6], "big"),
+            "meta_fb_b": int.from_bytes(meta_b[4:6], "big"),
+            "enemy_sha256": sha(enemy_raw)}
+
+    def _audio_snapshot(self) -> dict[str, Any]:
+        page = monitor_bytes(self.client, PAR5, 1)[0] & 0x3F
+        if page != 0x3D:
+            raise GuardFailure(f"live PAR5 page ${page:02X} does not map candidate audio page $3D")
+        return live_audio_snapshot(self.client, self.audio, page)
+
+    def _record(self, stop: MonitorStop, label: str, qualification: dict[str, Any], **fields: Any) -> None:
+        self.events.append({"phase": stop.phase, "ordinal": stop.ordinal, "label": label,
+            "pc": stop.pc, "qualified": qualification.get("source_staged_live_match") is True,
+            "qualification": qualification, **fields})
+
+    def _press(self, key: int, action: str, stop: MonitorStop, reason: str,
+               matrix_key: int | None = None) -> None:
+        monitor_call(self.client, "inject_key", {"key": key, "action": action})
+        if action == "press":
+            self.pressed.add(key)
+        else:
+            self.pressed.discard(key)
+        self.input_events.append({"key": key, "key_namespace": "DSCAN", "matrix_key": matrix_key,
+            "action": action, "ordinal": stop.ordinal,
+            "reason": reason, "target_memory_write": False})
+
+    def _start_inputs(self, stop: MonitorStop, state: dict[str, Any]) -> None:
+        if self.cold_credited_start:
+            return
+        if self.start_state == "coin-not-sent":
+            if state["mode"] != MODE_ATTRACT:
+                return
+            if (state["presentation_magic"] != 0xA5 or state["credits"] != 0 or
+                    state["presentation_event"] != 0):
+                self.errors.append("cold-attract-credit-state-is-not-clean-and-source-qualified")
+                self.start_state = "start-failed"
+                return
+            self.credit_baseline = state["credits"]
+            self.bindings = monitor_bytes(self.client, 0x0287, 5)
+            self.search = InputOnlySearch(self.client, self.bindings)
+            self._press(COIN5_DSCAN_KEY, "press", stop, "cold-credit-5",
+                        matrix_key=COIN5_MATRIX_KEY)
+            self.start_state = "coin-held"
+            return
+        elif self.start_state == "coin-held":
+            if self.credit_evidence is None:
+                return
+            self._press(COIN5_DSCAN_KEY, "release", stop, "cold-credit-confirmed-release",
+                        matrix_key=COIN5_MATRIX_KEY)
+            self.start_state = "coin-released"
+            return
+        elif self.start_state == "coin-released":
+            if self.credit_evidence is None:
+                return
+            assert self.bindings is not None
+            enter_matrix = self.bindings[4]
+            self._press(matrix_binding_to_dscan(enter_matrix), "press", stop,
+                        "cold-game-start-enter", matrix_key=enter_matrix)
+            self.start_state = "enter-held"
+            return
+        elif (self.start_state == "enter-held" and state["mode"] == 0 and
+              self.credit_baseline is not None and state["credits"] == self.credit_baseline):
+            assert self.bindings is not None
+            enter_matrix = self.bindings[4]
+            self._press(matrix_binding_to_dscan(enter_matrix), "release", stop,
+                        "gameplay-input-isolation", matrix_key=enter_matrix)
+            self.start_state = "started"
+            self.cold_credited_start = True
+            self.credit_evidence["consumed_credit_count"] = state["credits"]
+            self.credit_evidence["start_observed_ordinal"] = stop.ordinal
+
+    def _presentation_credit_add(self, stop: MonitorStop,
+                                 qualification: dict[str, Any]) -> None:
+        state = self._state()
+        if (self.credit_baseline is None or self.start_state not in ("coin-held", "coin-released") or
+                state["mode"] != MODE_ATTRACT or state["credits"] != self.credit_baseline or
+                COIN5_DSCAN_KEY not in self.pressed or self.credit_call is not None or self.credit_evidence is not None):
+            raise GuardFailure("live add_credit call lacks the single cold-attract coin-5 input context")
+        self.credit_call = {"before": state["credits"], "call_ordinal": stop.ordinal,
+            "call_pc": stop.pc, "fixed_coin_matrix_key": COIN5_MATRIX_KEY,
+            "fixed_coin_dscan_key": COIN5_DSCAN_KEY,
+            "presentation_code_qualified": qualification.get("source_staged_live_match") is True}
+        self._record(stop, "source-qualified-add-credit-call", qualification,
+            credits_before=state["credits"], fixed_coin_matrix_key=COIN5_MATRIX_KEY,
+            fixed_coin_dscan_key=COIN5_DSCAN_KEY)
+
+    def _confirm_start_credit(self, stop: MonitorStop,
+                              qualification: dict[str, Any], state: dict[str, Any]) -> None:
+        if self.credit_call is None:
+            return
+        before = self.credit_call["before"]
+        if state["credits"] != before + 1:
+            if state["credits"] != before:
+                self.errors.append("presentation-credit-count-did-not-increment-exactly-once")
+                self.credit_call = None
+            return
+        self.credit_evidence = {**self.credit_call, "after_add": state["credits"],
+            "add_observed_ordinal": stop.ordinal, "cold_mode": MODE_ATTRACT,
+            "one_credit_added": True}
+        self.credit_call = None
+        self._record(stop, "cold-credit-added-once", qualification,
+            credits_before=before, credits_after=state["credits"],
+            add_credit_call_ordinal=self.credit_evidence["call_ordinal"])
+
+    def _audio_start(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        if self.active_tx is not None:
+            raise GuardFailure("mixer started a second PSG batch before its busy publication")
+        snapshot = self._audio_snapshot()
+        slot0 = snapshot["slots"][0]
+        cue = slot0["id"]
+        if cue in (6, 13):
+            policy, priority = (0xB3, 5) if cue == 6 else (0xD3, 6)
+            model = verify_live_music_mix(snapshot, cue, policy, priority)
+            start, terminator = self.boundaries[f"cue{cue}"]["stream_start"], self.boundaries[f"cue{cue}"]["terminator_address"]
+            if not start <= slot0["stream_pointer"] <= terminator + 1:
+                raise GuardFailure(f"cue{cue} live slot pointer escaped its emitted stream")
+            if not self.cue_stream_active[cue]:
+                self.cue_entry_owner[cue] = self.current_entry["index"] if self.current_entry else None
+                self.cue_start_ordinal[cue] = stop.ordinal
+                self.cue_output[cue] = False
+                self.cue_terminal.pop(cue, None)
+                self.quiet_tail.pop(cue, None)
+                self.cue_stream_active[cue] = True
+                if cue == 13:
+                    cue_state = self._state()
+                    if self.lifecycle is None or cue_state["entry"] != 0:
+                        self.errors.append("cue13-admission-without-genuine-gameplay-contact-context")
+                        if self.current_entry is not None:
+                            self.entry_contact_violation = True
+            if cue == 6:
+                state = self._state()
+                self.cue6_services += 1
+                if self.frames_at_cue6 is None:
+                    self.frames_at_cue6 = state["frames"]
+                if self.current_entry is not None and state["entry"] == 2:
+                    self._confirm_entry_state(stop, qualification, state)
+            self._record(stop, "selected-cue-mix-start", qualification, cue_id=cue,
+                         slot_pointer=slot0["stream_pointer"], wait=slot0["wait"],
+                         audible_voice_count=model["audible_voice_count"])
+            self.active_tx = {"cue": cue, "quiet": False, "snapshot": snapshot,
+                "model": model, "transaction": PSGTransaction(model, snapshot),
+                "first_store": None, "first_audible": None, "first_audible_frame": None,
+                "audible_count": 0, "mute_store": None,
+                "entry": self.cue_entry_owner.get(cue)}
+            return
+        if any(cue_id in self.cue_terminal for cue_id in (6, 13)):
+            cue = max(self.cue_terminal, key=lambda k: self.cue_terminal[k]["ordinal"])
+            quiet = validate_quiet_terminal(snapshot)
+            model = model_quiet_mix(snapshot["mix_shadow"])
+            self._record(stop, "terminal-quiet-mix-start", qualification, **quiet)
+            self.active_tx = {"cue": None, "quiet_cue": cue, "quiet": True, "snapshot": snapshot,
+                "model": model, "transaction": PSGTransaction(model, snapshot),
+                "first_store": None, "first_audible": None, "mute_store": None,
+                "entry": self.cue_entry_owner.get(cue)}
+            return
+        self._record(stop, "unrelated-mix-start", qualification, slot0_id=cue)
+
+    def _psg_store(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        if self.active_tx is None:
+            self._record(stop, "unrelated-snd-data-store", qualification,
+                         value=qualification.get("value"), transaction_context="no-cue6-or-cue13-batch")
+            return
+        value = qualification.get("value")
+        if type(value) is not int:
+            raise GuardFailure("SND_DATA watchpoint did not provide the actual A value")
+        tx = self.active_tx
+        tx["transaction"].store(value)
+        store = tx["transaction"].observed[-1]
+        if tx["first_store"] is None:
+            tx["first_store"] = stop.ordinal
+        if not tx["quiet"] and store.selected_slot == 0 and store.kind in ("period-data", "attenuation"):
+            if tx["first_audible"] is None:
+                tx["first_audible"] = stop.ordinal
+                tx["first_audible_frame"] = monitor_word(self.client, self.main["FRAMES"])
+            tx["audible_count"] += 1
+        if store.kind == "attenuation" and (store.value & 15) == 15:
+            tx["mute_store"] = stop.ordinal
+        self._record(stop, "actual-snd-data-store", qualification,
+            value=value, kind=store.kind, channel=store.channel,
+            selected_slot=store.selected_slot, source_voice=store.source_voice,
+            transaction_index=len(tx["transaction"].observed))
+
+    def _record_cue13_idle(self, stop: MonitorStop, qualification: dict[str, Any],
+                           busy: int, snapshot: dict[str, Any]) -> None:
+        if (busy != 0 or self.lifecycle is None or not self.lifecycle_cue13_output or
+                13 not in self.cue_terminal or 13 not in self.quiet_tail):
+            return
+        if any(item["name"] == "cue13_published_idle" for item in self.lifecycle.records):
+            return
+        quiet = validate_quiet_terminal(snapshot)
+        self.lifecycle.record("cue13_published_idle", {
+            "cue13_actual_output": True, "published_busy": 0, "normal_drain": True,
+            "cue13_emitted_end_observed": True, "actual_terminal_mute_observed": True,
+            "event_ordinal": stop.ordinal})
+        self._record(stop, "cue13-published-idle", qualification, busy=busy, **quiet)
+
+    def _busy_publication(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        busy = monitor_bytes(self.client, self.audio["AUDIO_MUSIC_PUBLISHED_BUSY"], 1)[0]
+        if self.active_tx is None:
+            self._record(stop, "busy-publication-without-open-mix", qualification, busy=busy)
+            return
+        tx = self.active_tx
+        result = tx["transaction"].finish()
+        result["mix_match"] = True
+        result["cue_id"] = tx["cue"]
+        self.latest_mix[tx["cue"] or 0] = {**result, "event_ordinal": stop.ordinal}
+        self._record(stop, "post-psg-busy-publication", qualification, busy=busy,
+                     mix_result=result)
+        if tx["quiet"]:
+            cue = tx["quiet_cue"]
+            mute_count = result["actual_mute_attenuation_stores"]
+            if result["actual_store_count"] < 3 or mute_count < 1 or tx["mute_store"] is None:
+                raise GuardFailure("terminal tail lacks complete actual SND_DATA mute stores")
+            quiet = validate_quiet_terminal(tx["snapshot"])
+            self.quiet_tail[cue] = {**result, **quiet, "event_ordinal": tx["mute_store"]}
+            if cue == 6 and tx["entry"] in self.proofs:
+                ledger = self.proofs[tx["entry"]]
+                if not any(r["name"] == "terminal_actual_psg_mute_transaction" for r in ledger.records):
+                    ledger.record("terminal_actual_psg_mute_transaction", {
+                        "slot_clear_observed": True, "all_mix_stores_match": True,
+                        "quiet_state_verified": True, "actual_mute_attenuation_stores": mute_count,
+                        "actual_store_count": result["actual_store_count"],
+                        "event_ordinal": tx["mute_store"]})
+            snapshot = self._audio_snapshot()
+            self._record_cue13_idle(stop, qualification, busy, snapshot)
+            if cue == 6 and busy == 0 and tx["entry"] in self.proofs:
+                ledger = self.proofs[tx["entry"]]
+                if not any(r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records):
+                    if not validate_quiet_terminal(snapshot):
+                        raise GuardFailure("terminal busy zero lacks all-slot/all-queue idle state")
+                    ledger.record("terminal_post_psg_busy_zero", {
+                        "busy": 0, "all_slots_queues_credit_idle": True,
+                        "busy_read_after_psg": True, "event_ordinal": stop.ordinal})
+        else:
+            cue = tx["cue"]
+            if cue not in (6, 13):
+                raise GuardFailure("mixer transaction has no cue identity")
+            if tx["first_audible"] is not None:
+                self.cue_output[cue] = True
+                if cue == 13 and self.lifecycle is not None:
+                    self.lifecycle_cue13_output = True
+                if cue == 6 and tx["entry"] in self.proofs:
+                    ledger = self.proofs[tx["entry"]]
+                    if not any(r["name"] == "first_cue6_owned_psg_transaction" for r in ledger.records):
+                        ledger.record("first_cue6_owned_psg_transaction", {
+                            "selected_id": 6, "slot": 0, "policy": 0xB3,
+                            "best_slot": 0, "best_priority": 5, "mix_match": True,
+                            "audible_store_count": tx["audible_count"],
+                            "event_ordinal": tx["first_audible"]})
+                    owner_entry = next((entry for entry in self.entries
+                                        if entry["index"] == tx["entry"]), None)
+                    if owner_entry is not None and owner_entry.get("cue6_first_frame") is None:
+                        owner_entry["cue6_first_frame"] = tx["first_audible_frame"]
+                        owner_entry["cue6_first_output_ordinal"] = tx["first_audible"]
+                        if (self.lifecycle is not None and owner_entry.get("seed_verified") and
+                                not any(x["name"] == "replacement_cue6_output"
+                                        for x in self.lifecycle.records)):
+                            self.lifecycle.record("replacement_cue6_output", {
+                                "entry_seed_precedes_cue6": tx["first_audible"] >
+                                    owner_entry["state2_ordinal"],
+                                "selected_id": 6, "audible_store_count": tx["audible_count"],
+                                "event_ordinal": tx["first_audible"]})
+                self._record(stop, "cue-owned-audible-output", qualification,
+                             cue_id=cue, entry_generation=tx["entry"],
+                             first_audible_store_ordinal=tx["first_audible"])
+            if cue == 6 and busy == 1 and self.cue_output[6] and tx["entry"] in self.proofs:
+                ledger = self.proofs[tx["entry"]]
+                if not any(r["name"] == "first_post_psg_busy_one" for r in ledger.records):
+                    ledger.record("first_post_psg_busy_one", {"busy": 1, "derived_marker": True,
+                        "busy_read_after_psg": True, "event_ordinal": stop.ordinal})
+            if cue == 13 and busy == 0:
+                self._record_cue13_idle(stop, qualification, busy, self._audio_snapshot())
+        self.active_tx = None
+
+    def _audio_end(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        regs = stop.registers
+        snapshot = self._audio_snapshot()
+        slot = next((i for i in range(4) if regs.get("y") == self.audio[f"audio_slot{i}"]), None)
+        if slot is None:
+            raise GuardFailure("audio END stop Y is not one of the four emitted slots")
+        cue = snapshot["slots"][slot]["id"]
+        if cue not in (6, 13):
+            self._record(stop, "unrelated-audio-end", qualification, slot=slot, cue_id=cue)
+            return
+        boundary = self.boundaries[f"cue{cue}"]
+        if regs.get("x") != boundary["terminal_x_expected"]:
+            raise GuardFailure(f"cue{cue} END X is not the decoded terminator+1")
+        if self.audio_image[boundary["terminator_address"] - 0xA000] != 0:
+            raise GuardFailure("emitted cue stream terminator is not zero")
+        self.cue_terminal[cue] = {"cue_id": cue, "slot": slot,
+            "x": regs["x"], "ordinal": stop.ordinal,
+            "stream_decoder_matches": True}
+        self.cue_stream_active[cue] = False
+        self._record(stop, "owned-emitted-stream-end", qualification,
+                     cue_id=cue, slot=slot, x=regs["x"],
+                     terminator=0, decoder_matches=True)
+        if cue == 6 and self.cue_output[6]:
+            entry_index = self.cue_entry_owner.get(6)
+            ledger = self.proofs.get(entry_index) if entry_index is not None else None
+            if ledger is not None and not any(r["name"] == "cue6_terminal_stream_end_owned"
+                                              for r in ledger.records):
+                ledger.record("cue6_terminal_stream_end_owned", {
+                    "slot_id": 6, "x_matches_emitted_end": True, "terminator_byte": 0,
+                    "stream_decoder_matches_emitted_bytes": True, "event_ordinal": stop.ordinal})
+
+    def _irq_start(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        state = self._state()
+        self.irq_before = {"seq": state["commit_seq"], "back": state["back"],
+                           "pending": state["pending"], "state": state}
+        self.irq_inc = None
+        self._record(stop, "irq-publication-start", qualification,
+                     pending=state["pending"], back=state["back"], seq=state["commit_seq"])
+
+    def _irq_instruction(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        if self.irq_before is None:
+            raise GuardFailure("IRQ INC stop lacks its actual publication-start event")
+        self.irq_inc = {"pc": stop.pc, "ordinal": stop.ordinal}
+        self._record(stop, "irq-commit-inc-qualified", qualification,
+                     dp=stop.registers["dp"], end_pc=stop.pc)
+
+    def _front_mapping(self, owner: int) -> dict[str, int | bool]:
+        if owner not in (0, 1):
+            raise GuardFailure("FRONT owner is outside the two framebuffer owners")
+        gime_state = monitor_call(self.client, "read_gime_state")
+        registers = gime_state.get("registers")
+        if not isinstance(registers, dict):
+            raise GuardFailure("monitor GIME state lacks the write-only register shadow")
+        voff1, voff2 = registers.get("FF9D"), registers.get("FF9E")
+        if (type(voff1) is not int or not 0 <= voff1 <= 0xFF or
+                type(voff2) is not int or not 0 <= voff2 <= 0xFF):
+            raise GuardFailure("monitor GIME state lacks byte-valued VOFF1/VOFF2 shadows")
+        expected_voff1 = 0xC0 if owner == 0 else 0xB0
+        expected_base = 0x60000 if owner == 0 else 0x58000
+        physical_base = (voff1 << 11) | (voff2 << 3)
+        if voff1 != expected_voff1 or voff2 != 0 or physical_base != expected_base:
+            raise GuardFailure(
+                f"FRONT owner GIME shadow ${voff1:02X}/${voff2:02X} selects "
+                f"${physical_base:05X}, expected ${expected_base:05X}")
+        return {"front_owner_voff1_shadow": voff1,
+                "front_owner_voff2_shadow": voff2,
+                "front_physical_base": physical_base,
+                "front_mapping_qualified": True}
+
+    def _front_rect(self, owner: int, pointer: int,
+                    mapping: dict[str, int | bool] | None = None) -> bytes:
+        if owner not in (0, 1) or not VISIBLE_BASE <= pointer < VISIBLE_BASE + VISIBLE_BYTES:
+            raise GuardFailure("front owner or player pointer is outside the A/B framebuffer")
+        linear = pointer - VISIBLE_BASE
+        visible_width = visible_row_width_bytes(pointer)
+        if linear // 160 + 16 > 192:
+            raise GuardFailure("front player rectangle crosses the framebuffer boundary")
+        mapping = self._front_mapping(owner) if mapping is None else mapping
+        expected_voff1 = 0xC0 if owner == 0 else 0xB0
+        expected_base = 0x60000 if owner == 0 else 0x58000
+        if (mapping.get("front_mapping_qualified") is not True or
+                mapping.get("front_owner_voff1_shadow") != expected_voff1 or
+                mapping.get("front_owner_voff2_shadow") != 0 or
+                mapping.get("front_physical_base") != expected_base):
+            raise GuardFailure("FRONT rectangle read lacks qualified GIME shadow evidence")
+        page0 = 0x30 if owner == 0 else 0x2C
+        result = bytearray()
+        for row in range(16):
+            offset = linear + row * 160
+            row_bytes = physical_page_read(self.client, page0 + (offset >> 13),
+                                           offset & 0x1FFF, visible_width)
+            result.extend(row_bytes)
+            result.extend(bytes(8 - visible_width))
+        return bytes(result)
+
+    def _front_pose(self, stop: MonitorStop, qualification: dict[str, Any],
+                    state: dict[str, Any]) -> dict[str, Any] | None:
+        owner = state["front"]
+        valid = state["valid_a"] if owner == 0 else state["valid_b"] if owner == 1 else 0
+        published_fb = state["meta_fb_a"] if owner == 0 else state["meta_fb_b"] if owner == 1 else 0
+        if not valid or published_fb != state["player_fb"]:
+            return None
+        mapping = self._front_mapping(owner)
+        visible_width = visible_row_width_bytes(state["player_fb"])
+        actual = self._front_rect(owner, state["player_fb"], mapping)
+        frame_index = state["face"] * 4 + state["anim"]
+        if not 0 <= frame_index < len(self.player_frame_table):
+            raise GuardFailure("live player frame index escaped the compiled candidate pose table")
+        packed = self.player_frame_table[frame_index]
+        art = {"frame_index": frame_index, "face": state["face"],
+               "animation": state["anim"], "candidate_art_identity_qualified": True,
+               "candidate_art_sha256": self.player_art_identity["art_source_sha256"]}
+        expected = bug011_image_api().native_frame(packed)
+        pixels = compare_opaque_player_pixels(expected, actual, packed, visible_width)
+        record = {"ordinal": stop.ordinal, "frame": state["frames"], "owner": owner,
+            "player_fb": state["player_fb"], "entry": state["entry"],
+            "death": state["death"], "cell_x": state["cell_x"], "cell_y": state["cell_y"],
+            "step": state["step"], "commit_seq": state["commit_seq"],
+            **art, **pixels, "front_rect_sha256": sha(actual),
+            **mapping, "clipped_logical_pose": visible_width < 8,
+            "front_pixel_presence_proven": pixels["opaque_pixels_compared"] > 0,
+            "irq_commit_end_pc": self.irq_marker["end_pc"]}
+        bg_base = 0xA300 if owner == 0 else 0xAB00
+        background = physical_page_read(self.client, 0x34, bg_base - 0xA000, 128)
+        self.owner_history[(owner, state["player_fb"])] = {
+            "actual": actual, "background": background, "sprite": packed,
+            "face": state["face"], "animation": state["anim"],
+            "frame": state["frames"], "owner": owner, "pointer": state["player_fb"],
+            "visible_width_bytes": visible_width}
+        self.pose_hashes.append(record["front_rect_sha256"])
+        self.last_pose = record
+        self._record(stop, "actual-front-player-pose", qualification, **record)
+        if self.current_entry is not None:
+            self.current_entry["pose_count"] += 1
+            if state["entry"] == 4 and self.current_entry.get("first_maze_visible_frame") is None:
+                self.current_entry["first_maze_visible_frame"] = state["frames"]
+        return record
+
+    def _irq_done(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        if self.irq_before is None or self.irq_inc is None:
+            self._record(stop, "irq-done-without-qualified-commit", qualification)
+            return
+        state = self._state()
+        expected = (self.irq_before["seq"] + 1) & 0xFFFF
+        if (self.irq_before["pending"] != 1 or state["pending"] != 0 or
+                state["commit_seq"] != expected or state["front"] != self.irq_before["back"]):
+            raise GuardFailure("IRQ completion did not commit the pending FRONT owner and sequence")
+        self._record(stop, "irq-front-commit-complete", qualification,
+            seq_before=self.irq_before["seq"], seq_after=state["commit_seq"],
+            front_id=state["front"], irq_commit_end_pc=self.irq_inc["pc"])
+        if state["death"] == 0 and self.current_entry is not None:
+            pose = self._front_pose(stop, qualification, state)
+            if pose is None:
+                self.errors.append("live-player-front-pose-missing-at-irq-commit")
+            elif state["entry"] == 4 and state["cell_y"] == 18:
+                if pose["visible_width_bytes"] != 8 or pose["opaque_pixels_compared"] <= 0:
+                    self.errors.append("final-maze-front-pose-is-clipped-or-has-no-visible-opaque-pixels")
+                else:
+                    ledger = self.proofs[self.current_entry["index"]]
+                    if not any(r["name"] == "final_pose_in_front_after_irq_commit"
+                               for r in ledger.records):
+                        busy = monitor_bytes(self.client,
+                            self.audio["AUDIO_MUSIC_PUBLISHED_BUSY"], 1)[0]
+                        ledger.record("final_pose_in_front_after_irq_commit", {
+                            "irq_commit_observed": True,
+                            "front_pixels_match_opaque_player": True,
+                            "live_code_span_qualified": True,
+                            "irq_live_opcode_match": True,
+                            "front_mapping_qualified": True,
+                            "same_stop_busy_sample": True,
+                            "opaque_pixels_compared": pose["opaque_pixels_compared"],
+                            "visible_width_bytes": pose["visible_width_bytes"],
+                            "front_id": pose["owner"],
+                            "front_owner_voff1_shadow": pose["front_owner_voff1_shadow"],
+                            "front_owner_voff2_shadow": pose["front_owner_voff2_shadow"],
+                            "front_physical_base": pose["front_physical_base"],
+                            "entry_marker_x": self.current_entry["marker_x"],
+                            "entry_seed_lives": self.current_entry["seed_lives"],
+                            "player_fb": state["player_fb"],
+                            "published_music_busy": busy,
+                            "irq_commit_event_ordinal": stop.ordinal,
+                            "irq_commit_end_pc": self.irq_marker["end_pc"],
+                            "event_ordinal": stop.ordinal})
+        if state["death"] == 3 and state["timer"] == 37 and self.lifecycle is not None:
+            owner = state["front"]
+            prior = self.owner_history.get((owner, state["player_fb"]))
+            if prior is not None:
+                blank = self._front_rect(owner, state["player_fb"])
+                if visible_rect_matches_background(blank, prior["background"],
+                                                    prior["visible_width_bytes"]):
+                    native = bug011_image_api().native_frame(prior["sprite"])
+                    opaque = sum(bool((byte >> shift) & 0x0F)
+                                 for byte in native for shift in (4, 0))
+                    self.lifecycle.record("death_blank_timer37", {
+                        "death_state": 3, "death_timer": 37, "entry_state": 0,
+                        "source_bytes_match": True, "death_blank_front_commit_observed": True,
+                        "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
+                        "death_blank_live_code_span_qualified": True,
+                        "death_blank_front_mapping_qualified": True,
+                        "death_blank_opaque_pixels_compared": opaque,
+                        "event_ordinal": stop.ordinal})
+                    self._record(stop, "death-blank-front-oracle", qualification,
+                        compared_opaque_pixels=opaque, front_rect_sha256=sha(blank),
+                        saved_under_sha256=sha(prior["background"]))
+        self.irq_before = None
+        self.irq_inc = None
+
+    def _entry_seed(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        state = self._state()
+        if self.current_entry is None or self.current_entry.get("released"):
+            self.entry_count += 1
+            self.current_entry = {"index": self.entry_count, "cue6_first_frame": None,
+                "first_maze_visible_frame": None, "marker_x": None, "pose_count": 0,
+                "seed_ordinal": stop.ordinal}
+            self.proofs[self.entry_count] = ProofLedger()
+            self.entries.append(self.current_entry)
+        entry = self.current_entry
+        entry["marker_call_ordinal"] = stop.ordinal
+        entry["lives_before_marker_body"] = state["lives"]
+        self.pending_entry_seed = {"ordinal": stop.ordinal, "lives": state["lives"]}
+        self._record(stop, "entry-marker-call", qualification, entry_generation=entry["index"],
+            lives=state["lives"], player_fb=state["player_fb"],
+            entry_state_before_marker_body=state["entry"])
+
+    def _confirm_entry_state(self, stop: MonitorStop, qualification: dict[str, Any],
+                             state: dict[str, Any]) -> None:
+        if self.current_entry is None or state["entry"] != 2 or self.current_entry.get("seed_verified"):
+            return
+        isolated = not self.pressed and not (self.search and self.search.held is not None)
+        if not isolated:
+            self.errors.append("held-input-present-at-observed-entry-state2")
+        if self.search is not None:
+            self.search.release(stop.ordinal, "entry-state2-input-isolation")
+        for key in list(self.pressed):
+            self._press(key, "release", stop, "entry-state2-input-isolation")
+        entry = self.current_entry
+        entry["seed_verified"] = True
+        entry["state2_ordinal"] = stop.ordinal
+        entry["seed_ordinal"] = stop.ordinal
+        entry["seed_lives"] = state["lives"]
+        entry["seed_frame"] = state["frames"]
+        entry["seed_death_timer"] = state["timer"]
+        entry["entry_start_fb"] = state["player_fb"]
+        entry["marker_x"] = framebuffer_row_x(state["player_fb"])
+        entry["marker_x_matches_life_slot"] = (
+                entry["marker_x"] == (33 + 2 * state["lives"]) * 8)
+        entry["input_isolated_at_seed"] = isolated
+        if self.lifecycle is not None and self.contact_count:
+            contact = self.contacts[-1]
+            consumed_once = state["lives"] == contact["lives"] - 1
+            if not consumed_once:
+                self.errors.append("reserve-count-at-replacement-entry-is-not-one")
+            entry["reserve_decrement_exactly_once"] = consumed_once
+            self.lifecycle.record("replacement_entry_seed", {
+                "prior_death_blank_observed": any(r["name"] == "death_blank_timer37"
+                    for r in self.lifecycle.records),
+                "prior_cue13_idle_observed": any(r["name"] == "cue13_published_idle"
+                    for r in self.lifecycle.records), "entry_state": 2,
+                "event_ordinal": stop.ordinal})
+        self._record(stop, "entry-state2-observed", qualification,
+            entry_generation=entry["index"], lives=state["lives"],
+            player_fb=state["player_fb"], input_isolated=isolated)
+
+    def _enemy_contact(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        state = self._state()
+        genuine = state["entry"] == 0 and state["death"] == 0
+        if genuine:
+            self.contact_count += 1
+            self.contacts.append({"ordinal": stop.ordinal, "lives": state["lives"],
+                "entry": state["entry"], "death": state["death"], "frame": state["frames"],
+                "enemy_snapshot_sha256": state["enemy_sha256"], "source_staged_live_match": True})
+            self.lifecycle = LifecycleOrder()
+            self.lifecycle_records.append(self.lifecycle)
+            self.lifecycle_cue13_output = False
+            self.cue_terminal.pop(13, None)
+            self.quiet_tail.pop(13, None)
+        else:
+            self.entry_contact_violation = True
+            self.errors.append("enemy-contact-was-observed-during-entry-or-death")
+        if self.search is not None:
+            self.search.release(stop.ordinal, "enemy-contact-input-isolation")
+        self._record(stop, "genuine-enemy-contact" if genuine else "entry-contact-violation",
+            qualification, genuine=genuine, lives=state["lives"], entry=state["entry"],
+            death=state["death"], frame=state["frames"])
+
+    def _mainloop(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        state = self._state()
+        self._record(stop, "mainloop", qualification, entry=state["entry"], death=state["death"],
+            timer=state["timer"], lives=state["lives"], player_fb=state["player_fb"],
+            cell=[state["cell_x"], state["cell_y"]], step=state["step"],
+            pending=state["pending"], front=state["front"], commit_seq=state["commit_seq"],
+            frames=state["frames"], mode=state["mode"])
+        self._start_inputs(stop, state)
+        self._confirm_start_credit(stop, qualification, state)
+        if self.current_entry is not None and state["entry"] == 2:
+            self._confirm_entry_state(stop, qualification, state)
+        if self.current_entry is not None and state["entry"] == 3:
+            if self.current_entry.get("offscreen_remaining_death_timer") is None:
+                self.current_entry["offscreen_remaining_death_timer"] = state["timer"]
+            actual_x = entry_row_x(state["player_fb"],
+                self.current_entry.get("entry_start_fb", -99999),
+                self.current_entry.get("marker_x", -1))
+            self.current_entry["offscreen_x_pixels"] = actual_x
+            self.current_entry["offscreen_x320"] = actual_x == 320
+        if self.current_entry is not None and state["entry"] != 0 and state["death"] != 0:
+            self.errors.append("death-state-entered-during-life-entry")
+            self.entry_contact_violation = True
+        if self.lifecycle is not None:
+            previous = self._previous_state
+            if state["entry"] == 0 and state["death"] == 1 and (previous is None or previous["death"] != 1):
+                self.lifecycle.record("death_state_1", {"death_state": 1,
+                    "genuine_contact_live_bytes": True, "event_ordinal": stop.ordinal})
+            if state["entry"] == 0 and state["death"] == 2 and (previous is None or previous["death"] != 2):
+                self.lifecycle.record("death_state_2", {"death_state": 2,
+                    "genuine_contact_live_bytes": True, "event_ordinal": stop.ordinal})
+            if state["death"] == 3 and state["timer"] == 37 and (
+                    previous is None or previous["death"] != 3):
+                self._record(stop, "death-blank-boundary", qualification,
+                    timer=37, lives=state["lives"], entry=state["entry"])
+        if self.release_snapshot is not None:
+            same_player = (state["player_fb"], state["cell_x"], state["cell_y"],
+                state["step"], state["face"], state["anim"]) == self.release_snapshot["player"]
+            same_enemy = state["enemy_raw"] == self.release_snapshot["enemy_raw"]
+            if same_player and same_enemy and self.current_entry is not None:
+                ledger = self.proofs[self.current_entry["index"]]
+                if not any(r["name"] == "no_same_batch_player_or_enemy_mutation" for r in ledger.records):
+                    ledger.record("no_same_batch_player_or_enemy_mutation", {
+                        "player_unchanged": True, "enemy_unchanged": True,
+                        "event_ordinal": stop.ordinal})
+            else:
+                self.errors.append("player-or-enemy-mutated-after-entry-release")
+            self.release_snapshot = None
+        if self.search is not None and self.cold_credited_start:
+            contact_target = 2 if self.scenario == "natural" else 1
+            if self.scenario in ("front-first", "music-first"):
+                contact_target = 2
+            if self.contact_count < contact_target:
+                self.search.at_gameplay_center(stop.ordinal, state["entry"], state["death"],
+                    state["step"], state["cell_x"], state["cell_y"])
+            else:
+                self.search.release(stop.ordinal, "approved-contact-target-reached")
+        if state["death"] != 0 and self.search is not None:
+            self.search.release(stop.ordinal, "death-input-isolation")
+        if self.fixture is not None and self.fixture_result is None:
+            self._maybe_write_fixture(stop, state, qualification)
+        self._previous_state = state
+
+    def _fixture_snapshot(self, stop: MonitorStop, qualification: dict[str, Any]) -> dict[str, Any]:
+        require_current_paused_stop(self.client, stop.pc)
+        current_qualification = self._qualify(stop)
+        state = self._state()
+        page = fixture_audio_page(self.client, stop.pc, self.main["mainloop"])
+        audio = live_audio_snapshot(self.client, self.audio, page)
+        cue = 6 if self.scenario in ("front-first", "music-first") else 13
+        slot0 = audio["slots"][0]
+        selected = None
+        try:
+            selected = verify_live_music_mix(audio, cue, 0xB3 if cue == 6 else 0xD3,
+                                              5 if cue == 6 else 6)
+        except GuardFailure:
+            pass
+        priority = 5 if cue == 6 else 6
+        latest = self.latest_mix.get(cue)
+        transaction_current = bool(latest and latest.get("mix_match") is True and
+            latest.get("event_ordinal", 0) > self.cue_start_ordinal.get(cue, 1 << 60))
+        if cue == 6 and self.current_entry is not None:
+            transaction_current = (transaction_current and
+                self.cue_entry_owner.get(cue) == self.current_entry["index"])
+        higher = any(s["id"] != 0xFF and s["policy"] & 1 and s["priority"] > priority
+                     for s in audio["slots"])
+        snapshot: dict[str, Any] = {
+            "timer_map_qualified": self.main["DEATH_TIMER"] == TIMER_ADDRESS,
+            "timer_address": self.main["DEATH_TIMER"],
+            "source_map_bytes_qualified": current_qualification.get("source_staged_live_match") is True,
+            "render_pending": state["pending"], "owner_a_player_valid": state["valid_a"],
+            "owner_b_player_valid": state["valid_b"], "cue_published_busy": audio["published_busy"],
+            "cue_actual_output_proven": self.cue_output[cue],
+            "actual_psg_writes_match_mix": transaction_current,
+            "marker_x": self.current_entry.get("marker_x", -1) if self.current_entry else -1,
+            "entry_state": state["entry"], "death_state": state["death"],
+            "player_x": (entry_row_x(state["player_fb"],
+                self.current_entry.get("entry_start_fb", -99999),
+                self.current_entry.get("marker_x", -1))
+                if self.current_entry and state["entry"] == 3 else -1),
+            "cue_active_id": slot0["id"], "slot0_id": slot0["id"],
+            "slot0_policy": slot0["policy"], "slot0_priority": slot0["priority"],
+            "best_slot": audio["best_slot"], "best_priority": audio["best_priority"],
+            "higher_priority_exclusive_source": higher,
+            "genuine_enemy_contact_proven": bool(self.contacts) and not self.entry_contact_violation,
+            "death_timer": state["timer"], "lives": state["lives"],
+            "cue13_actual_output_proven": self.cue_output[13],
+            "cue13_published_busy": audio["published_busy"],
+            "live_stop_pc": stop.pc, "live_stop_ordinal": stop.ordinal,
+            "fresh_same_stop_requalification": True}
+        if selected is not None:
+            key = "cue6" if cue == 6 else "cue13"
+            snapshot[f"{key}_selected_voice_mask"] = 0x07 if cue == 6 else 0x03
+            snapshot[f"{key}_selected_audible_voice_count"] = selected["audible_voice_count"]
+        if cue == 6:
+            start, terminator = self.boundaries["cue6"]["stream_start"], self.boundaries["cue6"]["terminator_address"]
+            remaining = stream_waits_remaining(self.audio_image, start - 0xA000,
+                terminator - 0xA000, slot0["stream_pointer"] - 0xA000, slot0["wait"])
+            now = state["frames"]
+            elapsed = ((now - self.frames_at_cue6) & 0xFFFF) if self.frames_at_cue6 is not None else 0
+            needed_vblanks = 33
+            estimated_ticks = ((needed_vblanks * self.cue6_services + elapsed - 1) // elapsed
+                               if elapsed and self.cue6_services else 0)
+            viable = state["timer"] > 0 and estimated_ticks > 0 and remaining["remaining_audio_ticks"] > estimated_ticks
+            snapshot["remaining_pad"] = state["timer"]
+            snapshot["cue_dwell_cadence_viable"] = viable
+            self.dwell_checks.append({**remaining, "elapsed_vblanks": elapsed,
+                "observed_selected_audio_services": self.cue6_services,
+                "required_future_vblanks": needed_vblanks,
+                "estimated_future_audio_ticks": estimated_ticks,
+                "predicted_front_before_cue_idle": viable})
+        return snapshot
+
+    def _maybe_write_fixture(self, stop: MonitorStop, state: dict[str, Any],
+                             qualification: dict[str, Any]) -> None:
+        assert self.fixture is not None
+        if state["mode"] != 0:
+            return
+        if self.scenario in ("front-first", "music-first"):
+            if (state["entry"] != 3 or state["death"] != 0 or self.current_entry is None or
+                    self.current_entry.get("marker_x") != 264 or state["lives"] != 0):
+                return
+            actual_x = entry_row_x(state["player_fb"],
+                self.current_entry.get("entry_start_fb", -99999),
+                self.current_entry.get("marker_x", -1))
+            self.current_entry["offscreen_x_pixels"] = actual_x
+            self.current_entry["offscreen_x320"] = actual_x == 320
+            if actual_x != 320:
+                self.errors.append("walkout-entry-state3-did-not-reach-row-derived-x320")
+                return
+        else:
+            if (state["death"] != 3 or state["timer"] != 37 or state["entry"] != 0 or
+                    self._previous_state is None or self._previous_state["death"] != 2):
+                return
+        try:
+            result = self.fixture.write_from_paused_stop(self.client, stop.pc,
+                lambda client: self._fixture_snapshot(stop, qualification))
+        except GuardFailure as exc:
+            self._record(stop, "fixture-guard-denied", qualification,
+                         reason=str(exc), entry=state["entry"], death=state["death"], timer=state["timer"])
+            return
+        self.write_count += 1
+        self.fixture_result = result
+        self._record(stop, "approved-death-timer-write", qualification,
+                     address=TIMER_ADDRESS, value=result["value"], write_count=self.write_count,
+                     fresh_same_stop=True)
+
+    def _final_entry_wait(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
+        state = self._state()
+        if self.current_entry is None or state["entry"] != 4 or state["cell_y"] != 18:
+            self._record(stop, "unexpected-final-entry-wait-state", qualification,
+                         entry=state["entry"], cell_y=state["cell_y"])
+            return
+        ledger = self.proofs[self.current_entry["index"]]
+        busy = monitor_bytes(self.client, self.audio["AUDIO_MUSIC_PUBLISHED_BUSY"], 1)[0]
+        front_proof = next((r for r in ledger.records
+                            if r["name"] == "final_pose_in_front_after_irq_commit"), None)
+        if front_proof is None:
+            self._record(stop, "final-front-pose-missing-at-qualified-irq-commit", qualification)
+            return
+        if (front_proof["entry_marker_x"] != self.current_entry.get("marker_x") or
+                front_proof["entry_seed_lives"] != self.current_entry.get("seed_lives")):
+            raise GuardFailure("final FRONT IRQ proof belongs to a different seeded entry")
+        audio_idle = any(r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records)
+        if busy == 0 and audio_idle and not any(
+                r["name"] == "release_after_audio_and_front_commit" for r in ledger.records):
+            ledger.record("release_after_audio_and_front_commit", {
+                "busy_zero_precedes_release": True, "front_commit_precedes_release": True,
+                "front_commit_event_ordinal": front_proof["irq_commit_event_ordinal"],
+                "event_ordinal": stop.ordinal})
+            self.release_snapshot = {"player": (state["player_fb"], state["cell_x"],
+                state["cell_y"], state["step"], state["face"], state["anim"]),
+                "enemy_raw": state["enemy_raw"]}
+            self.current_entry["released"] = True
+            self._record(stop, "entry-release-join", qualification, busy=busy,
+                         final_front_pose=True,
+                         front_commit_event_ordinal=front_proof["irq_commit_event_ordinal"],
+                         terminal_audio_idle=True)
+
+    def _dispatch(self, stop: MonitorStop) -> None:
+        qualification = self._qualify(stop)
+        label = self.labels.get(stop.pc)
+        if label is None and stop.pc == self.bus_marker["stop_pc"]:
+            label = "SND_DATA"
+        if label is None:
+            raise GuardFailure(f"qualified stop PC ${stop.pc:04X} has no registered observer label")
+        if stop.bp_id is not None and stop.pc in self.bp_ids and stop.bp_id != self.bp_ids[stop.pc]:
+            raise GuardFailure(f"monitor breakpoint id at ${stop.pc:04X} differs from the installed marker")
+        if label == "SND_DATA":
+            self._psg_store(stop, qualification)
+        elif label == "audio_mix_write":
+            self._audio_start(stop, qualification)
+        elif label == "audio_command_end":
+            self._audio_end(stop, qualification)
+        elif label == "post_psg_busy":
+            self._busy_publication(stop, qualification)
+        elif label == "fbiq_publish":
+            self._irq_start(stop, qualification)
+        elif label == "irq_commit_instruction_end":
+            self._irq_instruction(stop, qualification)
+        elif label == "fbiq_done":
+            self._irq_done(stop, qualification)
+        elif label == "et_player_death":
+            self._enemy_contact(stop, qualification)
+        elif label == "add_credit":
+            self._presentation_credit_add(stop, qualification)
+        elif label == "marker_entry_begin":
+            self._entry_seed(stop, qualification)
+        elif label == "iet_final_wait":
+            self._final_entry_wait(stop, qualification)
+        elif label == "mainloop":
+            self._mainloop(stop, qualification)
+        else:
+            state = self._state()
+            self._record(stop, label, qualification, entry=state["entry"],
+                         death=state["death"], timer=state["timer"], frames=state["frames"])
+
+    def _phase(self, name: str, predicate: Any) -> bool:
+        started = time.monotonic()
+        deadline = started + PHASE_SECONDS
+        ordinal_before = self.pump.ordinal
+        while time.monotonic() < deadline:
+            stop = self.pump.next_stop(name, deadline)
+            if stop is None:
+                if self.pump.consecutive_timeouts >= 2:
+                    self.phases.append({"name": name, "status": "aborted-after-two-consecutive-observation-timeouts",
+                        "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
+                        "observation_timeouts": self.pump.consecutive_timeouts,
+                        "timeout_meaning": "the required event was not observed across two bounded waits; stop and reassess"})
+                    return False
+                continue
+            self.client._bug117_phase_deadline = deadline
+            try:
+                self._dispatch(stop)
+            finally:
+                del self.client._bug117_phase_deadline
+            if time.monotonic() >= deadline:
+                self.phases.append({"name": name, "status": "dispatch-reached-phase-deadline",
+                    "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
+                    "timeout_meaning": "monitor event processing exhausted the named phase deadline"})
+                return False
+            if predicate():
+                self.phases.append({"name": name, "status": "marker-observed",
+                    "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
+                    "success_marker": "live event predicate"})
+                return True
+        self.phases.append({"name": name, "status": "missing-marker-timeout",
+            "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
+            "timeout_meaning": "required event was absent within the named phase"})
+        return False
+
+    def _phase_initial(self, require_visible: bool) -> bool:
+        def ready() -> bool:
+            if self.current_entry is None or not self.cue_output[6]:
+                return False
+            if require_visible:
+                return self.current_entry.get("first_maze_visible_frame") is not None
+            return True
+        return self._phase("initial-entry", lambda: self.cold_credited_start and ready())
+
+    def _phase_fixture(self) -> bool:
+        return self._phase("fixture-boundary", lambda: self.fixture_result is not None)
+
+    def _phase_natural_contact(self, target: int) -> bool:
+        return self._phase("natural-contact-search", lambda: self.contact_count >= target)
+
+    def _phase_death_blank(self) -> bool:
+        return self._phase("death-animation-blank", lambda: self.lifecycle is not None and
+            any(r["name"] == "death_blank_timer37" for r in self.lifecycle.records))
+
+    def _phase_cue13_idle(self) -> bool:
+        return self._phase("cue13-normal-drain", lambda: self.lifecycle is not None and
+            any(r["name"] == "cue13_published_idle" for r in self.lifecycle.records))
+
+    def _phase_replacement(self, index: int) -> bool:
+        return self._phase("replacement-entry", lambda: self.current_entry is not None and
+            self.current_entry["index"] == index and self.current_entry.get("first_maze_visible_frame") is not None)
+
+    def _phase_audio_and_release(self) -> bool:
+        if not self._phase("audio-cue6", lambda: self.cue_output[6]):
+            return False
+        if not self._phase("audio-terminal", lambda: any(
+                r["name"] == "terminal_post_psg_busy_zero"
+                for ledger in self.proofs.values() for r in ledger.records)):
+            return False
+        return self._phase("irq-front-release", lambda: self.current_entry is not None and
+            any(r["name"] == "release_after_audio_and_front_commit"
+                for r in self.proofs[self.current_entry["index"]].records))
+
+    def _run_phases(self) -> bool:
+        if self.scenario in ("front-first", "music-first"):
+            if not self._phase_initial(require_visible=True):
+                return False
+            for contact, entry_index in ((1, 2), (2, 3)):
+                if not self._phase_natural_contact(contact):
+                    return False
+                if not self._phase_death_blank() or not self._phase_cue13_idle():
+                    return False
+                if not self._phase_replacement(entry_index):
+                    return False
+            if not self._phase_fixture():
+                return False
+            return self._phase_audio_and_release()
+        if not self._phase_initial(require_visible=True):
+            return False
+        if self.scenario == "prior-music":
+            if not self._phase_natural_contact(1) or not self._phase_fixture():
+                return False
+            if not self._phase_cue13_idle() or not self._phase_replacement(self.entry_count + 1):
+                return False
+            return self._phase_audio_and_release()
+        for contact in (1, 2):
+            if not self._phase_natural_contact(contact):
+                return False
+            if not self._phase_death_blank() or not self._phase_cue13_idle():
+                return False
+            if not self._phase_replacement(self.entry_count + 1):
+                return False
+        return self._phase_audio_and_release()
+
+    def run(self) -> dict[str, Any]:
+        self.install()
+        success = self._run_phases()
+        proof_status = {str(k): acceptance_status(v) for k, v in self.proofs.items()}
+        lifecycle_status = [x.status() for x in self.lifecycle_records]
+        relative = [((entry["first_maze_visible_frame"] - entry["cue6_first_frame"]) & 0xFFFF)
+                    for entry in self.entries if entry.get("first_maze_visible_frame") is not None and
+                    entry.get("cue6_first_frame") is not None]
+        equal_relative = len(relative) >= 3 and len(set(relative)) == 1
+        marker_columns = [entry.get("marker_x") for entry in self.entries]
+        offscreen_remainders = [entry.get("offscreen_remaining_death_timer") for entry in self.entries]
+        all_ledgers_pass = bool(proof_status) and all(x["pass"] for x in proof_status.values())
+        all_lifecycles_pass = bool(lifecycle_status) and all(x["pass"] for x in lifecycle_status)
+        fixture_order = None
+        if self.scenario in ("front-first", "music-first"):
+            target_ledger = (self.proofs.get(self.current_entry["index"])
+                             if self.current_entry is not None else None)
+            fixture_order = fixture_order_status(
+                self.scenario, target_ledger.records if target_ledger is not None else [])
+        if self.scenario == "natural":
+            success = (success and len(self.entries) == 3 and self.contact_count == 2 and equal_relative and
+                self.credit_evidence is not None and
+                self.credit_evidence.get("one_credit_added") is True and
+                self.credit_evidence.get("presentation_code_qualified") is True and
+                self.credit_evidence.get("before") == 0 and self.credit_evidence.get("after_add") == 1 and
+                self.credit_evidence.get("consumed_credit_count") == 0 and
+                marker_columns[:3] == [296, 280, 264] and
+                all(entry.get("marker_x_matches_life_slot") is True for entry in self.entries[:3]) and
+                all(entry.get("offscreen_x320") is True and
+                    entry.get("offscreen_x_pixels") == 320 for entry in self.entries[:3]) and
+                all(entry.get("seed_death_timer") == 80 for entry in self.entries[:3]) and
+                sorted(offscreen_remainders[:3]) == [52, 60, 68] and
+                all(entry.get("seed_verified") is True and entry.get("released") is True and
+                    entry.get("input_isolated_at_seed") is True for entry in self.entries[:3]) and
+                all_ledgers_pass and all_lifecycles_pass and not self.errors and
+                not self.entry_contact_violation)
+        elif self.scenario == "prior-music":
+            success = (success and self.fixture_result is not None and all_lifecycles_pass and
+                       all_ledgers_pass and not self.errors and not self.entry_contact_violation)
+        else:
+            success = (success and self.fixture_result is not None and all_ledgers_pass and
+                all_lifecycles_pass and not self.errors and not self.entry_contact_violation and
+                fixture_order is not None and fixture_order["pass"])
+        if self.write_count > (0 if self.scenario == "natural" else 1):
+            raise GuardFailure("live run exceeded the approved single $003A write budget")
+        return {"scenario": self.scenario,
+            "status": "SCENARIO_ACCEPTANCE_OBSERVED" if success else "INCOMPLETE_FAIL_CLOSED",
+            "scenario_acceptance_observed": bool(success),
+            "runtime_ready": False,
+            "runtime_ready_reason": "parent must aggregate all required scenario artifacts and audit the evidence",
+            "candidate_files": self.preparation["files"],
+            "delivery_qualification": self.delivery, "cold_credited_start": self.cold_credited_start,
+            "fixture": self.fixture_result, "target_write_count": self.write_count,
+            "contacts": self.contacts, "contact_count": self.contact_count,
+            "entries": self.entries, "marker_columns": [x.get("marker_x") for x in self.entries],
+            "offscreen_remaining_death_timer": offscreen_remainders,
+            "seed_death_timer": [x.get("seed_death_timer") for x in self.entries],
+            "cue_relative_first_maze_visibility_frames": relative,
+            "equal_relative_visibility_all_three_entries": equal_relative,
+            "forced_completion_order": fixture_order,
+            "events": self.events,
+            "cue_output_proven": self.cue_output, "cue_terminal": self.cue_terminal,
+            "quiet_tail": self.quiet_tail, "dwell_cadence_checks": self.dwell_checks,
+            "proof_ledgers": proof_status, "lifecycle_ledgers": lifecycle_status,
+            "front_pose_count": len(self.pose_hashes), "front_pose_sha256": self.pose_hashes,
+            "phases": self.phases, "input_events": self.input_events,
+            "cold_credit_evidence": self.credit_evidence,
+            "monitor_stop_timeouts": self.pump.timeout_records, "errors": self.errors,
+            "entry_contact_violation": self.entry_contact_violation,
+            "emulator_launches": 1, "target_writes": self.write_count,
+            "timing": {"phase_deadline_seconds": PHASE_SECONDS,
+                "stop_wait_max_seconds": STOP_WAIT_SECONDS,
+                "gameplay_worklist_target_cycles_max": GAMEPLAY_WORKLIST_CYCLE_TARGET,
+                "gameplay_worklist_measured": False}}
+
+    def release_inputs(self) -> None:
+        ordinal = max(1, self.pump.ordinal)
+        if self.search is not None:
+            self.search.release(ordinal, "observer-shutdown")
+        for key in list(self.pressed):
+            monitor_call(self.client, "inject_key", {"key": key, "action": "release"})
+            self.input_events.append({"key": key, "action": "release", "ordinal": ordinal,
+                "reason": "observer-shutdown", "target_memory_write": False})
+            self.pressed.discard(key)
+
+
+def run_live_capture(binary: Path, build: Path, output: Path, scenario: str,
+                     preparation: dict[str, Any], profile: dict[str, Any],
+                     delivery: dict[str, Any]) -> tuple[dict[str, Any], int]:
+    """Launch only after all gates; record fail-closed output for each bounded run."""
+    output.mkdir(parents=True, exist_ok=True)
+    api = monitor_api()
+    process = None
+    client = None
+    observer = None
+    result: dict[str, Any]
+    exit_code = 2
+    try:
+        process, client = api.launch(binary.resolve(strict=True),
+            (build.resolve(strict=True) / "ladybug.rom"), api.free_port())
+        observer = LiveRuntimeObserver(client, build, scenario, preparation, delivery)
+        result = observer.run()
+        result["scenario_acceptance_observed"] = result.get("scenario_acceptance_observed") is True
+        if result["scenario_acceptance_observed"]:
+            exit_code = 0
+    except Exception as exc:
+        result = {"scenario": scenario, "status": "INCOMPLETE_FAIL_CLOSED",
+            "scenario_acceptance_observed": False, "runtime_ready": False,
+            "runtime_ready_reason": "parent aggregation and evidence audit are still required",
+            "error": f"{type(exc).__name__}: {exc}", "emulator_launches": int(process is not None),
+            "target_write_count": observer.write_count if observer is not None else 0,
+            "target_writes": observer.write_count if observer is not None else 0,
+            "events": observer.events if observer is not None else [],
+            "phases": observer.phases if observer is not None else [],
+            "errors": observer.errors if observer is not None else [str(exc)]}
+    finally:
+        if observer is not None and client is not None:
+            try:
+                client.call("pause", timeout=STOP_WAIT_SECONDS)
+            except Exception:
+                pass
+            try:
+                observer.release_inputs()
+            except Exception as exc:
+                result.setdefault("cleanup_errors", []).append(f"input-release: {exc}")
+        if client is not None:
+            try:
+                client.close()
+            except Exception as exc:
+                result.setdefault("cleanup_errors", []).append(f"monitor-close: {exc}")
+        if process is not None:
+            api.stop(process)
+            try:
+                process.wait(timeout=2)
+            except Exception as exc:
+                result.setdefault("cleanup_errors", []).append(f"xroar-stop: {exc}")
+    if result.get("cleanup_errors"):
+        result["status"] = "INCOMPLETE_FAIL_CLOSED"
+        result["scenario_acceptance_observed"] = False
+        result["runtime_ready"] = False
+        exit_code = 2
+    result["qualified_profile"] = profile
+    result["delivery_qualification"] = delivery
+    result["preparation"] = preparation
+    result["emulator_launches"] = int(process is not None)
+    report_path = output / f"bug117-{scenario}-runtime.json"
+    report_path.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    return {"status": result.get("status"), "report": str(report_path),
+            "runtime_ready": False,
+            "scenario_acceptance_observed": result.get("scenario_acceptance_observed") is True,
+            "emulator_launches": result["emulator_launches"],
+            "target_writes": result.get("target_write_count", 0)}, exit_code
 
 
 def _good(scenario: str) -> dict[str, Any]:
@@ -293,7 +2786,8 @@ def _good(scenario: str) -> dict[str, Any]:
              "owner_a_player_valid": 0, "owner_b_player_valid": 0,
              "cue_published_busy": 1, "cue_actual_output_proven": True,
              "actual_psg_writes_match_mix": True, "entry_state": 3,
-             "death_state": 0, "player_x": 320, "cue_active_id": 6,
+             "death_state": 0, "marker_x": 264, "lives": 0,
+             "player_x": 320, "cue_active_id": 6,
              "slot0_id": 6, "slot0_policy": 0xB3, "slot0_priority": 5,
              "best_slot": 0, "best_priority": 5, "cue6_selected_voice_mask": 7,
              "cue6_selected_audible_voice_count": 1,
@@ -317,6 +2811,164 @@ def _good(scenario: str) -> dict[str, Any]:
 
 def self_test() -> dict[str, Any]:
     tested = 0
+    class FakePumpClient:
+        def __init__(self, hit: dict[str, Any] | None = None, wait: dict[str, Any] | None = None):
+            self.hit = hit
+            self.wait_result = wait or hit or {"reason": "timeout"}
+            self.events: list[dict[str, Any]] = []
+            self.calls: list[tuple[str, dict[str, Any] | None]] = []
+            self.timeouts: list[float] = []
+            self.register_pc = 0x1234
+        def call(self, method: str, params: dict[str, Any] | None = None, timeout: float = 20.0):
+            self.calls.append((method, params))
+            self.timeouts.append(timeout)
+            assert 0 < timeout <= STOP_WAIT_SECONDS
+            if method == "run": return {}
+            if method == "read_registers":
+                return {"pc": self.register_pc, "dp": 0}
+            if method == "wait_for_stop":
+                return self.wait_result
+            if method == "pause":
+                return {"state": "halted"}
+            raise AssertionError(f"unexpected fake monitor method {method}")
+    fake_clock = lambda: 1.0
+    pump_client = FakePumpClient({"pc": 0x1234, "bp_id": 9, "reason": "breakpoint"})
+    pumped = BoundedMonitorEventPump(pump_client, clock=fake_clock).next_stop("fake-phase", 5.0)
+    assert pumped is not None and pumped.pc == 0x1234 and pumped.bp_id == 9
+    assert [method for method, _ in pump_client.calls] == ["run", "wait_for_stop", "read_registers"]
+    assert all(timeout <= STOP_WAIT_SECONDS for timeout in pump_client.timeouts)
+    tested += 1
+    raced_client = FakePumpClient(wait={"reason": "breakpoint", "pc": 0x1234, "bp_id": 0})
+    raced = BoundedMonitorEventPump(raced_client, clock=fake_clock).next_stop("watch-race", 5.0)
+    assert raced is not None and raced.pc == 0x1234 and raced.bp_id == 0
+    tested += 1
+    class PauseRaceClient(FakePumpClient):
+        def call(self, method: str, params: dict[str, Any] | None = None, timeout: float = 20.0):
+            result = super().call(method, params, timeout)
+            if method == "pause":
+                self.events.append({"method": "bp", "params": {"pc": 0x1234, "bp_id": 0}})
+            return result
+    pause_race_client = PauseRaceClient()
+    pause_race = BoundedMonitorEventPump(pause_race_client, clock=fake_clock).next_stop(
+        "pause-notification-race", 5.0)
+    assert pause_race is not None and pause_race.pc == 0x1234
+    tested += 1
+    class NotificationBeforeAckClient(FakePumpClient):
+        def call(self, method: str, params: dict[str, Any] | None = None, timeout: float = 20.0):
+            result = super().call(method, params, timeout)
+            if method == "run":
+                self.events.append({"method": "bp", "params": {"pc": 0x1234, "bp_id": 7}})
+            return result
+    ack_race_client = NotificationBeforeAckClient(wait={"reason": "timeout"})
+    ack_race = BoundedMonitorEventPump(ack_race_client, clock=fake_clock).next_stop(
+        "breakpoint-before-run-ack", 5.0)
+    assert ack_race is not None and ack_race.pc == 0x1234 and ack_race.bp_id == 7
+    assert ack_race_client.calls[-1][0] == "read_registers"
+    tested += 1
+    timeout_client = FakePumpClient()
+    timeout_pump = BoundedMonitorEventPump(timeout_client, clock=fake_clock)
+    assert timeout_pump.next_stop("missing-event", 5.0) is None
+    assert timeout_pump.timeout_records[0]["reason"] == "no-stop-before-bounded-wait"
+    assert any(method == "pause" for method, _ in timeout_client.calls)
+    tested += 1
+    timeout_observer = object.__new__(LiveRuntimeObserver)
+    timeout_observer.pump = BoundedMonitorEventPump(FakePumpClient())
+    timeout_observer.phases = []
+    timeout_observer._dispatch = lambda *args: (_ for _ in ()).throw(
+        AssertionError("timeout-only phase unexpectedly dispatched a stop"))
+    assert timeout_observer._phase("two-timeout-stop", lambda: False) is False
+    assert timeout_observer.phases[0]["status"] == "aborted-after-two-consecutive-observation-timeouts"
+    assert len(timeout_observer.pump.timeout_records) == 2
+    tested += 1
+    mismatch_client = FakePumpClient({"pc": 0x1234, "bp_id": 1, "reason": "breakpoint"})
+    mismatch_client.register_pc = 0x5678
+    try:
+        BoundedMonitorEventPump(mismatch_client, clock=fake_clock).next_stop("wrong-pc", 5.0)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("monitor event PC mismatch passed the live stop pump")
+    try:
+        BoundedMonitorEventPump(FakePumpClient(), clock=fake_clock,
+                               stop_wait_seconds=STOP_WAIT_SECONDS + 1)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("monitor pump accepted a stop wait above ten seconds")
+
+    class FakeInputClient:
+        def __init__(self): self.calls: list[tuple[str, dict[str, Any]]] = []
+        def call(self, method: str, params: dict[str, Any], timeout: float = 20.0):
+            self.calls.append((method, params))
+            return {}
+    input_client = FakeInputClient()
+    canonical_matrix = bytes((27, 35, 43, 51, 6))
+    search = InputOnlySearch(input_client, canonical_matrix)
+    assert search.bindings == bytes((43, 44, 45, 46, 48))
+    assert matrix_binding_to_dscan(COIN5_MATRIX_KEY) == COIN5_DSCAN_KEY
+    tested += 1
+    search.at_gameplay_center(1, 0, 0, 0, 5, 7)
+    assert search.held == 43 and input_client.calls == [("inject_key", {"key": 43, "action": "press"})]
+    search.at_gameplay_center(2, 2, 0, 0, 5, 7)
+    assert search.held is None and [x[1]["action"] for x in input_client.calls] == ["press", "release"]
+    assert all(x[1]["key"] == 43 for x in input_client.calls)
+    assert all(method == "inject_key" for method, _ in input_client.calls)
+    assert all(not event["target_memory_write"] for event in search.actions)
+    assert all(event["key_namespace"] == "DSCAN" for event in search.actions)
+    tested += 1
+
+    credit_client = FakeInputClient()
+    credit_observer = object.__new__(LiveRuntimeObserver)
+    credit_observer.client = credit_client
+    credit_observer.credit_baseline = 0
+    credit_observer.credit_call = None
+    credit_observer.credit_evidence = None
+    credit_observer.start_state = "coin-held"
+    credit_observer.pressed = set()
+    credit_observer.bindings = canonical_matrix
+    credit_observer.search = None
+    credit_observer.input_events = []
+    credit_observer.cold_credited_start = False
+    credit_observer._state = lambda: {"mode": MODE_ATTRACT, "credits": 0}
+    credit_observer._record = lambda *args, **kwargs: None
+    credit_stop = MonitorStop("credit-fake", 0x195F, 3, {"pc": 0x195F}, 1, 1.0)
+    credit_observer._press(COIN5_DSCAN_KEY, "press", credit_stop,
+                           "cold-credit-5", matrix_key=COIN5_MATRIX_KEY)
+    credit_observer._start_inputs(credit_stop, {"mode": MODE_ATTRACT, "credits": 0})
+    assert credit_observer.start_state == "coin-held" and [
+        (call[1]["key"], call[1]["action"]) for call in credit_client.calls] == [(5, "press")]
+    credit_observer._presentation_credit_add(credit_stop,
+        {"source_staged_live_match": True})
+    credit_observer._confirm_start_credit(
+        MonitorStop("credit-confirm", 0xC000, 1, {"pc": 0xC000}, 2, 2.0),
+        {"source_staged_live_match": True}, {"credits": 1})
+    assert credit_observer.credit_evidence["after_add"] == 1
+    credit_observer._start_inputs(
+        MonitorStop("enter", 0xC000, 1, {"pc": 0xC000}, 3, 3.0),
+        {"mode": MODE_ATTRACT, "credits": 1})
+    assert credit_observer.start_state == "coin-released"
+    credit_observer._start_inputs(
+        MonitorStop("enter-press", 0xC000, 1, {"pc": 0xC000}, 4, 4.0),
+        {"mode": MODE_ATTRACT, "credits": 1})
+    assert credit_observer.start_state == "enter-held"
+    credit_observer._start_inputs(
+        MonitorStop("start", 0xC000, 1, {"pc": 0xC000}, 5, 5.0),
+        {"mode": 0, "credits": 0})
+    assert credit_observer.cold_credited_start
+    assert credit_observer.credit_evidence["consumed_credit_count"] == 0
+    assert [(x[1]["key"], x[1]["action"]) for x in credit_client.calls] == [
+        (5, "press"), (5, "release"), (48, "press"), (48, "release")]
+    assert all(method == "inject_key" for method, _ in credit_client.calls)
+    tested += 1
+    try:
+        credit_observer._presentation_credit_add(
+            MonitorStop("duplicate-credit", 0x195F, 3, {"pc": 0x195F}, 5, 5.0),
+            {"source_staged_live_match": True})
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("cold-credit gate accepted a duplicate source call")
+
     for scenario in SCENARIOS:
         good = _good(scenario) if scenario != "natural" else {}
         if scenario == "natural":
@@ -326,9 +2978,7 @@ def self_test() -> dict[str, Any]:
                 tested += 1
                 continue
             raise AssertionError("natural scenario unexpectedly received a write permit")
-        gate = FixtureWriter(scenario, TIMER_ADDRESS)
-        permit = gate.authorize(good)
-        assert permit.value == TIMER_VALUES[scenario]
+        assert require_snapshot(scenario, good) == TIMER_VALUES[scenario]
         tested += 1
         if scenario == "front-first":
             bad = dict(good, remaining_pad=0)
@@ -386,31 +3036,617 @@ def self_test() -> dict[str, Any]:
                 tested += 1
             else:
                 raise AssertionError(f"{scenario}: invalid guard {key} was accepted")
+            if type(good[key]) is int:
+                bad = dict(good, **{key: bool(good[key])})
+                try:
+                    require_snapshot(scenario, bad)
+                except GuardFailure:
+                    tested += 1
+                else:
+                    raise AssertionError(f"{scenario}: boolean value passed numeric guard {key}")
 
     class FakeClient:
-        def __init__(self): self.calls = []
-        def call(self, method: str, params: dict[str, Any]): self.calls.append((method, params)); return {}
+        def __init__(self, pc: int = 0xC16E):
+            self.calls: list[tuple[str, dict[str, Any] | None]] = []
+            self.timeouts: list[float] = []
+            self.pc = pc
+            self.state = "halted"
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            self.calls.append((method, params))
+            self.timeouts.append(timeout)
+            if method == "status": return {"state": self.state}
+            if method == "read_registers": return {"pc": self.pc}
+            if method == "read_memory": return {"data": "34", "space": "cpu"}
+            return {}
+
+    deadline_client = FakeClient()
+    deadline_client._bug117_phase_deadline = time.monotonic() + 0.2
+    monitor_call(deadline_client, "status")
+    assert 0 < deadline_client.timeouts[-1] <= 0.2
+    deadline_client._bug117_phase_deadline = time.monotonic() - 1
+    deadline_call_count = len(deadline_client.calls)
+    try: monitor_call(deadline_client, "status")
+    except GuardFailure:
+        assert len(deadline_client.calls) == deadline_call_count
+        tested += 1
+    else: raise AssertionError("monitor RPC started after its active phase deadline")
 
     for scenario in TIMER_VALUES:
         fake = FakeClient()
         gate = FixtureWriter(scenario, TIMER_ADDRESS)
-        permit = gate.authorize(_good(scenario))
-        gate.write(fake, permit, TIMER_ADDRESS, permit.value)
-        assert fake.calls == [("write_memory", {"addr": TIMER_ADDRESS, "data": f"{permit.value:02x}"})]
-        try: gate.write(fake, permit, TIMER_ADDRESS, permit.value)
-        except GuardFailure: tested += 1
-        else: raise AssertionError("writer allowed the approved timer write more than once")
-        for addr, val in ((0x003B, permit.value), (TIMER_ADDRESS, permit.value ^ 1)):
-            try: gate.write(fake, permit, addr, val)
-            except GuardFailure: tested += 1
-            else: raise AssertionError("writer accepted an unapproved target/value or second write")
-        assert len(fake.calls) == 1
+        reads = []
+        fresh = gate.write_from_paused_stop(fake, fake.pc,
+            lambda client: reads.append(client) or _good(scenario))
+        expected = TIMER_VALUES[scenario]
+        assert fresh == {"scenario": scenario, "address": TIMER_ADDRESS,
+            "value": expected, "fresh_snapshot": True, "attempts": 1}
+        assert reads == [fake] and fake.calls[-3:] == [
+            ("status", None), ("read_registers", None),
+            ("write_memory", {"addr": TIMER_ADDRESS, "data": f"{expected:02x}"})]
+        call_count = len(fake.calls)
+        try:
+            gate.write_from_paused_stop(fake, fake.pc, lambda _: _good(scenario))
+        except GuardFailure:
+            assert len(fake.calls) == call_count
+            tested += 1
+        else:
+            raise AssertionError("writer allowed the approved timer write more than once")
         tested += 1
+
+    blocked_client = FakeClient()
+    blocked_writer = FixtureWriter("music-first", TIMER_ADDRESS)
+    bad_snapshot = dict(_good("music-first"), player_x=319)
+    try:
+        blocked_writer.write_from_paused_stop(blocked_client, blocked_client.pc,
+            lambda _: bad_snapshot)
+    except GuardFailure:
+        assert not blocked_client.calls
+        tested += 1
+    else:
+        raise AssertionError("fresh-stop timer writer accepted drifted player position")
+
+    moved_client = FakeClient()
+    moved_writer = FixtureWriter("music-first", TIMER_ADDRESS)
+    def move_during_guard_capture(client: FakeClient) -> dict[str, Any]:
+        client.pc += 1
+        return _good("music-first")
+    try:
+        moved_writer.write_from_paused_stop(moved_client, moved_client.pc,
+            move_during_guard_capture)
+    except GuardFailure:
+        assert [method for method, _ in moved_client.calls] == ["status", "read_registers"]
+        tested += 1
+    else:
+        raise AssertionError("writer accepted a changed PC after guard recapture")
+
+    for marker_x in range(296, 320, 2):
+        travel_bytes = (320 - marker_x) // 2
+        row_start = VISIBLE_BASE + 20 * 160 + marker_x // 2
+        assert framebuffer_row_x(row_start) == marker_x
+        assert entry_row_x(row_start + travel_bytes, row_start, marker_x) == 320
+        tested += 1
+
+    packed_opaque_clip = bytes([0x55]) * 64
+    native_opaque_clip = bug011_image_api().native_frame(packed_opaque_clip)
+    clipped_actual = b"".join(native_opaque_clip[row * 8:row * 8 + 1] + b"\xFF" * 7
+                               for row in range(16))
+    clipped_compare = compare_opaque_player_pixels(
+        native_opaque_clip, clipped_actual, packed_opaque_clip, 1)
+    assert clipped_compare["visible_width_bytes"] == 1
+    assert clipped_compare["opaque_pixels_compared"] == 32
+    transparent_clip = compare_opaque_player_pixels(bytes(128), bytes([0xFF]) * 128,
+                                                       bytes(64), 1)
+    assert transparent_clip["opaque_pixels_compared"] == 0
+    assert transparent_clip["visible_width_pixels"] == 2
+    tested += 2
+
+    class FrontReadClient:
+        def __init__(self, voff1: int, voff2: int = 0):
+            self.voff1, self.voff2 = voff1, voff2
+            self.calls: list[tuple[str, dict[str, Any] | None]] = []
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            self.calls.append((method, params))
+            if method == "read_gime_state":
+                return {"registers": {"FF9D": self.voff1, "FF9E": self.voff2}}
+            if method == "read_memory" and params["space"] == "physical":
+                return {"data": "a5" * params["length"], "space": "physical"}
+            raise AssertionError(f"unexpected FRONT reader call {method} {params}")
+
+    front_reader = object.__new__(LiveRuntimeObserver)
+    front_pointer = VISIBLE_BASE + 20 * 160 + 159
+    for owner, voff1, expected_base in ((0, 0xC0, 0x60000), (1, 0xB0, 0x58000)):
+        front_client = FrontReadClient(voff1)
+        front_reader.client = front_client
+        mapping = front_reader._front_mapping(owner)
+        clipped_rect = front_reader._front_rect(owner, front_pointer, mapping)
+        assert mapping["front_physical_base"] == expected_base
+        assert mapping["front_owner_voff2_shadow"] == 0
+        assert len(clipped_rect) == 128
+        assert all(clipped_rect[row * 8:row * 8 + 2] == b"\xA5\x00"
+                   for row in range(16))
+        assert [method for method, _ in front_client.calls].count("read_gime_state") == 1
+        assert all(params is None or params.get("space") == "physical"
+                   for method, params in front_client.calls if method == "read_memory")
+        tested += 1
+    wrong_voff2_client = FrontReadClient(0xB0, 0x08)
+    front_reader.client = wrong_voff2_client
+    try:
+        front_reader._front_rect(1, front_pointer)
+    except GuardFailure:
+        assert [method for method, _ in wrong_voff2_client.calls] == ["read_gime_state"]
+        tested += 1
+    else:
+        raise AssertionError("FRONT observer accepted a nonzero VOFF2 shadow")
+
+    row_start = VISIBLE_BASE + 20 * 160 + 264 // 2
+    mainloop_observer = object.__new__(LiveRuntimeObserver)
+    mainloop_observer.current_entry = {"entry_start_fb": row_start, "marker_x": 264}
+    mainloop_observer._state = lambda: {"entry": 3, "death": 0, "timer": 68,
+        "lives": 0, "player_fb": row_start + 27, "cell_x": 0, "cell_y": 0,
+        "step": 0, "pending": 0, "front": 0, "commit_seq": 0, "frames": 0,
+        "mode": 0}
+    mainloop_observer._record = lambda *args, **kwargs: None
+    mainloop_observer._start_inputs = lambda *args: None
+    mainloop_observer._confirm_start_credit = lambda *args: None
+    mainloop_observer.cold_credited_start = True
+    mainloop_observer.lifecycle = None
+    mainloop_observer._previous_state = None
+    mainloop_observer.release_snapshot = None
+    mainloop_observer.search = None
+    mainloop_observer.fixture = None
+    mainloop_observer.errors = []
+    mainloop_observer.entry_contact_violation = False
+    mainloop_observer._mainloop(
+        MonitorStop("row-derived-entry", 0xC16E, 1, {"pc": 0xC16E}, 1, 1.0), {})
+    assert mainloop_observer.current_entry["offscreen_x_pixels"] == 318
+    assert mainloop_observer.current_entry["offscreen_x320"] is False
+    mainloop_observer._state = lambda: {"entry": 3, "death": 0, "timer": 68,
+        "lives": 0, "player_fb": row_start + 28, "cell_x": 0, "cell_y": 0,
+        "step": 0, "pending": 0, "front": 0, "commit_seq": 0, "frames": 0,
+        "mode": 0}
+    mainloop_observer._mainloop(
+        MonitorStop("row-derived-entry", 0xC16E, 1, {"pc": 0xC16E}, 2, 2.0), {})
+    assert mainloop_observer.current_entry["offscreen_x_pixels"] == 320
+    assert mainloop_observer.current_entry["offscreen_x320"] is True
+    tested += 1
+
+    class PageClient:
+        def __init__(self, page: int): self.page = page
+        def call(self, method: str, params: dict[str, Any], timeout: float = 20.0):
+            assert method == "read_memory" and params == {"addr": PAR5, "length": 1, "space": "cpu"}
+            return {"data": f"{self.page:02x}", "space": "cpu"}
+    assert fixture_audio_page(PageClient(0x34), 0xC16E, 0xC16E) == 0x3D
+    tested += 1
+    for client, stop_pc, mainloop_pc in (
+            (PageClient(0x3D), 0xC16E, 0xC16E), (PageClient(0x34), 0xC16F, 0xC16E)):
+        try: fixture_audio_page(client, stop_pc, mainloop_pc)
+        except GuardFailure: tested += 1
+        else: raise AssertionError("fixture audio read accepted a wrong mainloop mapping/PC")
+
+    fixture_client = FakeClient()
+    fixture_observer = object.__new__(LiveRuntimeObserver)
+    fixture_observer.client = fixture_client
+    fixture_observer.main = {"mainloop": fixture_client.pc, "DEATH_TIMER": TIMER_ADDRESS}
+    fixture_observer.scenario = "prior-music"
+    fixture_observer._qualify = lambda _: {"source_staged_live_match": True}
+    fixture_state = {"pending": 0, "valid_a": 0, "valid_b": 0,
+        "entry": 0, "death": 3, "timer": 37, "lives": 1,
+        "credits": 0, "mode": 0, "player_fb": VISIBLE_BASE,
+        "frames": 0}
+    fixture_observer._state = lambda: fixture_state
+    fixture_observer.audio = {}
+    fixture_observer.cue_output = {6: False, 13: True}
+    fixture_observer.contacts = [{"ordinal": 1}]
+    fixture_observer.entry_contact_violation = False
+    fixture_observer.latest_mix = {}
+    fixture_observer.cue_start_ordinal = {}
+    fixture_observer.current_entry = None
+    fixture_observer.boundaries = {}
+    fixture_observer.frames_at_cue6 = None
+    fixture_observer.cue6_services = 0
+    fixture_observer.dwell_checks = []
+    saved_live_audio_snapshot = globals()["live_audio_snapshot"]
+    fixture_audio_pages = []
+    def fake_live_audio_snapshot(client: Any, symbols: dict[str, int], page: int) -> dict[str, Any]:
+        fixture_audio_pages.append(page)
+        return {"slots": [{"id": 0xFF, "policy": 0, "priority": 0}] * 4,
+                "published_busy": 1, "best_slot": 0xFF, "best_priority": 0}
+    globals()["live_audio_snapshot"] = fake_live_audio_snapshot
+    fixture_observer._audio_snapshot = lambda: (_ for _ in ()).throw(
+        AssertionError("mainloop fixture path used the audio-PC mapping reader"))
+    try:
+        mainloop_fixture = fixture_observer._fixture_snapshot(
+            MonitorStop("fixture", fixture_client.pc, 1, {"pc": fixture_client.pc}, 1, 1.0), {})
+    finally:
+        globals()["live_audio_snapshot"] = saved_live_audio_snapshot
+    assert fixture_audio_pages == [0x3D] and mainloop_fixture["live_stop_pc"] == fixture_client.pc
+    tested += 1
+
+    gate_client = FakeClient()
+    gate_observer = object.__new__(LiveRuntimeObserver)
+    gate_observer.client = gate_client
+    gate_observer.scenario = "music-first"
+    gate_observer.current_entry = {"entry_start_fb": row_start, "marker_x": 264}
+    gate_observer.fixture = FixtureWriter("music-first", TIMER_ADDRESS)
+    gate_observer.fixture_result = None
+    gate_observer.write_count = 0
+    gate_observer.errors = []
+    gate_observer._record = lambda *args, **kwargs: None
+    gate_observer._fixture_snapshot = lambda stop, qualification: {
+        **_good("music-first"), "marker_x": gate_observer.current_entry["marker_x"],
+        "lives": gate_state["lives"],
+        "player_x": entry_row_x(gate_state["player_fb"], row_start, 264)}
+    gate_stop = MonitorStop("third-life-fixture", gate_client.pc, 1,
+                            {"pc": gate_client.pc}, 1, 1.0)
+    gate_state = {"mode": 0, "entry": 3, "death": 0, "lives": 1,
+                  "player_fb": row_start + 28, "timer": 60}
+    gate_observer._maybe_write_fixture(gate_stop, gate_state, {})
+    assert gate_observer.write_count == 0 and not gate_client.calls
+    gate_state["lives"] = 0
+    gate_observer._maybe_write_fixture(gate_stop, gate_state, {})
+    assert gate_observer.write_count == 1 and gate_observer.fixture_result["value"] == 255
+    assert [method for method, _ in gate_client.calls][-1] == "write_memory"
+    tested += 1
     for scenario in SCENARIOS:
-        state = acceptance_status({})
+        state = acceptance_status({name: True for name in REQUIRED_PROOFS})
         assert state["pass"] is False and len(state["missing_proofs"]) == len(REQUIRED_PROOFS)
         tested += 1
+
+    source = {"index": 0, "id": 6, "priority": 5, "policy": 0xB3,
+              "periods": [0x02AD, 0x0456, 0x0789], "attenuation": [2, 15, 15],
+              "noise": 0, "noise_attenuation": 15}
+    slots = [source] + [{"index": i, "id": 0xFF, "priority": 0, "policy": 0,
+                         "periods": [1] * 3, "attenuation": [15] * 3,
+                         "noise": 0, "noise_attenuation": 15} for i in range(1, 4)]
+    mix = model_exclusive_mix(slots, 6)
+    assert mix["channel_sources"] == [{"channel": 0, "slot": 0, "voice": 0}]
+    assert mix["period_bytes"][:2] == b"\xAD\x02"
+    test_stores = expected_psg_transaction(mix["period_bytes"], mix["attenuation_bytes"],
+        mix["noise_bytes"], b"\xFF" * 11, mix["channel_sources"])
+    period = next(store for store in test_stores if store.kind == "period-data" and store.channel == 0)
+    latch = next(store for store in test_stores if store.kind == "tone-latch" and store.channel == 0)
+    assert (latch.value, period.value) == (0x8D, 0x2A)
+    raw_slot = bytearray(28)
+    raw_slot[0:3] = b"\x06\x05\xB3"
+    raw_slot[6:8] = b"\xAD\x02"
+    assert model_from_audio_slot(bytes(raw_slot), 0)["periods"][0] == 0x02AD
+    tested += 1
+
+    snapshot = {"mix_period_bytes": mix["period_bytes"],
+                "mix_attenuation": mix["attenuation_bytes"], "mix_noise": mix["noise_bytes"],
+                "mix_shadow": b"\x55" * 11}
+    onset = PSGTransaction(mix, snapshot, require_audible=True)
+    for store in onset.expected:
+        onset.store(store.value)
+    observed = onset.finish()
+    assert observed["all_mix_stores_match"] and observed["audible_store_count"] >= 1
+    unchanged_shadow = bytearray(11)
+    for channel in range(3):
+        lo, hi = mix["period_bytes"][channel * 2:channel * 2 + 2]
+        unchanged_shadow[channel * 3 + 1] = ((hi << 4) | (lo >> 4)) & 0x3F
+        unchanged_shadow[channel * 3 + 2] = 0x90 | (channel << 5) | mix["attenuation"][channel]
+    unchanged_shadow[9] = mix["noise"][0] | 0xE0
+    unchanged_shadow[10] = mix["noise"][1] | 0xF0
+    wait_snapshot = {**snapshot, "mix_shadow": bytes(unchanged_shadow)}
+    wait_only = PSGTransaction(mix, wait_snapshot)
+    for store in wait_only.expected:
+        wait_only.store(store.value)
+    assert wait_only.finish()["audible_store_count"] == 0
+    assert all(store.kind == "tone-latch" for store in wait_only.expected)
+    tested += 2
+    try:
+        prove_audible_psg_source(mix, [s for s in onset.expected if s.kind == "tone-latch"])
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("muted-tone latch alone was accepted as cue audio")
+    try:
+        classify_post_store(0xA499, 0x90, 0x3D, b"\x97\xFF\x51", 0xA499)
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("non-STA opcode was accepted as a PSG store")
+    assert classify_post_store(0xA499, 0x90, 0x3D, b"\xB7\xFF\x51", 0xA499)["value"] == 0x90
+    assert post_busy_marker(bytes([0xBD, 0xA0, 0x00, 0xB7, 0x02, 0xD4]),
+                            {"audio_mix_write_done": 0xA000, "audio_music_busy": 0xA000}) == 0xA006
+    assert audio_bus_write_marker(b"\x00" * 0x499 + b"\xB7\xFF\x51",
+                                  {"audio_write": 0xA499})["stop_pc"] == 0xA49C
+    tested += 1
+    tested += 2
+
+    art = bytes([0x1B]) * 64
+    rect = player_expected_rect(bytes([0x77]) * 128, art)
+    assert compare_opaque_player_pixels(rect, rect, art)["opaque_pixels_compared"] > 0
+    changed = bytearray(rect)
+    changed[1] ^= 0x10
+    try: compare_opaque_player_pixels(rect, bytes(changed), art)
+    except GuardFailure: tested += 1
+    else: raise AssertionError("opaque FRONT pixel mismatch was accepted")
+
+    if ROOT:
+        pinned = ROOT / "repro/bug122-parent/luna117-approved-fit-20261011/build"
+        if pinned.is_dir():
+            enemy_image = (pinned / "ladybug-enemy-runtime.rom").read_bytes()
+            enemy_map = read_symbols(pinned / "ladybug-enemy-runtime.map")
+            marker = irq_commit_marker(enemy_image, enemy_map)
+            assert marker == {"pc": 0x0ED9, "end_pc": 0x0EDB, "encoding": "direct",
+                              "required_dp": 0, "opcode_bytes": "0c93"}
+            assert qualify_irq_commit_stop(marker, 0x0EDB, 0, b"\x0C\x93")["post_instruction"]
+            try:
+                qualify_irq_commit_stop(marker, 0x0EDB, 1, b"\x0C\x93")
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("direct IRQ INC accepted a nonzero DP")
+            audio_map = read_symbols(pinned / "ladybug-audio-runtime.map")
+            audio_image = (pinned / "ladybug-audio-runtime.bin").read_bytes()
+            assert post_busy_marker(audio_image, audio_map) == 0xA498
+            assert audio_bus_write_marker(audio_image, audio_map)["stop_pc"] == 0xA49C
+            candidate_prep = prepare(pinned)
+            required_hashes = {name: candidate_prep["files"][name]["sha256"]
+                               for name in DELIVERY_HASH_FILES}
+            receipt = {"schema": DELIVERY_RECEIPT_SCHEMA, "status": "parent-accepted",
+                "artifact_sha256": required_hashes, "source_to_staged_bytes_match": True,
+                "staged_sparse_copy_identity": True, "destination_live_bytes_match": True,
+                "live_par_mapping_qualified": True}
+            delivery = validate_delivery_receipt(receipt, candidate_prep)
+            assert delivery["mapping_and_copy_qualified"]
+            class FakeMemoryClient:
+                def __init__(self, corrupt=False): self.corrupt = corrupt
+                def call(self, method, params, timeout=20.0):
+                    assert method == "read_memory"
+                    space, address = params.get("space", "cpu"), params["addr"]
+                    length = params["length"]
+                    if space == "cpu" and address == PAR5:
+                        data = b"\x3D"
+                    elif space == "physical":
+                        offset = address - 0x3D * PHYSICAL_PAGE_BYTES
+                        data = bytearray(audio_image[offset:offset + length])
+                        if self.corrupt and data:
+                            data[0] ^= 1
+                        data = bytes(data)
+                    else:
+                        raise AssertionError("unexpected fake memory read")
+                    return {"data": data.hex(), "space": space}
+            bus_bytes = audio_image[audio_map["audio_write"] - 0xA000:
+                                    audio_map["audio_write"] - 0xA000 + 3]
+            span = qualify_live_span(FakeMemoryClient(), audio_map["audio_write"], bus_bytes,
+                PAR5, 0x3D, 0xA000, 0xA000, audio_image, delivery)
+            assert span["source_staged_live_match"]
+            try:
+                qualify_live_span(FakeMemoryClient(corrupt=True), audio_map["audio_write"], bus_bytes,
+                    PAR5, 0x3D, 0xA000, 0xA000, audio_image, delivery)
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("mismatched live physical instruction bytes passed qualification")
+            try:
+                validate_delivery_receipt({**receipt, "status": "unaccepted"}, candidate_prep)
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("unaccepted GDB delivery receipt passed the gate")
+            wrong_hashes = dict(required_hashes, **{"ladybug.rom": "0" * 64})
+            try:
+                validate_delivery_receipt({**receipt, "artifact_sha256": wrong_hashes}, candidate_prep)
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("mismatched GDB delivery ROM hash passed the gate")
+            for field in ("source_to_staged_bytes_match", "staged_sparse_copy_identity",
+                          "destination_live_bytes_match", "live_par_mapping_qualified"):
+                try:
+                    validate_delivery_receipt({**receipt, field: False}, candidate_prep)
+                except GuardFailure:
+                    tested += 1
+                else:
+                    raise AssertionError(f"GDB delivery gate accepted missing qualification {field}")
+            try:
+                require_adaptive_keyboard_profile(pinned)
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError("nonadaptive accepted-fit profile passed the live profile gate")
+            tested += 1
+
+    quiet_snapshot = {"slots": [{"id": 0xFF} for _ in range(4)], "music_count": 0,
+        "music_queue": bytes(8), "effect_queue_count": 0, "credit_pending": 0,
+        "mix_count": 0, "mix_period_bytes": b"\x01\x00" * 3,
+        "mix_attenuation": b"\x0F" * 3, "mix_noise": b"\x00\x0F"}
+    quiet_model = model_quiet_mix(b"\x55" * 11)
+    assert quiet_model["period_bytes"] == b"\x01\x00" * 3
+    quiet_transaction = PSGTransaction(quiet_model, {"mix_period_bytes": quiet_model["period_bytes"],
+        "mix_attenuation": quiet_model["attenuation_bytes"], "mix_noise": quiet_model["noise_bytes"],
+        "mix_shadow": b"\x55" * 11})
+    for store in quiet_transaction.expected:
+        quiet_transaction.store(store.value)
+    assert quiet_transaction.finish()["actual_mute_attenuation_stores"] == 3
+    assert validate_quiet_terminal(quiet_snapshot)["all_slots_clear"]
+    try:
+        validate_quiet_terminal({**quiet_snapshot, "slots": [{"id": 6}] + [{"id": 0xFF}] * 3})
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("terminal pure-mute proof accepted a competing active slot")
+    tested += 1
+
+    death_blank = {"death_state": 3, "death_timer": 37, "entry_state": 0,
+                   "source_bytes_match": True, "death_blank_front_commit_observed": True,
+                   "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
+                   "death_blank_live_code_span_qualified": True,
+                   "death_blank_front_mapping_qualified": True,
+                   "death_blank_opaque_pixels_compared": 72}
+    death_events = {
+        "death_state_1": {"death_state": 1, "genuine_contact_live_bytes": True, "event_ordinal": 10},
+        "death_state_2": {"death_state": 2, "genuine_contact_live_bytes": True, "event_ordinal": 15},
+        "death_blank_timer37": {**death_blank, "event_ordinal": 20},
+        "cue13_published_idle": {"cue13_actual_output": True, "published_busy": 0,
+            "normal_drain": True, "cue13_emitted_end_observed": True,
+            "actual_terminal_mute_observed": True, "event_ordinal": 25},
+        "replacement_entry_seed": {"prior_death_blank_observed": True,
+            "prior_cue13_idle_observed": True, "entry_state": 2, "event_ordinal": 30},
+        "replacement_cue6_output": {"entry_seed_precedes_cue6": True, "selected_id": 6,
+            "audible_store_count": 1, "event_ordinal": 35},
+    }
+    for cue_first in (False, True):
+        lifecycle = LifecycleOrder()
+        events = dict(death_events)
+        if cue_first:
+            events["cue13_published_idle"] = {**events["cue13_published_idle"], "event_ordinal": 12}
+        for name in ("death_state_1", "death_state_2", "death_blank_timer37",
+                     "cue13_published_idle", "replacement_entry_seed", "replacement_cue6_output"):
+            lifecycle.record(name, events[name])
+        assert lifecycle.status()["pass"]
+        tested += 1
+    incomplete = LifecycleOrder()
+    incomplete.record("death_blank_timer37", {**death_blank, "event_ordinal": 20})
+    assert not incomplete.status()["pass"] and incomplete.status()["order_failures"]
+    tested += 1
+
+    proof_evidence = {
+        "first_cue6_owned_psg_transaction": {"selected_id": 6, "slot": 0, "policy": 0xB3,
+            "best_slot": 0, "best_priority": 5, "mix_match": True,
+            "audible_store_count": 1, "event_ordinal": 10},
+        "first_post_psg_busy_one": {"busy": 1, "derived_marker": True,
+            "busy_read_after_psg": True, "event_ordinal": 12},
+        "cue6_terminal_stream_end_owned": {"slot_id": 6, "x_matches_emitted_end": True,
+            "terminator_byte": 0, "stream_decoder_matches_emitted_bytes": True,
+            "event_ordinal": 14},
+        "terminal_actual_psg_mute_transaction": {"slot_clear_observed": True,
+            "all_mix_stores_match": True, "quiet_state_verified": True,
+            "actual_mute_attenuation_stores": 3, "actual_store_count": 11, "event_ordinal": 16},
+        "terminal_post_psg_busy_zero": {"busy": 0, "all_slots_queues_credit_idle": True,
+            "busy_read_after_psg": True, "event_ordinal": 18},
+        "final_pose_in_front_after_irq_commit": {"irq_commit_observed": True,
+            "front_pixels_match_opaque_player": True, "live_code_span_qualified": True,
+            "irq_live_opcode_match": True, "front_mapping_qualified": True,
+            "same_stop_busy_sample": True,
+            "opaque_pixels_compared": 72, "front_id": 1,
+            "visible_width_bytes": 8, "front_owner_voff1_shadow": 0xB0,
+            "front_owner_voff2_shadow": 0, "front_physical_base": 0x58000,
+            "entry_marker_x": 264, "entry_seed_lives": 0,
+            "irq_commit_end_pc": 0xEDB, "published_music_busy": 1,
+            "irq_commit_event_ordinal": 8, "event_ordinal": 8},
+        "release_after_audio_and_front_commit": {"busy_zero_precedes_release": True,
+            "front_commit_precedes_release": True, "event_ordinal": 20},
+        "no_same_batch_player_or_enemy_mutation": {"player_unchanged": True,
+            "enemy_unchanged": True, "event_ordinal": 21},
+    }
+    front_order = fixture_order_status("front-first", [
+        {"name": "final_pose_in_front_after_irq_commit", "event_ordinal": 8,
+         "irq_commit_event_ordinal": 8, "same_stop_busy_sample": True,
+         "published_music_busy": 1, "entry_marker_x": 264, "entry_seed_lives": 0,
+         "visible_width_bytes": 8, "opaque_pixels_compared": 72},
+        {"name": "terminal_post_psg_busy_zero", "event_ordinal": 18}])
+    assert front_order["pass"]
+    wrong_front_order = fixture_order_status("front-first", [
+        {"name": "final_pose_in_front_after_irq_commit", "event_ordinal": 18,
+         "irq_commit_event_ordinal": 18, "same_stop_busy_sample": True,
+         "published_music_busy": 0, "entry_marker_x": 264, "entry_seed_lives": 0,
+         "visible_width_bytes": 8, "opaque_pixels_compared": 72},
+        {"name": "terminal_post_psg_busy_zero", "event_ordinal": 8}])
+    assert not wrong_front_order["pass"]
+    music_order = fixture_order_status("music-first", [
+        {"name": "final_pose_in_front_after_irq_commit", "event_ordinal": 18,
+         "irq_commit_event_ordinal": 18, "same_stop_busy_sample": True,
+         "published_music_busy": 0, "entry_marker_x": 264, "entry_seed_lives": 0,
+         "visible_width_bytes": 8, "opaque_pixels_compared": 72},
+        {"name": "terminal_post_psg_busy_zero", "event_ordinal": 8}])
+    assert music_order["pass"]
+    wrong_music_busy = fixture_order_status("music-first", [
+        {"name": "final_pose_in_front_after_irq_commit", "event_ordinal": 18,
+         "irq_commit_event_ordinal": 18, "same_stop_busy_sample": True,
+         "published_music_busy": 1, "entry_marker_x": 264, "entry_seed_lives": 0,
+         "visible_width_bytes": 8, "opaque_pixels_compared": 72},
+        {"name": "terminal_post_psg_busy_zero", "event_ordinal": 8}])
+    assert not wrong_music_busy["pass"]
+    late_wait_proxy = fixture_order_status("front-first", [
+        {"name": "final_pose_in_front_after_irq_commit", "event_ordinal": 20,
+         "irq_commit_event_ordinal": 8, "same_stop_busy_sample": True,
+         "published_music_busy": 1, "entry_marker_x": 264, "entry_seed_lives": 0,
+         "visible_width_bytes": 8, "opaque_pixels_compared": 72},
+        {"name": "terminal_post_psg_busy_zero", "event_ordinal": 18}])
+    assert not late_wait_proxy["pass"] and late_wait_proxy["status"] == "INVALID_EVIDENCE"
+    tested += 5
+    for front_first in (True, False):
+        ledger = ProofLedger()
+        order = list(REQUIRED_PROOFS)
+        if front_first:
+            order.remove("final_pose_in_front_after_irq_commit")
+            order.insert(0, "final_pose_in_front_after_irq_commit")
+        for name in order:
+            ledger.record(name, proof_evidence[name])
+        assert ledger.status()["pass"]
+        tested += 1
+
+    class BusySequenceClient(FakeClient):
+        def __init__(self):
+            super().__init__()
+            self.busy_values = [1, 0]
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            if method == "read_memory" and params and params["addr"] == 0x02D4:
+                value = self.busy_values.pop(0)
+                self.calls.append((method, params))
+                self.timeouts.append(timeout)
+                return {"data": f"{value:02x}", "space": "cpu"}
+            return super().call(method, params, timeout)
+
+    commit_observer = object.__new__(LiveRuntimeObserver)
+    commit_observer.client = BusySequenceClient()
+    commit_observer.audio = {"AUDIO_MUSIC_PUBLISHED_BUSY": 0x02D4}
+    commit_observer.irq_marker = {"end_pc": 0x0EDB}
+    commit_observer.irq_before = {"seq": 3, "pending": 1, "back": 1}
+    commit_observer.irq_inc = {"pc": 0x0EDB, "ordinal": 7}
+    commit_observer.current_entry = {"index": 0, "marker_x": 264, "seed_lives": 0}
+    commit_observer.proofs = {0: ProofLedger()}
+    commit_observer.errors = []
+    commit_observer.lifecycle = None
+    commit_observer.release_snapshot = None
+    commit_observer._record = lambda *args, **kwargs: None
+    commit_state = {"pending": 0, "commit_seq": 4, "front": 1, "death": 0,
+        "entry": 4, "cell_y": 18, "player_fb": VISIBLE_BASE + 20 * 160 + 10,
+        "cell_x": 1, "step": 2, "face": 0, "anim": 1, "enemy_raw": b"same"}
+    commit_observer._state = lambda: commit_state
+    qualified_pose = {"owner": 1, "opaque_pixels_compared": 72,
+        "visible_width_bytes": 8, "front_owner_voff1_shadow": 0xB0,
+        "front_owner_voff2_shadow": 0, "front_physical_base": 0x58000}
+    commit_observer._front_pose = lambda *args: qualified_pose
+    commit_stop = MonitorStop("irq-front-commit-complete", 0x0F00, 1,
+                              {"pc": 0x0F00}, 8, 8.0)
+    commit_observer._irq_done(commit_stop, {"source_staged_live_match": True})
+    committed_pose = commit_observer.proofs[0].records[0]
+    assert committed_pose["irq_commit_event_ordinal"] == 8
+    assert committed_pose["event_ordinal"] == 8
+    assert committed_pose["published_music_busy"] == 1
+    assert committed_pose["same_stop_busy_sample"] is True
+    commit_observer.proofs[0].record("terminal_post_psg_busy_zero", {
+        "busy": 0, "all_slots_queues_credit_idle": True,
+        "busy_read_after_psg": True, "event_ordinal": 18})
+    commit_observer._front_pose = lambda *args: (_ for _ in ()).throw(
+        AssertionError("final wait re-read/proxied the IRQ-commit FRONT proof"))
+    commit_observer._final_entry_wait(
+        MonitorStop("iet-final-wait", 0xC000, 1, {"pc": 0xC000}, 25, 25.0), {})
+    assert commit_observer.proofs[0].records[0] == committed_pose
+    assert len(commit_observer.proofs[0].records) == 3
+    assert commit_observer.proofs[0].records[-1]["name"] == "release_after_audio_and_front_commit"
+    assert commit_observer.proofs[0].records[-1]["event_ordinal"] == 25
+    tested += 1
+
+    bad_ledger = ProofLedger()
+    bad_ledger.record("first_cue6_owned_psg_transaction", proof_evidence["first_cue6_owned_psg_transaction"])
+    bad_ledger.record("first_post_psg_busy_one", proof_evidence["first_post_psg_busy_one"])
+    bad_ledger.record("cue6_terminal_stream_end_owned", proof_evidence["cue6_terminal_stream_end_owned"])
+    bad_ledger.record("terminal_actual_psg_mute_transaction", proof_evidence["terminal_actual_psg_mute_transaction"])
+    bad_ledger.record("terminal_post_psg_busy_zero", proof_evidence["terminal_post_psg_busy_zero"])
+    bad_ledger.record("release_after_audio_and_front_commit", proof_evidence["release_after_audio_and_front_commit"])
+    assert not bad_ledger.status()["pass"] and bad_ledger.status()["order_failures"]
+    tested += 1
+
     return {"self_test": "PASS", "negative_checks": tested,
+            "model_checks": "bounded monitor event pump and timeout races, input-only direction/death isolation, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
@@ -421,14 +3657,44 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--output-dir", type=Path)
     parser.add_argument("--scenario", choices=SCENARIOS)
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--run-live", action="store_true")
+    parser.add_argument("--xroar-binary", type=Path)
+    parser.add_argument("--delivery-receipt", type=Path)
     parser.add_argument("--self-test", action="store_true")
     args = parser.parse_args(argv)
     if args.self_test:
         print(json.dumps(self_test(), indent=2))
         return 0
+    if args.run_live:
+        if args.prepare_only:
+            parser.error("--run-live and --prepare-only are mutually exclusive")
+        if args.candidate_build is None or args.output_dir is None or args.scenario is None:
+            parser.error("--run-live requires --candidate-build, --output-dir, and --scenario")
+        if args.xroar_binary is None or args.delivery_receipt is None:
+            parser.error("--run-live requires --xroar-binary and --delivery-receipt")
+        if not args.xroar_binary.is_file():
+            raise GuardFailure("the requested XRoar binary does not exist")
+        if not args.delivery_receipt.is_file():
+            raise GuardFailure("--run-live requires a parent-accepted GDB-MCP delivery receipt")
+        output = args.output_dir.resolve()
+        if output.exists() and any(output.iterdir()):
+            raise GuardFailure("--run-live requires a fresh, empty scenario output directory")
+        report = prepare(args.candidate_build)
+        adaptive = require_adaptive_keyboard_profile(args.candidate_build)
+        receipt = json.loads(args.delivery_receipt.read_text(encoding="utf-8"))
+        delivery = validate_delivery_receipt(receipt, report)
+        if not LIVE_CAPTURE_IMPLEMENTED:
+            print(json.dumps({"status": "BLOCKED", "runtime_ready": False,
+                "qualified_profile": adaptive, "delivery_qualification": delivery,
+                "reason": "live event adapter is incomplete: no target process was launched",
+                "emulator_launches": 0, "target_writes": 0}, indent=2))
+            return 2
+        summary, exit_code = run_live_capture(args.xroar_binary, args.candidate_build,
+            output, args.scenario, report, adaptive, delivery)
+        print(json.dumps(summary, indent=2))
+        return exit_code
     if not args.prepare_only:
-        print(json.dumps({"status": "BLOCKED", "runtime_ready": False,
-                          "reason": "live runtime event loop is not implemented; no monitor or emulator launched"}, indent=2))
+        parser.print_help()
         return 2
     if args.candidate_build is None or args.output_dir is None or args.scenario is None:
         parser.error("--prepare-only requires --candidate-build, --output-dir, and --scenario")
@@ -439,10 +3705,14 @@ def main(argv: list[str] | None = None) -> int:
         "scenario": args.scenario,
         "prepared_at": "pre-runtime; no emulator launch and no target writes",
         "output_dir": str(output),
-        "deadlines_seconds": {"each_phase": PHASE_SECONDS, "monitor_stop_wait_max": STOP_WAIT_SECONDS},
+        "deadlines_seconds": {"each_named_phase": PHASE_SECONDS,
+            "monitor_stop_wait_max": STOP_WAIT_SECONDS,
+            "phase_names": WATCHED_PHASES},
+        "gameplay_worklist_cycle_target_max": GAMEPLAY_WORKLIST_CYCLE_TARGET,
         "exact_runtime_command_shape": (
             "python runtime-observer-20261012.py --candidate-build <integrated-build> "
-            "--output-dir <fresh-scenario-dir> --scenario <natural|front-first|music-first|prior-music>"),
+            "--output-dir <fresh-scenario-dir> --scenario <natural|front-first|music-first|prior-music> "
+            "--run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"),
         "acceptance_proofs_required": list(REQUIRED_PROOFS),
     })
     report_path = output / f"bug117-{args.scenario}-preparation.json"
