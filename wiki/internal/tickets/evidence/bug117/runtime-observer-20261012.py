@@ -2058,6 +2058,9 @@ class LiveRuntimeObserver:
         self.lifecycle_cue13_output = False
         self.cue_terminal: dict[int, dict[str, Any]] = {}
         self.quiet_tail: dict[int, dict[str, Any]] = {}
+        self.pending_terminal_cues: set[int] = set()
+        self.quiet_first_proofs: list[dict[str, Any]] = []
+        self.quiet_refresh_records: list[dict[str, Any]] = []
         self.latest_mix: dict[int, dict[str, Any]] = {}
         self.active_tx: dict[str, Any] | None = None
         self.irq_before: dict[str, Any] | None = None
@@ -2808,6 +2811,8 @@ class LiveRuntimeObserver:
             if not start <= slot0["stream_pointer"] <= terminator + 1:
                 raise GuardFailure(f"cue{cue} live slot pointer escaped its emitted stream")
             if not self.cue_stream_active[cue]:
+                if cue in self.pending_terminal_cues:
+                    raise GuardFailure("new cue generation began before its pending terminal handoff closed")
                 self.cue_entry_owner[cue] = self.current_entry["index"] if self.current_entry else None
                 self.cue_start_ordinal[cue] = stop.ordinal
                 self.cue_output[cue] = False
@@ -2836,15 +2841,43 @@ class LiveRuntimeObserver:
                 "audible_count": 0, "mute_store": None,
                 "entry": self.cue_entry_owner.get(cue)}
             return
-        if any(cue_id in self.cue_terminal for cue_id in (6, 13)):
-            cue = max(self.cue_terminal, key=lambda k: self.cue_terminal[k]["ordinal"])
+        if self.pending_terminal_cues:
+            cue = max(self.pending_terminal_cues,
+                      key=lambda k: self.cue_terminal.get(k, {}).get("ordinal", -1))
+            terminal = self.cue_terminal.get(cue)
+            start_ordinal = self.cue_start_ordinal.get(cue)
+            entry = self.cue_entry_owner.get(cue)
+            if (not isinstance(terminal, dict) or type(start_ordinal) is not int or
+                    terminal.get("cue_id") != cue or
+                    terminal.get("start_ordinal") != start_ordinal or
+                    terminal.get("entry") != entry or
+                    type(terminal.get("ordinal")) is not int or
+                    terminal["ordinal"] <= start_ordinal or
+                    terminal["ordinal"] >= stop.ordinal or self.cue_stream_active.get(cue)):
+                raise GuardFailure("terminal quiet candidate does not match its emitted cue generation")
+            identity = {"cue_id": cue, "start_ordinal": start_ordinal, "entry": entry,
+                        "end_ordinal": terminal["ordinal"]}
+            first_proof = self.quiet_tail.get(cue)
+            if first_proof is None:
+                quiet_kind = "first-terminal"
+            else:
+                first_identity = first_proof.get("stream_identity")
+                first_busy_zero = first_proof.get("busy_zero_ordinal")
+                if (first_identity != identity or
+                        first_proof.get("actual_mute_attenuation_stores", 0) < 1 or
+                        type(first_proof.get("mute_store_ordinal")) is not int or
+                        type(first_busy_zero) is not int or first_busy_zero >= stop.ordinal):
+                    raise GuardFailure("quiet refresh lacks an earlier same-generation mute and busy-zero proof")
+                quiet_kind = "refresh"
             quiet = self._validate_terminal_snapshot(stop, qualification, snapshot)
             model = model_quiet_mix(snapshot["mix_shadow"])
-            self._record(stop, "terminal-quiet-mix-start", qualification, **quiet)
+            self._record(stop, "terminal-quiet-mix-start", qualification,
+                         quiet_kind=quiet_kind, stream_identity=identity, **quiet)
             self.active_tx = {"cue": None, "quiet_cue": cue, "quiet": True, "snapshot": snapshot,
                 "model": model, "transaction": PSGTransaction(model, snapshot),
                 "first_store": None, "first_audible": None, "mute_store": None,
-                "entry": self.cue_entry_owner.get(cue)}
+                "entry": entry, "quiet_kind": quiet_kind,
+                "stream_identity": identity, "quiet_start_ordinal": stop.ordinal}
             return
         self._record(stop, "unrelated-mix-start", qualification, slot0_id=cue)
 
@@ -2902,21 +2935,66 @@ class LiveRuntimeObserver:
         if tx["quiet"]:
             cue = tx["quiet_cue"]
             mute_count = result["actual_mute_attenuation_stores"]
-            if result["actual_store_count"] < 3 or mute_count < 1 or tx["mute_store"] is None:
-                raise GuardFailure("terminal tail lacks complete actual SND_DATA mute stores")
             quiet = self._validate_terminal_snapshot(stop, qualification, tx["snapshot"])
-            self.quiet_tail[cue] = {**result, **quiet, "event_ordinal": tx["mute_store"]}
-            if cue == 6 and tx["entry"] in self.proofs:
-                ledger = self.proofs[tx["entry"]]
-                if not any(r["name"] == "terminal_actual_psg_mute_transaction" for r in ledger.records):
-                    ledger.record("terminal_actual_psg_mute_transaction", {
-                        "slot_clear_observed": True, "all_mix_stores_match": True,
-                        "quiet_state_verified": True, "actual_mute_attenuation_stores": mute_count,
-                        "actual_store_count": result["actual_store_count"],
-                        "event_ordinal": tx["mute_store"]})
+            if result["audible_store_count"] != 0:
+                raise GuardFailure("terminal quiet service contains audible PSG stores")
+            if busy != 0:
+                raise GuardFailure("terminal quiet service did not publish busy zero")
             snapshot = self._audio_snapshot()
-            self._record_cue13_idle(stop, qualification, busy, snapshot)
-            if cue == 6 and busy == 0 and tx["entry"] in self.proofs:
+            post_quiet = self._validate_terminal_snapshot(stop, qualification, snapshot)
+            identity = tx["stream_identity"]
+            terminal = self.cue_terminal.get(cue)
+            if (terminal is None or identity != {
+                    "cue_id": cue, "start_ordinal": terminal.get("start_ordinal"),
+                    "entry": terminal.get("entry"), "end_ordinal": terminal.get("ordinal")}):
+                raise GuardFailure("terminal quiet service lost its emitted cue-generation identity")
+            if tx["quiet_kind"] == "first-terminal":
+                if mute_count < 1 or tx["mute_store"] is None:
+                    raise GuardFailure("first terminal quiet service lacks an actual mute attenuation store")
+                if cue in self.quiet_tail:
+                    raise GuardFailure("first terminal quiet proof would overwrite an existing generation proof")
+                first_proof = {**result, **quiet,
+                    "stream_identity": identity,
+                    "emitted_end_ordinal": terminal["ordinal"],
+                    "quiet_start_ordinal": tx["quiet_start_ordinal"],
+                    "mute_store_ordinal": tx["mute_store"],
+                    "busy_zero_ordinal": stop.ordinal,
+                    "post_busy_quiet": post_quiet,
+                    "proof_kind": "first-terminal-mute-and-busy-zero",
+                    "event_ordinal": tx["mute_store"]}
+                self.quiet_tail[cue] = first_proof
+                self.quiet_first_proofs.append(first_proof)
+                if cue == 6 and tx["entry"] in self.proofs:
+                    ledger = self.proofs[tx["entry"]]
+                    if not any(r["name"] == "terminal_actual_psg_mute_transaction"
+                               for r in ledger.records):
+                        ledger.record("terminal_actual_psg_mute_transaction", {
+                            "slot_clear_observed": True, "all_mix_stores_match": True,
+                            "quiet_state_verified": True,
+                            "actual_mute_attenuation_stores": mute_count,
+                            "actual_store_count": result["actual_store_count"],
+                            "event_ordinal": tx["mute_store"]})
+            elif tx["quiet_kind"] == "refresh":
+                first_proof = self.quiet_tail.get(cue)
+                if (not isinstance(first_proof, dict) or
+                        first_proof.get("stream_identity") != identity or
+                        first_proof.get("actual_mute_attenuation_stores", 0) < 1 or
+                        type(first_proof.get("mute_store_ordinal")) is not int or
+                        type(first_proof.get("busy_zero_ordinal")) is not int or
+                        first_proof["busy_zero_ordinal"] >= tx["quiet_start_ordinal"]):
+                    raise GuardFailure("quiet refresh lacks its immutable earlier terminal proof")
+                self.quiet_refresh_records.append({**result, **quiet,
+                    "stream_identity": identity,
+                    "first_terminal_mute_ordinal": first_proof["mute_store_ordinal"],
+                    "first_terminal_busy_zero_ordinal": first_proof["busy_zero_ordinal"],
+                    "quiet_start_ordinal": tx["quiet_start_ordinal"],
+                    "busy_zero_ordinal": stop.ordinal,
+                    "post_busy_quiet": post_quiet,
+                    "proof_kind": "same-generation-shadow-refresh",
+                    "event_ordinal": stop.ordinal})
+            else:
+                raise GuardFailure("terminal quiet service has an unknown proof phase")
+            if cue == 6 and tx["entry"] in self.proofs:
                 ledger = self.proofs[tx["entry"]]
                 if not any(r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records):
                     if not self._validate_terminal_snapshot(stop, qualification, snapshot):
@@ -2924,6 +3002,7 @@ class LiveRuntimeObserver:
                     ledger.record("terminal_post_psg_busy_zero", {
                         "busy": 0, "all_slots_queues_credit_idle": True,
                         "busy_read_after_psg": True, "event_ordinal": stop.ordinal})
+            self._record_cue13_idle(stop, qualification, busy, snapshot)
         else:
             cue = tx["cue"]
             if cue not in (6, 13):
@@ -2980,9 +3059,16 @@ class LiveRuntimeObserver:
             raise GuardFailure(f"cue{cue} END X is not the decoded terminator+1")
         if self.audio_image[boundary["terminator_address"] - 0xA000] != 0:
             raise GuardFailure("emitted cue stream terminator is not zero")
+        start_ordinal = self.cue_start_ordinal.get(cue)
+        if (not self.cue_stream_active.get(cue) or type(start_ordinal) is not int or
+                start_ordinal >= stop.ordinal):
+            raise GuardFailure("owned audio END lacks a current active cue-generation start")
+        entry = self.cue_entry_owner.get(cue)
         self.cue_terminal[cue] = {"cue_id": cue, "slot": slot,
             "x": regs["x"], "ordinal": stop.ordinal,
+            "start_ordinal": start_ordinal, "entry": entry,
             "stream_decoder_matches": True}
+        self.pending_terminal_cues.add(cue)
         self.cue_stream_active[cue] = False
         self._record(stop, "owned-emitted-stream-end", qualification,
                      cue_id=cue, slot=slot, x=regs["x"],
@@ -3360,6 +3446,9 @@ class LiveRuntimeObserver:
                 "prior_cue13_idle_observed": any(r["name"] == "cue13_published_idle"
                     for r in self.lifecycle.records), "entry_state": 2,
                 "event_ordinal": stop.ordinal})
+            # LifecycleOrder.record validates both death blank and cue13 idle
+            # dependencies before the cue13 terminal candidate is retired.
+            self.pending_terminal_cues.discard(13)
         self._record(stop, "entry-state2-observed", qualification,
             entry_generation=entry["index"], lives=state["lives"],
             player_fb=state["player_fb"], input_isolated=isolated)
@@ -3377,6 +3466,7 @@ class LiveRuntimeObserver:
             self.lifecycle = LifecycleOrder()
             self.lifecycle_records.append(self.lifecycle)
             self.lifecycle_cue13_output = False
+            self.pending_terminal_cues.discard(13)
             self.cue_terminal.pop(13, None)
             self.quiet_tail.pop(13, None)
         else:
@@ -3591,6 +3681,8 @@ class LiveRuntimeObserver:
                 state["cell_y"], state["step"], state["face"], state["anim"]),
                 "enemy_raw": state["enemy_raw"]}
             self.current_entry["released"] = True
+            if self.cue_entry_owner.get(6) == self.current_entry["index"]:
+                self.pending_terminal_cues.discard(6)
             self._record(stop, "entry-release-join", qualification, busy=busy,
                          final_front_pose=True,
                          front_commit_event_ordinal=front_proof["irq_commit_event_ordinal"],
@@ -3863,7 +3955,11 @@ class LiveRuntimeObserver:
             "forced_completion_order": fixture_order,
             "events": self.events,
             "cue_output_proven": self.cue_output, "cue_terminal": self.cue_terminal,
-            "quiet_tail": self.quiet_tail, "dwell_cadence_checks": self.dwell_checks,
+            "pending_terminal_cues": sorted(self.pending_terminal_cues),
+            "quiet_tail": self.quiet_tail,
+            "quiet_first_proofs": self.quiet_first_proofs,
+            "quiet_refresh_records": self.quiet_refresh_records,
+            "dwell_cadence_checks": self.dwell_checks,
             "proof_ledgers": proof_status, "lifecycle_ledgers": lifecycle_status,
             "front_pose_count": len(self.pose_hashes), "front_pose_sha256": self.pose_hashes,
             "phases": self.phases, "input_events": self.input_events,
@@ -4184,6 +4280,18 @@ def self_test() -> dict[str, Any]:
         observer.search = InputOnlySearch(client, canonical_matrix)
         observer.lifecycle = None
         observer.contact_count = 0
+        observer.cue_entry_owner = {6: generation}
+        observer.pending_terminal_cues = {6}
+        first_terminal_record = {"stream_identity": {"cue_id": 6,
+            "start_ordinal": generation * 100 - 10, "entry": generation,
+            "end_ordinal": generation * 100 - 5}, "actual_mute_attenuation_stores": 3,
+            "mute_store_ordinal": generation * 100 - 3,
+            "busy_zero_ordinal": generation * 100 - 1}
+        observer.cue_terminal = {6: {"cue_id": 6, "start_ordinal": generation * 100 - 10,
+            "entry": generation, "ordinal": generation * 100 - 5}}
+        observer.quiet_tail = {6: first_terminal_record}
+        observer.quiet_first_proofs = [first_terminal_record]
+        observer.quiet_refresh_records = []
         observer._record = lambda *args, **kwargs: None
         lives = 3 - generation
         start_fb = VISIBLE_BASE + 10 * 160 + marker_x // 2
@@ -4277,6 +4385,9 @@ def self_test() -> dict[str, Any]:
         assert witness["release_ordinal"] == final_stop.ordinal
         assert observer.proofs[generation].records[-1]["name"] == "release_after_audio_and_front_commit"
         assert observer.pressed == set()
+        assert 6 not in observer.pending_terminal_cues
+        assert observer.quiet_tail[6] is first_terminal_record
+        assert observer.quiet_first_proofs == [first_terminal_record]
         return observer.current_entry, observer.input_events, observer.errors
 
     held_entries = []
@@ -5264,7 +5375,15 @@ def self_test() -> dict[str, Any]:
     terminal_observer.bp_ids = {}
     terminal_observer.bus_marker = {"stop_pc": terminal_pc + 1}
     terminal_observer.active_tx = None
-    terminal_observer.cue_terminal = {6: {"ordinal": 90}}
+    terminal_observer.cue_terminal = {6: {"cue_id": 6, "start_ordinal": 50,
+        "entry": 2, "ordinal": 90}}
+    terminal_observer.cue_start_ordinal = {6: 50}
+    terminal_observer.cue_entry_owner = {6: 2}
+    terminal_observer.cue_stream_active = {6: False, 13: False}
+    terminal_observer.pending_terminal_cues = {6}
+    terminal_observer.quiet_tail = {}
+    terminal_observer.quiet_first_proofs = []
+    terminal_observer.quiet_refresh_records = []
     terminal_observer.failure_context = None
     terminal_observer.current_stop_context = None
     terminal_observer.events = []
@@ -5316,6 +5435,361 @@ def self_test() -> dict[str, Any]:
     assert terminal_observer.events == []
     assert json.loads(json.dumps(terminal_context)) == terminal_context
     tested += 1
+
+    class FakeQuietClient:
+        def __init__(self):
+            self.busy = 0
+            self.calls: list[str] = []
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            self.calls.append(method)
+            if method == "read_memory":
+                assert params == {"addr": 0x02D4, "length": 1, "space": "cpu"}
+                return {"data": f"{self.busy:02x}", "space": "cpu"}
+            if method == "get_run_state":
+                return {"state": "halted", "last_stop_reason": "breakpoint"}
+            raise AssertionError(f"quiet terminal fake received unexpected RPC {method}")
+
+    quiet_final_shadow = bytes.fromhex("81009fa100bfc100dfe0ff")
+    quiet_initial_shadow = bytes.fromhex("810100a10100c10100e0ff")
+
+    def quiet_snapshot(shadow: bytes, *, effect_count: int = 0,
+                       active_slot: bool = False) -> dict[str, Any]:
+        slots = [{"index": i, "id": 0xFF, "priority": 0} for i in range(4)]
+        if active_slot:
+            slots[2]["id"] = 3
+        return {"slots": slots, "music_count": 0,
+            "music_queue": bytes(8), "effect_queue_count": effect_count,
+            "credit_pending": 0, "mix_count": 0, "published_busy": 1,
+            "mix_period_bytes": b"\x01\x00" * 3,
+            "mix_attenuation": b"\x0F" * 3, "mix_noise": b"\x00\x0F",
+            "mix_shadow": shadow, "mix_order": bytes(4),
+            "best_slot": 0xFF, "best_priority": 0}
+
+    def make_quiet_observer(*, entry: int = 17, shadow: bytes = bytes(11),
+                            effect_count: int = 0, active_slot: bool = False
+                            ) -> tuple[LiveRuntimeObserver, dict[str, Any]]:
+        observer = object.__new__(LiveRuntimeObserver)
+        observer.client = FakeQuietClient()
+        observer.audio = {"AUDIO_MUSIC_PUBLISHED_BUSY": 0x02D4, "audio_slot0": 0x2200}
+        observer.boundaries = {"cue6": {"stream_start": 0xA100,
+            "terminator_address": 0xA106, "terminal_x_expected": 0xA107}}
+        observer.audio_image = bytearray(0x2000)
+        observer.audio_image[0xA106 - 0xA000] = 0
+        observer.events = []
+        observer.errors = []
+        observer.current_stop_context = None
+        observer.failure_context = None
+        observer.active_tx = None
+        observer.cue_output = {6: False, 13: False}
+        observer.cue_stream_active = {6: True, 13: False}
+        observer.cue_entry_owner = {6: entry}
+        observer.cue_start_ordinal = {6: 100}
+        observer.cue_terminal = {}
+        observer.quiet_tail = {}
+        observer.pending_terminal_cues = set()
+        observer.quiet_first_proofs = []
+        observer.quiet_refresh_records = []
+        observer.latest_mix = {}
+        observer.proofs = {}
+        observer.lifecycle = None
+        observer.lifecycle_cue13_output = False
+        observer.current_entry = {"index": entry, "released": False}
+        observer.scenario = "fixture"
+        observer.contact_count = 0
+        snapshot = quiet_snapshot(shadow, effect_count=effect_count, active_slot=active_slot)
+        end_snapshot = quiet_snapshot(shadow)
+        end_snapshot["slots"][0]["id"] = 6
+        observer._audio_snapshot = lambda: end_snapshot
+        end_stop = MonitorStop("fake-cue-end", 0xA400, 1,
+            {"pc": 0xA400, "y": 0x2200, "x": 0xA107}, 105, 100.0)
+        observer._audio_end(end_stop, {"source_staged_live_match": True})
+        observer._audio_snapshot = lambda: snapshot
+        return observer, snapshot
+
+    def service_quiet(observer: LiveRuntimeObserver, snapshot: dict[str, Any],
+                      start_ordinal: int, busy_ordinal: int, *,
+                      target_shadow: bytes | None = None,
+                      audible_override: bool = False) -> list[PSGStore]:
+        start_stop = MonitorStop("fake-quiet-service", 0xA430, 2,
+            {"pc": 0xA430}, start_ordinal, 100.0 + start_ordinal)
+        observer._audio_start(start_stop, {"source_staged_live_match": True})
+        tx = observer.active_tx
+        assert tx is not None and tx["quiet"] is True
+        expected = list(tx["transaction"].expected)
+        for offset, store in enumerate(expected, 1):
+            observer._psg_store(MonitorStop("fake-quiet-service", 0xA432, 3,
+                {"pc": 0xA432}, start_ordinal + offset, 100.0 + start_ordinal + offset),
+                {"source_staged_live_match": True, "value": store.value})
+        if target_shadow is not None:
+            snapshot["mix_shadow"] = target_shadow
+        if audible_override:
+            tx["transaction"].finish = lambda: {
+                "actual_store_count": len(expected), "modeled_store_count": len(expected),
+                "audible_store_count": 1, "audible_channels": [0],
+                "actual_mute_attenuation_stores": sum(
+                    store.kind == "attenuation" and (store.value & 15) == 15 for store in expected),
+                "all_mix_stores_match": True}
+        observer._busy_publication(MonitorStop("fake-quiet-service", 0xA438, 4,
+            {"pc": 0xA438}, busy_ordinal, 100.0 + busy_ordinal),
+            {"source_staged_live_match": True})
+        return expected
+
+    quiet_observer, quiet_state = make_quiet_observer(shadow=quiet_initial_shadow)
+    first_stores = service_quiet(quiet_observer, quiet_state, 120, 140,
+                                 target_shadow=quiet_final_shadow)
+    assert len(first_stores) == 9
+    assert sum(store.kind == "attenuation" and (store.value & 15) == 15
+               for store in first_stores) == 3
+    assert quiet_observer.quiet_tail[6]["proof_kind"] == "first-terminal-mute-and-busy-zero"
+    first_proof = quiet_observer.quiet_tail[6]
+    assert first_proof["stream_identity"] == {"cue_id": 6, "start_ordinal": 100,
+        "entry": 17, "end_ordinal": 105}
+    assert first_proof["actual_mute_attenuation_stores"] >= 1
+    assert first_proof["busy_zero_ordinal"] == 140
+    assert quiet_observer.pending_terminal_cues == {6}
+    refresh_stores = service_quiet(quiet_observer, quiet_state, 150, 160)
+    assert [store.kind for store in refresh_stores] == ["tone-latch"] * 3
+    assert len(refresh_stores) == 3
+    assert first_proof["actual_mute_attenuation_stores"] >= 1
+    assert quiet_observer.quiet_tail[6] is first_proof
+    assert len(quiet_observer.quiet_first_proofs) == 1
+    assert quiet_observer.quiet_refresh_records[0]["proof_kind"] == "same-generation-shadow-refresh"
+    assert quiet_observer.quiet_refresh_records[0]["actual_mute_attenuation_stores"] == 0
+    assert quiet_observer.quiet_refresh_records[0]["busy_zero_ordinal"] == 160
+    json.dumps({"quiet_tail": quiet_observer.quiet_tail,
+        "first": quiet_observer.quiet_first_proofs,
+        "refreshes": quiet_observer.quiet_refresh_records}, allow_nan=False)
+    tested += 1
+
+    no_first_mute, no_first_mute_state = make_quiet_observer(shadow=quiet_final_shadow)
+    no_first_mute._audio_start(MonitorStop("fake-first-no-mute", 0xA430, 2,
+        {"pc": 0xA430}, 120, 120.0), {"source_staged_live_match": True})
+    no_mute_tx = no_first_mute.active_tx
+    assert no_mute_tx is not None
+    for offset, store in enumerate(no_mute_tx["transaction"].expected, 1):
+        no_first_mute._psg_store(MonitorStop("fake-first-no-mute", 0xA432, 3,
+            {"pc": 0xA432}, 120 + offset, 120.0 + offset),
+            {"source_staged_live_match": True, "value": store.value})
+    try:
+        no_first_mute._busy_publication(MonitorStop("fake-first-no-mute", 0xA438, 4,
+            {"pc": 0xA438}, 140, 140.0), {"source_staged_live_match": True})
+    except GuardFailure as exc:
+        assert "lacks an actual mute attenuation store" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("first terminal quiet service passed without an actual mute store")
+
+    def expect_refresh_start_failure(observer: LiveRuntimeObserver,
+                                     expected_text: str) -> None:
+        try:
+            observer._audio_start(MonitorStop("fake-invalid-refresh", 0xA430, 2,
+                {"pc": 0xA430}, 150, 150.0), {"source_staged_live_match": True})
+        except GuardFailure as exc:
+            assert expected_text in str(exc)
+        else:
+            raise AssertionError(f"invalid quiet refresh passed: {expected_text}")
+
+    missing_busy, missing_busy_state = make_quiet_observer()
+    service_quiet(missing_busy, missing_busy_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    missing_busy.quiet_tail[6]["busy_zero_ordinal"] = None
+    expect_refresh_start_failure(missing_busy, "earlier same-generation mute and busy-zero proof")
+    tested += 1
+
+    wrong_generation, wrong_generation_state = make_quiet_observer()
+    service_quiet(wrong_generation, wrong_generation_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    wrong_generation.cue_start_ordinal[6] = 101
+    expect_refresh_start_failure(wrong_generation, "does not match its emitted cue generation")
+    tested += 1
+
+    wrong_entry, wrong_entry_state = make_quiet_observer()
+    service_quiet(wrong_entry, wrong_entry_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    wrong_entry.cue_entry_owner[6] = 18
+    expect_refresh_start_failure(wrong_entry, "does not match its emitted cue generation")
+    tested += 1
+
+    occupied, occupied_state = make_quiet_observer(effect_count=1)
+    try:
+        occupied._audio_start(MonitorStop("fake-occupied-terminal", 0xA430, 2,
+            {"pc": 0xA430}, 120, 120.0), {"source_staged_live_match": True})
+    except GuardFailure as exc:
+        assert "queued music, effects, credits, or mixer work" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("terminal quiet service accepted an active effect queue")
+
+    active_slot, active_slot_state = make_quiet_observer(active_slot=True)
+    try:
+        active_slot._audio_start(MonitorStop("fake-active-slot-terminal", 0xA430, 2,
+            {"pc": 0xA430}, 120, 120.0), {"source_staged_live_match": True})
+    except GuardFailure as exc:
+        assert "active or competing audio slot" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("terminal quiet service accepted an active audio slot")
+
+    mismatch, mismatch_state = make_quiet_observer()
+    service_quiet(mismatch, mismatch_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    mismatch._audio_start(MonitorStop("fake-mismatched-refresh", 0xA430, 2,
+        {"pc": 0xA430}, 150, 150.0), {"source_staged_live_match": True})
+    mismatch_store = mismatch.active_tx["transaction"].expected[0]
+    try:
+        mismatch._psg_store(MonitorStop("fake-mismatched-refresh", 0xA432, 3,
+            {"pc": 0xA432}, 151, 151.0),
+            {"source_staged_live_match": True, "value": mismatch_store.value ^ 1})
+    except GuardFailure as exc:
+        assert "differs from modeled" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("quiet refresh accepted an actual PSG store that differs from its model")
+
+    audible, audible_state = make_quiet_observer()
+    service_quiet(audible, audible_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    try:
+        service_quiet(audible, audible_state, 150, 160, audible_override=True)
+    except GuardFailure as exc:
+        assert "contains audible PSG stores" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("same-generation quiet refresh accepted an audible PSG transaction")
+
+    busy_one, busy_one_state = make_quiet_observer()
+    busy_one.client.busy = 1
+    try:
+        service_quiet(busy_one, busy_one_state, 120, 140,
+                      target_shadow=quiet_final_shadow)
+    except GuardFailure as exc:
+        assert "did not publish busy zero" in str(exc)
+        assert 6 not in busy_one.quiet_tail
+        tested += 1
+    else:
+        raise AssertionError("first terminal quiet service passed with busy one")
+
+    busy_refresh, busy_refresh_state = make_quiet_observer()
+    service_quiet(busy_refresh, busy_refresh_state, 120, 140,
+                  target_shadow=quiet_final_shadow)
+    busy_refresh.client.busy = 1
+    try:
+        service_quiet(busy_refresh, busy_refresh_state, 150, 160)
+    except GuardFailure as exc:
+        assert "did not publish busy zero" in str(exc)
+        assert len(busy_refresh.quiet_refresh_records) == 0
+        assert busy_refresh.quiet_tail[6]["busy_zero_ordinal"] == 140
+        tested += 1
+    else:
+        raise AssertionError("quiet refresh passed with busy one or replaced the first proof")
+
+    active_mix_snapshot = quiet_snapshot(quiet_final_shadow)
+    active_mix_snapshot["slots"][0].update({"id": 6, "policy": 0xB3,
+        "priority": 5, "wait": 0, "stream_pointer": 0xA100,
+        "periods": [1, 1, 1], "attenuation": [0, 0, 0],
+        "noise": 0, "noise_attenuation": 15})
+    active_mix_snapshot["best_slot"] = 0
+    active_mix_snapshot["best_priority"] = 5
+    active_mix_snapshot["mix_period_bytes"] = b"\x01\x00" * 3
+    active_mix_snapshot["mix_attenuation"] = b"\x0F" * 3
+    active_mix_snapshot["mix_noise"] = b"\x00\x0F"
+
+    blocked_new_generation, _ = make_quiet_observer()
+    blocked_new_generation._audio_snapshot = lambda: active_mix_snapshot
+    blocked_new_generation._state = lambda: {"frames": 1, "entry": 0}
+    blocked_new_generation.cue6_services = 0
+    blocked_new_generation.frames_at_cue6 = None
+    prior_verify_live_music_mix = globals()["verify_live_music_mix"]
+    globals()["verify_live_music_mix"] = lambda snapshot, cue, policy, priority: {
+        "audible_voice_count": 1, "channel_sources": []}
+    try:
+        try:
+            blocked_new_generation._audio_start(MonitorStop("fake-next-cue-before-release",
+                0xA430, 2, {"pc": 0xA430}, 200, 200.0),
+                {"source_staged_live_match": True})
+        except GuardFailure as exc:
+            assert "before its pending terminal handoff closed" in str(exc)
+            tested += 1
+        else:
+            raise AssertionError("new cue6 generation began before terminal release")
+
+        released_new_generation, released_state = make_quiet_observer()
+        service_quiet(released_new_generation, released_state, 120, 140,
+                      target_shadow=quiet_final_shadow)
+        released_new_generation.pending_terminal_cues.discard(6)
+        released_new_generation.current_entry = None
+        released_new_generation._audio_snapshot = lambda: active_mix_snapshot
+        released_new_generation._state = lambda: {"frames": 2, "entry": 0}
+        released_new_generation.cue6_services = 0
+        released_new_generation.frames_at_cue6 = None
+        released_new_generation._audio_start(MonitorStop("fake-next-cue-after-release",
+            0xA430, 2, {"pc": 0xA430}, 200, 200.0),
+            {"source_staged_live_match": True})
+        assert released_new_generation.cue_stream_active[6] is True
+        assert released_new_generation.cue_start_ordinal[6] == 200
+        assert released_new_generation.cue_entry_owner[6] is None
+        assert 6 not in released_new_generation.cue_terminal
+        assert 6 not in released_new_generation.quiet_tail
+        assert len(released_new_generation.quiet_first_proofs) == 1
+        tested += 1
+    finally:
+        globals()["verify_live_music_mix"] = prior_verify_live_music_mix
+
+    def make_replacement_seed_observer(*, include_cue13_idle: bool
+                                       ) -> LiveRuntimeObserver:
+        lifecycle = LifecycleOrder()
+        lifecycle.record("death_state_1", {"death_state": 1,
+            "genuine_contact_live_bytes": True, "event_ordinal": 10})
+        lifecycle.record("death_state_2", {"death_state": 2,
+            "genuine_contact_live_bytes": True, "event_ordinal": 15})
+        lifecycle.record("death_blank_timer37", {
+            "death_state": 3, "death_timer": 37, "entry_state": 0,
+            "source_bytes_match": True, "death_blank_front_commit_observed": True,
+            "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
+            "death_blank_live_code_span_qualified": True,
+            "death_blank_front_mapping_qualified": True,
+            "death_blank_opaque_pixels_compared": 72, "event_ordinal": 20})
+        if include_cue13_idle:
+            lifecycle.record("cue13_published_idle", {"cue13_actual_output": True,
+                "published_busy": 0, "normal_drain": True,
+                "cue13_emitted_end_observed": True,
+                "actual_terminal_mute_observed": True, "event_ordinal": 25})
+        observer = object.__new__(LiveRuntimeObserver)
+        observer.current_entry = {"index": 2, "seed_verified": False}
+        observer.pressed = set()
+        observer.search = None
+        observer.scenario = "front-first"
+        observer.contact_count = 1
+        observer.contacts = [{"lives": 3}]
+        observer.lifecycle = lifecycle
+        observer.pending_terminal_cues = {13}
+        observer.errors = []
+        observer._record = lambda *args, **kwargs: None
+        return observer
+
+    replacement_join, replacement_state = make_replacement_seed_observer(
+        include_cue13_idle=True), {"entry": 2, "lives": 2, "frames": 30,
+            "timer": 80, "player_fb": VISIBLE_BASE + 10 * 160 + 132}
+    replacement_join._confirm_entry_state(MonitorStop("fake-replacement-seed",
+        0xC000, 1, {"pc": 0xC000}, 30, 30.0), {}, replacement_state)
+    assert 13 not in replacement_join.pending_terminal_cues
+    assert replacement_join.lifecycle.records[-1]["name"] == "replacement_entry_seed"
+    assert replacement_join.lifecycle.records[-1]["prior_cue13_idle_observed"] is True
+    tested += 1
+
+    missing_replacement_join, missing_replacement_state = make_replacement_seed_observer(
+        include_cue13_idle=False), {"entry": 2, "lives": 2, "frames": 30,
+            "timer": 80, "player_fb": VISIBLE_BASE + 10 * 160 + 132}
+    try:
+        missing_replacement_join._confirm_entry_state(MonitorStop("fake-replacement-seed-missing-idle",
+            0xC000, 1, {"pc": 0xC000}, 30, 30.0), {}, missing_replacement_state)
+    except GuardFailure as exc:
+        assert "dependency" in str(exc) or "prior_cue13_idle_observed" in str(exc)
+        assert missing_replacement_join.pending_terminal_cues == {13}
+        tested += 1
+    else:
+        raise AssertionError("cue13 candidate retired without a validated replacement lifecycle join")
 
     death_blank = {"death_state": 3, "death_timer": 37, "entry_state": 0,
                    "source_bytes_match": True, "death_blank_front_commit_observed": True,
@@ -5446,6 +5920,10 @@ def self_test() -> dict[str, Any]:
     commit_observer.irq_before = {"seq": 3, "pending": 1, "back": 1}
     commit_observer.irq_inc = {"pc": 0x0EDB, "ordinal": 7}
     commit_observer.current_entry = {"index": 0, "marker_x": 264, "seed_lives": 0}
+    commit_observer.cue_entry_owner = {6: 0}
+    commit_observer.pending_terminal_cues = {6}
+    commit_observer.quiet_tail = {6: {"proof_kind": "first-terminal-mute-and-busy-zero"}}
+    commit_observer.quiet_first_proofs = [commit_observer.quiet_tail[6]]
     commit_observer.proofs = {0: ProofLedger()}
     commit_observer.errors = []
     commit_observer.lifecycle = None
@@ -5478,6 +5956,8 @@ def self_test() -> dict[str, Any]:
     assert len(commit_observer.proofs[0].records) == 3
     assert commit_observer.proofs[0].records[-1]["name"] == "release_after_audio_and_front_commit"
     assert commit_observer.proofs[0].records[-1]["event_ordinal"] == 25
+    assert commit_observer.pending_terminal_cues == set()
+    assert commit_observer.quiet_tail[6] is commit_observer.quiet_first_proofs[0]
     tested += 1
 
     bad_ledger = ProofLedger()

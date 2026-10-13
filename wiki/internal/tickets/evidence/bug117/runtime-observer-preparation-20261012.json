@@ -32,7 +32,8 @@
       "same-stop fixture guard recapture plus immediate halted/current-PC reread before the sole write",
       "requested fixture order from the actual qualified IRQ-commit FRONT event ordinal and same-stop busy sample, joined later by the final-entry release callback",
       "On terminal audio guard failure, retain the already-read four-slot snapshot, queue counts, raw eight-byte music queue and mixer period/attenuation/noise/shadow bytes as hex, plus qualified numeric stop/phase/deadline and one read-only get_run_state reply; handler failures retain context without relaxing the guard.",
-      "Treat audio_music_count as authoritative queue occupancy. Retain and validate music_queue as exactly eight bytes, enforce a numeric count in [0,8], and reject every active music/effect/credit/mixer count; inactive retired tail bytes may remain nonzero. Preserve inactive-slot, raw quiet-mixer, emitted END, actual PSG mute, post-service busy-zero, and final IRQ FRONT gates."
+      "Treat audio_music_count as authoritative queue occupancy. Retain and validate music_queue as exactly eight bytes, enforce a numeric count in [0,8], and reject every active music/effect/credit/mixer count; inactive retired tail bytes may remain nonzero. Preserve inactive-slot, raw quiet-mixer, emitted END, actual PSG mute, post-service busy-zero, and final IRQ FRONT gates.",
+      "Quiet terminal audio is generation-bound: preserve the first actual mute plus same-generation post-PSG busy-zero proof immutably; accept a later exact-model shadow-suppressed refresh only for the same cue/start ordinal/entry, with no audible stores and a prior busy-zero proof; retain refresh records separately."
     ],
     "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
@@ -43,7 +44,7 @@
   "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
   "runtime_probe_performed": true,
   "runtime_ready": false,
-  "runtime_ready_reason": "The latest parent-owned natural snapshot at qualified PC $A410 proves source/staged/live match and halted breakpoint status. All slots and active counts are clear, the mixer is at raw quiet defaults, published busy is still one before terminal service, and music_queue is 0600000000000000 while music_count is zero. The source removes the active music ID by decrementing count without clearing the retired cell, so the previous full-buffer-zero check rejected an inactive tail. The observer now checks occupancy, exact queue type/capacity, and active counts while retaining all later mute/busy/FRONT gates. Runtime acceptance is still pending a parent-owned rerun.",
+  "runtime_ready_reason": "The retained natural trace proves the first terminal service emitted the exact modeled nine-store quiet transaction, including three actual mute attenuations, and published busy=0. A same-entry quiet refresh then emitted the exact modeled three tone-latch stores, no audible stores, no repeated mute because shadow equality suppressed it, and busy=0. The prior observer rejected that refresh for lacking a second physical mute. The offline correction preserves the first mute/busy proof and accepts only same-generation exact-model idle refreshes. Runtime release/death acceptance remains pending a parent-owned natural rerun.",
   "first_natural_runtime_attempt": {
     "receipt": "repro/bug117-integration-20261012/runtime-natural-20261013/bug117-natural-runtime.json",
     "observer_script_sha256_at_attempt": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
@@ -97,7 +98,9 @@
     "source_receipt_layout_split": "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout.",
     "bootstrap_reset_separation": "Derive reset LDA/STA spans, values, post-store PCs, and three-byte post-PC windows from the current bootstrap source receipt and emitted listing. Bind the standalone boot artifact hash and map-derived raw prefix separately from the packaged bank-zero raw prefix; bank-zero overflow may replace staged padding after loader_end. Require matching PAR_EXEC+6, stopped get_run_state PC/reason, A value, and source/staged/CPU/physical bytes at both the executed store span and exact stopped post-PC. Reject wrong bytes, values, mappings, order, malformed or unknown watchpoints.",
     "terminal_failure_context": "Keep validate_quiet_terminal unchanged. On its failure, serialize the existing snapshot (all four slots/counts, raw eight-byte queue, mixer periods/attenuation/noise/shadow) and qualified stop context, then make one read-only get_run_state query. The dispatch catch spans qualification and handler execution so handler exceptions retain context. No additional audio or memory reads are made.",
-    "terminal_music_queue_occupancy": "The qualified $A410 snapshot has music_count=0 and queue bytes 06 00 00 00 00 00 00 00. audio_music_remove decrements the source count and leaves the retired final cell unchanged. Require music_queue to be exactly bytes[8], require an integer count 0..8, and reject every nonzero music/effect/credit/mixer count; ignore bytes outside the active prefix. Preserve inactive slots, pure-mute buffers, owned END, actual PSG stores, post-service busy=0 and final IRQ FRONT gates."
+    "terminal_music_queue_occupancy": "The qualified $A410 snapshot has music_count=0 and queue bytes 06 00 00 00 00 00 00 00. audio_music_remove decrements the source count and leaves the retired final cell unchanged. Require music_queue to be exactly bytes[8], require an integer count 0..8, and reject every nonzero music/effect/credit/mixer count; ignore bytes outside the active prefix. Preserve inactive slots, pure-mute buffers, owned END, actual PSG stores, post-service busy=0 and final IRQ FRONT gates.",
+    "quiet_terminal_refresh_generation": "A terminal candidate requires an owned emitted END for the same cue, cue-start ordinal, and entry. The first terminal service still requires the exact modeled quiet PSG transaction, at least one actual mute attenuation store, no audible stores, idle queues/slots, and post-service busy=0. Preserve that proof immutably. A later shadow-suppressed refresh may have zero mute writes only when the mixer model matches exactly, it emits no audible stores, the same generation identity is active, and the refresh starts after the first mute and busy-zero proof. Record refreshes separately and do not replace the first proof.",
+    "terminal_candidate_lifecycle": "Retire cue 6 from pending terminal candidates only after the actual final-entry release join; preserve its proof and historical maps. Retire cue 13 only after a validated replacement_entry_seed lifecycle join proves the prior death-blank and cue-13-idle dependencies. Missing dependencies fail closed. This keeps ordinary post-release gameplay effects outside the completed entry terminal candidate; a competing post-release effect failure has not been reproduced live."
   },
   "gameplay_worklist_timing": {
     "target_cycles_max_per_required_worklist": 27000,
@@ -107,9 +110,9 @@
     },
     "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
   },
-  "blocked_observable": "The latest source/staged/live-qualified natural snapshot at $A410 identifies the former terminal queue predicate as too strict: music_count and all other active counts are zero, four slots are inactive, raw mixer defaults are quiet, but the retired queue tail begins with 06 and published busy remains one before the terminal service. The source decrements music_count without clearing that cell. The observer correction now uses count-authoritative occupancy while preserving the exact eight-byte storage contract and all later mute, busy-zero and FRONT gates; a corrected runtime rerun remains outstanding. Separately, both retained natural traces contain 136 missing-FRONT-pose errors, each aligned with one entry-state-3 iet_offscreen event. Source state3 is offscreen while owner-local histories retire, but no per-owner restored-background proof currently classifies those stops. A bounded evidence proposal is recorded above; no independent assertion or production behavior changed. Natural release/death acceptance remains incomplete.",
+  "blocked_observable": "The latest natural trace rejects at ordinal 4519 after the first terminal service passed with nine exact modeled stores, three mute attenuations, zero audible stores, and busy=0. The following same-entry quiet refresh passed the exact model with three latch-only stores, zero audible stores, and busy=0; shadow equality suppressed unchanged mute writes. The prior observer incorrectly required another physical mute. The bounded correction retains the first actual-mute/busy-zero proof and gates any refresh on the same cue/start ordinal/entry, exact model, idle state, and no audible output. Cue 6 pending-candidate lifetime now ends only at the actual release join; cue 13 ends only at its validated replacement lifecycle join. Ordinary post-release gameplay FX conflict is source-motivated but not live-reproduced. No production change or target write is implicated; natural release/death acceptance is still incomplete.",
   "scenario": "natural",
-  "prepared_at": "updated after parent-qualified A410 terminal snapshot; source-count occupancy correction and 136-error offscreen diagnosis are offline only",
+  "prepared_at": "updated for same-generation quiet-refresh correction and terminal-candidate lifecycle bounds; offline only",
   "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
   "deadlines_seconds": {
     "each_named_phase": 45,
@@ -138,9 +141,9 @@
     "release_after_audio_and_front_commit",
     "no_same_batch_player_or_enemy_mutation"
   ],
-  "report_kind": "observer-only source-count-authoritative terminal queue occupancy correction; offscreen diagnosis retained as an unimplemented proposal",
-  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_AND_BOOTSTRAP_RECEIPT_GATE_PASS; TERMINAL_FAILURE_CONTEXT_ADDED; A410_RETIRED_QUEUE_TAIL_CONFIRMED; SOURCE_COUNT_OCCUPANCY_CORRECTION_ADDED; OFFSCREEN_STATE3_DIAGNOSIS_RETAINED; PARENT_REVIEW_PENDING; CORRECTED_NATURAL_RERUN_NOT_RUN",
-  "observer_script_sha256": "56b25279485425afd3df824d83b89e83defd748b23362e3ff4fdeb85842267ea",
+  "report_kind": "observer-only terminal quiet-refresh proof and lifecycle candidate correction; runtime acceptance pending parent-owned natural rerun",
+  "preparation_status": "OFFLINE_QUIET_REFRESH_AND_LIFECYCLE_QUALIFICATION_PASS; NATURAL_EVIDENCE_RETAINED; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
+  "observer_script_sha256": "d294cb10b5cd98f9078c6f4f94bf6a95921906d596bcea166861667f5bb3d420",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
   "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
   "offline_verification": {
@@ -148,7 +151,7 @@
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 310,
+      "negative_checks": 339,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -175,7 +178,8 @@
         "A full observer-dispatch fake physical-byte mismatch retains exact numeric stop phase/deadline/PC/breakpoint/ordinal/registers, CPU and physical bytes, staged/caller bytes, raw and masked PAR, physical window/address, and halted status; it emits no event and performs no target write",
         "Current-root end-to-end bootstrap fake qualifies all receipt/listing-derived reset stores in order, records them separately from runtime PSG events, checks get_run_state PC and zero watchpoint ID, and compares executed store spans plus bytes at each exact stopped post-PC across staged, CPU, and physical memory. Wrong CPU/physical bytes (including post-PC), A, PAR mapping, order, or unknown watchpoints fail; zero target writes.",
         "Actual dispatch-handler fake triggers the unchanged queued-work terminal guard and retains all four slots/counts, queue and mixer bytes as hex, numeric stop/phase/deadline, qualification, and halted get_run_state; one status RPC only, no audio-memory reread, no emitted event, and JSON round-trip passes.",
-        "Terminal source-count occupancy accepts count-zero queue storage 0600000000000000 while retaining the inactive eight-byte queue contract; nonzero music/effect counts, malformed queue type/length, count beyond capacity, and boolean count fail."
+        "Terminal source-count occupancy accepts count-zero queue storage 0600000000000000 while retaining the inactive eight-byte queue contract; nonzero music/effect counts, malformed queue type/length, count beyond capacity, and boolean count fail.",
+        "Same-generation terminal audio: first nine-store service with three actual mute stores and busy=0; later exact three-latch shadow refresh with zero mute/audible stores and busy=0; rejects wrong generation/entry, missing first mute or busy proof, occupied/malformed state, model mismatch, and audible output. Verifies cue 6 release expiry, cue 13 validated lifecycle expiry, immutable first proof, separate refresh records, and JSON serialization."
       ]
     },
     "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped; import did not load the maintained monitor client template",
@@ -207,7 +211,10 @@
       "delivery_receipt_consumed_by_offline_preparation": false,
       "delivery_receipt_consumed_by_first_natural_attempt": true,
       "delivery_receipt_sha256_by_first_natural_attempt": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef"
-    }
+    },
+    "guarded_import": "PASS: subprocess.Popen and socket.create_connection denied; import made no calls",
+    "parent_independent_self_test": "PENDING parent review of frozen source",
+    "live_runtime": "NOT RUN: parent owns next natural runtime qualification"
   },
   "reproduction_commands_run": [
     "python -B -m py_compile wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py",
@@ -263,7 +270,7 @@
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "The terminal verifier now treats audio_music_count as authoritative occupancy, validates exact eight-byte queue storage and a bounded numeric count, and still rejects every active count. The captured $A410 snapshot supports this correction: count zero, retired byte 06, four inactive slots, quiet raw mixer defaults, published busy one before terminal service, and zero target writes. The emitted END, actual PSG mute, post-service busy-zero, final FRONT and natural release/death remain runtime acceptance requirements. The separate 136 missing-pose errors align with state-3 offscreen events; an owner-specific restore oracle proposal is retained without changing that assertion. Current source passes 310 offline checks; parent review is pending.",
+  "ready_verdict": "The current offline observer correction requires an actual mute and post-PSG busy-zero on the first terminal transaction. It permits a later exact-model, inaudible, idle refresh only for the same cue generation and entry, preserving the first proof. Cue 6 expires at actual release; cue 13 expires only at the validated replacement join. Historical natural evidence shows the previous guard rejected a correct three-latch shadow-suppressed refresh after the first nine-store/three-mute service passed. Offline review is complete; the corrected natural release/death scenario remains unrun.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -899,7 +906,7 @@
     "status": "Observer-only restoration proof implemented and independently reviewed. Offline checks pass; parent owns the next natural runtime reassessment.",
     "implemented_observer_correction": {
       "status": "IMPLEMENTED_AWAITING_PARENT_NATURAL_REASSESSMENT",
-      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner\u2019s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
+      "contract": "At each observed live state-3 IRQ commit, require death=0, row-derived x=320, the committed FRONT owner FBM_PLAYER_VALID byte clear, and pixel equality at that owner’s last-visible state-2 pointer against its saved-under background. A stop may prove one owner; both generation-matched A/B proofs must precede the first observed state-4/maze-entry callback. State-2 and state-4 missing visible poses remain hard failures.",
       "owner_timing": "Each state-3 stop validates only the committed FRONT owner; both metadata bits need not be clear on the same stop. A valid FRONT metadata byte at a state-3 retirement stop fails closed.",
       "snapshot_storage": "Raw 8x16 actual and saved-under bytes are held only in private observer memory keyed by entry generation and owner. Entry/event JSON retains pointer, clipped width, ordinal, frame, SHA-256 digests, and restoration outcome; the private byte map is not serialized.",
       "gate_sources": [
@@ -928,5 +935,41 @@
       "observer_script_sha256": "473adf5c0aea1dd9d7cac452f939ca7d8579ca5d3ab3aaca074234e554d7181c",
       "target_ram_writes": 0
     }
+  },
+  "latest_natural_quiet_refresh_failure": {
+    "receipt": "repro/bug117-integration-20261012/runtime-natural-restoration-corrected-20261013/bug117-natural-runtime.json",
+    "concise_summary": "wiki/internal/tickets/evidence/bug117/natural-quiet-refresh-failure-20261013.json",
+    "observer_script_sha256_at_attempt": "473adf5c0aea1dd9d7cac452f939ca7d8579ca5d3ab3aaca074234e554d7181c",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "full_trace_sha256": "46beeac43db6ef398ea0f3094c48ceb61b2e3dbbaec5bfbd46243db75cb148b8",
+    "status": "INCOMPLETE_FAIL_CLOSED",
+    "failure": "GuardFailure: terminal tail lacks complete actual SND_DATA mute stores",
+    "phase": "natural-contact-search",
+    "phase_deadline_seconds": 45,
+    "stop_wait_max_seconds": 10,
+    "failure_pc": "$A498",
+    "failure_breakpoint_id": 9,
+    "failure_ordinal": 4519,
+    "first_terminal_service": {
+      "start_ordinal": 4499,
+      "post_psg_busy_zero_ordinal": 4509,
+      "actual_store_count": 9,
+      "modeled_store_count": 9,
+      "actual_mute_attenuation_stores": 3,
+      "audible_store_count": 0,
+      "exact_model_match": true
+    },
+    "same_entry_quiet_refresh": {
+      "start_ordinal": 4515,
+      "post_psg_busy_zero_ordinal": 4519,
+      "actual_store_count": 3,
+      "modeled_store_count": 3,
+      "actual_mute_attenuation_stores": 0,
+      "audible_store_count": 0,
+      "exact_model_match": true
+    },
+    "target_writes": 0,
+    "natural_release_or_death_proven": false,
+    "classification": "The prior guard required a repeated physical mute even though source shadow comparison suppressed unchanged stores. This natural result is observer-guard rejection, not evidence of a production audio failure."
   }
 }
