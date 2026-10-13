@@ -177,8 +177,8 @@
     "no_same_batch_player_or_enemy_mutation"
   ],
   "report_kind": "observer-only death-pose and timer-37 blank pixel qualification; runtime acceptance pending parent-owned natural probe",
-  "preparation_status": "OFFLINE_DEATH_POSE_PIXEL_ORACLE_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
-  "observer_script_sha256": "6db7efc2474be2bb020d0f7e8824ac9340ef2918881cd1d61f8fae44c03a4a9c",
+  "preparation_status": "OFFLINE_DEATH_BLANK_POST_INC_PC_CORRECTION_PASS; PARENT_REVIEW_PENDING; LIVE_RERUN_NOT_RUN",
+  "observer_script_sha256": "1942a01ebf51aeb6522773e05522f87fa906c01afa677da7bcd555b9b839b091",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
   "runtime_directory_copy_status": "The pre-existing scratch copy remains historical and was not refreshed because it is outside the two-file ownership boundary. Parent should invoke the reviewed frozen source or refresh its copy before any later probe.",
   "offline_verification": {
@@ -186,7 +186,7 @@
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 490,
+      "negative_checks": 496,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -232,9 +232,10 @@
         "During a same-generation cue-13 authored zero-audible WAIT, only exact cue-3 slot 1 may be active; descriptor, stream, replayed cursor/dwell/voice/noise state, selected cue-13 model, queues, busy publication, and CPU/physical page-$3D bytes must match the staged source.",
         "Captured suppressed-effect positive covers cue-13 exclusive selection suppressing the exact lower-priority cue-3 effect; wrong cue ID/slot/priority/policy/pointer/state, mutated staged/CPU/physical descriptor or stream, active slots 2/3, or a higher-priority exclusive competitor fail.",
         "Cue-3 allowance is limited to the quiet authored-WAIT continuation; terminal all-slots-idle, cue-13 END/mute, post-publication busy-zero, and committed FRONT requirements remain unchanged and reject active cue 3.",
-        "Death-blank timer-37 positive preserves hydrated PLAYER_VISIBLE_ROWS=16 while requiring cleared FRONT owner metadata rows=0; stale DP rows 0/15, published metadata rows 16, or current DP/retired-pose mismatch fail."
+        "Death-blank timer-37 positive preserves hydrated PLAYER_VISIBLE_ROWS=16 while requiring cleared FRONT owner metadata rows=0; stale DP rows 0/15, published metadata rows 16, or current DP/retired-pose mismatch fail.",
+        "Timer-37 blank retirement uses the current receipt-derived direct INC marker and requires the actual IRQ callback's post-instruction PC equal to marker end_pc; opcode-start, missing end_pc, stale ordinal, wrong callback order, wrong DP, and wrong opcode bytes fail."
       ],
-      "parent_independent_self_test": "Pending parent review; local self-test passes 490 checks."
+      "parent_independent_self_test": "Pending parent review; local self-test passes 496 checks."
     },
     "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped and untouched during import",
     "prepare_only": {
@@ -1180,7 +1181,7 @@
       "live_probe": "NOT RUN by this step"
     }
   },
-  "current_step_runtime_probe": "NOT RUN; parent owns one natural death-blank phase after frozen-source review. The 45-second deadline and 10-second stop waits are unchanged.",
+  "current_step_runtime_probe": "NOT RUN; parent owns one deterministic natural death-blank rerun after frozen-source review. The 45-second deadline and 10-second stop waits are unchanged.",
   "bank_boundary_page20_reference": {
     "cpu_pc": 41682,
     "cpu_window": 40960,
@@ -1489,5 +1490,39 @@
     "runtime_probe": "NOT RUN; parent owns one bounded natural death-blank phase after review; 45-second deadline and 10-second stop waits unchanged",
     "production_capacity_effect": "NONE; observer and preparation evidence only; production sources and 65,536-byte ROM unchanged",
     "forced_fixture_routes": "NOT QUALIFIED; existing fixture gates unchanged and no fixture execution authorized by this correction"
+  },
+  "latest_death_blank_post_inc_pc_correction": {
+    "ready_source": "wiki/internal/tickets/bug-117-new-life-entry-music.html#post-inc-pc-correction-ready-20261013",
+    "scope": "Only runtime-observer-20261012.py and runtime-observer-preparation-20261012.json; no production changes, build, live capture, guest writes, protocol change, deadline extension, or fixture qualification.",
+    "observer_script_sha256": "1942a01ebf51aeb6522773e05522f87fa906c01afa677da7bcd555b9b839b091",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "irq_commit_marker": {
+      "pc": 3770,
+      "end_pc": 3772,
+      "encoding": "direct",
+      "required_dp": 0,
+      "opcode_bytes": "0c93",
+      "source": "current read-only prepare(build) from the complete receipt and staged enemy image"
+    },
+    "correction": "The exact timer-37 committed-FRONT guard compares the _irq_instruction callback stop PC to the prepared INC end_pc ($0EBC), not the opcode start ($0EBA). Publication order, source/staged/live opcode and DP qualification, ordinal checks, cached 16-row state, zero-row post-capture metadata, owner mapping, saved-under, and actual pixel gates remain unchanged.",
+    "focused_checks": {
+      "result": "PASS",
+      "total_self_test_checks": 496,
+      "emulator_launches": 0,
+      "target_writes": 0,
+      "py_compile": "PASS",
+      "cli_help": "PASS",
+      "guarded_import_no_launch": "PASS; process and socket access denied",
+      "read_only_current_prepare": "PASS; current receipt-bound candidate and 14 death frames",
+      "coverage": [
+        "current candidate marker-derived real _irq_start and _irq_instruction callback pipeline reaches the timer-37 blank proof only at post-INC end_pc",
+        "opcode-start PC, missing end_pc, stale INC ordinal, and INC callback before publication-start fail without a lifecycle proof",
+        "current marker helper rejects wrong direct-page value and mismatched live opcode bytes"
+      ]
+    },
+    "parent_independent_self_test": "PENDING parent frozen-source review",
+    "runtime_probe": "NOT RUN; parent owns one deterministic natural rerun with existing 45-second phase and 10-second stop-wait bounds.",
+    "production_capacity_effect": "NONE; observer and preparation evidence only; candidate ROM unchanged.",
+    "forced_fixture_routes": "NOT QUALIFIED; existing fixture gates unchanged."
   }
 }

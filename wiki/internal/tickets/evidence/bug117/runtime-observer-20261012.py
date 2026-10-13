@@ -4832,7 +4832,7 @@ class LiveRuntimeObserver:
                     mainloop.get("front") != self.irq_before.get("front") or
                     mainloop.get("back") != self.irq_before.get("back") or
                     self.irq_inc is None or self.irq_inc.get("ordinal", 0) <= self.irq_before.get("ordinal", 0) or
-                    self.irq_inc.get("pc") != self.irq_marker.get("pc") or
+                    self.irq_inc.get("pc") != self.irq_marker.get("end_pc") or
                     published.get("entry") != 0 or published.get("death") != 3 or
                     published.get("timer") != 37 or state.get("entry") != 0 or
                     state.get("death") != 3 or state.get("timer") != 37):
@@ -9395,6 +9395,12 @@ def self_test() -> dict[str, Any]:
 
     if ROOT is None:
         raise AssertionError("death-pose qualification requires the workspace root")
+    current_preparation = prepare(ROOT / "build")
+    current_irq_marker = current_preparation["irq_commit_instruction"]
+    assert current_irq_marker == {"pc": 0x0EBA, "end_pc": 0x0EBC,
+        "encoding": "direct", "required_dp": 0, "opcode_bytes": "0c93"}
+    irq_start_pc = read_symbols(ROOT / "build/ladybug-enemy-runtime.map")["fbiq_publish"]
+    tested += 1
     _death_packed, death_native, _death_streams, death_identity = \
         candidate_death_frame_table(ROOT / "build")
     assert len(death_native) == 14 and death_identity["all_source_staged_streams_match"] is True
@@ -9642,8 +9648,8 @@ def self_test() -> dict[str, Any]:
         "event_ordinal": 200, "front": 0, "back": 1, "commit_seq": 21}
     missing_history.irq_before = {"state": dict(blank_state), "pending": 1,
         "back": 1, "ordinal": 201, "seq": 21, "front": 0}
-    missing_history.irq_inc = {"ordinal": 202, "pc": 0x0EBC}
-    missing_history.irq_marker = {"pc": 0x0EBC}
+    missing_history.irq_inc = {"ordinal": 202, "pc": current_irq_marker["end_pc"]}
+    missing_history.irq_marker = dict(current_irq_marker)
     missing_history.main = {"PLAYER_BG": 0xA300}
     missing_history.enemy = {"PLAYER_BG_B": 0xAB00}
     missing_history.client = object()
@@ -9664,6 +9670,23 @@ def self_test() -> dict[str, Any]:
         blank_runtime_events: list[dict[str, Any]] = []
         blank_runtime._record = lambda stop, name, qualification, **fields: \
             blank_runtime_events.append({"name": name, **fields})
+        published_state = {**blank_state, "front": 0, "pending": 1,
+            "back": 1, "commit_seq": 21}
+        blank_runtime.irq_marker = dict(current_irq_marker)
+        blank_runtime.irq_before = None
+        blank_runtime.irq_inc = None
+        blank_runtime._state = lambda: published_state
+        start_stop = MonitorStop("fake-death-blank-irq-start", irq_start_pc, 1,
+            {"pc": irq_start_pc}, 201, 1.0)
+        inc_stop = MonitorStop("fake-death-blank-post-inc", current_irq_marker["end_pc"], 2,
+            {"pc": current_irq_marker["end_pc"], "dp": current_irq_marker["required_dp"]},
+            202, 1.1)
+        start_qualification = {"source_staged_live_match": True}
+        inc_qualification = qualify_irq_commit_stop(current_irq_marker,
+            inc_stop.pc, inc_stop.registers["dp"],
+            bytes.fromhex(current_irq_marker["opcode_bytes"]))
+        blank_runtime._irq_start(start_stop, start_qualification)
+        blank_runtime._irq_instruction(inc_stop, inc_qualification)
         blank_runtime._record_death_blank_retirement(
             MonitorStop("fake-death-blank-method", 0x0EC6, 1,
                 {"pc": 0x0EC6}, 203, 1.0),
@@ -9673,11 +9696,82 @@ def self_test() -> dict[str, Any]:
         assert blank_runtime.death_blank_observations[0]["status"] == "PASS"
         assert blank_runtime.death_blank_observations[0]["logical_pointer"] == logical_pointer
         assert blank_runtime.death_blank_observations[0]["retired_pointer"] != logical_pointer
-        assert blank_runtime_events[0]["name"] == "death-blank-front-oracle"
+        assert [event["name"] for event in blank_runtime_events] == [
+            "irq-publication-start", "irq-commit-inc-qualified", "death-blank-front-oracle"]
+        assert blank_runtime_events[1]["end_pc"] == current_irq_marker["end_pc"]
+        assert blank_runtime.irq_inc == {"pc": current_irq_marker["end_pc"], "ordinal": 202}
         json.dumps({"lifecycle": blank_runtime.lifecycle.records,
             "blank_observations": blank_runtime.death_blank_observations,
             "events": blank_runtime_events}, allow_nan=False)
         tested += 1
+
+        def fresh_blank_pipeline(marker: dict[str, Any] | None = None) -> LiveRuntimeObserver:
+            runtime = copy.copy(missing_history)
+            runtime.lifecycle = MissingPoseLifecycle()
+            runtime.death_blank_attempted_generations = set()
+            runtime.death_pose_by_owner = {1: blank_prior}
+            runtime.death_blank_observations = []
+            runtime.errors = []
+            runtime.irq_marker = dict(current_irq_marker if marker is None else marker)
+            runtime.irq_before = None
+            runtime.irq_inc = None
+            runtime._state = lambda: published_state
+            runtime._record = lambda *args, **kwargs: None
+            return runtime
+
+        def reject_pipeline(label: str, runtime: LiveRuntimeObserver, inc_pc: int,
+                            start_ordinal: int = 201, inc_ordinal: int = 202,
+                            qualification_marker: dict[str, Any] | None = None) -> None:
+            nonlocal tested
+            runtime._irq_start(MonitorStop("fake-irq-start", irq_start_pc, 1,
+                {"pc": irq_start_pc}, start_ordinal, 2.0), start_qualification)
+            stop = MonitorStop("fake-irq-inc", inc_pc, 2,
+                {"pc": inc_pc, "dp": current_irq_marker["required_dp"]}, inc_ordinal, 2.1)
+            marker_for_qualification = current_irq_marker if qualification_marker is None \
+                else qualification_marker
+            try:
+                inc_qualification = qualify_irq_commit_stop(marker_for_qualification,
+                    stop.pc, stop.registers["dp"],
+                    bytes.fromhex(current_irq_marker["opcode_bytes"]))
+            except GuardFailure:
+                inc_qualification = {"source_staged_live_match": True,
+                    "post_instruction": False}
+            runtime._irq_instruction(stop, inc_qualification)
+            runtime._record_death_blank_retirement(
+                MonitorStop("fake-death-blank-rejected", 0x0EC6, 3,
+                    {"pc": 0x0EC6}, 203, 2.2),
+                {"source_staged_live_match": True}, blank_state)
+            assert not runtime.lifecycle.records, f"death blank passed with {label}"
+            assert runtime.death_blank_observations[0]["status"] == "REJECTED", label
+            tested += 1
+
+        reject_pipeline("opcode-start PC", fresh_blank_pipeline(),
+            current_irq_marker["pc"])
+        missing_end_marker = {key: value for key, value in current_irq_marker.items()
+            if key != "end_pc"}
+        reject_pipeline("missing emitted end_pc", fresh_blank_pipeline(missing_end_marker),
+            current_irq_marker["end_pc"])
+        reject_pipeline("stale INC ordinal", fresh_blank_pipeline(),
+            current_irq_marker["end_pc"], start_ordinal=201, inc_ordinal=201)
+
+        wrong_order_runtime = fresh_blank_pipeline()
+        try:
+            wrong_order_runtime._irq_instruction(inc_stop, inc_qualification)
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError("IRQ INC callback accepted a stop before publication start")
+
+        for bad_dp, bad_opcode, label in (
+                (1, bytes.fromhex(current_irq_marker["opcode_bytes"]), "wrong direct-page source"),
+                (current_irq_marker["required_dp"], b"\x0c\x92", "wrong live opcode bytes")):
+            try:
+                qualify_irq_commit_stop(current_irq_marker, current_irq_marker["end_pc"],
+                    bad_dp, bad_opcode)
+            except GuardFailure:
+                tested += 1
+            else:
+                raise AssertionError(f"IRQ source qualification accepted {label}")
 
         missing_history._record_death_blank_retirement(
             MonitorStop("fake-missing-death-pose", 0x0EC6, 1,
@@ -9693,24 +9787,8 @@ def self_test() -> dict[str, Any]:
     json.dumps(missing_history.death_blank_observations, allow_nan=False)
     tested += 1
 
-    wrong_death_irq = copy.copy(missing_history)
-    wrong_death_irq.lifecycle = MissingPoseLifecycle()
-    wrong_death_irq.death_blank_attempted_generations = set()
-    wrong_death_irq.death_pose_by_owner = {1: blank_prior}
-    wrong_death_irq.death_blank_observations = []
-    wrong_death_irq.errors = []
-    wrong_death_irq.irq_inc = {"ordinal": 202, "pc": 0x0EBD}
-    wrong_death_irq._record_death_blank_retirement(
-        MonitorStop("fake-death-blank-wrong-irq", 0x0EC6, 1,
-            {"pc": 0x0EC6}, 204, 1.0),
-        {"source_staged_live_match": True}, blank_state)
-    assert not wrong_death_irq.lifecycle.records
-    assert "exact pending state" in wrong_death_irq.death_blank_observations[0]["reason"]
-    json.dumps(wrong_death_irq.death_blank_observations, allow_nan=False)
-    tested += 1
-
     return {"self_test": "PASS", "negative_checks": tested,
-             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, natural skull table requires qualified mainloop PC/PAR5=$34/page-$34 mapping and bounded ENTITY_COUNT; malformed count/coordinates/mapping/source fail before injection; center-prospective and step-3 in-flight skulls skip/release through existing source-ordered bindings; all-blocked neighbors inject nothing; ordinary release-roam is a separate 45-second neutral phase after held-input release and requires increased ENEMY_RELEASED, an active source-tagged outside-nest record, and saved-background-valid=1; malformed active tags/counts and missing release/background fail; contact input is enabled only inside its bounded phase and released on exit, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, current cep_skull source/map/listing/staged marker binding and collision rejection, source-qualified skull dispatch kept separate from genuine enemy-contact count/lifecycle, resident live-byte mismatch rejection at cep_skull, selected-cue mix guard failure retains raw four-slot/queue/mixer snapshot and pure model with cached alias/death-source context, original GuardFailure message/class and no post-snapshot monitor rereads, JSON and outer runtime report preserve context; input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, natural skull table requires qualified mainloop PC/PAR5=$34/page-$34 mapping and bounded ENTITY_COUNT; malformed count/coordinates/mapping/source fail before injection; center-prospective and step-3 in-flight skulls skip/release through existing source-ordered bindings; all-blocked neighbors inject nothing; ordinary release-roam is a separate 45-second neutral phase after held-input release and requires increased ENEMY_RELEASED, an active source-tagged outside-nest record, and saved-background-valid=1; malformed active tags/counts and missing release/background fail; contact input is enabled only inside its bounded phase and released on exit, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, A2D2 page-boundary mismatch capture with exact halted PC/breakpoint identity, raw/masked PAR5, bounded CPU/$20/$3D spans, synthesized helper/reference hashes, and original-guard rethrow; banked audio-address breakpoints on page $20 are separately classified only with stopped identity, complete source/receipt/manifest helper identity, one full $20 physical match and per-stop 16-byte CPU/physical/source matches; wrong page, watchpoint/incorrect BP, range, stop identity, source/helper corruption, and CPU/physical mismatch rejected, while page-$3D audio remains on the strict path; current build-derived timer-37 blank _irq_start/_irq_instruction pipeline requires exact post-INC end_pc and rejects opcode-start/missing-end/stale-ordinal/wrong-order/DP/opcode-byte cases; complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "death_pose_qualification": {
                 "compiled_frames": 14, "front_owners_tested": 2,
                 "positive_retired_pointer_differs_from_logical": True,
