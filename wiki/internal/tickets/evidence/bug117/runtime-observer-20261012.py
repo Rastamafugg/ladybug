@@ -1953,6 +1953,7 @@ class InputOnlySearch:
         self.held: int | None = None
         self.held_matrix: int | None = None
         self.origin: tuple[int, int] | None = None
+        self.last_pose: tuple[int, int, int] | None = None
         self.age_stops = 0
         self.actions: list[dict[str, Any]] = []
 
@@ -1961,7 +1962,9 @@ class InputOnlySearch:
         monitor_call(self.client, "inject_key", {"key": key, "action": action})
         self.actions.append({"key": key, "key_namespace": "DSCAN", "matrix_key": matrix_key,
                              "action": action, "stop_ordinal": ordinal,
-                             "reason": reason, "target_memory_write": False})
+                             "reason": reason, "direction_index": self.direction,
+                             "no_progress_stops": self.age_stops,
+                             "target_memory_write": False})
 
     def release(self, ordinal: int, reason: str) -> None:
         if self.held is not None:
@@ -1969,6 +1972,7 @@ class InputOnlySearch:
             self.held = None
             self.held_matrix = None
             self.origin = None
+            self.last_pose = None
             self.age_stops = 0
 
     def at_gameplay_center(self, ordinal: int, entry: int, death: int,
@@ -1977,23 +1981,49 @@ class InputOnlySearch:
             self.release(ordinal, "entry-or-death-isolation")
             return
         if self.held is not None:
+            pose = (cell_x, cell_y, step)
+            if pose != self.last_pose:
+                self.last_pose = pose
+                self.origin = (cell_x, cell_y)
+                self.age_stops = 0
+                return
             self.age_stops += 1
-            if step == 0 and self.origin is not None and (cell_x, cell_y) != self.origin:
-                self.release(ordinal, "next-accepted-center")
-            elif self.age_stops >= 8:
-                self.release(ordinal, "bounded-stuck-direction-retry")
+            if step == 0 and self.age_stops >= 8:
+                self.release(ordinal, "source-qualified-observed-no-progress-route-retry")
+                self.direction = (self.direction + 1) % 4
             else:
                 return
         if step != 0:
             return
         matrix_key = self.matrix_bindings[self.direction]
         key = self.bindings[self.direction]
-        self.direction = (self.direction + 1) % 4
         self.held = key
         self.held_matrix = matrix_key
         self.origin = (cell_x, cell_y)
+        self.last_pose = (cell_x, cell_y, step)
         self.age_stops = 0
-        self._inject(key, matrix_key, "press", ordinal, "accepted-gameplay-center-route-search")
+        self._inject(key, matrix_key, "press", ordinal, "hold-until-source-qualified-progress-or-blockage")
+
+
+def decode_contact_search_state(low: bytes, symbols: dict[str, int]) -> dict[str, int]:
+    """Decode route and enemy/timer state from an already-read low-RAM snapshot."""
+    if not isinstance(low, bytes) or len(low) < 0x0300:
+        raise GuardFailure("contact search requires the complete cached $0000-$02FF low-RAM snapshot")
+    def byte(name: str) -> int:
+        return low[symbols[name]]
+
+    freeze_address = symbols["FREEZE_TIMER"]
+    if freeze_address < 0 or freeze_address + 2 > len(low):
+        raise GuardFailure("cached FREEZE_TIMER word is outside the low-RAM snapshot")
+    return {
+        "player_dir": byte("PLAYER_DIR"),
+        "player_want": byte("PLAYER_WANT"),
+        "box_timer": byte("BOX_TIMER"),
+        "enemy_timer": byte("ENEMY_TIMER"),
+        "enemy_active": byte("ENEMY_ACTIVE"),
+        "enemy_released": byte("ENEMY_RELEASED"),
+        "freeze_timer": int.from_bytes(low[freeze_address:freeze_address + 2], "big"),
+    }
 
 
 class LiveRuntimeObserver:
@@ -2031,6 +2061,9 @@ class LiveRuntimeObserver:
         self.errors: list[str] = []
         self.failure_context: dict[str, Any] | None = None
         self.current_stop_context: dict[str, Any] | None = None
+        self.last_runtime_state: dict[str, Any] | None = None
+        self.last_runtime_state_stop: dict[str, Any] | None = None
+        self.contact_search_timeout_context: dict[str, Any] | None = None
         self.input_events: list[dict[str, Any]] = []
         self.pressed: set[int] = set()
         self.bindings: bytes | None = None
@@ -2347,6 +2380,7 @@ class LiveRuntimeObserver:
         meta_a, meta_b = metas[:0x100], metas[0x100:]
         enemy_raw = physical_page_read(self.client, 0x34, self.main["ENEMY_TABLE"] - 0xA000, 32)
         return {"low": low, "meta_a": meta_a, "meta_b": meta_b, "enemy_raw": enemy_raw,
+            **decode_contact_search_state(low, self.main),
             "entry": byte("INITIAL_ENTRY_STATE"), "death": byte("DEATH_STATE"),
             "timer": byte("DEATH_TIMER"), "lives": byte("LIVES"),
             "pending": byte("FB_RENDER_PENDING"), "front": byte("FB_FRONT_ID"),
@@ -3480,6 +3514,10 @@ class LiveRuntimeObserver:
 
     def _mainloop(self, stop: MonitorStop, qualification: dict[str, Any]) -> None:
         state = self._state()
+        self.last_runtime_state = state
+        self.last_runtime_state_stop = dict(getattr(self, "current_stop_context", None) or {
+            "phase": stop.phase, "phase_deadline_seconds": PHASE_SECONDS,
+            "pc": stop.pc, "bp_id": stop.bp_id, "ordinal": stop.ordinal})
         if self.current_entry is not None and state["entry"] == 4:
             self._guard_first_maze_entry(stop, qualification, state)
         self._record(stop, "mainloop", qualification, entry=state["entry"], death=state["death"],
@@ -3543,6 +3581,96 @@ class LiveRuntimeObserver:
         if self.fixture is not None and self.fixture_result is None:
             self._maybe_write_fixture(stop, state, qualification)
         self._previous_state = state
+
+    def _natural_contact_search_context(self, phase: dict[str, Any]) -> dict[str, Any]:
+        """Project the last cached search state without issuing monitor reads."""
+        state = getattr(self, "last_runtime_state", None)
+        last_state: dict[str, Any] | None = None
+        if isinstance(state, dict):
+            fields = ("entry", "death", "timer", "lives", "frames", "player_fb",
+                      "cell_x", "cell_y", "step", "dir", "want", "player_dir",
+                      "player_want", "box_timer", "enemy_timer", "enemy_active",
+                      "enemy_released", "freeze_timer", "enemy_sha256")
+            last_state = {key: state[key] for key in fields if key in state}
+            enemy_raw = state.get("enemy_raw")
+            if isinstance(enemy_raw, (bytes, bytearray)):
+                enemy_bytes = bytes(enemy_raw)
+                last_state["enemy_raw"] = {"hex": enemy_bytes.hex(),
+                    "length": len(enemy_bytes), "sha256": sha(enemy_bytes)}
+        search = getattr(self, "search", None)
+        actions = list(getattr(search, "actions", [])) if search is not None else []
+        entries = list(getattr(self, "entries", []))[-3:]
+        entry_fields = ("index", "seed_ordinal", "marker_call_ordinal", "state2_ordinal",
+            "lives_before_marker_body", "seed_lives", "seed_frame", "seed_death_timer",
+            "entry_start_fb", "marker_x", "marker_x_matches_life_slot", "seed_verified",
+            "input_isolated_at_seed", "reserve_decrement_exactly_once", "released",
+            "first_maze_visible_frame", "cue6_first_frame", "pose_count",
+            "offscreen_remaining_death_timer", "offscreen_x_pixels", "offscreen_x320")
+
+        def entry_summary(entry: Any) -> Any:
+            if not isinstance(entry, dict):
+                return json_safe(entry)
+            summary = {key: entry[key] for key in entry_fields if key in entry}
+            witness = entry.get("held_input_challenge")
+            if isinstance(witness, dict):
+                witness_fields = ("entry_generation", "matrix_key", "dscan_key", "press_ordinal",
+                    "release_ordinal", "valid", "pass", "held_states_observed",
+                    "state_sample_counts", "walkout_steps", "walkout_last_x",
+                    "walkout_reached_x320", "maze_steps", "maze_last_cell_y",
+                    "maze_last_step", "observation_count", "last_observation")
+                summary["held_input_challenge"] = {
+                    key: witness[key] for key in witness_fields if key in witness}
+                for list_key in ("logical_pose_changes", "front_pose_positions", "front_pose_ordinals"):
+                    if list_key in witness:
+                        values = witness[list_key]
+                        summary["held_input_challenge"][list_key + "_count"] = len(values)
+                        summary["held_input_challenge"][list_key + "_tail"] = values[-8:]
+            retirement = entry.get("offscreen_retirement")
+            if isinstance(retirement, dict):
+                summary["offscreen_retirement"] = {
+                    "entry_generation": retirement.get("entry_generation"),
+                    "last_visible_owners": sorted(str(x) for x in retirement.get("last_visible_by_owner", {})),
+                    "retired_owners": sorted(str(x) for x in retirement.get("retired_by_owner", {})),
+                    "state3_observation_count": len(retirement.get("state3_observations", [])),
+                    "state3_observations_tail": retirement.get("state3_observations", [])[-4:],
+                    "maze_entry_gate": retirement.get("maze_entry_gate"),
+                }
+            return json_safe(summary)
+
+        proofs = getattr(self, "proofs", {})
+        ledgers = {str(index): acceptance_status(ledger)
+                   for index, ledger in proofs.items() if isinstance(ledger, ProofLedger)}
+        lifecycle_records = getattr(self, "lifecycle_records", [])
+        if not lifecycle_records and getattr(self, "lifecycle", None) is not None:
+            lifecycle_records = [self.lifecycle]
+        return {
+            "kind": "natural-contact-search-timeout-context",
+            "cached_only_no_monitor_reread": True,
+            "no_progress_cause": "not_inferred_from_player_pose_alone",
+            "phase": json_safe(phase),
+            "last_stop": json_safe(getattr(self, "last_runtime_state_stop", None) or
+                                    getattr(self, "current_stop_context", None)),
+            "last_low_ram_state": json_safe(last_state),
+            "input_only_search": {
+                "direction_index": getattr(search, "direction", None),
+                "held_dscan": getattr(search, "held", None),
+                "held_matrix_key": getattr(search, "held_matrix", None),
+                "origin_cell": json_safe(getattr(search, "origin", None)),
+                "no_progress_stops": getattr(search, "age_stops", None),
+                "action_count": len(actions), "action_tail_limit": 64,
+                "actions_tail": json_safe(actions[-64:]),
+            },
+            "input_event_count": len(getattr(self, "input_events", [])),
+            "input_events_tail_limit": 64,
+            "input_events_tail": json_safe(list(getattr(self, "input_events", []))[-64:]),
+            "contact_count": getattr(self, "contact_count", None),
+            "contacts_tail": json_safe(list(getattr(self, "contacts", []))[-3:]),
+            "entries": [entry_summary(entry) for entry in entries],
+            "current_entry": entry_summary(getattr(self, "current_entry", None)),
+            "proof_ledgers": json_safe(ledgers),
+            "lifecycle_ledgers": json_safe([record.status() for record in lifecycle_records]),
+            "target_memory_write_count": getattr(self, "write_count", None),
+        }
 
     def _fixture_snapshot(self, stop: MonitorStop, qualification: dict[str, Any]) -> dict[str, Any]:
         require_current_paused_stop(self.client, stop.pc)
@@ -3707,6 +3835,11 @@ class LiveRuntimeObserver:
             if "stop" not in self.failure_context or self.failure_context.get("stop") is None:
                 self.failure_context["stop"] = stop_context
             self.failure_context["error"] = f"{type(exc).__name__}: {exc}"
+            if (getattr(self, "scenario", None) == "natural" and
+                    stop_context["phase"] == "natural-contact-search"):
+                self.failure_context["natural_contact_search"] = self._natural_contact_search_context({
+                    "name": stop_context["phase"], "status": "dispatch-failure",
+                    "deadline_seconds": PHASE_SECONDS})
             raise
 
     def _dispatch_qualified(self, stop: MonitorStop) -> None:
@@ -3766,10 +3899,13 @@ class LiveRuntimeObserver:
             stop = self.pump.next_stop(name, deadline)
             if stop is None:
                 if self.pump.consecutive_timeouts >= 2:
-                    self.phases.append({"name": name, "status": "aborted-after-two-consecutive-observation-timeouts",
+                    phase = {"name": name, "status": "aborted-after-two-consecutive-observation-timeouts",
                         "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
                         "observation_timeouts": self.pump.consecutive_timeouts,
-                        "timeout_meaning": "the required event was not observed across two bounded waits; stop and reassess"})
+                        "timeout_meaning": "the required event was not observed across two bounded waits; stop and reassess"}
+                    self.phases.append(phase)
+                    if name == "natural-contact-search" and self.scenario == "natural":
+                        self.contact_search_timeout_context = self._natural_contact_search_context(phase)
                     return False
                 continue
             self.client._bug117_phase_deadline = deadline
@@ -3778,18 +3914,24 @@ class LiveRuntimeObserver:
             finally:
                 del self.client._bug117_phase_deadline
             if time.monotonic() >= deadline:
-                self.phases.append({"name": name, "status": "dispatch-reached-phase-deadline",
+                phase = {"name": name, "status": "dispatch-reached-phase-deadline",
                     "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
-                    "timeout_meaning": "monitor event processing exhausted the named phase deadline"})
+                    "timeout_meaning": "monitor event processing exhausted the named phase deadline"}
+                self.phases.append(phase)
+                if name == "natural-contact-search" and self.scenario == "natural":
+                    self.contact_search_timeout_context = self._natural_contact_search_context(phase)
                 return False
             if predicate():
                 self.phases.append({"name": name, "status": "marker-observed",
                     "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
                     "success_marker": "live event predicate"})
                 return True
-        self.phases.append({"name": name, "status": "missing-marker-timeout",
+        phase = {"name": name, "status": "missing-marker-timeout",
             "deadline_seconds": PHASE_SECONDS, "stops": self.pump.ordinal - ordinal_before,
-            "timeout_meaning": "required event was absent within the named phase"})
+            "timeout_meaning": "required event was absent within the named phase"}
+        self.phases.append(phase)
+        if name == "natural-contact-search" and self.scenario == "natural":
+            self.contact_search_timeout_context = self._natural_contact_search_context(phase)
         return False
 
     def _phase_initial(self, require_visible: bool) -> bool:
@@ -3963,6 +4105,7 @@ class LiveRuntimeObserver:
             "proof_ledgers": proof_status, "lifecycle_ledgers": lifecycle_status,
             "front_pose_count": len(self.pose_hashes), "front_pose_sha256": self.pose_hashes,
             "phases": self.phases, "input_events": self.input_events,
+            "natural_contact_search_context": self.contact_search_timeout_context,
             "cold_credit_evidence": self.credit_evidence,
             "monitor_stop_timeouts": self.pump.timeout_records, "errors": self.errors,
             "entry_contact_violation": self.entry_contact_violation,
@@ -4019,6 +4162,8 @@ def run_live_capture(binary: Path, build: Path, output: Path, scenario: str,
             result["failure_context"] = observer.failure_context
         elif isinstance(getattr(exc, "failure_context", None), dict):
             result["failure_context"] = exc.failure_context
+        if observer is not None and observer.contact_search_timeout_context is not None:
+            result["natural_contact_search_context"] = observer.contact_search_timeout_context
     finally:
         if observer is not None and client is not None:
             try:
@@ -4247,6 +4392,28 @@ def self_test() -> dict[str, Any]:
     assert search.bindings == bytes((43, 44, 45, 46, 48))
     assert matrix_binding_to_dscan(COIN5_MATRIX_KEY) == COIN5_DSCAN_KEY
     tested += 1
+
+    search_symbols = {"PLAYER_DIR": 0x06, "PLAYER_WANT": 0x0F,
+        "BOX_TIMER": 0x4A, "ENEMY_TIMER": 0x55, "ENEMY_ACTIVE": 0x58,
+        "ENEMY_RELEASED": 0x59, "FREEZE_TIMER": 0x5B}
+    low_snapshot = bytearray(0x300)
+    for name, value in (("PLAYER_DIR", 3), ("PLAYER_WANT", 2), ("BOX_TIMER", 7),
+                        ("ENEMY_TIMER", 19), ("ENEMY_ACTIVE", 4), ("ENEMY_RELEASED", 11)):
+        low_snapshot[search_symbols[name]] = value
+    low_snapshot[0x5B:0x5D] = bytes.fromhex("1234")
+    search_state = decode_contact_search_state(bytes(low_snapshot), search_symbols)
+    assert search_state == {"player_dir": 3, "player_want": 2, "box_timer": 7,
+        "enemy_timer": 19, "enemy_active": 4, "enemy_released": 11,
+        "freeze_timer": 0x1234}
+    tested += 1
+    try:
+        decode_contact_search_state(bytes(0x100), search_symbols)
+    except GuardFailure as exc:
+        assert "complete cached" in str(exc)
+        tested += 1
+    else:
+        raise AssertionError("contact search decoded an incomplete low-RAM snapshot")
+
     search.at_gameplay_center(1, 0, 0, 0, 5, 7)
     assert search.held == 43 and input_client.calls == [("inject_key", {"key": 43, "action": "press"})]
     search.at_gameplay_center(2, 2, 0, 0, 5, 7)
@@ -4255,6 +4422,114 @@ def self_test() -> dict[str, Any]:
     assert all(method == "inject_key" for method, _ in input_client.calls)
     assert all(not event["target_memory_write"] for event in search.actions)
     assert all(event["key_namespace"] == "DSCAN" for event in search.actions)
+    tested += 1
+
+    waypoint_client = FakeInputClient()
+    waypoint_search = InputOnlySearch(waypoint_client, canonical_matrix)
+    waypoint_search.at_gameplay_center(10, 0, 0, 0, 12, 18)
+    for ordinal, step, cell_y in ((11, 1, 18), (12, 2, 18), (13, 3, 18), (14, 0, 17)):
+        waypoint_search.at_gameplay_center(ordinal, 0, 0, step, 12, cell_y)
+    assert waypoint_search.held == 43 and waypoint_search.direction == 0
+    assert [(params["key"], params["action"]) for _, params in waypoint_client.calls] == [(43, "press")]
+    assert waypoint_search.origin == (12, 17) and waypoint_search.age_stops == 0
+    for ordinal in range(15, 23):
+        waypoint_search.at_gameplay_center(ordinal, 0, 0, 0, 12, 17)
+    assert waypoint_search.held == 44 and waypoint_search.direction == 1
+    assert [(params["key"], params["action"]) for _, params in waypoint_client.calls] == [
+        (43, "press"), (43, "release"), (44, "press")]
+    assert waypoint_search.actions[-2]["reason"] == "source-qualified-observed-no-progress-route-retry"
+    assert waypoint_search.actions[-2]["no_progress_stops"] == 8
+    assert waypoint_search.actions[-1]["direction_index"] == 1
+    noncenter_client = FakeInputClient()
+    noncenter_search = InputOnlySearch(noncenter_client, canonical_matrix)
+    noncenter_search.at_gameplay_center(24, 0, 0, 0, 12, 18)
+    noncenter_search.at_gameplay_center(25, 0, 0, 1, 12, 18)
+    for ordinal in range(26, 35):
+        noncenter_search.at_gameplay_center(ordinal, 0, 0, 1, 12, 18)
+    assert noncenter_search.held == 43 and noncenter_search.direction == 0
+    assert [params["action"] for _, params in noncenter_client.calls] == ["press"]
+    tested += 1
+
+    isolation_client = FakeInputClient()
+    isolation_search = InputOnlySearch(isolation_client, canonical_matrix)
+    isolation_search.at_gameplay_center(30, 0, 0, 0, 5, 7)
+    for ordinal in range(31, 39):
+        isolation_search.at_gameplay_center(ordinal, 0, 0, 0, 5, 7)
+    assert isolation_search.held == 44 and isolation_search.direction == 1
+    isolation_search.at_gameplay_center(39, 0, 1, 0, 5, 7)
+    assert isolation_search.held is None and isolation_search.direction == 1
+    assert [params["action"] for _, params in isolation_client.calls] == [
+        "press", "release", "press", "release"]
+    assert not any(action.get("target_memory_write") for action in isolation_search.actions)
+    tested += 1
+
+    context_observer = object.__new__(LiveRuntimeObserver)
+    context_observer.scenario = "natural"
+    context_observer.last_runtime_state = {
+        "entry": 0, "death": 0, "timer": 80, "lives": 3, "frames": 0x1234,
+        "player_fb": 0x123456, "cell_x": 12, "cell_y": 18, "step": 0,
+        "dir": 1, "want": 1, "player_dir": 1, "player_want": 1,
+        "box_timer": 5, "enemy_timer": 23, "enemy_active": 2,
+        "enemy_released": 4, "freeze_timer": 0x0102,
+        "enemy_raw": bytes(range(32)), "enemy_sha256": sha(bytes(range(32))),
+    }
+    context_observer.last_runtime_state_stop = {"phase": "natural-contact-search",
+        "phase_deadline_seconds": PHASE_SECONDS, "pc": 0xC101, "bp_id": 7, "ordinal": 900}
+    context_observer.current_stop_context = dict(context_observer.last_runtime_state_stop)
+    context_observer.search = InputOnlySearch(FakeInputClient(), canonical_matrix)
+    context_observer.search.actions = [{"ordinal": i, "action": "press" if i % 2 == 0 else "release",
+        "target_memory_write": False} for i in range(70)]
+    context_observer.input_events = [{"ordinal": i, "target_memory_write": False} for i in range(70)]
+    context_observer.entries = [{"index": 1, "held_input_challenge": {"valid": True}}]
+    context_observer.current_entry = context_observer.entries[0]
+    context_observer.proofs = {1: ProofLedger()}
+    context_observer.lifecycle_records = []
+    context_observer.lifecycle = None
+    context_observer.contact_count = 0
+    context_observer.contacts = []
+    context_observer.write_count = 0
+    context_summary = context_observer._natural_contact_search_context({
+        "name": "natural-contact-search", "status": "missing-marker-timeout",
+        "deadline_seconds": PHASE_SECONDS, "timeout_meaning": "contact absent"})
+    assert context_summary["cached_only_no_monitor_reread"] is True
+    assert context_summary["no_progress_cause"] == "not_inferred_from_player_pose_alone"
+    assert context_summary["last_stop"]["ordinal"] == 900
+    assert context_summary["last_low_ram_state"]["player_want"] == 1
+    assert context_summary["last_low_ram_state"]["box_timer"] == 5
+    assert context_summary["last_low_ram_state"]["enemy_timer"] == 23
+    assert context_summary["last_low_ram_state"]["enemy_active"] == 2
+    assert context_summary["last_low_ram_state"]["enemy_released"] == 4
+    assert context_summary["last_low_ram_state"]["freeze_timer"] == 0x0102
+    assert context_summary["last_low_ram_state"]["enemy_raw"]["hex"] == bytes(range(32)).hex()
+    assert len(context_summary["input_only_search"]["actions_tail"]) == 64
+    assert len(context_summary["input_events_tail"]) == 64
+    assert context_summary["entries"][0]["index"] == 1
+    assert "1" in context_summary["proof_ledgers"]
+    assert context_summary["target_memory_write_count"] == 0
+    assert json.loads(json.dumps(context_summary)) == context_summary
+    assert context_observer.search.client.calls == []
+    tested += 1
+
+    class FakeSearchTimeoutPump:
+        def __init__(self):
+            self.consecutive_timeouts = 2
+            self.ordinal = 900
+        def next_stop(self, phase: str, deadline: float):
+            assert phase == "natural-contact-search"
+            return None
+
+    timeout_observer = object.__new__(LiveRuntimeObserver)
+    timeout_observer.__dict__.update(context_observer.__dict__)
+    timeout_observer.pump = FakeSearchTimeoutPump()
+    timeout_observer.phases = []
+    timeout_observer.contact_search_timeout_context = None
+    assert timeout_observer._phase("natural-contact-search", lambda: False) is False
+    timeout_context = timeout_observer.contact_search_timeout_context
+    assert timeout_context["phase"]["status"] == "aborted-after-two-consecutive-observation-timeouts"
+    assert timeout_context["cached_only_no_monitor_reread"] is True
+    assert timeout_observer.pump.ordinal == 900
+    assert json.loads(json.dumps(timeout_context)) == timeout_context
+    assert timeout_observer.search.client.calls == []
     tested += 1
 
     class FakeChallengeClient(FakeInputClient):
@@ -5971,7 +6246,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+             "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only route retains direction across changed cell/step poses and rotates only after eight identical source-qualified step-0 no-progress samples, immediate entry/death isolation without direction rotation, cached low-RAM player direction/want and box/enemy/freeze timer decoding with truncated-snapshot rejection, natural contact timeout retains JSON-safe enemy bytes/input tails/entries/proof ledgers without monitor rereads and with bounded lists, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, generation-scoped state3 A/B saved-under restoration with row-derived x320, invalid FRONT metadata, clipped pixel match and first-state4 gate negatives, state2/state4 missing-visible-pose failures, report JSON serialization, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, source-count-authoritative terminal music occupancy with exact eight-byte type/capacity and active/malformed negatives, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 
