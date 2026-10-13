@@ -1,0 +1,36 @@
+{
+  "guard_source_sha256": "ee2666a2b2484f52cadcb43aa9ee6543533259410faf5d4588afa6653c785906",
+  "fixture_artifact": "preserved original with copied operand correction; no delivered-artifact writes",
+  "cases": [
+    {
+      "case": "corrected",
+      "exit_code": 0,
+      "expected_pass": true,
+      "output": "build: init_enemy JMP $D516->$A469 matches rate_enemy_init_shim"
+    },
+    {
+      "case": "stale-A463",
+      "exit_code": 1,
+      "expected_pass": false,
+      "output": "build: resident init_enemy JMP at $D516 targets $A463; expected rate_enemy_init_shim $A469"
+    },
+    {
+      "case": "missing-shim",
+      "exit_code": 1,
+      "expected_pass": false,
+      "output": "build: rate helper map is missing rate_enemy_init_shim"
+    },
+    {
+      "case": "unexpected-opcode",
+      "exit_code": 1,
+      "expected_pass": false,
+      "output": "build: resident init_enemy at $D516 has opcode $BD; expected JMP opcode $7E"
+    },
+    {
+      "case": "out-of-bounds",
+      "exit_code": 1,
+      "expected_pass": false,
+      "output": "build: resident init_enemy bytes at $DFFF are outside $C000-$DFFF"
+    }
+  ]
+}
