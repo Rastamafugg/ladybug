@@ -25,6 +25,7 @@ PINS = {
     "docs/reference/xroar/src/dkbd.h": "84e27da9398e9e0e12942810b94a8163f861d518168dec01ae72fc7e695284ce",
     "assets/arcade/sprites.json": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
 }
+ACCEPTANCE_ARTIFACTS = set(PINS) | {"build/ladybug.rom", "build/ladybug-rate-helper.map"}
 MOVES = ((0, -1), (1, 0), (0, 1), (-1, 0))
 ACTION_FOR_DIR = (0, 3, 1, 2)  # N,E,S,W -> live binding slots
 NAMES = ("N", "E", "S", "W")
@@ -53,6 +54,19 @@ def pinned_inputs() -> dict[str, str]:
     return actual
 
 
+def acceptance_inputs(manifest: Path) -> dict[str, str]:
+    expected = json.loads(manifest.read_text(encoding="utf-8"))
+    if not isinstance(expected, dict) or set(expected) != ACCEPTANCE_ARTIFACTS:
+        raise RuntimeError(f"acceptance manifest must pin exactly: {sorted(ACCEPTANCE_ARTIFACTS)}")
+    actual = {}
+    for relative, pinned in expected.items():
+        actual[relative] = digest((ROOT / relative).read_bytes())
+        if (not isinstance(pinned, str) or not re.fullmatch(r"[0-9a-fA-F]{64}", pinned)
+                or actual[relative] != pinned.lower()):
+            raise RuntimeError(f"invalid or mismatched acceptance SHA-256 before launch: {relative} {actual[relative]}")
+    return actual
+
+
 def dscan_to_matrix(scan: int) -> int:
     """CoCo 3 mapping from dkbd.c; project identity is col*8+row."""
     col, row = scan & 7, (scan >> 3) & 7
@@ -68,8 +82,8 @@ def matrix_to_dscan(matrix: int) -> int:
     return matches[0]
 
 
-def self_check() -> dict:
-    hashes = pinned_inputs()
+def self_check(manifest: Path | None = None) -> dict:
+    hashes = acceptance_inputs(manifest) if manifest else pinned_inputs()
     expected = [43, 44, 45, 46, 48]
     actual = [matrix_to_dscan(k) for k in (27, 35, 43, 51, 6)]
     if actual != expected or matrix_to_dscan(44) != 5:
@@ -137,8 +151,11 @@ def route_first(maze: dict, x: int, y: int, states: list[int], dots: bytes,
     return None, None
 
 
-def run(xroar: Path, output: Path) -> dict:
-    pins = pinned_inputs()
+def run(xroar: Path, output: Path, acceptance_manifest: Path | None = None,
+        scenario: str = "level2") -> dict:
+    acceptance = acceptance_manifest is not None
+    pins = acceptance_inputs(acceptance_manifest) if acceptance else pinned_inputs()
+    rom_sha = pins["build/ladybug.rom"] if acceptance else ROM_SHA
     sys.path.insert(0, str(ROOT / "scripts"))
     import verify_bug009_monitor_input as monitor
     from verify_bug011_runtime import launch_fast
@@ -146,13 +163,15 @@ def run(xroar: Path, output: Path) -> dict:
     main = symbols(ROOT / "build/ladybug.map")
     pres = symbols(ROOT / "build/ladybug-presentation-runtime.map")
     enemy = symbols(ROOT / "build/ladybug-enemy-runtime.map")
+    rate = symbols(ROOT / "build/ladybug-rate-helper.map") if acceptance else {}
     pft, tick = pres["pft_dispatch"], main["player_tick"]
     publish, next_stage = enemy["fbiq_done"], main["next_stage"]
-    result = {"rom_sha256": ROM_SHA, "pinned_sha256": pins, "target_writes": 0,
+    result = {"rom_sha256": rom_sha, "pinned_sha256": pins, "target_writes": 0,
               "runtime_started": True, "phases": [], "accepted_front": None}
     process = client = None
     bps: list[int] = []
     held_scan: int | None = None
+    frames = None
     started = time.monotonic()
 
     def read(addr: int, size: int, physical: bool = False) -> bytes:
@@ -203,6 +222,71 @@ def run(xroar: Path, output: Path) -> dict:
             entry.update(extra)
         result["phases"].append(entry)
 
+    def capture_front(draw_state: bytes, label: str, deadline: float) -> dict:
+        nonlocal frames
+        back = draw_state[0x90]
+        seq = int.from_bytes(draw_state[0x92:0x94], "big")
+        setpoints(publish)
+        while True:
+            hit(deadline, {publish})
+            published = dp()
+            if (published[0x91] == 0 and published[0x8F] == back
+                    and int.from_bytes(published[0x92:0x94], "big") != seq):
+                break
+        front = published[0x8F]
+        page = 0x30 if front == 0 else 0x2C
+        captured_frame = read(page * 8192, 0x7800, True)
+        output.parent.mkdir(parents=True, exist_ok=True)
+        frame_path = output.with_suffix(".front.bin" if label == "initial" else f".{label}.front.bin")
+        frame_path.write_bytes(captured_frame)
+        if frames is None:
+            from build_screen import compile_player_sprites
+            frames = compile_player_sprites(ROOT / "assets/arcade/sprites.json")
+        frame_index = (draw_state[7] & 3) * 4 + (draw_state[0x4F] & 3)
+        sprite = frames[frame_index]
+        colors = (0, 12, 5, 2)
+        opaque = []
+        for sy in range(16):
+            for sx in range(16):
+                packed = sprite[sy * 4 + sx // 4]
+                pen = (packed >> (6 - 2 * (sx & 3))) & 3
+                if pen:
+                    opaque.append((sx, sy, colors[pen]))
+        if not opaque:
+            raise RuntimeError(f"compiled player frame has no opaque pixels for {label}")
+        def compare(anchor_x: int, anchor_y: int) -> tuple[int, int]:
+            matched = 0
+            for sx, sy, color in opaque:
+                px, py = anchor_x + sx, anchor_y + sy
+                if 0 <= px < 320 and 0 <= py < 192:
+                    byte = captured_frame[py * 160 + px // 2]
+                    actual = (byte >> 4) & 15 if px % 2 == 0 else byte & 15
+                    matched += actual == color
+            return matched, len(opaque)
+        logical = (152 + 8 * (draw_state[9] - 12), 169 + 8 * (draw_state[10] - 22))
+        pointer = int.from_bytes(draw_state[11:13], "big") - 0x2000
+        ptr_anchor = ((pointer % 160) * 2, pointer // 160) if 0 <= pointer < 0x7800 else (-1, -1)
+        pointer_match, logical_match = compare(*ptr_anchor), compare(*logical)
+        return {"owner": front, "commit": int.from_bytes(published[0x92:0x94], "big"),
+            "back_at_draw": back, "commit_at_draw": seq,
+            "player_fb": hex(int.from_bytes(draw_state[11:13], "big")),
+            "cell": [draw_state[9], draw_state[10]], "step": draw_state[8],
+            "face": draw_state[7], "anim": draw_state[0x4F],
+            "frame_index": frame_index, "frame_sha256": digest(captured_frame),
+            "frame_file": str(frame_path), "logical_anchor": list(logical),
+            "pointer_anchor": list(ptr_anchor),
+            "offset_from_logical_pixels": [ptr_anchor[0] - logical[0], ptr_anchor[1] - logical[1]],
+            "opaque_pixels": len(opaque), "pointer_opaque_matches": list(pointer_match),
+            "logical_opaque_matches": list(logical_match),
+            "mask_displacement_confirmed": (pointer_match[0] == len(opaque)
+                                              and logical_match[0] < len(opaque))}
+
+    def require_aligned_front(label: str, captured: dict) -> None:
+        total = captured["opaque_pixels"]
+        if (captured["offset_from_logical_pixels"] != [0, 0]
+                or captured["logical_opaque_matches"] != [total, total]):
+            raise RuntimeError(f"{label} FRONT missed 0/0 and 100% authored opaque match: {captured}")
+
     try:
         process, client = launch_fast(monitor, xroar, ROOT / "build/ladybug.rom")
         d0 = started + 45
@@ -229,6 +313,27 @@ def run(xroar: Path, output: Path) -> dict:
         enter = matrix_to_dscan(bindings[4])
         result["bindings_dscan"] = {"N": directions[0], "S": directions[1],
                                      "W": directions[2], "E": directions[3], "Enter": enter}
+        if acceptance and scenario == "demo":
+            demo_begin = time.monotonic()
+            demo_deadline = demo_begin + 45
+            def demo_pose(cell: list[int]) -> bytes:
+                setpoints(main["draw_player"])
+                while time.monotonic() < demo_deadline:
+                    hit(demo_deadline, {main["draw_player"]})
+                    candidate = dp()
+                    if (candidate[0xA5] == 4 and candidate[0xA0] == 0
+                            and [candidate[9], candidate[10]] == cell and candidate[8] == 0):
+                        return candidate
+                raise TimeoutError(f"natural demo did not draw aligned cell {cell} within 45 seconds")
+            initial_demo = demo_pose([12, 22])
+            result["demo_initial_front"] = capture_front(initial_demo, "initial", demo_deadline)
+            require_aligned_front("natural demo initial", result["demo_initial_front"])
+            moved_demo = demo_pose([12, 21])
+            result["demo_moved_front"] = capture_front(moved_demo, "demo-moved", demo_deadline)
+            require_aligned_front("natural demo moved", result["demo_moved_front"])
+            phase("natural attract demo initial and moved poses with matching FRONT commits", demo_begin)
+            result["acceptance_pass"] = True
+            return result
         # Fixed coin is project matrix 44 and therefore DSCAN 5, never numeric 44.
         credit_before = read(0xA8, 1)[0]
         if credit_before != 0:
@@ -270,6 +375,18 @@ def run(xroar: Path, output: Path) -> dict:
         result["first_level"] = {"stage": d[0x24], "cell": [d[9], d[10]], "step": d[8],
                                  "player_fb": hex(int.from_bytes(d[11:13], "big")),
                                  "front": d[0x8F], "commit": int.from_bytes(d[0x92:0x94], "big")}
+        if acceptance:
+            setpoints(main["draw_player"])
+            while True:
+                hit(t0 + 45, {main["draw_player"]})
+                first_level_draw = dp()
+                if (first_level_draw[0x24] == 1 and first_level_draw[0xA5] == 0
+                        and first_level_draw[0xA0] == 0 and first_level_draw[8] == 0
+                        and first_level_draw[9:11] == bytes((12, 18))
+                        and int.from_bytes(first_level_draw[11:13], "big") == 0x75EC):
+                    break
+            result["first_level_front"] = capture_front(first_level_draw, "first-level", t0 + 45)
+            require_aligned_front("credited first-level", result["first_level_front"])
         phase("first-level correct FRONT baseline", t0, result["first_level"])
 
         par5 = read(0xFFA5, 1)[0]
@@ -454,6 +571,8 @@ def run(xroar: Path, output: Path) -> dict:
             "end_lives": final_dp[0x23], "final_entity_count": len(final_entities),
             "final_entities": final_entities, "progress": progress[-40:],
         }
+        if acceptance and not transition:
+            raise TimeoutError("45-second natural level-1 clear did not reach next_stage")
         if not transition and "route_failure" not in result:
             result["route_failure"] = "45-second natural-clear deadline reached"
 
@@ -495,8 +614,21 @@ def run(xroar: Path, output: Path) -> dict:
                 return prior[-1][1] if prior else "unlabeled"
 
             trace = []
-            trace_stop = "instruction-bound-64"
-            for _ in range(64):
+            trace_stop = "instruction-bound-192" if acceptance else "instruction-bound-64"
+            caller_return = None
+            if acceptance:
+                init_addr = main["init_enemy"]
+                shim_addr = rate["rate_enemy_init_shim"]
+                reset_addr = rate["rate_reset"]
+                api_addr = main["ENEMY_MODULE_INIT"]
+                enemy_init_addr = enemy["enemy_init_impl"]
+                seed_fb = int.from_bytes(d[11:13], "big")
+            trace_record = result["init_enemy_trace"] = {
+                "method": "step_instruction n=1 then wait_for_stop",
+                "max_instructions": 192 if acceptance else 64,
+                "stop": trace_stop, "instruction_samples": trace,
+            }
+            for _ in range(192 if acceptance else 64):
                 remaining = transition_deadline - time.monotonic()
                 if remaining <= 0:
                     trace_stop = "45-second-transition-deadline"
@@ -524,8 +656,9 @@ def run(xroar: Path, output: Path) -> dict:
                     physical_addr = 0x34 * 8192 + (pc_before - 0xA000)
                     physical_before = read(physical_addr, 6, True)
                     expected_before = rate_image[pc_before - 0xA3B0:pc_before - 0xA3B0 + 6]
-                    module_match = (par5_normalized == 0x34 and live_before == expected_before
-                                    and physical_before == expected_before)
+                    module_match = (par5_normalized == 0x34
+                                    and live_before[:len(expected_before)] == expected_before
+                                    and physical_before[:len(expected_before)] == expected_before)
 
                 if module_match is False:
                     trace.append({"pc_before": hex(pc_before), "dp_register": regs_before.get("dp"),
@@ -537,10 +670,33 @@ def run(xroar: Path, output: Path) -> dict:
                                   "module_match": False, "stop": "failed-before-execution"})
                     result["init_enemy_trace"] = {
                         "method": "step_instruction n=1 then wait_for_stop",
-                        "max_instructions": 64, "stop": "module-qualification-failed",
+                        "max_instructions": 192 if acceptance else 64, "stop": "module-qualification-failed",
                         "instruction_samples": trace,
                     }
                     raise RuntimeError(f"live executable bytes failed artifact qualification before step at {pc_before:04x}")
+
+                if acceptance:
+                    if pc_before == init_addr:
+                        target = int.from_bytes(live_before[1:3], "big")
+                        if live_before[0] != 0x7E or target != shim_addr:
+                            raise RuntimeError(f"qualified init_enemy JMP missed mapped shim: {live_before[:3].hex()}")
+                    if 0xC000 <= pc_before < 0xE000 and live_before[0] == 0x17:
+                        target = (pc_before + 3 + int.from_bytes(live_before[1:3], "big", signed=True)) & 0xFFFF
+                        if target == init_addr:
+                            if caller_return is not None:
+                                raise RuntimeError("multiple resident calls to init_enemy appeared in natural handoff")
+                            caller_return = pc_before + 3
+                    if pc_before == shim_addr:
+                        target = (pc_before + 3 + int.from_bytes(live_before[1:3], "big", signed=True)) & 0xFFFF
+                        if live_before[0] != 0x17 or target != reset_addr:
+                            raise RuntimeError(f"qualified shim did not call mapped rate_reset: {live_before[:3].hex()}")
+                        shim_jump = rate_image[shim_addr - rate["rate_reset"] + 3:shim_addr - rate["rate_reset"] + 6]
+                        jump_target = int.from_bytes(shim_jump[1:3], "big")
+                        if shim_jump[0] != 0x7E or jump_target != api_addr:
+                            raise RuntimeError(f"mapped shim tail target missed enemy API entry: {shim_jump.hex()}")
+                    if pc_before == api_addr and (live_before[0] != 0x7E
+                                                   or int.from_bytes(live_before[1:3], "big") != enemy_init_addr):
+                        raise RuntimeError(f"qualified enemy API entry missed mapped initializer: {live_before[:3].hex()}")
 
                 ack = client.call("step_instruction", {"n": 1}, timeout=min(2, remaining))
                 if not ack.get("ok") or ack.get("n") != 1:
@@ -584,16 +740,31 @@ def run(xroar: Path, output: Path) -> dict:
                 })
                 if trace_stop.startswith("non-step-stop"):
                     break
-                if pc_after == 0xA467:
+                if acceptance and int.from_bytes(dp_after[11:13], "big") != seed_fb:
+                    raise RuntimeError(f"PLAYER_FB seed changed during init_enemy handoff: {seed_fb:04x}->{int.from_bytes(dp_after[11:13], 'big'):04x}")
+                if acceptance and caller_return is not None and pc_after == caller_return:
+                    seen_pcs = {int(row[key], 16) for row in trace for key in ("pc_before", "pc_after")}
+                    required_pcs = {init_addr, shim_addr, reset_addr, shim_addr + 3, api_addr, enemy_init_addr}
+                    if not required_pcs.issubset(seen_pcs):
+                        raise RuntimeError("qualified handoff path was incomplete before resident caller return")
+                    return_expected = resident_image[caller_return - 0xC000:caller_return - 0xC000 + 6]
+                    if read(caller_return, 6) != return_expected:
+                        raise RuntimeError("map-derived resident caller return bytes failed artifact qualification")
+                    result["init_enemy_handoff"] = {
+                        "player_fb_seed": hex(seed_fb),
+                        "caller_return_pc": hex(caller_return),
+                        "player_fb_at_return": hex(int.from_bytes(dp_after[11:13], "big")),
+                    }
+                    trace_stop = "reached-map-derived-resident-caller-return"
+                    break
+                if not acceptance and pc_after == 0xA467:
                     trace_stop = "reached-post-ASL-boundary-A467"
                     break
-            result["init_enemy_trace"] = {
-                "method": "step_instruction n=1 then wait_for_stop",
-                "max_instructions": 64, "stop": trace_stop,
+            trace_record.update({
+                "stop": trace_stop,
                 "helper_dec_instruction_seen": any(row.get("pc_before") == "0xa463" for row in trace),
                 "helper_asl_instruction_seen": any(row.get("pc_before") == "0xa465" for row in trace),
-                "instruction_samples": trace,
-            }
+            })
             draw = main["draw_player"]
             setpoints(draw)
             while True:
@@ -601,73 +772,9 @@ def run(xroar: Path, output: Path) -> dict:
                 d = dp()
                 if d[0x24] == 2 and d[0xA5] == 0 and d[0xA0] == 0 and d[8] == 0:
                     break
-            from build_screen import compile_player_sprites
-            frames = compile_player_sprites(ROOT / "assets/arcade/sprites.json")
-            colors = (0, 12, 5, 2)
-
-            def opaque_pixels(draw_state: bytes) -> tuple[int, list[tuple[int, int, int]]]:
-                frame_index = (draw_state[7] & 3) * 4 + (draw_state[0x4F] & 3)
-                sprite = frames[frame_index]
-                opaque = []
-                for sy in range(16):
-                    for sx in range(16):
-                        packed = sprite[sy * 4 + sx // 4]
-                        pen = (packed >> (6 - 2 * (sx & 3))) & 3
-                        if pen:
-                            opaque.append((sx, sy, colors[pen]))
-                return frame_index, opaque
-
-            def compare(captured_frame: bytes, opaque: list[tuple[int, int, int]],
-                        anchor_x: int, anchor_y: int) -> tuple[int, int]:
-                matched = 0
-                for sx, sy, color in opaque:
-                    px, py = anchor_x + sx, anchor_y + sy
-                    if not (0 <= px < 320 and 0 <= py < 192):
-                        continue
-                    byte = captured_frame[py * 160 + px // 2]
-                    actual = (byte >> 4) & 15 if px % 2 == 0 else byte & 15
-                    matched += actual == color
-                return matched, len(opaque)
-
-            def capture_front(draw_state: bytes, label: str) -> dict:
-                back = draw_state[0x90]
-                seq = int.from_bytes(draw_state[0x92:0x94], "big")
-                setpoints(publish)
-                while True:
-                    hit(transition_deadline, {publish})
-                    published = dp()
-                    if (published[0x91] == 0 and published[0x8F] == back
-                            and int.from_bytes(published[0x92:0x94], "big") != seq):
-                        break
-                front = published[0x8F]
-                page = 0x30 if front == 0 else 0x2C
-                captured_frame = read(page * 8192, 0x7800, True)
-                output.parent.mkdir(parents=True, exist_ok=True)
-                frame_path = output.with_suffix(".front.bin" if label == "initial" else f".{label}.front.bin")
-                frame_path.write_bytes(captured_frame)
-                frame_index, opaque = opaque_pixels(draw_state)
-                if not opaque:
-                    raise RuntimeError(f"compiled player frame has no opaque pixels for {label}")
-                logical = (152 + 8 * (draw_state[9] - 12), 169 + 8 * (draw_state[10] - 22))
-                pointer = int.from_bytes(draw_state[11:13], "big") - 0x2000
-                ptr_anchor = ((pointer % 160) * 2, pointer // 160) if 0 <= pointer < 0x7800 else (-1, -1)
-                pointer_match = compare(captured_frame, opaque, *ptr_anchor)
-                logical_match = compare(captured_frame, opaque, *logical)
-                return {"owner": front, "commit": int.from_bytes(published[0x92:0x94], "big"),
-                    "back_at_draw": back, "commit_at_draw": seq,
-                    "player_fb": hex(int.from_bytes(draw_state[11:13], "big")),
-                    "cell": [draw_state[9], draw_state[10]], "step": draw_state[8],
-                    "face": draw_state[7], "anim": draw_state[0x4F],
-                    "frame_index": frame_index, "frame_sha256": digest(captured_frame),
-                    "frame_file": str(frame_path), "logical_anchor": list(logical),
-                    "pointer_anchor": list(ptr_anchor),
-                    "offset_from_logical_pixels": [ptr_anchor[0] - logical[0], ptr_anchor[1] - logical[1]],
-                    "opaque_pixels": len(opaque), "pointer_opaque_matches": list(pointer_match),
-                    "logical_opaque_matches": list(logical_match),
-                    "mask_displacement_confirmed": (pointer_match[0] == len(opaque)
-                                                      and logical_match[0] < len(opaque))}
-
-            result["accepted_front"] = capture_front(d, "initial")
+            result["accepted_front"] = capture_front(d, "initial", transition_deadline)
+            if acceptance:
+                require_aligned_front("natural level-2 initial", result["accepted_front"])
 
             # One ordinary north input captures a moving pose at the next
             # aligned cell, under the same 45-second transition deadline.
@@ -690,10 +797,18 @@ def run(xroar: Path, output: Path) -> dict:
             release_direction()
             if moving_draw is None:
                 raise TimeoutError("no aligned north-movement draw at level-2 cell [12, 21] before transition deadline")
-            result["north_movement_front"] = capture_front(moving_draw, "north")
+            result["north_movement_front"] = capture_front(moving_draw, "north", transition_deadline)
+            if acceptance:
+                require_aligned_front("natural level-2 moved", result["north_movement_front"])
             phase("natural next-stage initial and moving poses with matching FRONT commits", transition_begin,
                   {"elapsed_seconds": round(time.monotonic() - transition_begin, 3), "deadline_seconds": 45})
+            if acceptance:
+                if result.get("init_enemy_trace", {}).get("stop") != "reached-map-derived-resident-caller-return":
+                    raise RuntimeError("positive acceptance did not reach the mapped resident caller return")
+                result["acceptance_pass"] = True
     except Exception as exc:
+        if "trace_record" in locals():
+            trace_record["stop"] = trace_stop
         result["failure"] = {"type": type(exc).__name__, "detail": str(exc)}
         raise
     finally:
@@ -724,12 +839,21 @@ def main() -> None:
     mode = parser.add_mutually_exclusive_group(required=True)
     mode.add_argument("--prepare-only", action="store_true")
     mode.add_argument("--run", action="store_true")
+    mode.add_argument("--acceptance", action="store_true")
+    parser.add_argument("--acceptance-manifest", type=Path)
+    parser.add_argument("--scenario", choices=("level2", "demo"), default="level2")
     parser.add_argument("--xroar", type=Path, default=ROOT / "docs/reference/xroar/src/xroar")
     parser.add_argument("--output", type=Path, default=ROOT / "repro/bug123-runtime-20261012/runtime-reproduction-run.json")
     args = parser.parse_args()
     if args.prepare_only:
-        print(json.dumps(self_check(), indent=2))
+        print(json.dumps(self_check(args.acceptance_manifest), indent=2))
+    elif args.acceptance:
+        if not args.acceptance_manifest:
+            parser.error("--acceptance requires --acceptance-manifest")
+        run(args.xroar, args.output, args.acceptance_manifest, args.scenario)
     else:
+        if args.acceptance_manifest or args.scenario != "level2":
+            parser.error("--acceptance-manifest and non-default --scenario require --acceptance")
         run(args.xroar, args.output)
 
 
