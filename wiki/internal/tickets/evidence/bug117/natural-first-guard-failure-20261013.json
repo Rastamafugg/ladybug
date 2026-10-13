@@ -1,0 +1,366 @@
+{
+  "scenario": "natural",
+  "status": "INCOMPLETE_FAIL_CLOSED",
+  "scenario_acceptance_observed": false,
+  "runtime_ready": false,
+  "runtime_ready_reason": "parent aggregation and evidence audit are still required",
+  "error": "GuardFailure: live physical module bytes differ from staged candidate bytes",
+  "emulator_launches": 1,
+  "target_write_count": 0,
+  "target_writes": 0,
+  "events": [],
+  "phases": [],
+  "errors": [],
+  "qualified_profile": {
+    "receipt": "build/source-build-receipt.json",
+    "receipt_sha256": "cdaabcc9065e9e8d3f663122a9b40e1315cd975488dc52d559804b8d85233d00",
+    "profile": "complete / adaptive / keyboard",
+    "invocation": {
+      "arguments": [
+        "-9",
+        "--format=raw",
+        "-DADAPTIVE_RENDERING=1",
+        "-DBUG011_DEVELOPMENT_PROFILE=1",
+        "-DCOMPLETE_PROFILE=1",
+        "-DHIGHSCORE_TEST_PROFILE=0",
+        "-DHIGHSCORE_PHASE_HELPER=0",
+        "-DPRESENTATION_NAME_ENTRY_DATA=0",
+        "-DINPUT_JOYSTICK=0",
+        "-I",
+        "${ROOT}/build",
+        "-I",
+        "${ROOT}/src",
+        "--output=${ROOT}/build/ladybug-runtime.rom",
+        "--map=${ROOT}/build/ladybug.map",
+        "--list=${ROOT}/build/ladybug.lst",
+        "${ROOT}/src/main.s"
+      ],
+      "assembled_sha256": "e4d0452576b612d61b54f6ac0cc6242b76b1a33eb0dc5d43e6a8c93b27ab36b3",
+      "generated_source_sha256_before": null,
+      "listing": "ladybug.lst",
+      "map": "ladybug.map",
+      "output": "ladybug-runtime.rom",
+      "source": "src/main.s"
+    },
+    "staged_resident_sha256": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+    "resident_image_qualification": {
+      "asset_end": 65007,
+      "raw_length": 15855,
+      "raw_prefix_sha256": "e4d0452576b612d61b54f6ac0cc6242b76b1a33eb0dc5d43e6a8c93b27ab36b3",
+      "assembled_sha256": "e4d0452576b612d61b54f6ac0cc6242b76b1a33eb0dc5d43e6a8c93b27ab36b3",
+      "staged_sha256": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+      "padding_bytes": 529,
+      "padding_byte": "FF"
+    },
+    "source_hashes": {
+      "main.s": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+      "audio_runtime.s": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+      "enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "keybinding_runtime.s": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+      "presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c"
+    }
+  },
+  "delivery_qualification": {
+    "schema": "ladybug.gdb-mcp-delivery-qualification.v1",
+    "status": "parent-accepted",
+    "receipt_sha256": "739ea709f8be0a74c502b9f1cfe675511e31ee2422ae18eb3f1ea5cbca4f31ef",
+    "artifact_sha256": {
+      "ladybug.rom": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+      "ladybug-runtime.rom": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+      "ladybug.map": "393c43d830b405dcd17d881814d2c3bc80c341eea0988d7592872620d9255c5c",
+      "ladybug-audio-runtime.bin": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+      "ladybug-audio-runtime.map": "2fc4cae7d6689b7afa756f87b34796a5ad4a22ab6eda2842100baa38f4fa80b0",
+      "ladybug-enemy-runtime.rom": "5f36b093bcc4c93d44b1fb40e74651ccbd84694c2d31ff610b41102c45412519",
+      "ladybug-enemy-runtime.map": "1b7b8849f2167998cccc936604fb921e24b7d61e4413e269a845131a7e3bf89a",
+      "ladybug-presentation-runtime.bin": "f43964c601a1c38cee1c2bca1578b35bf3fcd150878b79d7cfbee2270bb349cd",
+      "ladybug-presentation-runtime.map": "d0b32f6a3f83bc8d6b9719d5cb4fe9c5e1000444b086d6bb45e28cae2ebaef9f",
+      "ladybug-player-sparse.bin": "8c8c22fc7434a029d73874c69e7cb7c68794cc4f6b317cb08612ee298a2e12df",
+      "ladybug-sparse-layout.json": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be"
+    },
+    "mapping_and_copy_qualified": true,
+    "source_to_staged_bytes_match": true,
+    "staged_sparse_copy_identity": true,
+    "destination_live_bytes_match": true,
+    "live_par_mapping_qualified": true
+  },
+  "preparation": {
+    "candidate_build": "/mnt/e/projects/ladybug/build",
+    "files": {
+      "ladybug.rom": {
+        "bytes": 65536,
+        "sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726"
+      },
+      "ladybug-runtime.rom": {
+        "bytes": 16384,
+        "sha256": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6"
+      },
+      "ladybug.map": {
+        "bytes": 91517,
+        "sha256": "393c43d830b405dcd17d881814d2c3bc80c341eea0988d7592872620d9255c5c"
+      },
+      "ladybug-sparse-layout.json": {
+        "bytes": 56796,
+        "sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be"
+      },
+      "ladybug-player-sparse.bin": {
+        "bytes": 2294,
+        "sha256": "8c8c22fc7434a029d73874c69e7cb7c68794cc4f6b317cb08612ee298a2e12df"
+      },
+      "ladybug-audio-runtime.bin": {
+        "bytes": 6656,
+        "sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035"
+      },
+      "ladybug-audio-runtime.map": {
+        "bytes": 23971,
+        "sha256": "2fc4cae7d6689b7afa756f87b34796a5ad4a22ab6eda2842100baa38f4fa80b0"
+      },
+      "ladybug-enemy-runtime.rom": {
+        "bytes": 4091,
+        "sha256": "5f36b093bcc4c93d44b1fb40e74651ccbd84694c2d31ff610b41102c45412519"
+      },
+      "ladybug-enemy-runtime.map": {
+        "bytes": 49988,
+        "sha256": "1b7b8849f2167998cccc936604fb921e24b7d61e4413e269a845131a7e3bf89a"
+      },
+      "ladybug-presentation-runtime.bin": {
+        "bytes": 1259,
+        "sha256": "f43964c601a1c38cee1c2bca1578b35bf3fcd150878b79d7cfbee2270bb349cd"
+      },
+      "ladybug-presentation-runtime.map": {
+        "bytes": 53798,
+        "sha256": "d0b32f6a3f83bc8d6b9719d5cb4fe9c5e1000444b086d6bb45e28cae2ebaef9f"
+      }
+    },
+    "candidate_sources": {
+      "main.s": {
+        "sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+        "patterns_checked": [
+          "DEATH_TIMER\\s+equ\\s+\\$003A",
+          "iet_final_wait"
+        ]
+      },
+      "audio_runtime.s": {
+        "sha256": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+        "patterns_checked": [
+          "lda\\s+,u\\s+sta\\s+2,y",
+          "lda\\s+2,x\\s+bita\\s+#1",
+          "audio_mix_write_done\\s+jsr\\s+audio_music_busy\\s+sta\\s+AUDIO_MUSIC_PUBLISHED_BUSY",
+          "audio_write\\s+sta\\s+SND_DATA",
+          "audio_command_end\\s+lda\\s+#\\$FF\\s+sta\\s+,y\\s+rts"
+        ]
+      },
+      "enemy_runtime.s": {
+        "sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+        "patterns_checked": [
+          "fbiq_publish\\s+sta\\s+GIME_VOFF1",
+          "inc\\s+FB_COMMIT_SEQ\\+1"
+        ]
+      },
+      "keybinding_runtime.s": {
+        "sha256": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+        "patterns_checked": [
+          "KB_BIND\\s+equ\\s+\\$0287",
+          "INPUT_JOYSTICK\\s+equ\\s+0",
+          "KB_FIXED_COIN_5\\s+equ\\s+44"
+        ]
+      },
+      "presentation_runtime.s": {
+        "sha256": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+        "patterns_checked": [
+          "org\\s+\\$1900",
+          "PRES_CREDITS\\s+equ\\s+\\$00A8",
+          "PRES_MAGIC\\s+equ\\s+\\$00A4",
+          "PRES_EVENT\\s+equ\\s+\\$00A9",
+          "MODE_ATTRACT\\s+equ\\s+2",
+          "pft_single_credit\\s+bsr\\s+add_credit"
+        ]
+      }
+    },
+    "mapped_symbols": {
+      "main": {
+        "DEATH_TIMER": 58,
+        "DEATH_STATE": 77,
+        "INITIAL_ENTRY_STATE": 160,
+        "PLAYER_CELL_X": 9,
+        "PLAYER_CELL_Y": 10,
+        "PLAYER_STEP": 8,
+        "PLAYER_DIR": 6,
+        "PLAYER_FACE": 7,
+        "PLAYER_ANIM": 79,
+        "PLAYER_TICK_PENDING": 107,
+        "PLAYER_BG_PTR": 162,
+        "PLAYER_BG_VALID": 106,
+        "FB_RENDER_PENDING": 145,
+        "FB_COMMIT_SEQ": 146,
+        "FB_FRONT_ID": 143,
+        "PLAYER_FB": 11,
+        "FB_META_A": 43264,
+        "FB_META_B": 43520,
+        "FBM_PLAYER_VALID": 2,
+        "FRAMES": 2,
+        "LIVES": 35,
+        "PRES_MODE": 165,
+        "ENEMY_TABLE": 42096,
+        "asset_end": 65007,
+        "marker_entry_begin": 49579,
+        "iet_offscreen": 49637,
+        "iet_maze_entry": 49677,
+        "iet_final_wait": 49716,
+        "mainloop": 49430
+      },
+      "audio": {
+        "audio_slot0": 46523,
+        "audio_slot1": 46551,
+        "audio_slot2": 46579,
+        "audio_slot3": 46607,
+        "audio_music_count": 42888,
+        "audio_music_queue": 42889,
+        "audio_mix_order": 42900,
+        "AUDIO_MIX_COUNT": 253,
+        "AUDIO_Q_COUNT": 238,
+        "AUDIO_CREDIT_PENDING": 733,
+        "audio_mix_periods": 46635,
+        "audio_mix_atten": 46641,
+        "audio_mix_noise": 46644,
+        "audio_mix_shadow": 46540,
+        "AUDIO_BEST_SLOT": 254,
+        "AUDIO_BEST_PRI": 255,
+        "AUDIO_MUSIC_PUBLISHED_BUSY": 724,
+        "audio_mix_write": 42000,
+        "audio_mix_write_done": 42130,
+        "audio_write": 42137,
+        "audio_music_busy": 42587,
+        "audio_command_end": 41682,
+        "gmc_cue_descriptors": 43037,
+        "gmc_cue_stream_06": 44339,
+        "gmc_cue_stream_13": 45697,
+        "gmc_sound_data_end": 46515
+      },
+      "enemy": {
+        "framebuffer_irq_impl": 3735,
+        "fbiq_publish": 3757,
+        "fbiq_done": 3782,
+        "et_player_death": 2448,
+        "FBM_PLAYER_FB": 4
+      },
+      "presentation": {
+        "presentation_flow_tick": 6400,
+        "add_credit": 6495,
+        "pft_ready": 6450,
+        "pft_single_credit": 6462,
+        "PRES_MAGIC": 164,
+        "PRES_CREDITS": 168,
+        "PRES_EVENT": 169,
+        "MODE_ATTRACT": 2
+      }
+    },
+    "cue_descriptors": {
+      "cue6_hex": "b3f0e01bad330700",
+      "cue6_policy": "exclusive, $B3, priority 5, voice mask $07",
+      "cue13_hex": "d3a0e01fb2810300",
+      "cue13_policy": "exclusive, $D3, priority 6"
+    },
+    "emitted_stream_boundaries": {
+      "cue6": {
+        "terminator_offset": 3715,
+        "terminal_next_offset": 3716,
+        "command_count": 101,
+        "terminator": 0,
+        "stream_start": 44339,
+        "terminator_address": 44675,
+        "terminal_x_expected": 44676
+      },
+      "cue13": {
+        "terminator_offset": 5101,
+        "terminal_next_offset": 5102,
+        "command_count": 110,
+        "terminator": 0,
+        "stream_start": 45697,
+        "terminator_address": 46061,
+        "terminal_x_expected": 46062
+      }
+    },
+    "irq_commit_instruction": {
+      "pc": 3770,
+      "end_pc": 3772,
+      "encoding": "direct",
+      "required_dp": 0,
+      "opcode_bytes": "0c93"
+    },
+    "audio_bus_store": {
+      "instruction_pc": 42137,
+      "stop_pc": 42140,
+      "opcode_bytes": "b7ff51",
+      "stop_pc_derived_from_emitted_bytes": true
+    },
+    "post_psg_busy_marker": {
+      "pc": 42136,
+      "derived_from_linked_jsr_and_sta": true
+    },
+    "player_art_identity": {
+      "frame_count": 16,
+      "art_source_sha256": "af2adb1a494b6a641deb38931ee93220b9638ffca4d42e8e37d7d8683945e42d",
+      "player_sparse_sha256": "8c8c22fc7434a029d73874c69e7cb7c68794cc4f6b317cb08612ee298a2e12df",
+      "player_layout_sha256": "36feb7e81322fcc9d2d15d454f2ac06d4be9938dc6ec481387a9ec1cdafc81be",
+      "build_screen_sha256": "6d7b045523c772d16e4b856d961fdb25f73c73299b0830dd77aedfac0afe13a0",
+      "sparse_encoder_sha256": "102a368001b20b0484c8559e4c0c3a6bb9dd8b516337c787ddeaee3053a2312f",
+      "all_frame_payloads_match": true
+    },
+    "observer_adapter": {
+      "implemented": true,
+      "monitor_controls": [
+        "events.subscribe",
+        "set_breakpoint",
+        "set_watchpoint",
+        "run",
+        "read_registers",
+        "wait_for_stop",
+        "pause",
+        "read_memory",
+        "inject_key",
+        "single guarded write_memory for forced fixtures"
+      ],
+      "offline_only_in_this_preparation": true,
+      "live_invocation_requires": [
+        "complete adaptive keyboard source-build receipt",
+        "parent-accepted GDB-MCP delivery receipt",
+        "fresh output directory",
+        "explicit scenario and XRoar binary"
+      ],
+      "event_capture": [
+        "source/staged/live bytes and PAR",
+        "selected cue PSG stores",
+        "emitted END and terminal slot-clear/mute/busy tail",
+        "post-instruction IRQ sequence commit",
+        "physical FRONT pixels against candidate player frames",
+        "same-stop fixture guard recapture"
+      ],
+      "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
+      "natural_held_input_challenge": "At first state 2 of each natural initial/replacement entry, hold the live South binding translated from $0287 matrix identity to DSCAN. Audit all automatic logical poses, direction/facing, and actual FRONT poses through states 2/3/4. Release only in final state-4 wait after the entry's terminal post-PSG busy-zero and IRQ-committed final FRONT proofs. Require three entry witnesses and zero target RAM writes; forced fixtures do not run this challenge."
+    },
+    "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
+    "runtime_probe_performed": false,
+    "runtime_ready": false,
+    "observer_model_corrections": {
+      "resident_image_receipt": "The main runtime receipt assembles the raw resident prefix ending at map asset_end. Compare that prefix hash to the invocation hash, compare the full 16 KiB staged image hash to the receipt artifact hash, and require the remaining staged bytes to be FF.",
+      "source_receipt_layout_split": "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout.",
+      "psg_period_data": "raw low/high bytes AD 02 produce latch 8D and data 2A",
+      "quiet_default": "audio_mix_clear raw 01 00 is little-endian period 1",
+      "irq_commit": "candidate-emitted direct INC $93 at $0EBA ends at $0EBC; requires DP=$00",
+      "proof_order": "audio and FRONT are independent branches; release joins busy-zero and final FRONT",
+      "replacement_order": "actual death-blank FRONT proof and cue13 normal drain both precede replacement entry",
+      "cue6_wait_service": "tone-latch-only actual batches are accepted after onset; onset needs selected-source data/attenuation output",
+      "selected_voice_minimum": "at least one selected audible cue voice; no fixed count of three",
+      "natural_held_south_challenge": "Natural only: hold the live South DSCAN binding from first state 2 of each initial/replacement entry through states 2/3/4. Verify every programmed logical 2-pixel pose and actual FRONT pose without changing automatic direction/facing, link press/release events to that entry's live matrix binding, and require three witnesses plus zero target RAM writes. Release only at state-4 final wait after actual terminal post-PSG busy-zero and IRQ-committed final FRONT. The source may combine 318-to-320 and state-2-to-state-3 in one callback; the row-derived final walkout pose can first appear in state 3. Forced fixtures are challenge-free."
+    },
+    "gameplay_worklist_timing": {
+      "target_cycles_max_per_required_worklist": 27000,
+      "historical_production_observations": {
+        "ordinary_north": 42541,
+        "one_roamer_plus_popup_nest": 54539
+      },
+      "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
+    },
+    "blocked_observable": "The live event adapter is implemented behind --run-live, but this preparation step captures no runtime scenario and claims no natural held-input witness. Live execution requires the exact complete adaptive keyboard build receipt, parent-accepted GDB-MCP delivery receipt, fresh output directory, and explicit scenario/XRoar binary. Natural cold start and two genuine enemy-contact replacements use ordinary keyboard inputs only; missing required events or held-pose coverage fail closed within named deadlines. Offline fakes are not runtime acceptance evidence; parent source/control review and runtime evidence audit remain required."
+  }
+}
