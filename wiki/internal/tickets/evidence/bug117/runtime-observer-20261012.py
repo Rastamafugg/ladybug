@@ -338,6 +338,87 @@ def stream_terminal(image: bytes, start: int, limit: int) -> dict[str, Any]:
     raise GuardFailure("linked stream has no emitted zero-command terminator")
 
 
+def derive_suppressed_cue3_effect(build: Path, audio_image: bytes,
+                                  audio_symbols: dict[str, int]) -> dict[str, Any]:
+    """Bind the exact authored cue-3 descriptor and stream to the current receipt."""
+    source_root = build.resolve(strict=True).parent
+    asset_path = source_root / "assets" / "arcade" / "audio" / "gmc_sound_data.inc"
+    receipt_path = build / "source-build-receipt.json"
+    if not asset_path.is_file() or not receipt_path.is_file():
+        raise GuardFailure("cue-3 qualification requires current sound source and build receipt")
+    receipt_bytes = receipt_path.read_bytes()
+    receipt = json.loads(receipt_bytes)
+    raw_inputs = receipt.get("inputs")
+    artifacts = receipt.get("artifacts")
+    if not isinstance(raw_inputs, dict) or not isinstance(artifacts, dict):
+        raise GuardFailure("cue-3 qualification requires receipt input and artifact hashes")
+    receipt_inputs = {str(k).replace("\\", "/"): v for k, v in raw_inputs.items()}
+    asset_hash = sha(asset_path.read_bytes())
+    asset_name = "assets/arcade/audio/gmc_sound_data.inc"
+    audio_hash = sha(audio_image)
+    if (receipt.get("state") != "complete" or
+            receipt_inputs.get(asset_name) != asset_hash or
+            artifacts.get("ladybug-audio-runtime.bin") != audio_hash):
+        raise GuardFailure("current build receipt does not bind the authored GMC cue source and staged audio artifact")
+    if not all(name in audio_symbols for name in
+               ("gmc_cue_descriptors", "gmc_cue_stream_03", "gmc_sound_data_end")):
+        raise GuardFailure("audio map omits the cue-3 descriptor or stream boundary")
+    descriptor_address = audio_symbols["gmc_cue_descriptors"] + 3 * 8
+    descriptor_offset = descriptor_address - 0xA000
+    if not 0 <= descriptor_offset or descriptor_offset + 8 > len(audio_image):
+        raise GuardFailure("cue-3 descriptor address lies outside the staged audio artifact")
+    descriptor = audio_image[descriptor_offset:descriptor_offset + 8]
+    if len(descriptor) != 8:
+        raise GuardFailure("cue-3 descriptor is outside the staged audio artifact")
+    stream_start = int.from_bytes(descriptor[4:6], "big")
+    if (descriptor[0] != 0x8A or descriptor[0] >> 5 != 4 or descriptor[0] & 1 or
+            descriptor[2] & 0x80 or stream_start != audio_symbols["gmc_cue_stream_03"] or
+            not 0xA000 <= stream_start < audio_symbols["gmc_sound_data_end"]):
+        raise GuardFailure("emitted cue-3 descriptor does not prove priority-4 nonexclusive effect routing")
+    stream_start_offset = stream_start - 0xA000
+    boundary = stream_terminal(audio_image, stream_start_offset,
+                               audio_symbols["gmc_sound_data_end"] - 0xA000)
+    terminator_offset = boundary["terminator_offset"]
+    stream = audio_image[stream_start_offset:terminator_offset + 1]
+    if not 0 < len(stream) <= 0x0200:
+        raise GuardFailure("authored cue-3 stream exceeds the bounded live comparison span")
+    return {
+        "cue_id": 3,
+        "descriptor_address": descriptor_address,
+        "descriptor_offset": descriptor_offset,
+        "descriptor_hex": descriptor.hex(),
+        "descriptor_sha256": sha(descriptor),
+        "priority": descriptor[0] >> 5,
+        "policy": descriptor[0],
+        "route_byte": descriptor[2],
+        "effect_route": True,
+        "nonexclusive": True,
+        "stream_start": stream_start,
+        "stream_start_offset": stream_start_offset,
+        "terminator_address": 0xA000 + terminator_offset,
+        "terminator_offset": terminator_offset,
+        "terminal_next_offset": boundary["terminal_next_offset"],
+        "command_count": boundary["command_count"],
+        "stream_length": len(stream),
+        "stream_hex": stream.hex(),
+        "stream_sha256": sha(stream),
+        "source_asset": asset_name,
+        "source_asset_sha256": asset_hash,
+        "source_build_receipt_sha256": sha(receipt_bytes),
+        "audio_artifact_sha256": audio_hash,
+    }
+
+
+def validate_prepared_suppressed_cue3(prepared: Any, build: Path,
+                                      audio_image: bytes,
+                                      audio_symbols: dict[str, int]) -> dict[str, Any]:
+    """Reject stale or edited cue-3 preparation before it can authorize a live read."""
+    expected = derive_suppressed_cue3_effect(build, audio_image, audio_symbols)
+    if not isinstance(prepared, dict) or prepared != expected:
+        raise GuardFailure("prepared cue-3 descriptor/stream differs from the current receipt and artifact")
+    return expected
+
+
 @dataclass(frozen=True)
 class PSGStore:
     kind: str
@@ -1362,7 +1443,8 @@ def prepare(build: Path) -> dict[str, Any]:
                   "audio_mix_shadow", "AUDIO_BEST_SLOT", "AUDIO_BEST_PRI",
                   "AUDIO_MUSIC_PUBLISHED_BUSY", "audio_mix_write", "audio_mix_write_done",
                   "audio_write", "audio_music_busy", "audio_command_end", "gmc_cue_descriptors",
-                  "gmc_cue_stream_06", "gmc_cue_stream_13", "gmc_sound_data_end"),
+                  "gmc_cue_stream_03", "gmc_cue_stream_06", "gmc_cue_stream_13",
+                  "gmc_sound_data_end"),
         "enemy": ("framebuffer_irq_impl", "fbiq_publish", "fbiq_done", "et_player_death",
                   "FBM_PLAYER_FB"),
         "presentation": ("presentation_flow_tick", "add_credit", "pft_ready",
@@ -1431,6 +1513,7 @@ def prepare(build: Path) -> dict[str, Any]:
         raise GuardFailure("linked cue-13 descriptor does not prove exclusive cue-13 routing")
     cue13_end = stream_terminal(audio_bin, audio["gmc_cue_stream_13"] - 0xA000,
                                 audio["gmc_sound_data_end"] - 0xA000)
+    cue3_suppressed_effect = derive_suppressed_cue3_effect(build, audio_bin, audio)
     if audio["audio_mix_write_done"] + 6 > audio["audio_write"]:
         raise GuardFailure("audio post-publication marker ordering is inconsistent with map")
     enemy_image = files["ladybug-enemy-runtime.rom"].read_bytes()
@@ -1451,9 +1534,18 @@ def prepare(build: Path) -> dict[str, Any]:
         "mapped_symbols": {d: {s: maps[d][s] for s in symbols}
                            for d, symbols in required.items()},
         "death_source_markers": {"cep_skull": skull_marker},
-        "cue_descriptors": {"cue6_hex": cue6_desc.hex(), "cue6_policy": "exclusive, $B3, priority 5, voice mask $07",
+        "cue_descriptors": {"cue3_hex": cue3_suppressed_effect["descriptor_hex"],
+                             "cue3_policy": "nonexclusive effect, $8A, priority 4",
+                             "cue6_hex": cue6_desc.hex(), "cue6_policy": "exclusive, $B3, priority 5, voice mask $07",
                              "cue13_hex": cue13_desc.hex(), "cue13_policy": "exclusive, $D3, priority 6"},
+        "suppressed_cue3_effect": cue3_suppressed_effect,
         "emitted_stream_boundaries": {
+            "cue3": {**stream_terminal(audio_bin,
+                            cue3_suppressed_effect["stream_start_offset"],
+                            audio["gmc_sound_data_end"] - 0xA000),
+                     "stream_start": cue3_suppressed_effect["stream_start"],
+                     "terminator_address": cue3_suppressed_effect["terminator_address"],
+                     "terminal_x_expected": 0xA000 + cue3_suppressed_effect["terminal_next_offset"]},
             "cue6": {**cue6_end, "stream_start": audio["gmc_cue_stream_06"],
                      "terminator_address": 0xA000 + cue6_end["terminator_offset"],
                      "terminal_x_expected": 0xA000 + cue6_end["terminal_next_offset"]},
@@ -2398,6 +2490,9 @@ class LiveRuntimeObserver:
                 "source_sha256": enemy_source_sha,
                 "classification": "enemy-player collision onset"}}
         self.audio_image = (build / "ladybug-audio-runtime.bin").read_bytes()
+        self.suppressed_cue3_effect = validate_prepared_suppressed_cue3(
+            preparation.get("suppressed_cue3_effect"), self.build,
+            self.audio_image, self.audio)
         self.bank_boundary_reference = preparation["bank_boundary_page20_reference"]
         self.page20_reset_image = (build / "ladybug-perimeter-reset.bin").read_bytes()
         reference = self.bank_boundary_reference
@@ -3105,6 +3200,86 @@ class LiveRuntimeObserver:
         snapshot["par5_masked"] = page
         return snapshot
 
+    def _qualify_suppressed_cue3_wait(self, snapshot: dict[str, Any],
+                                      slot: dict[str, Any]) -> dict[str, Any]:
+        """Prove the sole permitted active effect is the emitted, suppressed cue 3."""
+        binding = self.suppressed_cue3_effect
+        slots = snapshot.get("slots")
+        raw_slots = snapshot.get("slot_raw")
+        if (not isinstance(slot, dict) or not isinstance(slots, list) or len(slots) != 4 or
+                any(not isinstance(item, dict) for item in slots) or
+                not isinstance(raw_slots, list) or len(raw_slots) != 4 or
+                type(raw_slots[1]) is not bytes or len(raw_slots[1]) != 28 or
+                any(type(slot.get(name)) is not int for name in
+                    ("index", "id", "priority", "policy", "wait", "stream_pointer", "noise", "noise_attenuation")) or
+                len(slot.get("periods", [])) != 3 or
+                any(type(value) is not int for value in slot.get("periods", [])) or
+                len(slot.get("attenuation", [])) != 3 or
+                any(type(value) is not int for value in slot.get("attenuation", [])) or
+                model_from_audio_slot(raw_slots[1], 1) != slot):
+            raise GuardFailure("suppressed cue-3 slot lacks its exact captured 28-byte source record")
+        descriptor = bytes.fromhex(binding["descriptor_hex"])
+        stream = bytes.fromhex(binding["stream_hex"])
+        if (slot.get("index") != 1 or slot.get("id") != 3 or
+                slot.get("priority") != binding["priority"] or
+                slot.get("policy") != binding["policy"] or
+                slot.get("policy") & 1 or not binding["effect_route"] or
+                descriptor[0] != slot.get("policy") or
+                descriptor[0] >> 5 != slot.get("priority") or
+                descriptor[2] & 0x80 or
+                int.from_bytes(descriptor[4:6], "big") != binding["stream_start"] or
+                slot.get("stream_pointer", 0) < binding["stream_start"] or
+                slot.get("stream_pointer", 0) > binding["terminator_address"] + 1):
+            raise GuardFailure("active slot 1 is not the exact nonexclusive cue-3 effect descriptor")
+        if any(item.get("id") != 0xFF for item in slots[2:]):
+            raise GuardFailure("suppressed cue-3 WAIT has another active effect or exclusive competitor")
+        replay = current_authored_wait(self.audio_image,
+            binding["stream_start_offset"], binding["terminator_offset"],
+            slot["stream_pointer"] - 0xA000, slot["wait"])
+        slot_periods = b"".join(int(period).to_bytes(2, "little")
+                                 for period in slot.get("periods", []))
+        slot_attenuation = bytes(slot.get("attenuation", []))
+        slot_noise = bytes((slot.get("noise", -1), slot.get("noise_attenuation", -1)))
+        if (replay["prefix_period_bytes_hex"] != slot_periods.hex() or
+                replay["prefix_attenuation_hex"] != slot_attenuation.hex() or
+                replay["prefix_noise_hex"] != slot_noise.hex()):
+            raise GuardFailure("cue-3 authored WAIT replay differs from its live voice/noise state")
+        descriptor_offset = binding["descriptor_offset"]
+        stream_offset = binding["stream_start_offset"]
+        expected_descriptor = bytes.fromhex(binding["descriptor_hex"])
+        expected_stream = bytes.fromhex(binding["stream_hex"])
+        cpu_descriptor = monitor_bytes(self.client, 0xA000 + descriptor_offset,
+                                       len(expected_descriptor))
+        physical_descriptor = physical_page_read(self.client, 0x3D, descriptor_offset,
+                                                 len(expected_descriptor))
+        cpu_stream = monitor_bytes(self.client, 0xA000 + stream_offset,
+                                   len(expected_stream))
+        physical_stream = physical_page_read(self.client, 0x3D, stream_offset,
+                                             len(expected_stream))
+        if (cpu_descriptor != expected_descriptor or
+                physical_descriptor != expected_descriptor or
+                cpu_stream != expected_stream or physical_stream != expected_stream or
+                expected_descriptor != self.audio_image[descriptor_offset:
+                    descriptor_offset + len(expected_descriptor)] or
+                expected_stream != self.audio_image[stream_offset:
+                    stream_offset + len(expected_stream)]):
+            raise GuardFailure("suppressed cue-3 descriptor/stream differs across CPU, physical, and staged images")
+        return {"cue_id": 3, "slot": 1, "priority": binding["priority"],
+            "policy": binding["policy"], "nonexclusive_effect": True,
+            "descriptor_sha256": binding["descriptor_sha256"],
+            "descriptor_length": len(expected_descriptor),
+            "stream_start": binding["stream_start"],
+            "stream_length": len(expected_stream),
+            "stream_sha256": binding["stream_sha256"],
+            "cpu_descriptor_sha256": sha(cpu_descriptor),
+            "physical_descriptor_sha256": sha(physical_descriptor),
+            "cpu_stream_sha256": sha(cpu_stream),
+            "physical_stream_sha256": sha(physical_stream),
+            "source_staged_cpu_physical_match": True,
+            "authored_wait": replay,
+            "replayed_voice_noise_matches_slot": True,
+            "exclusive_cue13_suppresses_effect": True}
+
     def _qualify_cue13_quiet_wait(self, snapshot: dict[str, Any],
                                   slot0: dict[str, Any], wait: dict[str, Any],
                                   audible_proof: dict[str, Any],
@@ -3116,11 +3291,18 @@ class LiveRuntimeObserver:
                 type(snapshot.get("par5_raw")) is not int or
                 snapshot["par5_raw"] & 0x3F != 0x3D):
             raise GuardFailure("quiet cue13 WAIT lacks the strict live page-$3D mapping")
-        if (len(snapshot.get("slots", [])) != 4 or slot0.get("id") != 13 or
+        slots = snapshot.get("slots")
+        if (not isinstance(slots, list) or len(slots) != 4 or slot0.get("id") != 13 or
                 slot0.get("policy") != 0xD3 or slot0.get("priority") != 6 or
-                snapshot.get("best_slot") != 0 or snapshot.get("best_priority") != 6 or
-                any(slot.get("id") != 0xFF for slot in snapshot["slots"][1:])):
+                snapshot.get("best_slot") != 0 or snapshot.get("best_priority") != 6):
             raise GuardFailure("quiet cue13 WAIT does not retain exclusive slot-zero ownership")
+        active_extra = [slot for slot in slots[1:] if slot.get("id") != 0xFF]
+        suppressed_cue3 = None
+        if active_extra:
+            if (len(active_extra) != 1 or active_extra[0].get("index") != 1 or
+                    active_extra[0].get("id") != 3):
+                raise GuardFailure("quiet cue13 WAIT has an unqualified active effect or competitor")
+            suppressed_cue3 = self._qualify_suppressed_cue3_wait(snapshot, active_extra[0])
         queue = snapshot.get("music_queue")
         if type(queue) is not bytes or len(queue) != 8:
             raise GuardFailure("quiet cue13 WAIT music queue is not the exact eight-byte source buffer")
@@ -3172,6 +3354,7 @@ class LiveRuntimeObserver:
             "cue_start_ordinal": start_ordinal,
             "prior_audible_store_ordinal": audible_proof["first_audible_store_ordinal"],
             "prior_audible_busy_ordinal": audible_proof["post_psg_busy_ordinal"],
+            "suppressed_cue3": suppressed_cue3,
             "authored_wait": wait}
 
     def _audio_mix_rejection_context(self, stop: MonitorStop,
@@ -7708,6 +7891,25 @@ def self_test() -> dict[str, Any]:
         quiet_cursor += command_size
     assert actual_quiet_wait is not None, "current cue13 stream lacks a muted WAIT after its earlier WAIT"
     quiet_span = bytes.fromhex(actual_quiet_wait["prefix_span_hex"])
+    cue3_binding = current_boot_prep["suppressed_cue3_effect"]
+    cue3_stream = bytes.fromhex(cue3_binding["stream_hex"])
+    cue3_boundary = current_boot_prep["emitted_stream_boundaries"]["cue3"]
+    cue3_stream_start = cue3_binding["stream_start_offset"]
+    cue3_terminator = cue3_binding["terminator_offset"]
+    suppressed_evidence_path = (ROOT /
+        "wiki/internal/tickets/evidence/bug117/natural-contact-suppressed-effect-boundary-20261013.json")
+    suppressed_evidence = json.loads(suppressed_evidence_path.read_text(encoding="utf-8"))
+    captured_cue3_raw = bytes.fromhex(suppressed_evidence["failure_context"]
+        ["audio_snapshot"]["slot_raw"][1]["hex"])
+    captured_cue3_slot = model_from_audio_slot(captured_cue3_raw, 1)
+    captured_cue3_wait = current_authored_wait(quiet_audio_image,
+        cue3_stream_start, cue3_terminator,
+        captured_cue3_slot["stream_pointer"] - 0xA000, captured_cue3_slot["wait"])
+    assert captured_cue3_slot["id"] == 3 and captured_cue3_slot["policy"] == 0x8A
+    assert (captured_cue3_wait["prefix_period_bytes_hex"] == "010001000100" and
+            captured_cue3_wait["prefix_attenuation_hex"] == "0f0f0f" and
+            captured_cue3_wait["prefix_noise_hex"] == "0401")
+
     class FakeQuietWaitClient:
         def __init__(self, corrupt: str | None = None):
             self.corrupt = corrupt
@@ -7716,19 +7918,50 @@ def self_test() -> dict[str, Any]:
             self.calls.append((method, params))
             if method != "read_memory":
                 raise AssertionError(f"quiet-WAIT path issued unexpected RPC {method}")
-            if params["space"] == "cpu":
-                assert params["addr"] == 0xA000 + quiet_stream_start
+            space = params["space"]
+            addr = params["addr"]
+            if (space == "cpu" and addr == 0xA000 + quiet_stream_start and
+                    params["length"] == len(quiet_span)):
                 data = quiet_span
-                if self.corrupt == "cpu": data = bytes([data[0] ^ 1]) + data[1:]
+                corrupt_key = "cpu-quiet-prefix"
+            elif (space == "physical" and addr ==
+                    0x3D * PHYSICAL_PAGE_BYTES + quiet_stream_start and
+                    params["length"] == len(quiet_span)):
+                data = quiet_span
+                corrupt_key = "physical-quiet-prefix"
+            elif (space == "cpu" and addr == 0xA000 + cue3_binding["descriptor_offset"] and
+                    params["length"] == 8):
+                data = bytes.fromhex(cue3_binding["descriptor_hex"])
+                corrupt_key = "cpu-cue3-descriptor"
+            elif (space == "physical" and addr ==
+                    0x3D * PHYSICAL_PAGE_BYTES + cue3_binding["descriptor_offset"] and
+                    params["length"] == 8):
+                data = bytes.fromhex(cue3_binding["descriptor_hex"])
+                corrupt_key = "physical-cue3-descriptor"
+            elif (space == "cpu" and addr == 0xA000 + cue3_stream_start and
+                    params["length"] == len(cue3_stream)):
+                data = cue3_stream
+                corrupt_key = "cpu-cue3-stream"
+            elif (space == "physical" and addr ==
+                    0x3D * PHYSICAL_PAGE_BYTES + cue3_stream_start and
+                    params["length"] == len(cue3_stream)):
+                data = cue3_stream
+                corrupt_key = "physical-cue3-stream"
             else:
-                assert params["addr"] == 0x3D * PHYSICAL_PAGE_BYTES + quiet_stream_start
-                data = quiet_span
-                if self.corrupt == "physical": data = bytes([data[0] ^ 1]) + data[1:]
+                raise AssertionError(f"unexpected quiet-WAIT memory span: {space} ${addr:06X}")
+            if (self.corrupt == corrupt_key or
+                    self.corrupt == "cpu" and corrupt_key == "cpu-quiet-prefix" or
+                    self.corrupt == "physical" and corrupt_key == "physical-quiet-prefix"):
+                data = bytes([data[0] ^ 1]) + data[1:]
             return {"data": data.hex(), "space": params["space"]}
 
     def make_quiet_wait_observer(*, corrupt: str | None = None,
                                  proof_delta: dict[str, Any] | None = None,
-                                 snapshot_delta: dict[str, Any] | None = None) -> LiveRuntimeObserver:
+                                 snapshot_delta: dict[str, Any] | None = None,
+                                 captured_suppressed_cue3: bool = False,
+                                 cue3_mutation: tuple[int, int] | None = None,
+                                 active_extra_slot2: bool = False,
+                                 exclusive_competitor_slot2: bool = False) -> LiveRuntimeObserver:
         client = FakeQuietWaitClient(corrupt)
         observer = LiveRuntimeObserver(client, current_build, "natural",
             current_boot_prep, current_delivery)
@@ -7739,9 +7972,32 @@ def self_test() -> dict[str, Any]:
         raw_slot[6:12] = bytes.fromhex(actual_quiet_wait["prefix_period_bytes_hex"])
         raw_slot[12:15] = bytes.fromhex(actual_quiet_wait["prefix_attenuation_hex"])
         raw_slot[15:17] = bytes.fromhex(actual_quiet_wait["prefix_noise_hex"])
-        slots = [model_from_audio_slot(bytes(raw_slot), 0)] + selected_slots[1:]
-        model = model_exclusive_mix(slots, 13)
-        snapshot = {"slots": slots, "slot_raw": [bytes(raw_slot), *selected_raw[1:]],
+        raw_slots = [bytes(raw_slot), *selected_raw[1:]]
+        if captured_suppressed_cue3:
+            cue3_raw = bytearray(captured_cue3_raw)
+            if cue3_mutation is not None:
+                cue3_raw[cue3_mutation[0]] = cue3_mutation[1]
+            raw_slots[1] = bytes(cue3_raw)
+        if active_extra_slot2:
+            extra = bytearray(raw_slots[2])
+            extra[0] = 4
+            extra[1] = 2
+            extra[2] = 0x80
+            raw_slots[2] = bytes(extra)
+        if exclusive_competitor_slot2:
+            extra = bytearray(raw_slots[2])
+            extra[0] = 4
+            extra[1] = 7
+            extra[2] = 0x81
+            raw_slots[2] = bytes(extra)
+        slots = [model_from_audio_slot(raw, i) for i, raw in enumerate(raw_slots)]
+        try:
+            model = model_exclusive_mix(slots, 13)
+        except GuardFailure:
+            if not exclusive_competitor_slot2:
+                raise
+            model = model_exclusive_mix(selected_slots, 13)
+        snapshot = {"slots": slots, "slot_raw": raw_slots,
             "best_slot": 0, "best_priority": 6,
             "mix_period_bytes": model["period_bytes"],
             "mix_attenuation": model["attenuation_bytes"],
@@ -7794,6 +8050,93 @@ def self_test() -> dict[str, Any]:
             tested += 1
         else:
             raise AssertionError("quiet-WAIT service accepted a stale proof, bad state, or mismatched bytes")
+
+    captured_suppressed_wait = make_quiet_wait_observer(captured_suppressed_cue3=True)
+    captured_suppressed_wait._audio_start(MonitorStop("captured-suppressed-cue3", 0xA410, 19,
+        {"pc": 0xA410}, 200, 200.0), {"source_staged_live_match": True})
+    suppressed_event = next(event for event in captured_suppressed_wait.events
+        if event["label"] == "cue13-authored-silent-wait-service")
+    suppressed_proof = suppressed_event["quiet_wait_proof"]["suppressed_cue3"]
+    assert suppressed_proof["cue_id"] == 3 and suppressed_proof["slot"] == 1
+    assert suppressed_proof["source_staged_cpu_physical_match"] is True
+    assert suppressed_proof["replayed_voice_noise_matches_slot"] is True
+    assert suppressed_proof["exclusive_cue13_suppresses_effect"] is True
+    suppressed_tx = captured_suppressed_wait.active_tx["transaction"]
+    for expected_store in suppressed_tx.expected:
+        suppressed_tx.store(expected_store.value)
+    assert suppressed_tx.finish()["actual_store_count"] == len(suppressed_tx.expected)
+    assert len(captured_suppressed_wait.client.calls) == 6
+    tested += 1
+
+    for mutation, extra_slot, corrupt in (
+            ((0, 2), False, None),       # wrong active cue id
+            ((1, 3), False, None),       # wrong authored priority
+            ((2, 0x8B), False, None),    # exclusive policy mutation
+            ((3, 5), False, None),       # dwell exceeds the authored WAIT
+            ((4, 0xAA), False, None),    # cursor leaves the emitted WAIT boundary
+            ((15, 5), False, None),      # replayed noise differs from live slot
+            (None, True, None),          # second active effect/competitor
+            (None, False, "cpu-cue3-descriptor"),
+            (None, False, "physical-cue3-descriptor"),
+            (None, False, "cpu-cue3-stream"),
+            (None, False, "physical-cue3-stream")):
+        rejected_effect = make_quiet_wait_observer(captured_suppressed_cue3=True,
+            cue3_mutation=mutation, active_extra_slot2=extra_slot, corrupt=corrupt)
+        try:
+            rejected_effect._audio_start(MonitorStop("bad-suppressed-cue3", 0xA410, 19,
+                {"pc": 0xA410}, 200, 200.0), {"source_staged_live_match": True})
+        except QualificationFailure:
+            assert rejected_effect.active_tx is None and rejected_effect.events == []
+            tested += 1
+        else:
+            raise AssertionError("suppressed cue-3 WAIT accepted a malformed or mismatched occupant")
+
+    exclusive_competitor = make_quiet_wait_observer(captured_suppressed_cue3=True,
+        exclusive_competitor_slot2=True)
+    try:
+        exclusive_competitor._audio_start(MonitorStop("exclusive-cue-competitor", 0xA410, 19,
+            {"pc": 0xA410}, 200, 200.0), {"source_staged_live_match": True})
+    except GuardFailure:
+        assert exclusive_competitor.active_tx is None and exclusive_competitor.events == []
+        tested += 1
+    else:
+        raise AssertionError("higher-priority exclusive competitor displaced cue 13")
+
+    for field, replacement in (("descriptor_hex", "00"),
+                               ("stream_sha256", "0" * 64),
+                               ("source_asset_sha256", "0" * 64),
+                               ("route_byte", 0xA0)):
+        changed_binding = dict(cue3_binding)
+        changed_binding[field] = replacement
+        try:
+            validate_prepared_suppressed_cue3(changed_binding, current_build,
+                quiet_audio_image, current_boot_prep["mapped_symbols"]["audio"])
+        except GuardFailure:
+            tested += 1
+        else:
+            raise AssertionError(f"prepared cue-3 binding accepted changed {field}")
+    wrong_route_audio = bytearray(quiet_audio_image)
+    wrong_route_audio[cue3_binding["descriptor_offset"] + 2] |= 0x80
+    try:
+        derive_suppressed_cue3_effect(current_build, bytes(wrong_route_audio),
+            current_boot_prep["mapped_symbols"]["audio"])
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("source receipt accepted a cue-3 descriptor routed as music")
+
+    terminal_cue3_slots = [dict(item) for item in selected_slots]
+    terminal_cue3_slots[1]["id"] = 3
+    try:
+        validate_quiet_terminal({"slots": terminal_cue3_slots,
+            "music_queue": bytes(8), "music_count": 0, "effect_queue_count": 0,
+            "credit_pending": 0, "mix_count": 0,
+            "mix_period_bytes": b"\x01\x00" * 3,
+            "mix_attenuation": b"\x0F" * 3, "mix_noise": b"\x00\x0F"})
+    except GuardFailure:
+        tested += 1
+    else:
+        raise AssertionError("terminal all-slot drain accepted a suppressed cue-3 occupant")
     rejected_audio_snapshot = {"slots": selected_slots, "slot_raw": selected_raw,
         "best_slot": 0, "best_priority": 6,
         "mix_period_bytes": b"\x01\x00" * 3,
