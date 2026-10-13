@@ -111,6 +111,22 @@ def sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def json_safe(value: Any) -> Any:
+    """Copy diagnostic values into a bounded JSON-compatible representation."""
+    if isinstance(value, bytes):
+        return {"hex": value.hex(), "length": len(value)}
+    if isinstance(value, bytearray):
+        data = bytes(value)
+        return {"hex": data.hex(), "length": len(data)}
+    if isinstance(value, dict):
+        return {str(key): json_safe(item) for key, item in value.items()}
+    if isinstance(value, (tuple, list)):
+        return [json_safe(item) for item in value]
+    if value is None or type(value) in (bool, int, float, str):
+        return value
+    return repr(value)
+
+
 def read_symbols(path: Path) -> dict[str, int]:
     return {name: int(value, 16) for name, value in re.findall(
         r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$", path.read_text(encoding="utf-8"), re.M)}
@@ -2263,6 +2279,66 @@ class LiveRuntimeObserver:
             raise GuardFailure(f"live PAR5 page ${page:02X} does not map candidate audio page $3D")
         return live_audio_snapshot(self.client, self.audio, page)
 
+    def _validate_terminal_snapshot(self, stop: MonitorStop,
+                                    qualification: dict[str, Any],
+                                    snapshot: dict[str, Any]) -> dict[str, Any]:
+        try:
+            return validate_quiet_terminal(snapshot)
+        except GuardFailure as exc:
+            def byte_field(name: str) -> dict[str, Any]:
+                value = snapshot.get(name)
+                if not isinstance(value, (bytes, bytearray)):
+                    return {"available": False, "observed_type": type(value).__name__}
+                data = bytes(value)
+                return {"hex": data.hex(), "length": len(data)}
+
+            counts = {name: snapshot.get(name) for name in (
+                "music_count", "effect_queue_count", "credit_pending", "mix_count",
+                "published_busy")}
+            audio = {
+                "slots": json_safe(snapshot.get("slots")),
+                "counts": json_safe(counts),
+                "music_queue": byte_field("music_queue"),
+                "mixer": {
+                    "periods": byte_field("mix_period_bytes"),
+                    "attenuation": byte_field("mix_attenuation"),
+                    "noise": byte_field("mix_noise"),
+                    "shadow": byte_field("mix_shadow"),
+                    "order": byte_field("mix_order"),
+                    "best_slot": snapshot.get("best_slot"),
+                    "best_priority": snapshot.get("best_priority"),
+                },
+            }
+            context: dict[str, Any] = {
+                "kind": "terminal-audio-guard-failure",
+                "error": f"{type(exc).__name__}: {exc}",
+                "stop": json_safe(self.current_stop_context or {
+                    "phase": stop.phase, "pc": stop.pc, "pc_hex": f"${stop.pc:04X}",
+                    "bp_id": stop.bp_id, "ordinal": stop.ordinal}),
+                "qualification": json_safe(qualification),
+                "audio_snapshot": audio,
+                "stopped_status": {"state": "unavailable", "read_error": None},
+            }
+            try:
+                status = monitor_call(self.client, "get_run_state", maximum=2.0)
+                if not isinstance(status, dict):
+                    raise GuardFailure("get_run_state returned a non-object terminal status")
+                context["stopped_status"] = {
+                    "state": status.get("state"),
+                    "last_stop_reason": status.get("last_stop_reason"),
+                    "last_stop_pc": status.get("last_stop_pc"),
+                    "last_stop_bp_id": status.get("last_stop_bp_id"),
+                    "reply": json_safe(status), "read_error": None,
+                }
+            except Exception as status_exc:
+                context["stopped_status"] = {
+                    "state": "unavailable",
+                    "read_error": f"{type(status_exc).__name__}: {status_exc}",
+                }
+            self.failure_context = context
+            exc.failure_context = context
+            raise
+
     def _record(self, stop: MonitorStop, label: str, qualification: dict[str, Any], **fields: Any) -> None:
         self.events.append({"phase": stop.phase, "ordinal": stop.ordinal, "label": label,
             "pc": stop.pc, "qualified": qualification.get("source_staged_live_match") is True,
@@ -2675,7 +2751,7 @@ class LiveRuntimeObserver:
             return
         if any(cue_id in self.cue_terminal for cue_id in (6, 13)):
             cue = max(self.cue_terminal, key=lambda k: self.cue_terminal[k]["ordinal"])
-            quiet = validate_quiet_terminal(snapshot)
+            quiet = self._validate_terminal_snapshot(stop, qualification, snapshot)
             model = model_quiet_mix(snapshot["mix_shadow"])
             self._record(stop, "terminal-quiet-mix-start", qualification, **quiet)
             self.active_tx = {"cue": None, "quiet_cue": cue, "quiet": True, "snapshot": snapshot,
@@ -2717,7 +2793,7 @@ class LiveRuntimeObserver:
             return
         if any(item["name"] == "cue13_published_idle" for item in self.lifecycle.records):
             return
-        quiet = validate_quiet_terminal(snapshot)
+        quiet = self._validate_terminal_snapshot(stop, qualification, snapshot)
         self.lifecycle.record("cue13_published_idle", {
             "cue13_actual_output": True, "published_busy": 0, "normal_drain": True,
             "cue13_emitted_end_observed": True, "actual_terminal_mute_observed": True,
@@ -2741,7 +2817,7 @@ class LiveRuntimeObserver:
             mute_count = result["actual_mute_attenuation_stores"]
             if result["actual_store_count"] < 3 or mute_count < 1 or tx["mute_store"] is None:
                 raise GuardFailure("terminal tail lacks complete actual SND_DATA mute stores")
-            quiet = validate_quiet_terminal(tx["snapshot"])
+            quiet = self._validate_terminal_snapshot(stop, qualification, tx["snapshot"])
             self.quiet_tail[cue] = {**result, **quiet, "event_ordinal": tx["mute_store"]}
             if cue == 6 and tx["entry"] in self.proofs:
                 ledger = self.proofs[tx["entry"]]
@@ -2756,7 +2832,7 @@ class LiveRuntimeObserver:
             if cue == 6 and busy == 0 and tx["entry"] in self.proofs:
                 ledger = self.proofs[tx["entry"]]
                 if not any(r["name"] == "terminal_post_psg_busy_zero" for r in ledger.records):
-                    if not validate_quiet_terminal(snapshot):
+                    if not self._validate_terminal_snapshot(stop, qualification, snapshot):
                         raise GuardFailure("terminal busy zero lacks all-slot/all-queue idle state")
                     ledger.record("terminal_post_psg_busy_zero", {
                         "busy": 0, "all_slots_queues_credit_idle": True,
@@ -3307,7 +3383,7 @@ class LiveRuntimeObserver:
             "registers_at_stop": dict(stop.registers)}
         self.current_stop_context = stop_context
         try:
-            qualification = self._qualify(stop)
+            self._dispatch_qualified(stop)
         except Exception as exc:
             context = getattr(exc, "failure_context", None)
             self.failure_context = (context if isinstance(context, dict) else {
@@ -3316,6 +3392,9 @@ class LiveRuntimeObserver:
                 self.failure_context["stop"] = stop_context
             self.failure_context["error"] = f"{type(exc).__name__}: {exc}"
             raise
+
+    def _dispatch_qualified(self, stop: MonitorStop) -> None:
+        qualification = self._qualify(stop)
         label = self.labels.get(stop.pc)
         if qualification.get("module") == "bootstrap-reset":
             self.bootstrap_reset_events.append({**qualification,
@@ -4787,6 +4866,79 @@ def self_test() -> dict[str, Any]:
         raise AssertionError("terminal pure-mute proof accepted a competing active slot")
     tested += 1
 
+    class FakeTerminalContextClient:
+        def __init__(self, pc: int):
+            self.pc = pc
+            self.calls: list[tuple[str, dict[str, Any] | None]] = []
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0):
+            self.calls.append((method, params))
+            if method != "get_run_state":
+                raise AssertionError(f"terminal failure retention made unexpected RPC {method}")
+            return {"state": "halted", "last_stop_reason": "breakpoint",
+                "last_stop_pc": self.pc, "last_stop_bp_id": 71}
+
+    terminal_pc = 0xA432
+    terminal_client = FakeTerminalContextClient(terminal_pc)
+    terminal_observer = object.__new__(LiveRuntimeObserver)
+    terminal_observer.client = terminal_client
+    terminal_observer.labels = {terminal_pc: "audio_mix_write"}
+    terminal_observer.bp_ids = {}
+    terminal_observer.bus_marker = {"stop_pc": terminal_pc + 1}
+    terminal_observer.active_tx = None
+    terminal_observer.cue_terminal = {6: {"ordinal": 90}}
+    terminal_observer.failure_context = None
+    terminal_observer.current_stop_context = None
+    terminal_observer.events = []
+    terminal_slots = [{"index": i, "id": 0xFF, "priority": 0,
+        "periods": [1, 1, 1], "attenuation": [15, 15, 15],
+        "shadow": bytes([0xA0 + i]) * 11} for i in range(4)]
+    terminal_bad_snapshot = {"slots": terminal_slots, "music_count": 1,
+        "music_queue": bytes.fromhex("0102030405060708"), "effect_queue_count": 2,
+        "credit_pending": 3, "mix_count": 4, "published_busy": 1,
+        "mix_period_bytes": bytes.fromhex("34127856bc9a"),
+        "mix_attenuation": bytes.fromhex("010203"),
+        "mix_noise": bytes.fromhex("0405"),
+        "mix_shadow": bytes(range(11)), "mix_order": bytes.fromhex("01020304"),
+        "best_slot": 2, "best_priority": 6}
+    terminal_observer._qualify = lambda stop: {
+        "source_staged_live_match": True, "module": "audio",
+        "instruction_bytes": bytes.fromhex("b7ff51")}
+    terminal_observer._audio_snapshot = lambda: terminal_bad_snapshot
+    terminal_stop = MonitorStop("audio-terminal", terminal_pc, 71,
+        {"pc": terminal_pc, "a": 6}, 91, time.monotonic())
+    try:
+        terminal_observer._dispatch(terminal_stop)
+    except GuardFailure as exc:
+        assert "queued music, effects, credits, or mixer work" in str(exc)
+    else:
+        raise AssertionError("terminal guard accepted queued work while retaining failure context")
+    terminal_context = terminal_observer.failure_context
+    assert terminal_context is not None
+    assert terminal_context["kind"] == "terminal-audio-guard-failure"
+    assert terminal_context["stop"]["phase"] == "audio-terminal"
+    assert terminal_context["stop"]["pc"] == terminal_pc
+    assert terminal_context["stop"]["bp_id"] == 71
+    assert terminal_context["stop"]["ordinal"] == 91
+    assert terminal_context["stop"]["phase_deadline_seconds"] == PHASE_SECONDS
+    assert terminal_context["stopped_status"]["state"] == "halted"
+    assert terminal_context["stopped_status"]["last_stop_pc"] == terminal_pc
+    assert terminal_context["audio_snapshot"]["counts"] == {
+        "music_count": 1, "effect_queue_count": 2, "credit_pending": 3,
+        "mix_count": 4, "published_busy": 1}
+    assert terminal_context["audio_snapshot"]["music_queue"] == {
+        "hex": "0102030405060708", "length": 8}
+    assert terminal_context["audio_snapshot"]["mixer"]["periods"]["hex"] == "34127856bc9a"
+    assert terminal_context["audio_snapshot"]["mixer"]["attenuation"]["hex"] == "010203"
+    assert terminal_context["audio_snapshot"]["mixer"]["noise"]["hex"] == "0405"
+    assert terminal_context["audio_snapshot"]["mixer"]["shadow"]["hex"] == bytes(range(11)).hex()
+    assert terminal_context["audio_snapshot"]["slots"][3]["shadow"] == {
+        "hex": (bytes([0xA3]) * 11).hex(), "length": 11}
+    assert [method for method, _ in terminal_client.calls] == ["get_run_state"]
+    assert terminal_observer.events == []
+    assert json.loads(json.dumps(terminal_context)) == terminal_context
+    tested += 1
+
     death_blank = {"death_state": 3, "death_timer": 37, "entry_state": 0,
                    "source_bytes_match": True, "death_blank_front_commit_observed": True,
                    "death_blank_pixels_match_oracle": True, "death_blank_irq_commit_observed": True,
@@ -4961,7 +5113,7 @@ def self_test() -> dict[str, Any]:
     tested += 1
 
     return {"self_test": "PASS", "negative_checks": tested,
-            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
+            "model_checks": "bounded monitor event pump and timeout races, receipt-derived ordered bootstrap reset stores with separate runtime PSG classification, exact get_run_state stop identity and source/staged/CPU/physical bytes at both the executed store span and stopped post-PC, wrong bootstrap bytes/value/mapping/order and unknown-watchpoint negatives, raw-prefix/full-staged resident receipt plus sparse-layout ROM identity gates, input-only direction/death isolation, three-entry natural held-South challenge with complete state2/state3/state4 pose and FRONT coverage plus missing-state/frame negatives, no target RAM writes, one source-qualified cold credit and consumed start, candidate-emitted IRQ marker/DP, raw PSG period encoding, selected-source onset versus latch-only WAIT, fail-closed terminal-audio snapshot retention through the real dispatch handler with one halted-state query and no memory rereads, complete audio/FRONT DAG in both orders, death-blank/cue13 completion in both orders, VOFF1/VOFF2 GIME shadow mapping, clipped edge-pose pixels with transparent clipping, IRQ-commit ordinal and same-stop busy proof",
             "target_write_calls": "fake client only; exactly one $003A approved write tested per fixture",
             "emulator_launches": 0, "target_writes": 0}
 

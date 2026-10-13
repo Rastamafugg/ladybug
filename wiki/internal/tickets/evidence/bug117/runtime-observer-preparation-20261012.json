@@ -30,7 +30,8 @@
       "post-instruction IRQ sequence commit",
       "physical FRONT pixels against candidate player frames; map write-only VOFF1/VOFF2 through the monitor GIME shadow and require VOFF2=$00 for the $60000/$58000 framebuffer bases",
       "same-stop fixture guard recapture plus immediate halted/current-PC reread before the sole write",
-      "requested fixture order from the actual qualified IRQ-commit FRONT event ordinal and same-stop busy sample, joined later by the final-entry release callback"
+      "requested fixture order from the actual qualified IRQ-commit FRONT event ordinal and same-stop busy sample, joined later by the final-entry release callback",
+      "On terminal audio guard failure, retain the already-read four-slot snapshot, queue counts, raw eight-byte music queue and mixer period/attenuation/noise/shadow bytes as hex, plus qualified numeric stop/phase/deadline and one read-only get_run_state reply; handler failures retain context without relaxing the guard."
     ],
     "natural_route": "ordinary keyboard-only search at accepted gameplay centers; absent genuine contacts time out and fail",
     "run_stop_control": "Maintained synchronous run acknowledgement followed by bounded wait_for_stop and exact read_registers PC; buffered breakpoint-before-ack notifications are rechecked as actual stops.",
@@ -41,7 +42,7 @@
   "timer_write_policy": "one map-resolved $003A write per fresh forced run; natural is no-write",
   "runtime_probe_performed": true,
   "runtime_ready": false,
-  "runtime_ready_reason": "Bootstrap reset stores are now statically receipt-derived and offline-fake-qualified, including exact stopped-state and live-byte guards. No corrected natural runtime invocation has run; parent review and live capture remain required.",
+  "runtime_ready_reason": "The latest corrected natural invocation reached terminal audio validation after the owned cue6 END and failed closed on queued music/effects/credits/mixer work. This offline-only revision retains that handler failure with the already-read audio bytes and halted-state reply; no queue bytes were available from the prior run, so the retired-cell explanation remains unconfirmed. Parent review and a fresh bounded natural diagnostic remain required; no natural release/death acceptance is established.",
   "first_natural_runtime_attempt": {
     "receipt": "repro/bug117-integration-20261012/runtime-natural-20261013/bug117-natural-runtime.json",
     "observer_script_sha256_at_attempt": "5d63c193a31185b7ba5ca64b56e377cb81617c3ef1628d6ed1bce8c57742efd0",
@@ -93,7 +94,8 @@
     "natural_held_south_challenge": "Natural only: hold the live South DSCAN binding from first state 2 of each initial/replacement entry through states 2/3/4. Verify every programmed logical 2-pixel pose and actual FRONT pose without changing automatic direction/facing, link press/release events to that entry's live matrix binding, and require three witnesses plus zero target RAM writes. Release only at state-4 final wait after actual terminal post-PSG busy-zero and IRQ-committed final FRONT. The source may combine 318-to-320 and state-2-to-state-3 in one callback; the row-derived final walkout pose can first appear in state 3. Forced fixtures are challenge-free.",
     "resident_image_receipt": "The main runtime receipt assembles the raw resident prefix ending at map asset_end. Compare that prefix hash to the invocation hash, compare the full 16 KiB staged image hash to the receipt artifact hash, and require the remaining staged bytes to be FF.",
     "source_receipt_layout_split": "The source-build receipt contains ten strict artifact hashes and omits sparse-layout by design. Bind the current sparse-layout final_image_sha256 to the current ROM and player payload, then require the parent delivery receipt to match all eleven current artifact hashes including layout.",
-    "bootstrap_reset_separation": "Derive reset LDA/STA spans, values, post-store PCs, and three-byte post-PC windows from the current bootstrap source receipt and emitted listing. Bind the standalone boot artifact hash and map-derived raw prefix separately from the packaged bank-zero raw prefix; bank-zero overflow may replace staged padding after loader_end. Require matching PAR_EXEC+6, stopped get_run_state PC/reason, A value, and source/staged/CPU/physical bytes at both the executed store span and exact stopped post-PC. Reject wrong bytes, values, mappings, order, malformed or unknown watchpoints."
+    "bootstrap_reset_separation": "Derive reset LDA/STA spans, values, post-store PCs, and three-byte post-PC windows from the current bootstrap source receipt and emitted listing. Bind the standalone boot artifact hash and map-derived raw prefix separately from the packaged bank-zero raw prefix; bank-zero overflow may replace staged padding after loader_end. Require matching PAR_EXEC+6, stopped get_run_state PC/reason, A value, and source/staged/CPU/physical bytes at both the executed store span and exact stopped post-PC. Reject wrong bytes, values, mappings, order, malformed or unknown watchpoints.",
+    "terminal_failure_context": "Keep validate_quiet_terminal unchanged. On its failure, serialize the existing snapshot (all four slots/counts, raw eight-byte queue, mixer periods/attenuation/noise/shadow) and qualified stop context, then make one read-only get_run_state query. The dispatch catch spans qualification and handler execution so handler exceptions retain context. No additional audio or memory reads are made."
   },
   "gameplay_worklist_timing": {
     "target_cycles_max_per_required_worklist": 27000,
@@ -103,9 +105,9 @@
     },
     "observer_preparation_measurement": "not measured; separate from runtime observer readiness"
   },
-  "blocked_observable": "Two natural invocations were rejected and reassessed. The latest parent-retained stop at $C027 is explained by a receipt-qualified bootstrap reset attenuation write before resident installation; it does not establish resident corruption. This revision derives and separately qualifies source/staged/live reset spans, values, post-store PCs and PAR mapping, and uses the supported get_run_state method for diagnostic and fresh fixture-stop checks. Offline fakes are not runtime acceptance evidence. Parent review and one corrected bounded natural rerun remain outstanding; no game repair, build, live probe, target write, or protocol change is included.",
+  "blocked_observable": "The latest corrected natural invocation passed all four bootstrap reset proofs and reached the initial-entry marker within the 45-second phase, then failed closed at terminal audio validation after an owned cue6 END. The retained summary shows zero target writes and no proven release/death; it does not contain the failing queue snapshot, so the audio_music_dispatch retired-cell explanation remains unconfirmed. This source revision adds bounded failure-context retention only and keeps all audio guards unchanged. Parent review and one fresh bounded diagnostic remain outstanding; no game repair, build, live probe, target write, or protocol change is included.",
   "scenario": "natural",
-  "prepared_at": "updated after first natural runtime fail-closed attempt; this context-retention change was verified offline only and made no emulator launch or target write",
+  "prepared_at": "updated after corrected natural terminal-audio guard failure; this context-retention revision was verified offline only and made no emulator launch or target write",
   "output_dir": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-runtime",
   "deadlines_seconds": {
     "each_named_phase": 45,
@@ -134,9 +136,9 @@
     "release_after_audio_and_front_commit",
     "no_same_batch_player_or_enemy_mutation"
   ],
-  "report_kind": "observer-only bootstrap reset qualification and supported stopped-state endpoint correction; no live acceptance capture",
-  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_AND_BOOTSTRAP_RECEIPT_GATE_PASS; TWO_NATURAL_PROBES_REASSESSED; BOOTSTRAP_RESET_QUALIFICATION_ADDED; GET_RUN_STATE_STOP_GUARDS_ADDED; PARENT_REVIEW_PENDING; CORRECTED_NATURAL_RERUN_NOT_RUN",
-  "observer_script_sha256": "23aa7b4148618d8618a962f7d4d1c58216ee807c828c3b3e07bb3f42bf8fad68",
+  "report_kind": "observer-only terminal-audio failure-context retention; terminal validation remains fail-closed and unchanged",
+  "preparation_status": "OFFLINE_ADAPTER_QUALIFICATION_PASS; ROOT_PROFILE_AND_BOOTSTRAP_RECEIPT_GATE_PASS; BOOTSTRAP_RESET_QUALIFICATION_ADDED; GET_RUN_STATE_STOP_GUARDS_ADDED; TERMINAL_AUDIO_FAILURE_CONTEXT_ADDED; LATEST_NATURAL_TERMINAL_GUARD_FAIL_CLOSED; PARENT_REVIEW_PENDING; FRESH_DIAGNOSTIC_NOT_RUN",
+  "observer_script_sha256": "eaab6926439485eda35524c6f1e5eab6dd7b6032fedda846562438755195ba50",
   "runtime_directory_copy_sha256": "fae5a34729350d8b36180d9e7d7e1d413577fe41bfedd6bed86cc775d02f8ff",
   "runtime_directory_copy_status": "The pre-existing scratch copy is historical and was not refreshed because it is outside the two-file ownership boundary. Parent must run the reviewed owned source or refresh its runtime copy before the corrected probe.",
   "offline_verification": {
@@ -144,7 +146,7 @@
     "cli_help": "PASS",
     "self_test": {
       "result": "PASS",
-      "negative_checks": 302,
+      "negative_checks": 303,
       "target_write_calls": "fake client only; exactly one guarded $003A write per forced-fixture writer model",
       "emulator_launches": 0,
       "target_writes": 0,
@@ -169,7 +171,8 @@
         "Resident receipt gate positively qualifies the current complete/adaptive/keyboard root profile: map-derived raw prefix hash, full 16 KiB staged receipt hash, and exact FF padding; wrong raw/full hash, bad map boundary, non-FF padding, or missing nonresident artifact fails",
         "Sparse layout must bind final_image_sha256 to the current ROM; source-build receipt checks its ten artifact hashes, while parent delivery receipt retains all eleven hashes including the sparse layout",
         "A full observer-dispatch fake physical-byte mismatch retains exact numeric stop phase/deadline/PC/breakpoint/ordinal/registers, CPU and physical bytes, staged/caller bytes, raw and masked PAR, physical window/address, and halted status; it emits no event and performs no target write",
-        "Current-root end-to-end bootstrap fake qualifies all receipt/listing-derived reset stores in order, records them separately from runtime PSG events, checks get_run_state PC and zero watchpoint ID, and compares executed store spans plus bytes at each exact stopped post-PC across staged, CPU, and physical memory. Wrong CPU/physical bytes (including post-PC), A, PAR mapping, order, or unknown watchpoints fail; zero target writes."
+        "Current-root end-to-end bootstrap fake qualifies all receipt/listing-derived reset stores in order, records them separately from runtime PSG events, checks get_run_state PC and zero watchpoint ID, and compares executed store spans plus bytes at each exact stopped post-PC across staged, CPU, and physical memory. Wrong CPU/physical bytes (including post-PC), A, PAR mapping, order, or unknown watchpoints fail; zero target writes.",
+        "Actual dispatch-handler fake triggers the unchanged queued-work terminal guard and retains all four slots/counts, queue and mixer bytes as hex, numeric stop/phase/deadline, qualification, and halted get_run_state; one status RPC only, no audio-memory reread, no emitted event, and JSON round-trip passes."
       ]
     },
     "guarded_import_no_launch": "PASS; subprocess.Popen and socket.create_connection trapped; import did not load the maintained monitor client template",
@@ -181,7 +184,7 @@
     },
     "static_candidate_checks": "PASS for the current root build: complete source-receipt bootstrap raw prefix, staged boot artifact/map/listing hashes, packaged bank-zero raw prefix and reset/post-PC spans, current ROM/layout identity, maps, cue descriptors, player art, and complete/adaptive/keyboard gate. Offline only; no runtime scenario is accepted.",
     "runtime_probe_build_target_write_git": "This context-retention change ran no runtime probe, build, or target write; only the two assigned evidence files are in scope",
-    "runtime_probe_build_target_write": "NONE during this observer correction; offline tests use fake clients. Parent owns the next corrected natural probe.",
+    "runtime_probe_build_target_write": "NONE during this observer correction; current terminal failure-context changes use fake clients only. Parent owns the next bounded natural diagnostic.",
     "current_root_profile_gate": {
       "result": "PASS",
       "candidate_build": "E:\\projects\\ladybug\\build",
@@ -251,13 +254,13 @@
     "forced_order_fixtures": "Both completion-order runs retain the approved HUD column x=33 (pixel264) and require lives0. Reach that third entry by two genuine input-only contacts/replacements in each fresh run; require actual row-derived player x320 and compare final-FRONT versus terminal-busy-zero ordinals and the busy byte sampled at FRONT."
   },
   "prospective_runtime_cli_after_gates": {
-    "status": "Bootstrap reset qualification and get_run_state checks are offline-tested; current revision remains pending parent review. One corrected natural runtime probe has not run.",
+    "status": "A corrected natural invocation ran on the unchanged current ROM and failed closed at the terminal queued-work guard with zero target writes. This revision retains the missing audio snapshot offline-qualified; parent review and one fresh bounded natural diagnostic remain required.",
     "natural": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-natural-dir> --scenario natural --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "front-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-front-first-dir> --scenario front-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "music-first": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-music-first-dir> --scenario music-first --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>",
     "prior-music": "python wiki/internal/tickets/evidence/bug117/runtime-observer-20261012.py --candidate-build <integrated-build> --output-dir <fresh-prior-music-dir> --scenario prior-music --run-live --xroar-binary <patched-xroar> --delivery-receipt <parent-accepted-gdb-mcp.json>"
   },
-  "ready_verdict": "Observer source now qualifies receipt-derived bootstrap reset stores and exact stopped post-PC bytes separately from owned runtime PSG/cue events, and uses get_run_state for stop diagnostics and fixture guards. Current-root preparation and 302 offline checks pass with zero launches or target writes. No natural acceptance result is claimed; parent review and one corrected bounded natural rerun remain required.",
+  "ready_verdict": "Observer source retains terminal guard failures with the already-read audio slots, queue counts and raw mixer/queue bytes, qualified stop context, and read-only halted state; the terminal guard remains unchanged. The prior natural invocation reached an owned cue6 END and then failed closed on queued audio work, with zero target writes and no release/death proof. The current source passes 303 offline checks with zero emulator launches or target writes. The prior run did not retain the relevant queue bytes, so the suspected retired-cell cause remains unconfirmed; parent review and a fresh bounded diagnostic are required.",
   "historical_accepted_fit_identity": {
     "candidate_build": "E:\\projects\\ladybug\\repro\\bug122-parent\\luna117-approved-fit-20261011\\build",
     "files": {
@@ -809,5 +812,30 @@
     "supported_monitor_method": "get_run_state",
     "next_probe": "One parent-owned corrected natural rerun after source review, with 45-second named phases and stop waits capped at 10 seconds.",
     "observer_qualification_added": "Each reset event is matched to its preceding emitted LDA/STA span and post-store PC. The live CPU and physical three-byte windows at the stopped post-PC are compared directly with the receipt-qualified staged bootstrap; the first derived window matches the parent-retained C027 bytes 86 BF B7."
+  },
+  "latest_natural_terminal_guard_failure": {
+    "receipt": "repro/bug117-integration-20261012/runtime-natural-corrected-20261013/bug117-natural-runtime.json",
+    "concise_summary": "wiki/internal/tickets/evidence/bug117/natural-terminal-guard-failure-20261013.json",
+    "observer_commit": "c581372",
+    "observer_script_sha256_at_attempt": "23aa7b4148618d8618a962f7d4d1c58216ee807c828c3b3e07bb3f42bf8fad68",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "status": "INCOMPLETE_FAIL_CLOSED",
+    "error": "GuardFailure: terminal mute service has queued music, effects, credits, or mixer work",
+    "emulator_launches": 1,
+    "target_write_count": 0,
+    "phase_deadline_seconds": 45,
+    "stop_wait_max_seconds": 10,
+    "initial_entry_marker_stops": 4266,
+    "owned_cue6_stream_end_event_ordinal": 4497,
+    "last_retained_event": {
+      "phase": "natural-contact-search",
+      "ordinal": 4498,
+      "label": "iet_maze_entry"
+    },
+    "audio_failure_snapshot_retained_by_attempt": false,
+    "target_ram_writes": 0,
+    "natural_release_or_death_proven": false,
+    "retired_music_queue_cell_explanation": "UNCONFIRMED; queue bytes were not retained by this invocation",
+    "next_probe": "Parent-owned single bounded natural diagnostic after review of this observer source; preserve the terminal failure context without changing validation."
   }
 }
