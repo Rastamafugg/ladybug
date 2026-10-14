@@ -3,7 +3,7 @@
   "prepared_utc_date": "2026-10-14",
   "ticket": "BUG-058",
   "approval_anchor": "gameplay-priority-approved-20261013",
-  "ready_anchor": "natural-observer-preparation-ready-20261013",
+  "ready_anchor": "lifecycle-observer-correction-ready-20261014",
   "cost_class": "High-risk",
   "scope": {
     "objective": "Capture a bounded natural-play timing, input, simulation, audio, and actual-FRONT ledger for the frozen current artifact; do not optimize.",
@@ -11,7 +11,7 @@
       "wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py",
       "wiki/internal/tickets/evidence/bug058/preparation.json"
     ],
-    "future_run_receipt": "repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json",
+    "future_run_receipt": "repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary-lifecycle-20261014.json",
     "excluded_writes": [
       "production source",
       "wiki/ticket",
@@ -19,7 +19,7 @@
       "Git",
       "guest RAM/register/MMU/GIME state"
     ],
-    "only_natural_state_change": "XRoar monitor inject_key press/release, at the exact source-qualified keyboard-service breakpoint"
+    "only_natural_state_change": "XRoar monitor inject_key press/release, only at exact source-qualified $1900 boundaries after caller, module, mapping, and initialized-lifecycle qualification"
   },
   "baseline": {
     "source_revision": "3cba1bfd",
@@ -90,7 +90,7 @@
       "tiled/coco-attract-screen.tmx",
       "tiled/coco-high-score-screen.tmx"
     ],
-    "preflight": "Every listed path must exist and match its SHA256 before and after natural capture; any missing or changed artifact is a hard failure. Never rebuild or substitute a component ROM for the delivered ROM."
+    "preflight": "The immutable recovery capsule must match all 266 source-receipt input hashes. The 262 current root inputs remaining after the two FEAT-010 TMX exclusions and the two separately declared overlay paths must match the old receipt exactly. Hash the two declared overlays independently. Any other mismatch is a hard failure. Never rebuild or claim the overlays are present in the frozen ROM."
   },
   "symbols": {
     "main": {
@@ -520,8 +520,9 @@
       "fixture/setup protocol"
     ],
     "exec_breakpoints": [
-      "$1900 only for recurring source-qualified input boundaries",
-      "$038F/$C116 only after active-driver and resident-byte identity",
+      "$1900 only for recurring source-qualified input boundaries: prove source/staged/delivered/live caller bytes at $C129, DP=$00, stacked return $C12C, then prove presentation bytes and PAR0 before reading phase state",
+      "$038F is armed as an unclassified lifecycle marker; only grant driver ownership after exact stop PC/id, DP=$00, source/delivered/live caller bytes at $C14F, stacked return $C152, and complete source/staged/physical/live active-driver identity through PAR0",
+      "$C116 is paired with a qualified $038F entry; no gameplay timing or state claim before the entry qualification",
       "$047C/$0488 only after active-driver, caller, stack, and PAR qualification",
       "$02DE/$02EC/$02EF only after gateway artifact/physical/live equality"
     ],
@@ -530,16 +531,19 @@
     "stop_id": "Execution stops require registered id and PC equality. Watchpoint stops have no id in current monitor implementation and are accepted only when the sole watchpoint exists and all $A49C/PAR5/callsite/byte guards pass.",
     "physical_address": "page*0x2000 + (cpu_address-$A000) for A000-BFFF addresses",
     "input_state_machine": {
-      "boundary": "Only exact presentation_flow_tick $1900 registered breakpoint id/PC after complete module and PAR0 qualification",
+      "boundary": "Only exact presentation_flow_tick $1900 registered breakpoint id/PC after mainloop caller DP/stack/source qualification plus complete presentation module and PAR0 qualification",
       "allowed_injections": "Press a source-derived coin, Enter, or movement DSCAN only at an observed $1900 boundary; release only a key already pressed at an observed $1900 boundary",
       "forced_release": "Denied; monitor wrapper rejects release without an outstanding press",
-      "startup_DF24": "Never used as recurring input breakpoint"
+      "startup_DF24": "Never used as recurring input breakpoint",
+      "presentation_magic": "PRES_MAGIC must equal $A5 before mode/screen/context/credits/event are semantic. Otherwise keep their observed bytes under raw state and set all semantic presentation and gameplay fields unavailable.",
+      "active_driver_owner": "Invalidated on any initialized lifecycle tuple change (mode, screen, context, entry, death). An initialized eligible gameplay PFT with no current owner sets a one-shot expected $038F entry; a later $1900 before exact entry qualification fails closed. AD_MODE_BYTE is retained as raw context and is not source or ownership proof.",
+      "strict_live_records": "Once PRES_MAGIC, active-driver source/caller/mapping, mode/screen/context, entry, and death gates pass, enemy tags, active count, records, and geometry remain strict. Inactive phases retain raw bytes and null semantic counts."
     }
   },
   "commands": {
     "offline_self_test": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --self-test",
     "artifact_check": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --artifact-check --rom build/ladybug.rom --receipt build/source-build-receipt.json",
-    "natural_gameplay": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --natural-gameplay --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --receipt build/source-build-receipt.json --output repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary-rerun-20261014.json --phase-deadline-seconds 45 --stop-timeout-seconds 10",
+    "natural_gameplay": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --natural-gameplay --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --receipt build/source-build-receipt.json --output repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary-lifecycle-20261014.json --phase-deadline-seconds 45 --stop-timeout-seconds 10",
     "output_policy": "Only natural-three-enemy-summary.json or a unique suffixed JSON basename directly inside the owned repro directory is accepted. Parent traversal, symlinks, nested/outside paths, and existing targets are rejected; the selected path is exclusively reserved before any process launch.",
     "execution_status": "Future runtime command only; this assignment performs offline validation and awaits parent freeze review plus a separate live lease."
   },
@@ -559,6 +563,12 @@
       "correct worklist event tick conversion including wrap",
       "valid source-tagged enemy records",
       "presentation startup tag $FF retained as raw/unavailable without decoding or zero-count claim",
+      "PRES_MAGIC not equal to $A5 makes phase fields semantic-null while retaining raw bytes, including startup mode=$B6/screen=$1E",
+      "PFT $1900 source/delivered/live caller identity requires DP=$00 and stack return $C12C",
+      "$038F source/delivered/live main caller requires DP=$00 and stack return $C152 before full active-driver qualification can grant ownership",
+      "owner invalidation on each phase tuple transition and one-shot expected $038F entry before the next eligible gameplay PFT",
+      "initialized gameplay semantics remain unavailable until the $038F source/caller/mapping proof; valid gameplay tags still decode strictly after owner grant",
+      "failed-stop receipt retains PC/id, DP/S/stack word, PAR0/PAR5, lifecycle raw bytes, owner/pending tuple, source revision/ROM hash, active source/stage/destination/live hashes, and first differing offsets without full byte dumps",
       "initialized live gameplay records decode strictly only after active-driver, mode, presentation, entry, and death gates pass",
       "entry/death transition snapshots remain unavailable and cannot feed count, recurrence, or FRONT actor consumers",
       "unique capture output path inside the owned directory validates without creating a file",
@@ -569,7 +579,7 @@
       "live binding slot conversion and allowlist agreement",
       "fake-client input pulse at a qualified $1900 marker with exact press/release calls only",
       "read/run/breakpoint/watchpoint method policy and halted event_ticks stability",
-      "all 266 frozen-capsule source-receipt inputs and all 264 current inputs except the two explicitly excluded FEAT-010 TMXs",
+      "all 266 immutable recovery-capsule source-receipt inputs, the exact remaining 262 current root inputs, and separately hashed shared_text_stage.inc and level-start-screen.tmx overlays",
       "source/map-qualified presentation, active-driver, audio-gateway, $047C binding/$0488 return, direct/tail caller, and physical-page addresses",
       "read-only helper hashes for the maintained BUG-009 monitor client and BUG-011 launcher",
       "offline exact direct/tail caller qualification and API stack equality at $047C/$0488 from mapped source bytes",
@@ -606,6 +616,12 @@
       "write_memory/write_registers/direct call/setup API",
       "module import that exposes subprocess/socket at module import time",
       "startup-only $DF24 presented as a recurring input marker",
+      "PFT stop with wrong DP, stack return other than $C12C, wrong source/delivered/live caller bytes, or wrong presentation PAR0/module identity",
+      "$038F owner grant with wrong DP, stack return other than $C152, wrong main caller bytes, wrong PAR0, or any active source/stage/physical/live byte mismatch",
+      "uninitialized PRES_MAGIC interpreted as mode/screen/credits or enemy zero state",
+      "initialized eligible gameplay PFT followed by a second $1900 without an intervening fully qualified $038F entry",
+      "AD_MODE_BYTE=$FF or any raw mode byte treated as resident-driver provenance",
+      "stale driver ownership reused after a mode/screen/context/entry/death tuple transition",
       "PFT symbol/physical-page/live-byte or PAR0 mismatch",
       "release without a preceding accepted press or duplicate press",
       "mismatched live binding slot or duplicate movement DSCAN",
@@ -628,14 +644,23 @@
       "path": "build/source-build-receipt.json",
       "sha256": "11e549b44bba276d8436c70f6577b1f409df5b9ffac1b217e6495f2c712f0251",
       "meaning": "reconstructed source receipt for the frozen 3cba1bfd/df260e artifact; the lost original receipt is not recreated or relabelled",
-      "verified_current_inputs_count": 264,
-      "verified_current_inputs_manifest_sha256": "d494c99bf3c1c5c13b4c1446fa1624f48dc7e9745b853b11e61986ce726b48ab",
+      "verified_current_inputs_count": 262,
+      "verified_current_inputs_manifest_sha256": "a720b8116f841e178b71f37291841cb619f67dcb337322346ce1e8eed29cf165",
       "verified_frozen_capsule_inputs_count": 266,
       "verified_frozen_capsule_inputs_manifest_sha256": "46d362b865b59c213e7de9df8f0856ccdf9e73d527c42c57993340bc59d63116",
       "excluded_current_user_tmx_inputs": [
         "tiled/coco-attract-screen.tmx",
         "tiled/coco-high-score-screen.tmx"
       ]
+    },
+    "current_root_overlays": {
+      "src/shared_text_stage.inc": "012db9eaf68912ccc010fe89170ea6bfe255334ad09c952b88d4d151d5190ef6",
+      "tiled/coco-level-start-screen.tmx": "fdc8db8aecf3fabcd4799b66b680809da48d96d18606fdb9d542c08905c821fc"
+    },
+    "current_root_overlay_manifest": {
+      "count": 2,
+      "sha256": "e4a48620c41bb21c741899653fa11e80d7d4a8a191b4f1609d587a6b18b10d09",
+      "meaning": "These two current-root files differ from the immutable 3cba1bfd receipt and are hash-checked separately. They are not represented as inputs to build/ladybug.rom or the 11e549 receipt. No other current source-receipt mismatch is waived."
     },
     "accepted_delivery_qualification": {
       "path": "repro/build-recovery-20261013/gdb-delivery.json",
@@ -652,6 +677,16 @@
       "observation": "The retained current-artifact capture stopped at the source-qualified presentation_flow_tick $1900 boundary before the first phase marker; the raw enemy slot-0 tag was $FF. The receipt is repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json and remains unchanged.",
       "source_discriminator": "enemy_init_impl calls reset_enemy_state, which clears all 32 ENEMY_TABLE bytes; init_enemy is reached from gameplay state initialization/next-stage paths, while the recurring presentation boundary also runs before that initialization. The observed $FF is therefore phase-inappropriate raw startup data, not evidence that the live record validator is too strict.",
       "decision": "Qualify installed adaptive bytes/mapping, AD_MODE_BYTE=$00, mode=0/screen=2/context=1, entry=0 and death=0 before interpreting counts or tags. Preserve inactive bytes as raw hex and semantic fields as unavailable. Keep validate_enemy_records strict for available gameplay."
+    },
+    "lifecycle_owner_correction": {
+      "retained_failure": "repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary-rerun-20261014.json",
+      "retained_failure_sha256": "96add3e79db278c723558d9a8e67cc45c73bf93d1262082f2aa8721cdf272048",
+      "observed_stop": "The first PFT marker was stop #2 and recorded PRES_MODE=$B6/PRES_SCREEN=$1E; the receipt did not retain PRES_MAGIC or registers, so those are only first-marker raw bytes, not proven values at failure stop #4. The stop sequence was #1 C116, #2 PFT, #3 C116, #4 PFT; the active-driver exception occurred while processing #4. No input, $038F entry, or worklist was present. At the failing comparison, source/stage hash was a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a and physical/CPU destination hash was d0496185759f9c4027f1ee3648a7c573cc5f350db509b205e50875ed5d1376be; 618 of 622 bytes differed starting at offset 0. No timing conclusion was obtained.",
+      "source_discriminator": "The mainloop calls PFT at $C129 with return $C12C and DP=$00. On first startup PFT sets PRES_MAGIC=$A5 and starts the attract screen before returning nonzero. The mainloop copies PRES_MODE to AD_MODE_BYTE and loops without calling $038F. At initialized live gameplay, PFT return zero dispatches through $C14F to $038F; AD_MODE_BYTE is only a mode cache, not proof that destination bytes are installed.",
+      "ownership_gate": "At every $1900 stop require exact caller source/staged/delivered/live bytes, DP=$00, [S]=$C12C, then exact presentation module bytes and PAR0. Keep all presentation/game state raw until PRES_MAGIC=$A5. Invalidate active ownership whenever (mode,screen,context,entry,death) changes. An eligible gameplay boundary without owner arms one expected $038F; before semantic reads at that entry require exact PC/id, DP=$00, source/delivered/live $C14F caller, [S]=$C152, and full active source/stage/physical/live identity under PAR0. If the next $1900 arrives first, fail closed. Preserve strict tag and count validation after qualification.",
+      "rejected_assumption": "Treat unchanged active-driver source bytes, AD_MODE_BYTE=$FF, or a startup $1900 snapshot as proof the copied driver is resident or that lifecycle bytes are semantic.",
+      "offline_only": true,
+      "runtime_authorized": false
     },
     "rejected_DF24_assumption": {
       "assumption": "Treat presentation_key_service at $DF24 as the recurring input boundary",

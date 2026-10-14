@@ -57,6 +57,10 @@ ACTIVE_AUDIO_CALL_WINDOWS = {
 }
 ACTIVE_AUDIO_TAIL_CALL = 0x0426
 PRESENTATION_FLOW_TICK = 0x1900
+PRESENTATION_FLOW_CALL = 0xC129
+PRESENTATION_FLOW_RETURN = 0xC12C
+PRES_MAGIC = 0x00A4
+PRES_MAGIC_VALUE = 0xA5
 STARTUP_KEY_INIT = 0xDF24
 PSG_DATA = 0xFF51
 PSG_POST_STORE = 0xA49C
@@ -131,6 +135,11 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def first_difference(left: bytes, right: bytes) -> int | None:
+    return next((index for index, (a, b) in enumerate(zip(left, right)) if a != b),
+                None if len(left) == len(right) else min(len(left), len(right)))
+
+
 def file_digest(path: Path) -> str:
     return digest(path.read_bytes())
 
@@ -171,17 +180,25 @@ def checked_pins() -> dict[str, str]:
     excluded = set(spec["pins"].get("excluded_source_receipt_inputs", []))
     if not excluded <= set(receipt_inputs):
         raise ObserverError("source receipt no longer contains the explicitly excluded TMX inputs")
+    overlay_pins = spec["provenance"].get("current_root_overlays", {})
+    if not isinstance(overlay_pins, dict):
+        raise ObserverError("current-root overlay provenance must be a path/hash map")
+    if not set(overlay_pins) <= set(receipt_inputs):
+        raise ObserverError("current-root overlay path is absent from the frozen source receipt")
+    if set(overlay_pins) & excluded:
+        raise ObserverError("current-root overlays cannot overlap excluded user TMX inputs")
     capsule_rel = Path(spec["provenance"]["frozen_source_root"])
     if capsule_rel.is_absolute() or ".." in capsule_rel.parts:
         raise ObserverError("frozen source capsule path escapes the project root")
     capsule_root = ROOT / capsule_rel
     verified_receipt_inputs: dict[str, str] = {}
     verified_capsule_inputs: dict[str, str] = {}
+    verified_overlays: dict[str, str] = {}
     for rel, expected in receipt_inputs.items():
         relative = Path(rel)
         if relative.is_absolute() or ".." in relative.parts:
             raise ObserverError(f"source receipt input escapes the project root: {rel}")
-        if rel in excluded:
+        if rel in excluded or rel in overlay_pins:
             current_path = None
         else:
             current_path = require_path(ROOT / relative, f"source receipt input {rel}")
@@ -195,6 +212,14 @@ def checked_pins() -> dict[str, str]:
             actual = file_digest(current_path)
             require_hash_match(f"source receipt input {rel}", expected, actual)
             verified_receipt_inputs[rel] = actual
+    for rel, expected in overlay_pins.items():
+        relative = Path(rel)
+        if relative.is_absolute() or ".." in relative.parts:
+            raise ObserverError(f"current-root overlay path escapes the project root: {rel}")
+        path = require_path(ROOT / relative, f"declared current-root overlay {rel}")
+        actual = file_digest(path)
+        require_hash_match(f"declared current-root overlay {rel}", expected, actual)
+        verified_overlays[rel] = actual
     observed["source-receipt-inputs.count"] = str(len(verified_receipt_inputs))
     observed["source-receipt-inputs.sha256"] = digest(
         json.dumps(verified_receipt_inputs, sort_keys=True,
@@ -205,6 +230,34 @@ def checked_pins() -> dict[str, str]:
         json.dumps(verified_capsule_inputs, sort_keys=True,
                    separators=(",", ":")).encode()
     )
+    observed["current-root-overlays.count"] = str(len(verified_overlays))
+    observed["current-root-overlays.sha256"] = digest(
+        json.dumps(verified_overlays, sort_keys=True,
+                   separators=(",", ":")).encode()
+    )
+    receipt_contract = spec["provenance"]["source_build_receipt"]
+    for label, count_key, hash_key in (
+        ("current source-receipt inputs", "verified_current_inputs_count",
+         "verified_current_inputs_manifest_sha256"),
+        ("frozen capsule inputs", "verified_frozen_capsule_inputs_count",
+         "verified_frozen_capsule_inputs_manifest_sha256"),
+    ):
+        actual_count = int(observed[
+            "source-receipt-inputs.count" if label.startswith("current")
+            else "frozen-capsule-inputs.count"
+        ])
+        actual_hash = observed[
+            "source-receipt-inputs.sha256" if label.startswith("current")
+            else "frozen-capsule-inputs.sha256"
+        ]
+        if actual_count != receipt_contract[count_key] or actual_hash != receipt_contract[hash_key]:
+            raise ObserverError(
+                f"{label} manifest differs from the explicit preparation contract"
+            )
+    overlay_contract = spec["provenance"]["current_root_overlay_manifest"]
+    if (int(observed["current-root-overlays.count"]) != overlay_contract["count"]
+            or observed["current-root-overlays.sha256"] != overlay_contract["sha256"]):
+        raise ObserverError("current-root overlay manifest differs from the explicit preparation contract")
     observed["preparation.json"] = contract_hash
     return observed
 
@@ -243,8 +296,20 @@ def require_hash_match(label: str, expected: str, actual: str) -> None:
 
 def require_byte_identity(label: str, *spans: bytes) -> None:
     if len(spans) < 2 or any(span != spans[0] for span in spans[1:]):
-        observed = [span.hex() for span in spans]
-        raise ObserverError(f"{label} byte identity mismatch: {observed}")
+        baseline = spans[0] if spans else b""
+        differences = []
+        for span in spans[1:]:
+            first = next((i for i, (left, right) in
+                          enumerate(zip(baseline, span)) if left != right),
+                         min(len(baseline), len(span)))
+            differences.append({
+                "bytes": len(span), "sha256": digest(span),
+                "first_difference": first,
+            })
+        raise ObserverError(
+            f"{label} byte identity mismatch: expected bytes={len(baseline)} "
+            f"sha256={digest(baseline)}; observed={differences}"
+        )
 
 
 def require_page_owner(label: str, observed: int, expected: int) -> int:
@@ -489,6 +554,7 @@ def validate_artifact_layout() -> dict[str, Any]:
     blobs = {name: require_path(path, name).read_bytes()
              for name, path in paths.items() if name not in ("receipt",)}
     runtime_rom = blobs["runtime_rom"]
+    delivered_rom = blobs["rom"]
     active = blobs["active"]
     audio = blobs["audio"]
     presentation = blobs["presentation"]
@@ -504,6 +570,10 @@ def validate_artifact_layout() -> dict[str, Any]:
         raise ObserverError("runtime ROM $C116 SYNC marker differs")
     if runtime_rom[0x014F:0x0154] != bytes.fromhex("bd038f20c2"):
         raise ObserverError("runtime ROM $C14F dispatch bytes differ")
+    if delivered_rom[0x4000:0x8000] != runtime_rom:
+        raise ObserverError("delivered ROM resident component differs from the staged runtime image")
+    if runtime_rom[0x0129:0x012C] != bytes.fromhex("bd1900"):
+        raise ObserverError("runtime ROM $C129 presentation caller bytes differ")
     stage_offset = 0xB792 - 0xA000
     if audio[stage_offset:stage_offset + len(active)] != active:
         raise ObserverError("adaptive staged bytes differ from pinned active-driver image")
@@ -824,10 +894,15 @@ def validate_enemy_records(active_count: int, records: bytes) -> list[dict[str, 
 
 
 def enemy_state_unavailable_reason(driver_qualified: bool, mode_byte: int,
-                                   pres_mode: int, pres_screen: int,
-                                   pres_context: int, entry: int,
-                                   death: int) -> str | None:
+                                   pres_mode: int | None, pres_screen: int | None,
+                                   pres_context: int | None, entry: int | None,
+                                   death: int | None,
+                                   pres_magic: int = PRES_MAGIC_VALUE) -> str | None:
     """Require the installed, initialized live-game boundary before decoding enemies."""
+    if pres_magic != PRES_MAGIC_VALUE:
+        return "presentation_magic_uninitialized"
+    if None in (pres_mode, pres_screen, pres_context, entry, death):
+        return "lifecycle_state_unavailable"
     if (pres_mode != 0 or pres_screen != 2 or pres_context != 1):
         return "presentation_or_non_gameplay_phase"
     if entry != 0:
@@ -839,6 +914,33 @@ def enemy_state_unavailable_reason(driver_qualified: bool, mode_byte: int,
     if not driver_qualified:
         return "active_driver_unqualified"
     return None
+
+
+def read_lifecycle_state(monitor: GuardedMonitor,
+                         artifacts: dict[str, Any]) -> dict[str, Any]:
+    """Read raw lifecycle bytes; callers decide whether magic permits semantics."""
+    mode_page = require_contract_identity(artifacts)["symbols"]["copied_adaptive"]["mode_page"]
+    return {
+        "magic": monitor.byte(PRES_MAGIC),
+        "mode_raw": monitor.byte(PRES_MODE),
+        "screen_raw": monitor.byte(PRES_SCREEN),
+        "context_raw": monitor.byte(PRES_CONTEXT),
+        "credits_raw": monitor.byte(PRES_CREDITS),
+        "event_raw": monitor.byte(PRES_EVENT),
+        "entry_raw": monitor.byte(INITIAL_ENTRY_STATE),
+        "death_raw": monitor.byte(DEATH_STATE),
+        "adaptive_mode_byte": monitor.read(
+            physical_address(mode_page, AD_MODE_BYTE), 1, "physical",
+        )[0],
+    }
+
+
+def lifecycle_tuple(state: dict[str, Any]) -> tuple[int, int, int, int, int] | None:
+    if state.get("magic") != PRES_MAGIC_VALUE:
+        return None
+    return tuple(int(state[key]) for key in (
+        "mode_raw", "screen_raw", "context_raw", "entry_raw", "death_raw",
+    ))
 
 
 def read_enemy_state(monitor: GuardedMonitor, available: bool,
@@ -1133,8 +1235,15 @@ def symbol_bytes_equal(monitor: GuardedMonitor, address: int,
 
 
 def qualify_main_markers(monitor: GuardedMonitor, artifacts: dict[str, Any]) -> None:
+    rom = artifacts["blobs"]["rom"]
     runtime_rom = artifacts["blobs"]["runtime_rom"]
+    require_byte_identity("delivered ROM/runtime component",
+                          rom[0x4000:0x8000], runtime_rom)
     symbol_bytes_equal(monitor, 0xC116, runtime_rom[0x0116:0x0117], "mainloop SYNC")
+    symbol_bytes_equal(monitor, PRESENTATION_FLOW_CALL,
+                       runtime_rom[PRESENTATION_FLOW_CALL - 0xC000:
+                                   PRESENTATION_FLOW_CALL - 0xC000 + 3],
+                       "presentation_flow_tick caller")
     symbol_bytes_equal(monitor, MAIN_WORKLIST_CALL,
                        runtime_rom[MAIN_WORKLIST_CALL - 0xC000:
                                    MAIN_WORKLIST_CALL - 0xC000 + 5],
@@ -1143,18 +1252,108 @@ def qualify_main_markers(monitor: GuardedMonitor, artifacts: dict[str, Any]) -> 
     require_symbol(artifacts["maps"]["main"], "ad_dispatch_work", MAIN_WORKLIST_CALL)
 
 
+def register_value(registers: dict[str, Any], name: str) -> int:
+    folded = {str(key).casefold(): value for key, value in registers.items()}
+    value = folded.get(name.casefold())
+    if not isinstance(value, int) or not 0 <= value <= 0xFFFF:
+        raise ObserverError(f"runtime register {name.upper()} is missing or invalid: {value!r}")
+    return value
+
+
+def qualify_presentation_caller(monitor: GuardedMonitor,
+                                artifacts: dict[str, Any],
+                                stop: dict[str, Any]) -> dict[str, Any]:
+    """Prove the live $1900 stop came from the initialized-DP mainloop callsite."""
+    _assert_stop(stop, PRESENTATION_FLOW_TICK,
+                 monitor._bps.get(PRESENTATION_FLOW_TICK, -1))
+    registers = stop["registers"]
+    live_pc = register_value(registers, "pc")
+    if live_pc != PRESENTATION_FLOW_TICK:
+        raise ObserverError(f"PFT live register PC must be $1900, got ${live_pc:04X}")
+    dp = register_value(registers, "dp")
+    if dp != 0:
+        raise ObserverError(f"presentation_flow_tick caller DP must be $00, got ${dp:02X}")
+    stack = register_value(registers, "s")
+    return_pc = monitor.word(stack)
+    if return_pc != PRESENTATION_FLOW_RETURN:
+        raise ObserverError(
+            f"presentation_flow_tick stack return must be $C12C, got ${return_pc:04X}"
+        )
+    qualify_main_markers(monitor, artifacts)
+    runtime = artifacts["blobs"]["runtime_rom"]
+    delivered = artifacts["blobs"]["rom"][0x4000:0x8000]
+    offset = PRESENTATION_FLOW_CALL - 0xC000
+    expected = runtime[offset:offset + 3]
+    live = monitor.read(PRESENTATION_FLOW_CALL, 3, "cpu")
+    require_byte_identity("$C129 PFT caller source/staged/delivered/live",
+                          expected, delivered[offset:offset + 3], live)
+    return {
+        "call_pc": PRESENTATION_FLOW_CALL,
+        "return_pc": return_pc,
+        "stop_pc": stop["pc"],
+        "breakpoint_id": stop["bp_id"],
+        "dp": dp,
+        "stack": stack,
+        "bytes_hex": live.hex(),
+        "source_sha256": file_digest(ROOT / "src/main.s"),
+        "staged_sha256": digest(runtime),
+        "delivered_component_sha256": digest(delivered),
+        "live_call_sha256": digest(live),
+    }
+
+
 def qualify_worklist_outer_return(monitor: GuardedMonitor,
                                   artifacts: dict[str, Any],
-                                  stack: int) -> int:
+                                  stack: int,
+                                  registers: dict[str, Any] | None = None) -> int:
     if not 0 <= int(stack) <= 0xFFFF:
         raise ObserverError(f"AD_WORK_EXEC entry S is not unsigned 16-bit: {stack}")
     qualify_main_markers(monitor, artifacts)
+    if registers is not None and register_value(registers, "dp") != 0:
+        raise ObserverError("AD_WORK_EXEC caller DP must be $00")
     return_pc = monitor.word(int(stack))
     if return_pc != MAIN_WORKLIST_RETURN:
         raise ObserverError(
             f"AD_WORK_EXEC entry stack does not name main-loop return $C152: ${return_pc:04X}"
         )
     return return_pc
+
+
+def qualify_active_entry(monitor: GuardedMonitor,
+                         artifacts: dict[str, Any],
+                         stop: dict[str, Any]) -> dict[str, Any]:
+    """Qualify the actual $038F caller, stack, source, stage and destination."""
+    _assert_stop(stop, ACTIVE_ENTRY, monitor._bps.get(ACTIVE_ENTRY, -1))
+    registers = stop["registers"]
+    live_pc = register_value(registers, "pc")
+    if live_pc != ACTIVE_ENTRY:
+        raise ObserverError(f"active-driver live register PC must be $038F, got ${live_pc:04X}")
+    dp = register_value(registers, "dp")
+    if dp != 0:
+        raise ObserverError(f"AD_WORK_EXEC caller DP must be $00, got ${dp:02X}")
+    stack = register_value(registers, "s")
+    return_pc = qualify_worklist_outer_return(
+        monitor, artifacts, stack, registers,
+    )
+    runtime = artifacts["blobs"]["runtime_rom"]
+    delivered = artifacts["blobs"]["rom"][0x4000:0x8000]
+    offset = MAIN_WORKLIST_CALL - 0xC000
+    expected_caller = runtime[offset:offset + 5]
+    live_caller = monitor.read(MAIN_WORKLIST_CALL, 5, "cpu")
+    require_byte_identity("$C14F active caller source/staged/delivered/live",
+                          expected_caller, delivered[offset:offset + 5], live_caller)
+    active_image = qualify_active_driver(monitor, artifacts)
+    return {"dp": dp, "stack": stack, "return_pc": return_pc,
+            "caller": {
+                "call_pc": MAIN_WORKLIST_CALL, "return_pc": return_pc,
+                "stop_pc": stop["pc"], "breakpoint_id": stop["bp_id"],
+                "bytes_hex": live_caller.hex(),
+                "source_sha256": file_digest(ROOT / "src/main.s"),
+                "staged_sha256": digest(runtime),
+                "delivered_component_sha256": digest(delivered),
+                "live_call_sha256": digest(live_caller),
+            },
+            "active_driver": active_image}
 
 
 def qualify_presentation_boundary(monitor: GuardedMonitor,
@@ -1271,51 +1470,77 @@ def read_audio_snapshot(monitor: GuardedMonitor,
 
 
 def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
-                  include_audio: bool = True) -> dict[str, Any]:
-    pres_mode = monitor.byte(PRES_MODE)
-    pres_screen = monitor.byte(PRES_SCREEN)
-    pres_context = monitor.byte(PRES_CONTEXT)
-    entry = monitor.byte(INITIAL_ENTRY_STATE)
-    death = monitor.byte(DEATH_STATE)
-    driver_qualified = qualify_active_driver_safe(monitor, artifacts)
-    mode_page = require_contract_identity(artifacts)["symbols"]["copied_adaptive"]["mode_page"]
-    mode_byte = monitor.read(physical_address(mode_page, AD_MODE_BYTE), 1,
-                             "physical")[0]
+                  include_audio: bool = True,
+                  lifecycle: dict[str, Any] | None = None,
+                  driver_qualified: bool = False,
+                  active_driver_proof: dict[str, Any] | None = None) -> dict[str, Any]:
+    lifecycle = lifecycle or read_lifecycle_state(monitor, artifacts)
+    magic = int(lifecycle["magic"])
+    initialized = magic == PRES_MAGIC_VALUE
+    pres_mode = int(lifecycle["mode_raw"]) if initialized else None
+    pres_screen = int(lifecycle["screen_raw"]) if initialized else None
+    pres_context = int(lifecycle["context_raw"]) if initialized else None
+    entry = int(lifecycle["entry_raw"]) if initialized else None
+    death = int(lifecycle["death_raw"]) if initialized else None
+    mode_byte = int(lifecycle["adaptive_mode_byte"])
+    if driver_qualified and active_driver_proof is None:
+        raise ObserverError("semantic snapshot lacks an independently qualified active-driver proof")
     unavailable_reason = enemy_state_unavailable_reason(
         driver_qualified, mode_byte, pres_mode, pres_screen, pres_context,
-        entry, death,
+        entry, death, magic,
     )
     enemy_state = read_enemy_state(
         monitor, unavailable_reason is None, unavailable_reason,
     )
     live_enemy_state = enemy_state["enemy_state_available"]
-    freeze_timer = monitor.word(FREEZE_TIMER)
-    pickup_timer = monitor.byte(PICKUP_TIMER)
+    freeze_timer_raw = monitor.word(FREEZE_TIMER)
+    pickup_timer_raw = monitor.byte(PICKUP_TIMER)
+    frames_raw = monitor.word(FRAMES)
+    player_dir_raw = monitor.byte(PLAYER_DIR)
+    player_want_raw = monitor.byte(PLAYER_WANT)
+    player_step_raw = monitor.byte(PLAYER_STEP)
+    player_cell_raw = [monitor.byte(PLAYER_CELL_X), monitor.byte(PLAYER_CELL_Y)]
+    joy_dir_raw = monitor.byte(JOY_DIR)
+    player_fb_raw = monitor.word(PLAYER_FB)
+    player_tick_pending_raw = monitor.byte(PLAYER_TICK_PENDING)
     sim_time = (monitor.word(physical_address(SIM_TIME_PAGE, SIM_TIME_CPU), "physical")
                 if live_enemy_state else None)
+    game_state_raw = {
+        "freeze_timer": freeze_timer_raw,
+        "pickup_timer": pickup_timer_raw,
+        "frames": frames_raw,
+        "player_dir": player_dir_raw,
+        "player_want": player_want_raw,
+        "player_step": player_step_raw,
+        "player_cell": player_cell_raw,
+        "joy_dir": joy_dir_raw,
+        "player_fb": player_fb_raw,
+        "player_tick_pending": player_tick_pending_raw,
+    }
     snapshot = {
         **enemy_state,
         "entry": entry,
         "death": death,
-        "pickup_timer": pickup_timer if live_enemy_state else None,
-        "freeze_timer": freeze_timer if live_enemy_state else None,
+        "pickup_timer": pickup_timer_raw if live_enemy_state else None,
+        "freeze_timer": freeze_timer_raw if live_enemy_state else None,
         "enemy_timer": monitor.byte(ENEMY_TIMER) if live_enemy_state else None,
         "enemy_anim": monitor.byte(ENEMY_ANIM) if live_enemy_state else None,
         "sim_time": sim_time,
-        "frames": monitor.word(FRAMES),
-        "player_dir": monitor.byte(PLAYER_DIR),
-        "player_want": monitor.byte(PLAYER_WANT),
-        "player_step": monitor.byte(PLAYER_STEP),
-        "player_cell": [monitor.byte(PLAYER_CELL_X), monitor.byte(PLAYER_CELL_Y)],
-        "joy_dir": monitor.byte(JOY_DIR),
-        "player_fb": monitor.word(PLAYER_FB),
-        "player_tick_pending": monitor.byte(PLAYER_TICK_PENDING),
+        "frames": frames_raw if live_enemy_state else None,
+        "player_dir": player_dir_raw if live_enemy_state else None,
+        "player_want": player_want_raw if live_enemy_state else None,
+        "player_step": player_step_raw if live_enemy_state else None,
+        "player_cell": player_cell_raw if live_enemy_state else None,
+        "joy_dir": joy_dir_raw if live_enemy_state else None,
+        "player_fb": player_fb_raw if live_enemy_state else None,
+        "player_tick_pending": player_tick_pending_raw if live_enemy_state else None,
+        "game_state_raw": game_state_raw,
         "render_intents": monitor.read(RENDER_FLAGS, 16).hex(),
         "pres_mode": pres_mode,
         "pres_screen": pres_screen,
         "pres_context": pres_context,
-        "pres_credits": monitor.byte(PRES_CREDITS),
-        "pres_event": monitor.byte(PRES_EVENT),
+        "pres_credits": int(lifecycle["credits_raw"]) if initialized else None,
+        "pres_event": int(lifecycle["event_raw"]) if initialized else None,
         "fb_front": monitor.byte(FB_FRONT_ID),
         "fb_pending": monitor.byte(FB_RENDER_PENDING),
         "fb_commit_seq": monitor.word(FB_COMMIT_SEQ),
@@ -1323,12 +1548,22 @@ def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
         "fb_missed": monitor.word(FB_MISSED_COMMIT),
         "voff1": monitor.byte(VOFF1),
         "classification": (
-            classify_pause(entry, death, pickup_timer, freeze_timer)
+            classify_pause(entry, death, pickup_timer_raw, freeze_timer_raw)
             if live_enemy_state else f"enemy_state_unavailable:{unavailable_reason}"
         ),
-        "enemy_freeze_active": freeze_timer != 0 if live_enemy_state else None,
-        "active_driver_qualification": driver_qualified,
-        "adaptive_mode_byte": mode_byte,
+        "enemy_freeze_active": freeze_timer_raw != 0 if live_enemy_state else None,
+        "presentation_magic": magic,
+        "presentation_initialized": initialized,
+        "presentation_state_raw": {
+            "mode": lifecycle["mode_raw"], "screen": lifecycle["screen_raw"],
+            "context": lifecycle["context_raw"], "credits": lifecycle["credits_raw"],
+            "event": lifecycle["event_raw"], "entry": lifecycle["entry_raw"],
+            "death": lifecycle["death_raw"],
+        },
+        "active_driver_qualification": active_driver_proof,
+        "active_driver_owned": driver_qualified,
+        "adaptive_mode_byte_raw": mode_byte,
+        "adaptive_mode_byte_is_ownership_proof": False,
         "audio_installed": bool(monitor.byte(AUDIO_INSTALLED)),
     }
     if include_audio and snapshot["audio_installed"]:
@@ -1641,6 +1876,15 @@ class NaturalCapture:
         self.capture_worklists = False
         self.four_enemy_run: list[int] = []
         self.pins_after: dict[str, str] | None = None
+        self.driver_owned = False
+        self.driver_owner_tuple: tuple[int, int, int, int, int] | None = None
+        self.last_lifecycle_tuple: tuple[int, int, int, int, int] | None = None
+        self.driver_requalification_pending = False
+        self.pending_entry_tuple: tuple[int, int, int, int, int] | None = None
+        self.pending_entry_stop_key: tuple[Any, ...] | None = None
+        self.driver_ownership_events: list[dict[str, Any]] = []
+        self.last_stop: dict[str, Any] | None = None
+        self.failure_context: dict[str, Any] | None = None
         self.current_phase = "cold boot and first control"
         self.xroar_info = xroar_info
         self.start_ticks = self.monitor.cycles()
@@ -1668,6 +1912,13 @@ class NaturalCapture:
                       "target_fast_cycles": EXPECTED_FAST_CYCLES,
                       "observer_overhead_correction": "unavailable unless a naturally equivalent lower-stop worklist exists; no estimate subtracted"},
             "phase_markers": self.phase_markers,
+            "driver_ownership": {
+                "owner_valid": self.driver_owned,
+                "owner_tuple": self.driver_owner_tuple,
+                "pending_expected_038f": self.driver_requalification_pending,
+                "events": self.driver_ownership_events,
+            },
+            "failure_context": self.failure_context,
             "count_transitions": self.count_transitions,
             "three_enemy_recurrence": {
                 "completed_regular_worklists": len(self.regular_run),
@@ -1720,7 +1971,150 @@ class NaturalCapture:
         return deadline
 
     def stop(self, deadline: float) -> dict[str, Any]:
-        return self.monitor.stop(deadline, self.current_phase)
+        self.last_stop = self.monitor.stop(deadline, self.current_phase)
+        return self.last_stop
+
+    def retain_failure_context(self, failure: str) -> dict[str, Any]:
+        """Capture only the halted stop and small state needed to classify a rejection."""
+        stop = self.last_stop or {}
+        registers = stop.get("registers", {})
+        context: dict[str, Any] = {
+            "failure": failure,
+            "phase": self.current_phase,
+            "stop": {
+                "n": stop.get("trace", {}).get("n"),
+                "pc": stop.get("pc"), "bp_id": stop.get("bp_id"),
+                "event_ticks": stop.get("event_ticks"),
+                "registers": dict(registers),
+                "dp": registers.get("dp", registers.get("DP")),
+                "s": registers.get("s", registers.get("S")),
+            },
+            "driver_owned_before_stop": self.driver_owned,
+            "driver_owner_tuple": self.driver_owner_tuple,
+            "pending_expected_038f": self.driver_requalification_pending,
+            "lifecycle_tuple": self.last_lifecycle_tuple,
+            "source_revision": "3cba1bfd",
+            "rom_sha256": self.artifacts["pins"].get("build/ladybug.rom"),
+        }
+        stack = context["stop"].get("s")
+        if isinstance(stack, int) and 0 <= stack <= 0xFFFF:
+            try:
+                context["stop"]["stack_word"] = self.monitor.word(stack)
+            except Exception as exc:
+                context["stop"]["stack_read_error"] = str(exc)
+        for name, address in (("par0", PAR0), ("par5", PAR5),
+                              ("pres_magic", PRES_MAGIC), ("pres_mode", PRES_MODE),
+                              ("pres_screen", PRES_SCREEN), ("pres_context", PRES_CONTEXT),
+                              ("entry", INITIAL_ENTRY_STATE), ("death", DEATH_STATE)):
+            try:
+                context["stop"][name] = self.monitor.byte(address)
+            except Exception as exc:
+                context["stop"][f"{name}_read_error"] = str(exc)
+        try:
+            active = self.artifacts["blobs"]["active"]
+            stage_address = 0xB792
+            stage = self.monitor.read(physical_address(PAGE_AUDIO, stage_address),
+                                      len(active), "physical")
+            destination_page = self.artifacts["spec"]["symbols"]["copied_adaptive"]["destination_page"]
+            physical = self.monitor.read(destination_page * PAGE_SIZE + ACTIVE_ENTRY,
+                                         len(active), "physical")
+            live = self.monitor.read(ACTIVE_ENTRY, len(active), "cpu")
+            context["active_bytes"] = {
+                "source_sha256": digest(active), "staged_sha256": digest(stage),
+                "physical_sha256": digest(physical), "live_sha256": digest(live),
+                "source_stage_first_difference": first_difference(active, stage),
+                "stage_physical_first_difference": first_difference(stage, physical),
+                "physical_live_first_difference": first_difference(physical, live),
+            }
+        except Exception as exc:
+            context["active_bytes_error"] = str(exc)
+        self.failure_context = context
+        return context
+
+    def _invalidate_driver_owner(self, reason: str,
+                                 new_tuple: tuple[int, int, int, int, int] | None,
+                                 stop: dict[str, Any]) -> None:
+        was_owned = self.driver_owned
+        self.driver_owned = False
+        self.driver_owner_tuple = None
+        self.driver_ownership_events.append({
+            "event": "invalidated", "reason": reason,
+            "was_owned": was_owned, "new_tuple": new_tuple,
+            "stop_n": stop.get("trace", {}).get("n"),
+            "stop_pc": stop.get("pc"),
+        })
+
+    def _observe_presentation_lifecycle(self, stop: dict[str, Any],
+                                        lifecycle: dict[str, Any]) -> dict[str, Any] | None:
+        key = (stop.get("trace", {}).get("n"), stop.get("pc"),
+               stop.get("bp_id"), stop.get("event_ticks"))
+        if self.driver_requalification_pending and key != self.pending_entry_stop_key:
+            raise ObserverError(
+                "expected source-qualified $038F active-driver entry was absent before the next $1900 boundary"
+            )
+        current_tuple = lifecycle_tuple(lifecycle)
+        if current_tuple is None:
+            if self.driver_owned or self.driver_owner_tuple is not None:
+                self._invalidate_driver_owner("PRES_MAGIC is not initialized", None, stop)
+            self.last_lifecycle_tuple = None
+            self.driver_requalification_pending = False
+            self.pending_entry_tuple = None
+            self.pending_entry_stop_key = None
+            return None
+        changed = (self.last_lifecycle_tuple is not None
+                   and current_tuple != self.last_lifecycle_tuple)
+        if changed:
+            self._invalidate_driver_owner("presentation lifecycle tuple changed",
+                                          current_tuple, stop)
+        self.last_lifecycle_tuple = current_tuple
+        eligible = current_tuple == (0, 2, 1, 0, 0)
+        if self.driver_owned and self.driver_owner_tuple != current_tuple:
+            self._invalidate_driver_owner("resident owner tuple changed",
+                                          current_tuple, stop)
+        proof = None
+        if self.driver_owned:
+            proof = qualify_active_driver(self.monitor, self.artifacts)
+        elif eligible and not self.driver_requalification_pending:
+            self.driver_requalification_pending = True
+            self.pending_entry_tuple = current_tuple
+            self.pending_entry_stop_key = key
+            self.driver_ownership_events.append({
+                "event": "expected_entry", "address": ACTIVE_ENTRY,
+                "tuple": current_tuple, "stop_n": stop.get("trace", {}).get("n"),
+                "stop_pc": stop.get("pc"),
+                "reason": "initialized live-gameplay PFT must reach the source-qualified active work entry before semantic enemy reads",
+            })
+        return proof
+
+    def _accept_driver_entry(self, stop: dict[str, Any],
+                             lifecycle: dict[str, Any],
+                             qualification: dict[str, Any]) -> None:
+        current_tuple = lifecycle_tuple(lifecycle)
+        if current_tuple is None:
+            raise ObserverError("$038F executed before PRES_MAGIC initialized semantic lifecycle state")
+        if (self.driver_owned and self.driver_owner_tuple is not None
+                and self.driver_owner_tuple != current_tuple):
+            self._invalidate_driver_owner(
+                "presentation lifecycle tuple changed before $038F ownership renewal",
+                current_tuple, stop,
+            )
+        if (self.driver_requalification_pending
+                and self.pending_entry_tuple != current_tuple):
+            raise ObserverError("$038F lifecycle tuple differs from its expected presentation boundary")
+        self.driver_owned = True
+        self.driver_owner_tuple = current_tuple
+        self.last_lifecycle_tuple = current_tuple
+        self.driver_requalification_pending = False
+        self.pending_entry_tuple = None
+        self.pending_entry_stop_key = None
+        self.driver_ownership_events.append({
+            "event": "qualified_entry", "address": ACTIVE_ENTRY,
+            "tuple": current_tuple, "stop_n": stop.get("trace", {}).get("n"),
+            "caller_return": qualification["return_pc"],
+            "caller": qualification["caller"],
+            "active_sha256": qualification["active_driver"]["live_sha256"],
+            "active_page": qualification["active_driver"]["physical_page"],
+        })
 
     def _expected_bp(self, stop: dict[str, Any], address: int) -> int:
         ident = self.monitor._bps.get(address)
@@ -1765,6 +2159,7 @@ class NaturalCapture:
         ident = self._expected_bp(stop, PRESENTATION_FLOW_TICK)
         del ident
         proof = qualify_presentation_boundary(self.monitor, self.artifacts)
+        caller = qualify_presentation_caller(self.monitor, self.artifacts, stop)
         keycodes = live_keycodes(self.monitor)
         expected = expected_keycodes()
         if any(keycodes.get(name) != code for name, code in expected.items()):
@@ -1776,9 +2171,18 @@ class NaturalCapture:
             "dscan": {key: value for key, value in keycodes.items()
                       if key != "matrix_slots"},
             "presentation_boundary": proof,
+            "presentation_caller": caller,
         }
-        state = read_snapshot(self.monitor, self.artifacts)
+        lifecycle = read_lifecycle_state(self.monitor, self.artifacts)
+        active_proof = self._observe_presentation_lifecycle(stop, lifecycle)
+        state = read_snapshot(
+            self.monitor, self.artifacts, lifecycle=lifecycle,
+            driver_qualified=self.driver_owned,
+            active_driver_proof=active_proof,
+        )
         state["presentation_qualification"] = proof
+        state["presentation_caller_qualification"] = caller
+        state["driver_requalification_pending"] = self.driver_requalification_pending
         return state
 
     def _inject_at_boundary(self, stop: dict[str, Any], key: int,
@@ -1797,20 +2201,24 @@ class NaturalCapture:
     def _leave_input_boundary(self) -> None:
         if PRESENTATION_FLOW_TICK in self.monitor._bps:
             self.monitor.clear_breakpoint(PRESENTATION_FLOW_TICK)
-        if ACTIVE_RETURN not in self.monitor._bps:
-            self.monitor.set_breakpoint(ACTIVE_RETURN)
+        if self.current_work is None and ACTIVE_ENTRY not in self.monitor._bps:
+            self.monitor.set_breakpoint(ACTIVE_ENTRY)
 
     def _next_input_boundary(self, deadline: float) -> tuple[dict[str, Any], dict[str, Any]]:
         if PRESENTATION_FLOW_TICK not in self.monitor._bps:
             self.monitor.set_breakpoint(PRESENTATION_FLOW_TICK)
-        if ACTIVE_RETURN not in self.monitor._bps and self.current_work is None:
-            self.monitor.set_breakpoint(ACTIVE_RETURN)
+        if ACTIVE_ENTRY not in self.monitor._bps and self.current_work is None:
+            self.monitor.set_breakpoint(ACTIVE_ENTRY)
         while True:
             stop = self.stop(deadline)
             if stop["pc"] == PRESENTATION_FLOW_TICK:
                 self._expected_bp(stop, PRESENTATION_FLOW_TICK)
                 if self.current_work is not None:
                     raise ObserverError("presentation-flow boundary interrupted an open AD_WORK_EXEC interval")
+                if self.driver_requalification_pending and stop.get("trace", {}).get("n") != (self.pending_entry_stop_key or (None,))[0]:
+                    raise ObserverError(
+                        "expected source-qualified $038F active-driver entry was absent before the next $1900 boundary"
+                    )
                 state = self._qualify_key_boundary(stop)
                 return stop, state
             if stop["pc"] == PSG_POST_STORE and stop["bp_id"] in (None, 0):
@@ -1821,7 +2229,12 @@ class NaturalCapture:
             if ident is None or stop["bp_id"] != ident:
                 raise ObserverError(f"unowned stop while waiting for $1900: {stop['result']}")
             if pc == ACTIVE_ENTRY:
-                self._begin_worklist(stop)
+                if self.current_work is not None:
+                    raise ObserverError("nested $038F while a worklist interval is open")
+                if self.capture_worklists:
+                    self._begin_worklist(stop)
+                else:
+                    self._qualify_driver_entry_only(stop)
             elif pc == ACTIVE_AUDIO_ENTRY:
                 self._begin_audio_api(stop)
             elif pc == ACTIVE_AUDIO_RETURN:
@@ -1831,7 +2244,7 @@ class NaturalCapture:
                     self._end_worklist(stop)
                 else:
                     self.monitor.clear_breakpoint(ACTIVE_RETURN)
-                    if self.capture_worklists and ACTIVE_ENTRY not in self.monitor._bps:
+                    if ACTIVE_ENTRY not in self.monitor._bps:
                         self.monitor.set_breakpoint(ACTIVE_ENTRY)
                 if PRESENTATION_FLOW_TICK not in self.monitor._bps:
                     self.monitor.set_breakpoint(PRESENTATION_FLOW_TICK)
@@ -1935,13 +2348,16 @@ class NaturalCapture:
         self._expected_bp(stop, ACTIVE_ENTRY)
         if self.current_work is not None:
             raise ObserverError("worklist entry nested before prior return")
-        qualify_active_driver(self.monitor, self.artifacts)
-        registers = stop["registers"]
-        entry_stack = int(registers["s"])
-        outer_return_pc = qualify_worklist_outer_return(
-            self.monitor, self.artifacts, entry_stack,
+        qualification = qualify_active_entry(self.monitor, self.artifacts, stop)
+        lifecycle = read_lifecycle_state(self.monitor, self.artifacts)
+        self._accept_driver_entry(stop, lifecycle, qualification)
+        entry_stack = qualification["stack"]
+        outer_return_pc = qualification["return_pc"]
+        start = read_snapshot(
+            self.monitor, self.artifacts, lifecycle=lifecycle,
+            driver_qualified=True,
+            active_driver_proof=qualification["active_driver"],
         )
-        start = read_snapshot(self.monitor, self.artifacts)
         if start["enemy_active"] == 3 and self.recurring_deadline is None:
             self.recurring_deadline = time.monotonic() + self.phase_seconds
             self.current_phase = "three-enemy recurrence"
@@ -1956,15 +2372,41 @@ class NaturalCapture:
         if ACTIVE_AUDIO_ENTRY not in self.monitor._bps:
             self.monitor.set_breakpoint(ACTIVE_AUDIO_ENTRY)
 
+    def _qualify_driver_entry_only(self, stop: dict[str, Any]) -> None:
+        self._expected_bp(stop, ACTIVE_ENTRY)
+        qualification = qualify_active_entry(self.monitor, self.artifacts, stop)
+        lifecycle = read_lifecycle_state(self.monitor, self.artifacts)
+        self._accept_driver_entry(stop, lifecycle, qualification)
+        self.driver_ownership_events.append({
+            "event": "qualification_only_entry", "address": ACTIVE_ENTRY,
+            "tuple": self.driver_owner_tuple,
+            "stop_n": stop.get("trace", {}).get("n"),
+            "active_sha256": qualification["active_driver"]["live_sha256"],
+        })
+        self.monitor.clear_breakpoint(ACTIVE_ENTRY)
+        self.monitor.set_breakpoint(ACTIVE_RETURN)
+
     def _end_worklist(self, stop: dict[str, Any]) -> None:
         self._expected_bp(stop, ACTIVE_RETURN)
         if self.current_work is None:
             raise ObserverError("worklist return lacks a qualified entry")
         if self.api_open is not None:
             raise ObserverError("worklist returned with adaptive audio call still open")
-        qualify_active_driver(self.monitor, self.artifacts)
+        active_proof = qualify_active_driver(self.monitor, self.artifacts)
         qualify_main_markers(self.monitor, self.artifacts)
-        end = read_snapshot(self.monitor, self.artifacts)
+        lifecycle = read_lifecycle_state(self.monitor, self.artifacts)
+        end_tuple = lifecycle_tuple(lifecycle)
+        if end_tuple != self.driver_owner_tuple:
+            self._invalidate_driver_owner(
+                "presentation lifecycle tuple changed during AD_WORK_EXEC",
+                end_tuple, stop,
+            )
+            self.last_lifecycle_tuple = end_tuple
+        end = read_snapshot(
+            self.monitor, self.artifacts, lifecycle=lifecycle,
+            driver_qualified=self.driver_owned,
+            active_driver_proof=active_proof,
+        )
         cycles = event_cycles(self.current_work["entry_ticks"], stop["event_ticks"])
         intervals: list[tuple[int, int]] = []
         span_cycles: list[int] = []
@@ -2166,6 +2608,8 @@ class NaturalCapture:
                     "marker": "source/artifact/physical/live-qualified presentation_flow_tick $1900",
                     "event_ticks": stop["event_ticks"],
                     "mode": state["pres_mode"], "screen": state["pres_screen"],
+                    "presentation_state_raw": state["presentation_state_raw"],
+                    "presentation_initialized": state["presentation_initialized"],
                     "breakpoint_id": stop["bp_id"],
                     "presentation_qualification": state["presentation_qualification"],
                 })
@@ -2182,7 +2626,9 @@ class NaturalCapture:
                 coin_release_done = True
                 injected = True
 
-            if not injected and (coin_release_done and state["pres_credits"] > credit_before
+            if not injected and (coin_release_done and state["presentation_initialized"]
+                    and state["pres_credits"] is not None
+                    and state["pres_credits"] > credit_before
                     and state["pres_screen"] == symbols["PRESENTATION_MAP_HIGH_SCORE"]
                     and state["pres_mode"] == 5 and enter_press is None):
                 qualify_audio_module(self.monitor, self.artifacts)
@@ -2198,11 +2644,11 @@ class NaturalCapture:
                 injected = True
 
             if enter_press is not None:
-                if (state["pres_event"] & 1 or state["pres_mode"] == 6
-                        or (state["pres_mode"] == 0 and state["pres_context"] == 1)):
+                if (state["presentation_initialized"] and state["pres_event"] is not None
+                        and (state["pres_event"] & 1 or state["pres_mode"] == 6
+                        or (state["pres_mode"] == 0 and state["pres_context"] == 1))):
                     enter_event_seen = True
-            if state["pres_mode"] == 0:
-                driver_ready = qualify_active_driver_safe(self.monitor, self.artifacts)
+            driver_ready = self.driver_owned
 
             if (driver_ready and enter_event_seen
                     and state["pres_mode"] == 0 and state["pres_screen"] == 2
@@ -2261,7 +2707,7 @@ class NaturalCapture:
             self._current_audio(state)
 
             if not state.get("enemy_state_available"):
-                if state["death"] != 0 and self.release_target <= 3:
+                if state["death"] not in (None, 0) and self.release_target <= 3:
                     raise ObserverError(
                         "death preceded mandatory natural three-enemy release"
                     )
@@ -2291,7 +2737,7 @@ class NaturalCapture:
                     self.current_phase = "count 0-to-1"
 
             active = state["enemy_active"]
-            if state["death"] != 0 and active < 3:
+            if state["death"] not in (None, 0) and active < 3:
                 raise ObserverError("death preceded mandatory natural three-enemy release")
             if (self.release_deadline is not None and active < self.release_target
                     and time.monotonic() > self.release_deadline):
@@ -2342,23 +2788,6 @@ class NaturalCapture:
         if self.monitor._watch_id is not None:
             self.monitor.clear_audio_watchpoint()
         return self.receipt()
-
-def qualify_active_driver_safe(monitor: GuardedMonitor,
-                               artifacts: dict[str, Any]) -> bool:
-    try:
-        qualify_active_driver(monitor, artifacts)
-        return True
-    except ObserverError as exc:
-        # Before the first mode-0 install, the destination is not yet owned.
-        # AD_MODE_BYTE distinguishes that startup window from damaged live code.
-        if "active-driver staged/physical/live" in str(exc):
-            mode_page = require_contract_identity(artifacts)["symbols"]["copied_adaptive"]["mode_page"]
-            mode = monitor.read(physical_address(mode_page, AD_MODE_BYTE), 1,
-                                "physical")[0]
-            if mode == 0xFF:
-                return False
-        raise
-
 
 def xroar_fingerprint(binary: Path) -> dict[str, Any]:
     import subprocess
@@ -2496,6 +2925,7 @@ def run_natural(args: argparse.Namespace) -> dict[str, Any]:
         if capture is not None:
             capture.status = "incomplete"
             try:
+                capture.retain_failure_context(str(exc))
                 capture.save_partial(str(exc))
             except Exception:
                 pass
@@ -2582,9 +3012,9 @@ def self_test() -> None:
 
     startup_records = bytes([0xFF]) + bytes(31)
     startup_reason = enemy_state_unavailable_reason(
-        False, 0xFF, 2, 1, 0, 0, 0,
+        False, 0xFF, None, None, None, None, None, 0,
     )
-    assert startup_reason == "presentation_or_non_gameplay_phase"
+    assert startup_reason == "presentation_magic_uninitialized"
     startup_state = read_enemy_state(
         FakeEnemyState(0xFF, 0xFF, startup_records), False, startup_reason,
     )
@@ -2702,6 +3132,7 @@ def self_test() -> None:
             self.corrupt_presentation_physical = False
             self.corrupt_active_destination = False
             self.corrupt_active_cpu = False
+            self.corrupt_main_cpu = False
             self.corrupt_audio_immutable = False
             self.corrupt_audio_api_physical = False
             self.corrupt_audio_api_cpu = False
@@ -2711,6 +3142,13 @@ def self_test() -> None:
             self.stack_return = 0xA46D
             self.stack_private_address = 0x0FFE
             self.stack_private_byte = 1
+            self._bps = {PRESENTATION_FLOW_TICK: 7, ACTIVE_ENTRY: 8}
+            self.lifecycle = {
+                "magic": 0, "mode_raw": 182, "screen_raw": 30,
+                "context_raw": 0xFF, "credits_raw": 0xFF,
+                "event_raw": 0xFF, "entry_raw": 0xFF, "death_raw": 0xFF,
+                "adaptive_mode_byte": 0xFF,
+            }
             self._watch_id = 9
             self.watchpoints = [(9, PSG_DATA, 1, "w")]
 
@@ -2719,6 +3157,28 @@ def self_test() -> None:
                 return self.par0
             if address == PAR5:
                 return self.par5
+            if address == AUDIO_INSTALLED:
+                return self.audio_installed
+            if address == PRES_MAGIC:
+                return self.lifecycle["magic"]
+            if address == PRES_MODE:
+                return self.lifecycle["mode_raw"]
+            if address == PRES_SCREEN:
+                return self.lifecycle["screen_raw"]
+            if address == PRES_CONTEXT:
+                return self.lifecycle["context_raw"]
+            if address == PRES_CREDITS:
+                return self.lifecycle["credits_raw"]
+            if address == PRES_EVENT:
+                return self.lifecycle["event_raw"]
+            if address == INITIAL_ENTRY_STATE:
+                return self.lifecycle["entry_raw"]
+            if address == DEATH_STATE:
+                return self.lifecycle["death_raw"]
+            if address == ENEMY_ACTIVE:
+                return 0xFF
+            if address == ENEMY_RELEASED:
+                return 0xFF
             if address == AUDIO_INSTALLED:
                 return self.audio_installed
             if address == self.stack_private_address:
@@ -2757,6 +3217,7 @@ def self_test() -> None:
                                or (label == "presentation_physical" and self.corrupt_presentation_physical)
                                or (label == "active_destination" and self.corrupt_active_destination)
                                or (label == "active" and self.corrupt_active_cpu)
+                               or (label == "runtime_rom" and self.corrupt_main_cpu)
                                or (label == "audio_physical" and self.corrupt_audio_immutable
                                    and address == PAGE_AUDIO * PAGE_SIZE)
                                or (label == "audio_physical" and self.corrupt_audio_api_physical
@@ -2771,6 +3232,48 @@ def self_test() -> None:
                     return bytes([result[0] ^ 1]) + result[1:] if corrupt else result
             raise AssertionError(f"unexpected fake {space} read {address:#x}+{length}")
 
+    class FakeSnapshotMemory:
+        def __init__(self, magic: int, mode: int, screen: int, context: int,
+                     entry: int, death: int, driver_mode: int,
+                     active: int = 0xFF, records: bytes = startup_records):
+            self.lifecycle = {
+                "magic": magic, "mode_raw": mode, "screen_raw": screen,
+                "context_raw": context, "credits_raw": 4, "event_raw": 0,
+                "entry_raw": entry, "death_raw": death,
+                "adaptive_mode_byte": driver_mode,
+            }
+            self.active = active
+            self.records = records
+
+        def byte(self, address: int) -> int:
+            for name, constant in (("magic", PRES_MAGIC), ("mode_raw", PRES_MODE),
+                                   ("screen_raw", PRES_SCREEN), ("context_raw", PRES_CONTEXT),
+                                   ("credits_raw", PRES_CREDITS), ("event_raw", PRES_EVENT),
+                                   ("entry_raw", INITIAL_ENTRY_STATE), ("death_raw", DEATH_STATE)):
+                if address == constant:
+                    return self.lifecycle[name]
+            if address == ENEMY_ACTIVE:
+                return self.active
+            if address == ENEMY_RELEASED:
+                return 2
+            if address == AUDIO_INSTALLED:
+                return 0
+            if address == VOFF1:
+                return 0xC0
+            return 0
+
+        def word(self, address: int, space: str = "cpu") -> int:
+            return 0
+
+        def read(self, address: int, length: int = 1, space: str = "cpu") -> bytes:
+            if address == physical_address(PAGE_GAME, ENEMY_TABLE) and length == 32:
+                return self.records
+            if address == physical_address(PAGE_GAME, AD_MODE_BYTE) and length == 1:
+                return bytes([self.lifecycle["adaptive_mode_byte"]])
+            if address == RENDER_FLAGS and length == 16:
+                return bytes(16)
+            raise AssertionError(f"unexpected fake snapshot read {space} {address:#x}+{length}")
+
     rejected = 0
 
     def rejects(function: Any, *values: Any) -> None:
@@ -2781,24 +3284,6 @@ def self_test() -> None:
             rejected += 1
         else:
             raise AssertionError(f"negative self-test unexpectedly passed: {function.__name__}")
-
-    from tempfile import TemporaryDirectory
-    with TemporaryDirectory(prefix="bug058-observer-offline-") as temporary:
-        reserved_path = Path(temporary) / "natural-three-enemy-summary-test.json"
-        output_identity = reserve_capture_output(reserved_path)
-        write_reserved_capture(reserved_path, output_identity, "{\"status\":\"test\"}\n")
-        assert json.loads(reserved_path.read_text(encoding="utf-8"))["status"] == "test"
-        rejects(reserve_capture_output, reserved_path)
-        reserved_before_alias = reserved_path.read_text(encoding="utf-8")
-        alias_path = Path(temporary) / "natural-three-enemy-summary-alias.json"
-        os.symlink(reserved_path, alias_path)
-        try:
-            write_reserved_capture(alias_path, output_identity, "{\"status\":\"bad\"}\n")
-        except (ObserverError, OSError):
-            pass
-        else:
-            raise AssertionError("reserved-output writer followed a symlink alias")
-        assert reserved_path.read_text(encoding="utf-8") == reserved_before_alias
 
     rejects(matrix_to_dscan, 7)
     rejects(matrix_to_dscan, 64)
@@ -2843,18 +3328,160 @@ def self_test() -> None:
     rejects(validate_required_coverage, transitions, worklists, 2, 2, False, front_after)
     rejects(validate_required_coverage, transitions, worklists, 2, 2, True, None)
 
+    inactive_memory = FakeSnapshotMemory(0, 182, 30, 0xFF, 0xFF, 0xFF, 0xFF)
+    inactive_snapshot = read_snapshot(
+        inactive_memory, artifacts, lifecycle=inactive_memory.lifecycle,
+    )
+    assert not inactive_snapshot["enemy_state_available"]
+    assert inactive_snapshot["enemy_state_reason"] == "presentation_magic_uninitialized"
+    assert inactive_snapshot["enemy_active"] is None
+    assert inactive_snapshot["enemy_records"] is None
+    assert inactive_snapshot["enemy_state_raw"]["active_hex"] == "FF"
+    assert inactive_snapshot["presentation_state_raw"]["mode"] == 182
+    assert inactive_snapshot["pres_mode"] is None
+    assert inactive_snapshot["pres_screen"] is None
+    assert inactive_snapshot["player_cell"] is None
+    assert inactive_snapshot["game_state_raw"]["player_cell"] == [0, 0]
+
+    gameplay_memory = FakeSnapshotMemory(
+        PRES_MAGIC_VALUE, 0, 2, 1, 0, 0, 0, 3, valid_records,
+    )
+    no_owner_snapshot = read_snapshot(
+        gameplay_memory, artifacts, lifecycle=gameplay_memory.lifecycle,
+    )
+    assert no_owner_snapshot["enemy_state_reason"] == "active_driver_unqualified"
+    assert no_owner_snapshot["enemy_active"] is None
+    rejects(read_snapshot, gameplay_memory, artifacts, True,
+            gameplay_memory.lifecycle, True, None)
+    owned_snapshot = read_snapshot(
+        gameplay_memory, artifacts, lifecycle=gameplay_memory.lifecycle,
+        driver_qualified=True, active_driver_proof={"live_sha256": digest(b"qualified")},
+    )
+    assert owned_snapshot["enemy_state_available"] and owned_snapshot["enemy_active"] == 3
+
+    lifecycle_gate = NaturalCapture.__new__(NaturalCapture)
+    lifecycle_gate.driver_owned = False
+    lifecycle_gate.driver_owner_tuple = None
+    lifecycle_gate.last_lifecycle_tuple = None
+    lifecycle_gate.driver_requalification_pending = False
+    lifecycle_gate.pending_entry_tuple = None
+    lifecycle_gate.pending_entry_stop_key = None
+    lifecycle_gate.driver_ownership_events = []
+    lifecycle_gate.artifacts = artifacts
+    lifecycle_stop = {"trace": {"n": 1}, "pc": PRESENTATION_FLOW_TICK,
+                      "bp_id": 7, "event_ticks": 8}
+    assert lifecycle_gate._observe_presentation_lifecycle(
+        lifecycle_stop, inactive_memory.lifecycle,
+    ) is None
+    assert not lifecycle_gate.driver_owned and not lifecycle_gate.driver_requalification_pending
+    menu_lifecycle = dict(inactive_memory.lifecycle, magic=PRES_MAGIC_VALUE,
+                          mode_raw=2, screen_raw=1, context_raw=0,
+                          entry_raw=0, death_raw=0)
+    lifecycle_stop = {"trace": {"n": 2}, "pc": PRESENTATION_FLOW_TICK,
+                      "bp_id": 7, "event_ticks": 16}
+    assert lifecycle_gate._observe_presentation_lifecycle(lifecycle_stop, menu_lifecycle) is None
+    live_lifecycle = dict(menu_lifecycle, mode_raw=0, screen_raw=2, context_raw=1)
+    lifecycle_stop = {"trace": {"n": 3}, "pc": PRESENTATION_FLOW_TICK,
+                      "bp_id": 7, "event_ticks": 24}
+    assert lifecycle_gate._observe_presentation_lifecycle(lifecycle_stop, live_lifecycle) is None
+    assert lifecycle_gate.driver_requalification_pending
+    assert lifecycle_gate.pending_entry_tuple == (0, 2, 1, 0, 0)
+    lifecycle_gate._observe_presentation_lifecycle(lifecycle_stop, live_lifecycle)
+    rejects(lifecycle_gate._observe_presentation_lifecycle,
+            {"trace": {"n": 4}, "pc": PRESENTATION_FLOW_TICK,
+             "bp_id": 7, "event_ticks": 32}, live_lifecycle)
+    lifecycle_gate._accept_driver_entry(
+        {"trace": {"n": 5}, "pc": ACTIVE_ENTRY, "bp_id": 8},
+        live_lifecycle,
+        {"return_pc": MAIN_WORKLIST_RETURN,
+         "caller": {"live_call_sha256": digest(b"caller")},
+         "active_driver": {"live_sha256": digest(b"active"),
+                           "physical_page": 56}},
+    )
+    assert lifecycle_gate.driver_owned and not lifecycle_gate.driver_requalification_pending
+    entry_transition = dict(live_lifecycle, entry_raw=1)
+    assert lifecycle_gate._observe_presentation_lifecycle(
+        {"trace": {"n": 6}, "pc": PRESENTATION_FLOW_TICK,
+         "bp_id": 7, "event_ticks": 40}, entry_transition,
+    ) is None
+    assert not lifecycle_gate.driver_owned
+    assert not lifecycle_gate.driver_requalification_pending
+    assert lifecycle_gate.driver_ownership_events[-1]["event"] == "invalidated"
+
+    owner_gate = NaturalCapture.__new__(NaturalCapture)
+    owner_gate.driver_owned = True
+    owner_gate.driver_owner_tuple = (0, 2, 1, 0, 0)
+    owner_gate.last_lifecycle_tuple = (0, 2, 1, 0, 0)
+    owner_gate.driver_requalification_pending = False
+    owner_gate.pending_entry_tuple = None
+    owner_gate.pending_entry_stop_key = None
+    owner_gate.driver_ownership_events = []
+    owner_gate.artifacts = artifacts
+    owner_gate.monitor = FakeArtifactMemory(artifacts)
+    proof_stop = {"trace": {"n": 7}, "pc": PRESENTATION_FLOW_TICK,
+                  "bp_id": 7, "event_ticks": 48}
+    owner_proof = owner_gate._observe_presentation_lifecycle(proof_stop, live_lifecycle)
+    assert owner_proof["source_artifact_sha256"] == digest(artifacts["blobs"]["active"])
+    owner_gate.monitor.corrupt_active_destination = True
+    rejects(owner_gate._observe_presentation_lifecycle,
+            {"trace": {"n": 8}, "pc": PRESENTATION_FLOW_TICK,
+             "bp_id": 7, "event_ticks": 56}, live_lifecycle)
+    owner_gate.monitor.corrupt_active_destination = False
+    cold_again = dict(live_lifecycle, magic=0)
+    assert owner_gate._observe_presentation_lifecycle(
+        {"trace": {"n": 9}, "pc": PRESENTATION_FLOW_TICK,
+         "bp_id": 7, "event_ticks": 64}, cold_again,
+    ) is None
+    assert not owner_gate.driver_owned and owner_gate.driver_owner_tuple is None
+
     # Exact source/staged/physical/live mapping checks operate on synthetic
     # memory only; no emulator process or monitor endpoint exists in this test.
     memory = FakeArtifactMemory(artifacts)
     proof = qualify_presentation_boundary(memory, artifacts)
     assert proof["physical_page"] == 56 and proof["bytes"] == 1259
+    memory.stack_return = PRESENTATION_FLOW_RETURN
+    pft_stop = {"pc": PRESENTATION_FLOW_TICK, "bp_id": 7,
+                "registers": {"pc": PRESENTATION_FLOW_TICK, "dp": 0, "s": 0x1000}}
+    pft_caller = qualify_presentation_caller(memory, artifacts, pft_stop)
+    assert pft_caller["call_pc"] == PRESENTATION_FLOW_CALL
+    assert pft_caller["return_pc"] == PRESENTATION_FLOW_RETURN
+    rejects(qualify_presentation_caller, memory, artifacts,
+            {**pft_stop, "registers": {"pc": PRESENTATION_FLOW_TICK,
+                                        "dp": 1, "s": 0x1000}})
+    rejects(qualify_presentation_caller, memory, artifacts,
+            {**pft_stop, "registers": {"pc": PRESENTATION_FLOW_TICK + 1,
+                                        "dp": 0, "s": 0x1000}})
+    memory.stack_return = 0xC12D
+    rejects(qualify_presentation_caller, memory, artifacts, pft_stop)
+    memory.stack_return = PRESENTATION_FLOW_RETURN
+    memory.corrupt_main_cpu = True
+    rejects(qualify_presentation_caller, memory, artifacts, pft_stop)
+    memory.corrupt_main_cpu = False
+    memory.stack_return = MAIN_WORKLIST_RETURN
+    active_stop = {"pc": ACTIVE_ENTRY, "bp_id": 8,
+                   "registers": {"pc": ACTIVE_ENTRY, "dp": 0, "s": 0x1000}}
+    entry_proof = qualify_active_entry(memory, artifacts, active_stop)
+    assert entry_proof["return_pc"] == MAIN_WORKLIST_RETURN
+    assert entry_proof["caller"]["bytes_hex"] == bytes.fromhex("bd038f20c2").hex()
+    assert entry_proof["active_driver"]["physical_page"] == 56
+    rejects(qualify_active_entry, memory, artifacts,
+            {**active_stop, "registers": {"pc": ACTIVE_ENTRY,
+                                           "dp": 1, "s": 0x1000}})
+    rejects(qualify_active_entry, memory, artifacts,
+            {**active_stop, "registers": {"pc": ACTIVE_ENTRY + 1,
+                                           "dp": 0, "s": 0x1000}})
+    memory.stack_return = MAIN_WORKLIST_RETURN + 1
+    rejects(qualify_active_entry, memory, artifacts, active_stop)
+    memory.stack_return = MAIN_WORKLIST_RETURN
+    memory.corrupt_main_cpu = True
+    rejects(qualify_active_entry, memory, artifacts, active_stop)
+    memory.corrupt_main_cpu = False
     wrong_map_artifacts = {**artifacts, "maps": dict(artifacts["maps"])}
     wrong_presentation_map = dict(artifacts["maps"]["presentation"])
     wrong_presentation_map["presentation_flow_tick"] = PRESENTATION_FLOW_TICK + 1
     wrong_map_artifacts["maps"]["presentation"] = wrong_presentation_map
     rejects(qualify_presentation_boundary, memory, wrong_map_artifacts)
     qualify_active_driver(memory, artifacts)
-    assert qualify_active_driver_safe(memory, artifacts)
     qualify_audio_module(memory, artifacts)
     memory.par5 = 0xF4
     memory.stack_return = MAIN_WORKLIST_RETURN
@@ -2951,10 +3578,11 @@ def self_test() -> None:
     memory.corrupt_presentation_physical = True
     rejects(qualify_presentation_boundary, memory, artifacts)
     memory.corrupt_presentation_physical = False
+    memory.par0 = 0x39
+    rejects(qualify_active_driver, memory, artifacts)
+    memory.par0 = 0x38
     memory.corrupt_active_destination = True
-    assert not qualify_active_driver_safe(memory, artifacts)
-    memory.mode_byte = 0
-    rejects(qualify_active_driver_safe, memory, artifacts)
+    rejects(qualify_active_driver, memory, artifacts)
     memory.mode_byte = 0xFF
     rejects(qualify_active_driver, memory, artifacts)
     memory.corrupt_active_destination = False
