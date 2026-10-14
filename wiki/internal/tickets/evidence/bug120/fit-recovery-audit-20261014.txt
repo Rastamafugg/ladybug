@@ -1,0 +1,52 @@
+BUG-120 first-fit miss reassessment
+2026-10-14
+
+Disposition
+
+Read-only audit for Ready subtask #first-fit-miss-reassessment-20261014. No build, runtime, Git, cleanup, source edit, or canonical-ticket edit was performed. This file is the only writable artifact for this subtask. BUG-120 remains Approved/High-risk; this fit candidate is isolated and production remains not Ready.
+
+Identity and evidence
+
+The frozen baseline manifest is repro/bug120-fit-20261013/baseline-inputs.json (SHA-256 3bb9e805b22d53f83beb9dbf83ce9bd04d2a2f78fda59fc86b40f88aeca67ad9), pinned to production source 3cba1bfd6f1eb4cf7bc5d11cb9fc4438cb60fa78 and baseline ROM df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726. All 266 capsule inputs are present; exactly the five assigned inputs differ from the manifest: scripts/build_presentation.py, scripts/verify_presentation.py, src/main.s, src/shared_text_stage.inc, and src/shared_text_ranking.inc. No other input drift was found.
+
+Matched BUG-117 profile receipts record resident use/free as 8082/110 bytes for complete adaptive keyboard, 8118/74 for complete adaptive joystick, and 8150/42 for complete nonadaptive keyboard; each requires at least 32 free. The adaptive-keyboard baseline main map is retained at repro/bug122-heart-baseline-20261013/artifact/ladybug.map and hashes to the receipt value 393c43d830b405dcd17d881814d2c3bc80c341eea0988d7592872620d9255c5c. Its runtime component is 16,384 bytes and hashes to the receipt value 048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6.
+
+The failed capsule outputs are capsule/build/ladybug.lst (SHA-256 1e99e37d84c45e27e8acc65daa0bac9c0063b2e63c4b80a0111880fb463bdca3), ladybug.map (3e18a8767092a5d82ef7ad7b3dcb4cd60ac9dba9253c5e8f51c7a18b7e13a5f8), and partial ladybug-runtime.rom (24,047 bytes; SHA-256 32bb1c150ac718a7ab735f94629bb463856bfac83db6c5dc92f9404310edb4c9). The mapped resident base is $C000. The build stopped at its first resident guard; there is no capsule/build/ladybug-highscore-runtime.bin, .lst, or .map.
+
+Exact resident growth and branches
+
+The matched baseline map and failed candidate map both place name_late_turn at $DF37. Baseline nlt_deltas is $DF8A and resident_end is $DF92; candidate nlt_deltas is $E008 and resident_end is $E010. Therefore the assembled routine span through its data is exactly 91 bytes in baseline ($DF37-$DF92) and 217 bytes in the failed candidate ($DF37-$E010), a measured +126 bytes. The code portion grows from 83 bytes to 209 bytes (+126); the eight-byte nlt_deltas table remains eight bytes. The table bytes are identical in the receipt-matched baseline and candidate binary. The unchanged post-snap continuation is 42 bytes; its only byte difference is the relocated 16-bit nlt_deltas address.
+
+The raw receipt-matched baseline ROM and candidate partial runtime both place $DF37 at file offset $1F37. Comparing those bytes confirms four conditional branches expanded from two-byte short forms to four-byte long forms: the nlt_snap branch and three nlt_no branches. This is exactly +8 assembled bytes, already included in the +126; it must not be added a second time. The remaining net growth before nlt_snap is +118 bytes of rewritten/added decision logic. The pre-snap region is 49 bytes at baseline and 175 bytes in the candidate. The old 49–75 byte estimate was a projection and is superseded for the resident routine by this measured +126 result.
+
+The initial guard is a measured 8208 resident bytes ($E010-$C000), 16 bytes past $E000, against the adaptive-keyboard baseline use of 8082. This is an initial resident-region failure, not a completed three-profile fit or final full build.
+
+With a 32-byte minimum free-space target, maximum BUG-120 resident growth is 78 bytes for adaptive keyboard, 42 for adaptive joystick, and 10 for nonadaptive keyboard. Against the measured +126 routine growth, the required reductions are respectively 48, 84, and 116 bytes. Only adaptive keyboard was built. If the same routine bytes are linked in the other complete profiles, their arithmetic outcomes would be 52 and 84 bytes past the 32-byte headroom target; those are projections, not profile measurements. Removing only the first profile's 16-byte overflow is insufficient. FEAT-010 coin savings are not measured and are excluded.
+
+Callbacks and generated data
+
+The callback code was not assembled into the failed main runtime. Its source-only spans, extracted between name_can_move and name_cell_arrival with UTF-8 and normalized newlines, are: stage baseline 844 bytes / candidate 813 (−31); ranking baseline 679 / candidate 592 (−87). Both variants add TEST_X/Y seeding at the late-turn and aligned paths; the aligned path reloads PLAYER_WANT after the seed. The callback replaces PLAYER_CELL coordinates with TEST_X/Y and folds SUBD #8 into the table-relative ADDD. The ranking variant changes stack handling to return the full graph byte in B. These source-text deltas include comments/formatting and do not establish assembled-byte deltas.
+
+The assignment's copied-name estimate remains source-only: historical size 917/920 plus projected +8 for coordinate seeds, −3 for the pointer fold, and +2 for restoring full B gives 924/920, four bytes over. Because the failed build stopped before the copied high-score runtime was assembled, the current copied-name size and callback growth are unknown, not measured at 924. The historical helper ended at $B880 (3,136 bytes from $AC40); the candidate helper was not assembled or measured.
+
+The generated graph table remains exactly 576 bytes at $2D4E in both baseline and candidate maps; the generated mask values change, but table length does not. The cursor/node origin changes from −1280 to −1120, a +160 framebuffer-address shift; it changes address values, not record count or encoded width. Thus neither the graph bytes nor the address shift accounts for resident growth. Static geometry evidence recorded on the ticket reports 291 reachable cells, 45 actions, 4,656 stationary poses, 54,400 straight poses, 14,400 admitted-turn poses, and 100 unsafe six-pixel sweeps; this audit did not rerun those checks.
+
+Lowest-cost bounded recovery
+
+No in-scope compact implementation is demonstrated by the existing artifacts. The only bounded candidate worth sizing before another build is to compress the existing 175-byte pre-snap decision region inside src/main.s:name_late_turn: compute the adjacent-turn pair once from PLAYER_DIR/PLAYER_WANT, test its hazard bit from the callback's existing full B result through one shared path, and merge the accepted/hold tails. Keep the existing callback ABI, coordinates, stack, X preservation, PAR5 restoration, lookahead purity, and eight-byte delta data. This adds no owner, map, table, file, allocation, or new protocol. It must reduce the pre-snap region from 175 to at most 59 bytes, saving at least 116 bytes and leaving the 42-byte continuation intact, to meet the tightest profile's +10 growth allowance. Converting all four long branches back to short branches could save only 8 bytes; the remaining required saving is at least 108 bytes. This is an unverified design direction, not a claimed solution or invitation to experiment during this audit.
+
+Recommendation: do not authorize another blind in-scope rewrite/build. Require a source-level size plan that accounts for the full 116-byte reduction while preserving the approved behavior. If no such plan is credible, return BUG-120 to Proposed for renewed High-risk approval before changing ownership or touching ordinary gameplay movement.
+
+Concrete High-risk approval brief if shared ownership is needed
+
+Outcome and baseline: retain BUG-121 selective-corner behavior, full-B/X/PAR5/stack/purity guarantees, the exact 576-byte graph and 45 reachable actions, every existing capacity cap, and at least 32 resident bytes free in all three profiles. The measured candidate name_late_turn growth is +126 bytes; the nonadaptive profile permits only +10, so recovery must remove at least 116 bytes from the current routine-equivalent resident allocation. The copied-name candidate and other two profile results remain unmeasured.
+
+Proposed scope change: authorize a bounded refactor in src/main.s that shares the existing gameplay late-turn decision with name-entry, plus only the existing name callback/call-site portions of src/shared_text_stage.inc and src/shared_text_ranking.inc. This crosses into ordinary player movement and introduces a shared call boundary; it is outside the current Approved scope. Keep the existing allocation limits and mapping unchanged. If design requires a new module, runtime owner, mapping, or additional source file, stop and obtain a separate approval; none is included here.
+
+Exclusions and risks: no allocation/cap increase, loader/MMU/PAR mapping change, user TMX or asset change, FEAT-010 savings, unrelated gameplay movement change, production integration, or Git operation. Main risks are regression in ordinary gameplay turn semantics, failure to recover the required 116 bytes, and damage to callback B/X, PAR5, stack, or lookahead invariants.
+
+Minimum verification after renewed approval: (1) complete adaptive-keyboard build followed immediately by the existing presentation geometry oracle, proving the 576-byte graph, reciprocal edges, 45 actions, all required poses, and zero opaque overlaps; (2) complete adaptive-joystick and nonadaptive-keyboard builds, each retaining at least 32 resident bytes free and all existing copied-name/helper/enemy/audio/assets guards; (3) one focused current-artifact runtime set for ordinary gameplay and name entry covering direct safe turn, selective assisted corner, unsafe-corner hold, rejected no-exit turn, late and aligned callback paths, and the B/X/PAR5/stack/purity guarantees. The separate natural score-to-ranking and sustained-control acceptance remains a parent-owned final BUG-120 gate.
+
+QA disposition
+
+This audit found a real resident-capacity miss and no evidence of copied-name fit. The isolated candidate cannot pass the all-profile minimum as measured. Preserve the failed build and current estimates; do not label fit accepted or move BUG-120 to Done. Parent decision is required on whether to request a source-level in-scope design or return the ticket for renewed High-risk approval.
