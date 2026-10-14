@@ -1,0 +1,91 @@
+{
+  "ticket": "BUG-117",
+  "date": "2026-10-14",
+  "scope_revision": "User explicitly removes requirement to automate all deaths; remaining life/death cases manual",
+  "automated_verdict": "Reduced first-death/replacement coverage accepted; manual acceptance pending",
+  "original_full_trace_verdict": "INCOMPLETE_FAIL_CLOSED",
+  "original_failure_outside_reduced_automated_scope": "Second genuine enemy contact not reached within45-second route phase",
+  "trace": "repro\\bug117-integration-20261012\\runtime-natural-post-inc-corrected-20261013\\bug117-natural-runtime.json",
+  "trace_sha256": "863df73cdf321099f9d8d9dbf14ad12b95646d17bfd573d51594a2181aca477f",
+  "observer_commit": "4206b4d4fb3d0aa163477634012785a26fb83724",
+  "observer_sha256": "1942a01ebf51aeb6522773e05522f87fa906c01afa677da7bcd555b9b839b091",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "phase_evidence": [
+    {
+      "name": "initial-entry",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 4595,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "ordinary-enemy-release-roam",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 8033,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "natural-contact-search",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 3016,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "death-animation-blank",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 2312,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "cue13-normal-drain",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 176,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "replacement-entry",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 2205,
+      "success_marker": "live event predicate"
+    },
+    {
+      "name": "ordinary-enemy-release-roam",
+      "status": "marker-observed",
+      "deadline_seconds": 45,
+      "stops": 8026,
+      "success_marker": "live event predicate"
+    }
+  ],
+  "qualified_death_pose_count": 233,
+  "actual_blank_proofs": [
+    {
+      "ordinal": 17956,
+      "owner": 1,
+      "retired_pointer": 25412,
+      "logical_pointer": 25252,
+      "saved_under_sha256": "323c2d2372ead3d1fbed9ff27d7139ac08109dfea2909e443846e74359ba33c8",
+      "front_rect_sha256": "323c2d2372ead3d1fbed9ff27d7139ac08109dfea2909e443846e74359ba33c8",
+      "visible_bytes_compared": 128,
+      "pixels_match_saved_under": true,
+      "death_blank_pixels_match_oracle": true,
+      "death_blank_irq_commit_observed": true
+    }
+  ],
+  "qualified_entry_release_count": 2,
+  "target_write_count": 0,
+  "new_runtime_probe_performed": false,
+  "current_binary_restoration": "Seven binary/layout artifact hashes unchanged; explicit reconstructed source receipt and path-only map differences documented separately",
+  "remaining_manual_cases": [
+    "later-life death/music/entry sequencing",
+    "each lives-counter column delay/arrival",
+    "held input isolation until placement/cuecompletion",
+    "final-life gameover and subsequent newgame",
+    "stage transition placement/life cue ownership"
+  ],
+  "ticket_done": false
+}
