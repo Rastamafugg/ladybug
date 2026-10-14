@@ -681,7 +681,7 @@ stage_name_sprite_hud
         cmpa #PRESENTATION_MAP_LEVEL_START
         bne stage_slice_return
         jsr stage_panel_read_letters
-        ldx #$7544
+        ldx #$6644
 stage_panel_letter_loop
         lda ,u+
         pshs b,u
