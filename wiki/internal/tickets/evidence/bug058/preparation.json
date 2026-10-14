@@ -314,20 +314,66 @@
     "audio_module": {
       "physical_page": 61,
       "staged_bytes": 6656,
-      "comparison": "compare immutable bytes against the pinned audio module; skip only these historically qualified mutable ranges",
-      "mutable_ranges": [
-        [
-          1927,
-          14
-        ],
-        [
-          2073,
-          4
-        ],
-        [
-          5563,
-          125
-        ]
+      "source_cpu_base": 40960,
+      "comparison": "compare every byte outside the exact source/map/audit-qualified typed mutable regions against the pinned audio module",
+      "mutable_regions": [
+        {
+          "id": "queue-selection-mixer-keys",
+          "module_offset": 1927,
+          "byte_width": 17,
+          "fields": [
+            { "symbol": "audio_stop_pending", "cpu_address": 42887, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_music_count", "cpu_address": 42888, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_music_queue", "cpu_address": 42889, "width": 8, "directive": "rmb", "operand": "8" },
+            { "symbol": "audio_music_best_priority", "cpu_address": 42897, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_music_best_index", "cpu_address": 42898, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_mix_priority", "cpu_address": 42899, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_mix_order", "cpu_address": 42900, "width": 4, "directive": "rmb", "operand": "4", "audit_id": "audio-mix-order" }
+          ]
+        },
+        {
+          "id": "name-poll-state",
+          "module_offset": 2073,
+          "byte_width": 4,
+          "fields": [
+            { "symbol": "audio_name_valid", "cpu_address": 43033, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_name_length", "cpu_address": 43034, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_name_end", "cpu_address": 43035, "width": 1, "directive": "fcb", "operand": "0" },
+            { "symbol": "audio_name_timer", "cpu_address": 43036, "width": 1, "directive": "fcb", "operand": "0" }
+          ]
+        },
+        {
+          "id": "voice-mix-scratch",
+          "module_offset": 5563,
+          "byte_width": 125,
+          "fields": [
+            { "symbol": "audio_slot0", "cpu_address": 46523, "width": 28, "directive": "rmb", "operand": "AUDIO_SLOT_BYTES", "audit_id": "audio-slot-zero" },
+            { "symbol": "audio_slot1", "cpu_address": 46551, "width": 28, "directive": "rmb", "operand": "AUDIO_SLOT_BYTES" },
+            { "symbol": "audio_slot2", "cpu_address": 46579, "width": 28, "directive": "rmb", "operand": "AUDIO_SLOT_BYTES" },
+            { "symbol": "audio_slot3", "cpu_address": 46607, "width": 28, "directive": "rmb", "operand": "AUDIO_SLOT_BYTES" },
+            { "symbol": "audio_mix_periods", "cpu_address": 46635, "width": 6, "directive": "rmb", "operand": "6" },
+            { "symbol": "audio_mix_atten", "cpu_address": 46641, "width": 3, "directive": "rmb", "operand": "3" },
+            { "symbol": "audio_mix_noise", "cpu_address": 46644, "width": 2, "directive": "rmb", "operand": "2" },
+            { "symbol": "audio_scratch", "cpu_address": 46646, "width": 2, "directive": "rmb", "operand": "2", "audit_id": "audio-scratch" }
+          ]
+        }
+      ],
+      "required_source_audit_ids": [
+        "audio-slot-zero",
+        "audio-shadow",
+        "audio-scratch",
+        "audio-mix-order"
+      ],
+      "mutable_aliases": [
+        {
+          "symbol": "audio_mix_shadow",
+          "cpu_address": 46540,
+          "width": 11,
+          "audit_id": "audio-shadow",
+          "contained_by": "audio-slot-zero",
+          "offset_in_owner": 17,
+          "source_equ": "audio_slot0+17"
+        }
       ],
       "cpu_window_rule": "read an Axxx CPU window only when PAR5 masked to six bits equals $3D; otherwise use the explicit page-$3D physical space"
     }
@@ -585,7 +631,9 @@
       "offline exact direct/tail caller qualification and API stack equality at $047C/$0488 from mapped source bytes",
       "all six direct $047C callers mapped to adaptive_work/adaptive_tick_binding with exact action and source/staged/physical/live bytes",
       "aw_output action-2 tail call retains the $C152 outer return PC and entry S",
-      "banked API source/map/artifact/physical/live range and PAR5=$3D return mapping proof"
+      "banked API source/map/artifact/physical/live range and PAR5=$3D return mapping proof",
+      "typed audio mutable unions are exactly [A787,A798), [A819,A81D), and [B5BB,B638), derived from authored declarations, maps, and required source ownership-audit records; the slot-zero shadow alias is counted once",
+      "the former omitted audio_mix_order bytes A795-A797 are accepted as typed mutable state, while audio physical qualification never reads the CPU A000 window"
     ],
     "negative": [
       "missing or changed file pin",
@@ -623,6 +671,9 @@
       "AD_MODE_BYTE=$FF or any raw mode byte treated as resident-driver provenance",
       "stale driver ownership reused after a mode/screen/context/entry/death tuple transition",
       "PFT symbol/physical-page/live-byte or PAR0 mismatch",
+      "physical audio code/table bytes A786, A798, A818, A81D, B5BA, or B638 differ from the staged image",
+      "audio mutable source/map/width contract is wrong, an unknown alias is added, typed regions overlap, or a region escapes the staged module",
+      "audio immutable mismatch omits expected/actual bytes, module and physical offsets, source/staged/physical hashes, or phase/boundary identity from retained failure evidence",
       "release without a preceding accepted press or duplicate press",
       "mismatched live binding slot or duplicate movement DSCAN",
       "enemy kind outside 1..8, direction outside 0..3, or cell outside 24x24 maze",

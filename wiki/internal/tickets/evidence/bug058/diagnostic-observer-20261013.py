@@ -131,6 +131,14 @@ class ObserverError(RuntimeError):
     """Fail-closed observer or qualification error."""
 
 
+class AudioModuleMismatch(ObserverError):
+    """Immutable audio-image mismatch with compact physical-byte evidence."""
+
+    def __init__(self, message: str, evidence: dict[str, Any]):
+        super().__init__(message)
+        self.evidence = evidence
+
+
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -310,6 +318,243 @@ def require_byte_identity(label: str, *spans: bytes) -> None:
             f"{label} byte identity mismatch: expected bytes={len(baseline)} "
             f"sha256={digest(baseline)}; observed={differences}"
         )
+
+
+EXPECTED_AUDIO_MUTABLE_REGIONS = (
+    ("queue-selection-mixer-keys", 1927, 17, (
+        ("audio_stop_pending", 0xA787, 1, "fcb", "0", None),
+        ("audio_music_count", 0xA788, 1, "fcb", "0", None),
+        ("audio_music_queue", 0xA789, 8, "rmb", "8", None),
+        ("audio_music_best_priority", 0xA791, 1, "fcb", "0", None),
+        ("audio_music_best_index", 0xA792, 1, "fcb", "0", None),
+        ("audio_mix_priority", 0xA793, 1, "fcb", "0", None),
+        ("audio_mix_order", 0xA794, 4, "rmb", "4", "audio-mix-order"),
+    )),
+    ("name-poll-state", 2073, 4, (
+        ("audio_name_valid", 0xA819, 1, "fcb", "0", None),
+        ("audio_name_length", 0xA81A, 1, "fcb", "0", None),
+        ("audio_name_end", 0xA81B, 1, "fcb", "0", None),
+        ("audio_name_timer", 0xA81C, 1, "fcb", "0", None),
+    )),
+    ("voice-mix-scratch", 5563, 125, (
+        ("audio_slot0", 0xB5BB, 28, "rmb", "AUDIO_SLOT_BYTES", "audio-slot-zero"),
+        ("audio_slot1", 0xB5D7, 28, "rmb", "AUDIO_SLOT_BYTES", None),
+        ("audio_slot2", 0xB5F3, 28, "rmb", "AUDIO_SLOT_BYTES", None),
+        ("audio_slot3", 0xB60F, 28, "rmb", "AUDIO_SLOT_BYTES", None),
+        ("audio_mix_periods", 0xB62B, 6, "rmb", "6", None),
+        ("audio_mix_atten", 0xB631, 3, "rmb", "3", None),
+        ("audio_mix_noise", 0xB634, 2, "rmb", "2", None),
+        ("audio_scratch", 0xB636, 2, "rmb", "2", "audio-scratch"),
+    )),
+)
+EXPECTED_AUDIO_AUDIT_IDS = (
+    "audio-slot-zero", "audio-shadow", "audio-scratch", "audio-mix-order",
+)
+EXPECTED_AUDIO_ALIAS = {
+    "symbol": "audio_mix_shadow", "cpu_address": 0xB5CC, "width": 11,
+    "audit_id": "audio-shadow", "contained_by": "audio-slot-zero",
+    "offset_in_owner": 17, "source_equ": "audio_slot0+17",
+}
+
+
+def source_declaration(source: str, symbol: str) -> tuple[str, str]:
+    """Return one exact label directive and operand from pinned assembly."""
+    lines = source.splitlines()
+    for index, line in enumerate(lines):
+        code = line.split(";", 1)[0].strip()
+        if not code:
+            continue
+        match = re.match(rf"(?i)^{re.escape(symbol)}\b(.*)$", code)
+        if not match:
+            continue
+        tail = match.group(1).strip()
+        if not tail:
+            for following in lines[index + 1:]:
+                candidate = following.split(";", 1)[0].strip()
+                if candidate:
+                    tail = candidate
+                    break
+        directive = re.match(r"(?i)^(fcb|fdb|rmb|equ)\s+(.+?)\s*$", tail)
+        if directive:
+            return directive.group(1).lower(), directive.group(2).strip()
+        raise ObserverError(f"audio source declaration is missing for {symbol}")
+    raise ObserverError(f"audio source has no declaration for {symbol}")
+
+
+def audio_source_width(directive: str, operand: str, source: str) -> int:
+    if directive == "fcb":
+        values = [item.strip() for item in operand.split(",")]
+        if not values or any(not item for item in values):
+            raise ObserverError(f"invalid fcb declaration operand {operand!r}")
+        return len(values)
+    if directive != "rmb":
+        raise ObserverError(f"unsupported mutable audio storage directive {directive!r}")
+    token = operand.strip()
+    if re.fullmatch(r"\d+", token):
+        width = int(token, 10)
+    elif re.fullmatch(r"\$[0-9A-Fa-f]+", token):
+        width = int(token[1:], 16)
+    elif re.fullmatch(r"0[xX][0-9A-Fa-f]+", token):
+        width = int(token, 16)
+    else:
+        equate = re.search(
+            rf"(?im)^\s*{re.escape(token)}\s+equ\s+(\d+|\$[0-9A-Fa-f]+|0[xX][0-9A-Fa-f]+)\s*$",
+            source,
+        )
+        if not equate:
+            raise ObserverError(f"cannot resolve audio rmb width operand {operand!r}")
+        value = equate.group(1)
+        width = (int(value[1:], 16) if value.startswith("$")
+                 else int(value, 16) if value.lower().startswith("0x")
+                 else int(value, 10))
+    if width <= 0:
+        raise ObserverError(f"audio rmb width must be positive: {operand!r}")
+    return width
+
+
+def audio_audit_records(source: str) -> dict[str, dict[str, Any]]:
+    records: dict[str, dict[str, Any]] = {}
+    for line in source.splitlines():
+        if "@audit" not in line:
+            continue
+        payload = line.split("@audit", 1)[1].strip()
+        try:
+            record = json.loads(payload)
+        except json.JSONDecodeError as exc:
+            raise ObserverError("pinned audio source contains malformed @audit JSON") from exc
+        audit_id = record.get("id")
+        if not isinstance(audit_id, str) or not audit_id or audit_id in records:
+            raise ObserverError(f"pinned audio source has duplicate/invalid audit id {audit_id!r}")
+        records[audit_id] = record
+    return records
+
+
+def validate_audio_mutable_contract(
+    spec: dict[str, Any], audio_symbols: dict[str, int],
+    source: str, source_reference: dict[str, Any],
+) -> dict[str, Any]:
+    """Bind only the approved typed ranges to pinned source, map, and audit."""
+    module = spec["machine_bytes"]["audio_module"]
+    if module.get("source_cpu_base") != CPU_BANK_START:
+        raise ObserverError("audio mutable contract has the wrong CPU module base")
+    if module.get("staged_bytes") != 6656:
+        raise ObserverError("audio mutable contract has the wrong staged module size")
+    raw_regions = module.get("mutable_regions")
+    if not isinstance(raw_regions, list) or len(raw_regions) != len(EXPECTED_AUDIO_MUTABLE_REGIONS):
+        raise ObserverError("audio mutable regions must be the three approved typed regions")
+
+    # Pin the contract's exact names, widths, and boundaries before resolving
+    # any range. This prevents a preparation-only widening of the mask.
+    for raw, expected in zip(raw_regions, EXPECTED_AUDIO_MUTABLE_REGIONS):
+        region_id, offset, width, expected_fields = expected
+        if (raw.get("id"), raw.get("module_offset"), raw.get("byte_width")) != (
+                region_id, offset, width):
+            raise ObserverError(f"audio mutable region differs from approved layout: {region_id}")
+        fields = raw.get("fields")
+        if not isinstance(fields, list) or len(fields) != len(expected_fields):
+            raise ObserverError(f"audio mutable region has unknown or missing fields: {region_id}")
+        for field, (name, address, field_width, directive, operand, audit_id) in zip(
+                fields, expected_fields):
+            expected_field = {
+                "symbol": name, "cpu_address": address, "width": field_width,
+                "directive": directive, "operand": operand,
+            }
+            if audit_id is not None:
+                expected_field["audit_id"] = audit_id
+            if field != expected_field:
+                raise ObserverError(f"audio typed field differs from approved layout: {name}")
+
+    raw_aliases = module.get("mutable_aliases")
+    if raw_aliases != [EXPECTED_AUDIO_ALIAS]:
+        raise ObserverError("audio mutable aliases differ from the sole documented slot0 shadow alias")
+    expected_audits = module.get("required_source_audit_ids")
+    if expected_audits != list(EXPECTED_AUDIO_AUDIT_IDS):
+        raise ObserverError("audio required audit-key list differs from the approved four records")
+    required = source_reference.get("ownership_audit", {}).get("required", [])
+    if not set(EXPECTED_AUDIO_AUDIT_IDS) <= set(required):
+        raise ObserverError("pinned source-reference audit omits a required audio ownership key")
+    audit_records = audio_audit_records(source)
+    expected_audit_metadata = {
+        "audio-slot-zero": ("audio_slot0", 28),
+        "audio-shadow": ("audio_mix_shadow", 11),
+        "audio-scratch": ("audio_scratch", 2),
+        "audio-mix-order": ("audio_mix_order", 4),
+    }
+    for audit_id, (symbol, width) in expected_audit_metadata.items():
+        record = audit_records.get(audit_id)
+        if (record is None or record.get("symbol") != symbol
+                or record.get("width") != width
+                or record.get("mapping") != "physical-page-3D"):
+            raise ObserverError(f"audio source ownership record differs: {audit_id}")
+    slot_audit = audit_records["audio-slot-zero"]
+    shadow_audit = audit_records["audio-shadow"]
+    if (slot_audit.get("alias_group") != "slot-zero-padding"
+            or shadow_audit.get("alias_group") != slot_audit.get("alias_group")
+            or "padding" not in str(shadow_audit.get("alias_reason", "")).lower()):
+        raise ObserverError("audio shadow source audit no longer documents the slot0 padding alias")
+    alias_directive, alias_operand = source_declaration(source, "audio_mix_shadow")
+    if (alias_directive != "equ" or alias_operand.casefold() != "audio_slot0+17"
+            or audio_symbols.get("audio_mix_shadow") != EXPECTED_AUDIO_ALIAS["cpu_address"]):
+        raise ObserverError("audio_mix_shadow map/source alias no longer matches slot0+17")
+
+    ranges: list[tuple[int, int]] = []
+    seen_symbols: set[str] = set()
+    previous_end = -1
+    for raw, (region_id, offset, width, expected_fields) in zip(
+            raw_regions, EXPECTED_AUDIO_MUTABLE_REGIONS):
+        region_start = CPU_BANK_START + offset
+        cursor_address = region_start
+        for field, (name, address, field_width, directive, operand, audit_id) in zip(
+                raw["fields"], expected_fields):
+            key = name.casefold()
+            if key in seen_symbols:
+                raise ObserverError(f"audio mutable symbol is duplicated: {name}")
+            seen_symbols.add(key)
+            if field["cpu_address"] != cursor_address or address != cursor_address:
+                raise ObserverError(f"audio mutable fields are not contiguous at {name}")
+            require_symbol(audio_symbols, name, address)
+            actual_directive, actual_operand = source_declaration(source, name)
+            if (actual_directive != directive
+                    or actual_operand.casefold() != operand.casefold()):
+                raise ObserverError(f"audio source storage declaration differs for {name}")
+            if audio_source_width(actual_directive, actual_operand, source) != field_width:
+                raise ObserverError(f"audio source storage width differs for {name}")
+            if audit_id is not None:
+                record = audit_records.get(audit_id, {})
+                if (record.get("symbol") != name or record.get("width") != field_width
+                        or record.get("mapping") != "physical-page-3D"):
+                    raise ObserverError(f"audio field audit identity differs for {name}")
+            cursor_address += field_width
+        if cursor_address != region_start + width:
+            raise ObserverError(f"audio mutable region width does not equal typed fields: {region_id}")
+        start = offset
+        end = offset + width
+        if start < previous_end or end > module["staged_bytes"]:
+            raise ObserverError(f"audio mutable region overlaps or escapes module: {region_id}")
+        ranges.append((start, width))
+        previous_end = end
+
+    alias_start = EXPECTED_AUDIO_ALIAS["cpu_address"]
+    alias_end = alias_start + EXPECTED_AUDIO_ALIAS["width"]
+    slot = EXPECTED_AUDIO_MUTABLE_REGIONS[2][3][0]
+    slot_start, slot_width = slot[1], slot[2]
+    if (alias_start != slot_start + EXPECTED_AUDIO_ALIAS["offset_in_owner"]
+            or alias_start < slot_start or alias_end > slot_start + slot_width):
+        raise ObserverError("audio shadow alias is not contained in slot0")
+    if any(alias_start < field_address + field_width and field_address < alias_end
+           for region in EXPECTED_AUDIO_MUTABLE_REGIONS
+           for name, field_address, field_width, _directive, _operand, _audit_id
+           in region[3][1:]):
+        raise ObserverError("audio shadow alias overlaps a field other than its slot0 owner")
+
+    return {
+        "ranges": ranges,
+        "regions": [
+            {"id": region_id, "offset": offset, "width": width}
+            for region_id, offset, width, _fields in EXPECTED_AUDIO_MUTABLE_REGIONS
+        ],
+        "aliases": [dict(EXPECTED_AUDIO_ALIAS)],
+    }
 
 
 def require_page_owner(label: str, observed: int, expected: int) -> int:
@@ -584,6 +829,19 @@ def validate_artifact_layout() -> dict[str, Any]:
     key_symbols = parse_map(paths["keybinding_map"])
     presentation_symbols = parse_map(paths["presentation_map"])
     enemy_symbols = parse_map(paths["enemy_map"])
+    capsule_root = ROOT / spec["provenance"]["frozen_source_root"]
+    audio_source_path = require_path(
+        capsule_root / "src/audio_runtime.s", "frozen audio runtime source",
+    )
+    source_reference_path = require_path(
+        capsule_root / "scripts/source_reference.json",
+        "frozen source ownership reference",
+    )
+    audio_source = audio_source_path.read_text(encoding="utf-8")
+    source_reference = json.loads(source_reference_path.read_text(encoding="utf-8"))
+    audio_mutable_plan = validate_audio_mutable_contract(
+        spec, audio_symbols, audio_source, source_reference,
+    )
     require_symbol(main_symbols, "mainloop", 0xC116)
     require_symbol(main_symbols, "ad_dispatch_work", 0xC14F)
     require_symbol(main_symbols, "presentation_key_service", STARTUP_KEY_INIT)
@@ -826,6 +1084,9 @@ def validate_artifact_layout() -> dict[str, Any]:
         "contract_sha256": contract_hash,
         "paths": paths,
         "blobs": blobs,
+        "audio_source_text": audio_source,
+        "audio_source_reference": source_reference,
+        "audio_mutable_plan": audio_mutable_plan,
         "maps": {
             "main": main_symbols,
             "active": active_symbols,
@@ -1423,11 +1684,18 @@ def qualify_active_driver(monitor: GuardedMonitor,
     }
 
 
-def qualify_audio_module(monitor: GuardedMonitor, artifacts: dict[str, Any]) -> None:
+def qualify_audio_module(monitor: GuardedMonitor, artifacts: dict[str, Any],
+                         phase: str, boundary: str) -> dict[str, Any]:
     spec = require_contract_identity(artifacts)
+    if not isinstance(phase, str) or not phase.strip():
+        raise ObserverError("audio module qualification requires an explicit phase")
+    if not isinstance(boundary, str) or not boundary.strip():
+        raise ObserverError("audio module qualification requires an explicit boundary")
     expected = artifacts["blobs"]["audio"]
+    mutable = artifacts.get("audio_mutable_plan", {}).get("ranges")
+    if not isinstance(mutable, list) or not mutable:
+        raise ObserverError("audio module lacks its source/map/audit-qualified mutable plan")
     physical = monitor.read(PAGE_AUDIO * PAGE_SIZE, len(expected), "physical")
-    mutable = spec["machine_bytes"]["audio_module"]["mutable_ranges"]
     immutable_spans: list[tuple[int, int]] = []
     cursor = 0
     for start, length in mutable:
@@ -1438,8 +1706,48 @@ def qualify_audio_module(monitor: GuardedMonitor, artifacts: dict[str, Any]) -> 
         cursor = start + length
     if cursor < len(expected):
         immutable_spans.append((cursor, len(expected)))
-    if any(physical[start:end] != expected[start:end] for start, end in immutable_spans):
-        raise ObserverError("physical page-$3D audio image differs from pinned audio artifact")
+    expected_immutable = b"".join(expected[start:end] for start, end in immutable_spans)
+    physical_immutable = b"".join(physical[start:end] for start, end in immutable_spans)
+    mismatch_index = first_difference(expected_immutable, physical_immutable)
+    if mismatch_index is not None:
+        remaining = mismatch_index
+        module_offset = -1
+        for start, end in immutable_spans:
+            span_width = end - start
+            if remaining < span_width:
+                module_offset = start + remaining
+                break
+            remaining -= span_width
+        evidence = {
+            "phase": phase,
+            "boundary": boundary,
+            "module_offset": module_offset,
+            "cpu_address": CPU_BANK_START + module_offset,
+            "physical_page": PAGE_AUDIO,
+            "physical_page_offset": module_offset,
+            "physical_address": PAGE_AUDIO * PAGE_SIZE + module_offset,
+            "expected_byte": expected[module_offset],
+            "actual_byte": physical[module_offset],
+            "source_sha256": spec["pins"]["sources"]["src/audio_runtime.s"],
+            "expected_sha256": digest(expected),
+            "actual_sha256": digest(physical),
+            "expected_immutable_sha256": digest(expected_immutable),
+            "actual_immutable_sha256": digest(physical_immutable),
+            "immutable_comparison_index": mismatch_index,
+            "mutable_regions": [
+                {"offset": start, "width": width} for start, width in mutable
+            ],
+        }
+        try:
+            evidence["par5"] = monitor.byte(PAR5)
+        except Exception as exc:
+            evidence["par5_read_error"] = str(exc)
+        raise AudioModuleMismatch(
+            "physical page-$3D audio image differs from pinned artifact outside "
+            f"typed mutable state at ${CPU_BANK_START + module_offset:04X} "
+            f"(phase={phase}, boundary={boundary})",
+            evidence,
+        )
     if monitor.byte(AUDIO_INSTALLED) == 0:
         raise ObserverError("audio runtime is not installed at the natural menu boundary")
     source_start = 0xA2D7 - 0xA000
@@ -1448,6 +1756,15 @@ def qualify_audio_module(monitor: GuardedMonitor, artifacts: dict[str, Any]) -> 
     require_byte_identity("low-RAM audio gateway/page-$3D source", gateway, live_gateway)
     require_byte_identity("low-RAM audio return bytes",
                           expected[0x2E5:0x2E5 + 4], live_gateway[0x0E:0x12])
+    return {
+        "phase": phase, "boundary": boundary,
+        "physical_page": PAGE_AUDIO, "bytes": len(expected),
+        "source_sha256": spec["pins"]["sources"]["src/audio_runtime.s"],
+        "staged_sha256": digest(expected), "physical_sha256": digest(physical),
+        "mutable_regions": [
+            {"offset": start, "width": width} for start, width in mutable
+        ],
+    }
 
 
 def read_audio_snapshot(monitor: GuardedMonitor,
@@ -1473,7 +1790,9 @@ def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
                   include_audio: bool = True,
                   lifecycle: dict[str, Any] | None = None,
                   driver_qualified: bool = False,
-                  active_driver_proof: dict[str, Any] | None = None) -> dict[str, Any]:
+                  active_driver_proof: dict[str, Any] | None = None,
+                  phase: str | None = None,
+                  boundary: str | None = None) -> dict[str, Any]:
     lifecycle = lifecycle or read_lifecycle_state(monitor, artifacts)
     magic = int(lifecycle["magic"])
     initialized = magic == PRES_MAGIC_VALUE
@@ -1567,7 +1886,13 @@ def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
         "audio_installed": bool(monitor.byte(AUDIO_INSTALLED)),
     }
     if include_audio and snapshot["audio_installed"]:
-        qualify_audio_module(monitor, artifacts)
+        if phase is None or boundary is None:
+            raise ObserverError(
+                "audio snapshot requires an explicit phase and source-qualified boundary"
+            )
+        snapshot["audio_module_qualification"] = qualify_audio_module(
+            monitor, artifacts, phase, boundary,
+        )
         snapshot["audio"] = read_audio_snapshot(monitor, artifacts["maps"])
         snapshot["audio_module_qualified"] = True
     else:
@@ -1974,7 +2299,8 @@ class NaturalCapture:
         self.last_stop = self.monitor.stop(deadline, self.current_phase)
         return self.last_stop
 
-    def retain_failure_context(self, failure: str) -> dict[str, Any]:
+    def retain_failure_context(self, failure: str,
+                               audio_identity: dict[str, Any] | None = None) -> dict[str, Any]:
         """Capture only the halted stop and small state needed to classify a rejection."""
         stop = self.last_stop or {}
         registers = stop.get("registers", {})
@@ -1996,6 +2322,8 @@ class NaturalCapture:
             "source_revision": "3cba1bfd",
             "rom_sha256": self.artifacts["pins"].get("build/ladybug.rom"),
         }
+        if audio_identity is not None:
+            context["audio_module_identity"] = audio_identity
         stack = context["stop"].get("s")
         if isinstance(stack, int) and 0 <= stack <= 0xFFFF:
             try:
@@ -2179,6 +2507,8 @@ class NaturalCapture:
             self.monitor, self.artifacts, lifecycle=lifecycle,
             driver_qualified=self.driver_owned,
             active_driver_proof=active_proof,
+            phase=self.current_phase,
+            boundary=f"PFT ${PRESENTATION_FLOW_TICK:04X}",
         )
         state["presentation_qualification"] = proof
         state["presentation_caller_qualification"] = caller
@@ -2357,6 +2687,8 @@ class NaturalCapture:
             self.monitor, self.artifacts, lifecycle=lifecycle,
             driver_qualified=True,
             active_driver_proof=qualification["active_driver"],
+            phase=self.current_phase,
+            boundary=f"AD_WORK_EXEC entry ${ACTIVE_ENTRY:04X}",
         )
         if start["enemy_active"] == 3 and self.recurring_deadline is None:
             self.recurring_deadline = time.monotonic() + self.phase_seconds
@@ -2406,6 +2738,8 @@ class NaturalCapture:
             self.monitor, self.artifacts, lifecycle=lifecycle,
             driver_qualified=self.driver_owned,
             active_driver_proof=active_proof,
+            phase=self.current_phase,
+            boundary=f"main-loop return ${ACTIVE_RETURN:04X}",
         )
         cycles = event_cycles(self.current_work["entry_ticks"], stop["event_ticks"])
         intervals: list[tuple[int, int]] = []
@@ -2631,7 +2965,10 @@ class NaturalCapture:
                     and state["pres_credits"] > credit_before
                     and state["pres_screen"] == symbols["PRESENTATION_MAP_HIGH_SCORE"]
                     and state["pres_mode"] == 5 and enter_press is None):
-                qualify_audio_module(self.monitor, self.artifacts)
+                qualify_audio_module(
+                    self.monitor, self.artifacts, self.current_phase,
+                    f"PFT ${PRESENTATION_FLOW_TICK:04X} before Enter press",
+                )
                 if self.monitor._watch_id is None:
                     self.monitor.set_audio_watchpoint()
                 self._inject_at_boundary(stop, self.keycodes["Enter"], "press", "enter")
@@ -2925,7 +3262,9 @@ def run_natural(args: argparse.Namespace) -> dict[str, Any]:
         if capture is not None:
             capture.status = "incomplete"
             try:
-                capture.retain_failure_context(str(exc))
+                capture.retain_failure_context(
+                    str(exc), getattr(exc, "evidence", None),
+                )
                 capture.save_partial(str(exc))
             except Exception:
                 pass
@@ -3133,7 +3472,7 @@ def self_test() -> None:
             self.corrupt_active_destination = False
             self.corrupt_active_cpu = False
             self.corrupt_main_cpu = False
-            self.corrupt_audio_immutable = False
+            self.audio_corrupt_offset: int | None = None
             self.corrupt_audio_api_physical = False
             self.corrupt_audio_api_cpu = False
             self.corrupt_gateway = False
@@ -3151,6 +3490,7 @@ def self_test() -> None:
             }
             self._watch_id = 9
             self.watchpoints = [(9, PSG_DATA, 1, "w")]
+            self.audio_cpu_reads: list[tuple[int, int]] = []
 
         def byte(self, address: int) -> int:
             if address == PAR0:
@@ -3196,6 +3536,8 @@ def self_test() -> None:
         def read(self, address: int, length: int = 1, space: str = "cpu") -> bytes:
             segments: list[tuple[int, bytes, str]]
             if space == "cpu":
+                if address < 0xC000 and address + length > 0xA000:
+                    self.audio_cpu_reads.append((address, length))
                 segments = [
                     (PRESENTATION_FLOW_TICK, self.presentation, "presentation"),
                     (ACTIVE_ENTRY, self.active, "active"),
@@ -3218,8 +3560,6 @@ def self_test() -> None:
                                or (label == "active_destination" and self.corrupt_active_destination)
                                or (label == "active" and self.corrupt_active_cpu)
                                or (label == "runtime_rom" and self.corrupt_main_cpu)
-                               or (label == "audio_physical" and self.corrupt_audio_immutable
-                                   and address == PAGE_AUDIO * PAGE_SIZE)
                                or (label == "audio_physical" and self.corrupt_audio_api_physical
                                    and address == PAGE_AUDIO * PAGE_SIZE + 0xB638 - CPU_BANK_START)
                                or (label == "audio_cpu" and self.corrupt_audio_api_cpu
@@ -3229,6 +3569,12 @@ def self_test() -> None:
                                    and address == 0xA499)
                                or (label == "audio_physical" and self.corrupt_psg_callsite
                                    and address == physical_address(PAGE_AUDIO, 0xA46B)))
+                    if label == "audio_physical" and self.audio_corrupt_offset is not None:
+                        target = PAGE_AUDIO * PAGE_SIZE + self.audio_corrupt_offset
+                        if address <= target < address + length:
+                            altered = bytearray(result)
+                            altered[target - address] ^= 1
+                            result = bytes(altered)
                     return bytes([result[0] ^ 1]) + result[1:] if corrupt else result
             raise AssertionError(f"unexpected fake {space} read {address:#x}+{length}")
 
@@ -3284,6 +3630,36 @@ def self_test() -> None:
             rejected += 1
         else:
             raise AssertionError(f"negative self-test unexpectedly passed: {function.__name__}")
+
+    audio_map = artifacts["maps"]["audio"]
+    audio_source = artifacts["audio_source_text"]
+    source_reference = artifacts["audio_source_reference"]
+    assert artifacts["audio_mutable_plan"]["ranges"] == [
+        (1927, 17), (2073, 4), (5563, 125),
+    ]
+
+    def reject_mutable_contract_change(edit: Any) -> None:
+        changed = json.loads(json.dumps(spec))
+        edit(changed["machine_bytes"]["audio_module"])
+        rejects(validate_audio_mutable_contract, changed, audio_map,
+                audio_source, source_reference)
+
+    wrong_audio_map = dict(audio_map)
+    wrong_audio_map["audio_mix_order"] = audio_map["audio_mix_order"] + 1
+    rejects(validate_audio_mutable_contract, spec, wrong_audio_map,
+            audio_source, source_reference)
+    reject_mutable_contract_change(
+        lambda module: module["mutable_regions"][0]["fields"][-1].__setitem__("width", 3)
+    )
+    reject_mutable_contract_change(
+        lambda module: module["mutable_aliases"].append({"symbol": "unknown_shadow"})
+    )
+    reject_mutable_contract_change(
+        lambda module: module["mutable_regions"][1].__setitem__("module_offset", 1943)
+    )
+    reject_mutable_contract_change(
+        lambda module: module["mutable_regions"][2].__setitem__("module_offset", 6640)
+    )
 
     rejects(matrix_to_dscan, 7)
     rejects(matrix_to_dscan, 64)
@@ -3482,7 +3858,26 @@ def self_test() -> None:
     wrong_map_artifacts["maps"]["presentation"] = wrong_presentation_map
     rejects(qualify_presentation_boundary, memory, wrong_map_artifacts)
     qualify_active_driver(memory, artifacts)
-    qualify_audio_module(memory, artifacts)
+    audio_qualification = qualify_audio_module(
+        memory, artifacts, "offline self-test", "synthetic qualified boundary",
+    )
+    assert audio_qualification["mutable_regions"] == [
+        {"offset": 1927, "width": 17},
+        {"offset": 2073, "width": 4},
+        {"offset": 5563, "width": 125},
+    ]
+    assert not memory.audio_cpu_reads, "audio module comparison used the CPU A000 window"
+    # These three bytes were omitted by the prior 14-byte music-queue mask.
+    for offset in (0x795, 0x796, 0x797):
+        memory.audio_corrupt_offset = offset
+        qualify_audio_module(
+            memory, artifacts, "offline self-test", "typed mutable-byte negative control",
+        )
+    memory.audio_corrupt_offset = None
+    memory.audio_corrupt_offset = 0
+    rejects(qualify_audio_module, memory, artifacts,
+            "offline immutable-byte negative", "synthetic module base")
+    memory.audio_corrupt_offset = None
     memory.par5 = 0xF4
     memory.stack_return = MAIN_WORKLIST_RETURN
     assert qualify_worklist_outer_return(memory, artifacts, 0x1000) == MAIN_WORKLIST_RETURN
@@ -3586,11 +3981,56 @@ def self_test() -> None:
     memory.mode_byte = 0xFF
     rejects(qualify_active_driver, memory, artifacts)
     memory.corrupt_active_destination = False
-    memory.corrupt_audio_immutable = True
-    rejects(qualify_audio_module, memory, artifacts)
-    memory.corrupt_audio_immutable = False
+    audio_failure_evidence: dict[str, Any] | None = None
+    for address in (0xA786, 0xA798, 0xA818, 0xA81D, 0xB5BA, 0xB638):
+        offset = address - CPU_BANK_START
+        memory.audio_corrupt_offset = offset
+        try:
+            qualify_audio_module(
+                memory, artifacts, "offline boundary negative",
+                f"synthetic byte ${address:04X}",
+            )
+        except AudioModuleMismatch as exc:
+            rejected += 1
+            evidence = exc.evidence
+            assert evidence["module_offset"] == offset
+            assert evidence["cpu_address"] == address
+            assert evidence["physical_page_offset"] == offset
+            assert evidence["physical_address"] == PAGE_AUDIO * PAGE_SIZE + offset
+            assert evidence["phase"] == "offline boundary negative"
+            assert evidence["boundary"] == f"synthetic byte ${address:04X}"
+            assert evidence["expected_byte"] != evidence["actual_byte"]
+            for key in ("source_sha256", "expected_sha256", "actual_sha256",
+                        "expected_immutable_sha256", "actual_immutable_sha256"):
+                assert re.fullmatch(r"[0-9a-f]{64}", evidence[key])
+            if address == 0xA786:
+                audio_failure_evidence = evidence
+        else:
+            raise AssertionError(f"immutable audio byte ${address:04X} passed qualification")
+    memory.audio_corrupt_offset = None
+    assert audio_failure_evidence is not None
+    capture_for_audio_failure = NaturalCapture.__new__(NaturalCapture)
+    capture_for_audio_failure.monitor = memory
+    capture_for_audio_failure.artifacts = artifacts
+    capture_for_audio_failure.last_stop = {
+        "trace": {"n": 1013}, "pc": PRESENTATION_FLOW_TICK,
+        "bp_id": 7, "event_ticks": 123456,
+        "registers": {"pc": PRESENTATION_FLOW_TICK, "dp": 0, "s": 0x1000},
+    }
+    capture_for_audio_failure.current_phase = audio_failure_evidence["phase"]
+    capture_for_audio_failure.driver_owned = False
+    capture_for_audio_failure.driver_owner_tuple = None
+    capture_for_audio_failure.driver_requalification_pending = False
+    capture_for_audio_failure.last_lifecycle_tuple = None
+    retained = capture_for_audio_failure.retain_failure_context(
+        "synthetic audio module mismatch", audio_failure_evidence,
+    )
+    assert retained["audio_module_identity"] == audio_failure_evidence
+    assert retained["audio_module_identity"]["boundary"] == "synthetic byte $A786"
+    assert retained["stop"]["pc"] == PRESENTATION_FLOW_TICK
     memory.corrupt_gateway = True
-    rejects(qualify_audio_module, memory, artifacts)
+    rejects(qualify_audio_module, memory, artifacts,
+            "offline gateway negative", "synthetic qualified boundary")
 
     client = FakeClient()
     guard = GuardedMonitor(client)
