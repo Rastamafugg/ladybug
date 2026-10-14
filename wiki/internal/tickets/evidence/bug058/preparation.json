@@ -1,0 +1,657 @@
+{
+  "schema": "ladybug-bug058-natural-observer-preparation-v1",
+  "prepared_utc_date": "2026-10-14",
+  "ticket": "BUG-058",
+  "approval_anchor": "gameplay-priority-approved-20261013",
+  "ready_anchor": "natural-observer-preparation-ready-20261013",
+  "cost_class": "High-risk",
+  "scope": {
+    "objective": "Capture a bounded natural-play timing, input, simulation, audio, and actual-FRONT ledger for the frozen current artifact; do not optimize.",
+    "owned_files": [
+      "wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py",
+      "wiki/internal/tickets/evidence/bug058/preparation.json"
+    ],
+    "future_run_receipt": "repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json",
+    "excluded_writes": [
+      "production source",
+      "wiki/ticket",
+      "build",
+      "Git",
+      "guest RAM/register/MMU/GIME state"
+    ],
+    "only_natural_state_change": "XRoar monitor inject_key press/release, at the exact source-qualified keyboard-service breakpoint"
+  },
+  "baseline": {
+    "source_revision": "3cba1bfd",
+    "delivered_rom": {
+      "path": "build/ladybug.rom",
+      "sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+      "bytes": 65536
+    },
+    "target_fast_cpu_cycles": 27000,
+    "cycle_formula": "wrap-safe delta(event_ticks) / 8",
+    "interval": "AD_WORK_EXEC entry $038F through main-loop return $C116",
+    "includes": [
+      "IRQ execution occurring inside the interval"
+    ],
+    "excludes": [
+      "the preceding SYNC instruction/wait"
+    ],
+    "miss_rule": "Each individual sample above 27000 is a miss; do not average it away.",
+    "historical_context_only": {
+      "source_revision": "7cdc53f",
+      "rom_prefix": "283084f3",
+      "natural_samples": 12,
+      "one_sample_cycles": 42541,
+      "other_eleven_max_cycles": 23281,
+      "forced_sample_cycles": 54539,
+      "use": "not a current baseline and does not establish natural three-enemy recurrence"
+    },
+    "receipt_revision_field": "metadata only; do not use it alone to accept or reject the pinned source revision"
+  },
+  "pins": {
+    "files": {
+      "build/ladybug.rom": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+      "build/source-build-receipt.json": "11e549b44bba276d8436c70f6577b1f409df5b9ffac1b217e6495f2c712f0251",
+      "build/ladybug.map": "7ac0c2d0c091f235a31a5f9d0912469c2795721b93b55b7e4f2761eb024ad6c8",
+      "build/ladybug-runtime.rom": "048a29fcf04f8ce6d3ab5698e712670ad3eb83090809eafe8a1749467dc683a6",
+      "build/ladybug-adaptive-active.bin": "a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a",
+      "build/ladybug-adaptive-active.map": "9344facb2485af3ac422998975bf8a6a9deb9fe13b2db30c4d2b0f744821da25",
+      "build/ladybug-enemy-runtime.rom": "5f36b093bcc4c93d44b1fb40e74651ccbd84694c2d31ff610b41102c45412519",
+      "build/ladybug-enemy-runtime.map": "9e5b6a5e94364dc885e814cad50e86c15ae47654a866d1bdacb818343083ec82",
+      "build/ladybug-audio-runtime.bin": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+      "build/ladybug-audio-runtime.map": "c9d52f6da09fc02ab55476356c6af45e4dad5dcd00bfc19109bf8d9615809ee3",
+      "build/ladybug-keybinding-runtime.bin": "9f829e799f80902a425c7219cf10c751e78cb4b2fe05de396ab43ebdd19c724c",
+      "build/ladybug-keybinding-runtime.map": "51a2f3a51fa350d48a03495b8f8544bfdf4238d53f6758c4fda4bfeb8b42a34b",
+      "build/ladybug-presentation-runtime.bin": "f43964c601a1c38cee1c2bca1578b35bf3fcd150878b79d7cfbee2270bb349cd",
+      "build/ladybug-presentation-runtime.map": "48cfc5be9c995de8b43d4bbe1d61320e61a08948454a63aec92cc9cc6e876c20",
+      "repro/build-recovery-20261013/gdb-delivery.json": "f687c24f20b38bcfd05d4f7eed894818c05076e7aada85800fb1b418de1f07ce"
+    },
+    "sources": {
+      "src/main.s": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+      "src/adaptive_active.s": "af39bc47cd753f35831e828d747ecd7776a71cf61d52f4402ff1b1096d6fd1ec",
+      "src/adaptive_runtime.s": "ffa30b03a31da2f2154d76c8aab2bfac1d46b67ffc35b4d4fba6f3dfe24d661c",
+      "src/adaptive_audio_service.s": "aef4eb0eeb280f2d9eaa01287d5518d691ce825a87f9e3f7f2f97eed4e4904a3",
+      "src/enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "src/audio_runtime.s": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+      "src/keybinding_runtime.s": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+      "src/presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+      "assets/arcade/audio/gmc_sound_data.inc": "e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36",
+      "docs/reference/xroar/src/dkbd.c": "4bf65e9dffa12a6ed555ed985a66d66790257f7cc0cf3cc75dbb31f2e6d64ace",
+      "docs/reference/xroar/src/dkbd.h": "84e27da9398e9e0e12942810b94a8163f861d518168dec01ae72fc7e695284ce",
+      "scripts/verify_bug009_monitor_input.py": "e852eec0a6d20cdd13d8c05ae10c2a136d5cab3cb17243e552e85b31da158c70",
+      "scripts/verify_bug011_runtime.py": "a12b6569112f4393c304b0fb976d9f88d92eea8c923ff5679e155b01773a9b92"
+    },
+    "excluded_inputs": [
+      "current FEAT-010 authored attract/high-score TMX changes are excluded; they are not integrated in this frozen baseline",
+      "BUG-117 observer implementation files are not imported or depended upon"
+    ],
+    "excluded_source_receipt_inputs": [
+      "tiled/coco-attract-screen.tmx",
+      "tiled/coco-high-score-screen.tmx"
+    ],
+    "preflight": "Every listed path must exist and match its SHA256 before and after natural capture; any missing or changed artifact is a hard failure. Never rebuild or substitute a component ROM for the delivered ROM."
+  },
+  "symbols": {
+    "main": {
+      "mainloop_sync": 49430,
+      "ad_dispatch_work": 49487,
+      "ad_mode_byte": 48448,
+      "ad_sim_time": 48422,
+      "presentation_flow_tick": 6400,
+      "presentation_key_service": 57124,
+      "pres_mode": 165,
+      "pres_screen": 166,
+      "pres_context": 167,
+      "pres_credits": 168,
+      "pres_event": 169,
+      "initial_entry_state": 160,
+      "death_state": 77,
+      "pickup_timer": 81,
+      "enemy_timer": 85,
+      "enemy_anim": 84,
+      "enemy_active": 88,
+      "enemy_released": 89,
+      "enemy_table": 42096,
+      "player_dir": 6,
+      "player_want": 15,
+      "player_step": 8,
+      "player_cell_x": 9,
+      "player_cell_y": 10,
+      "joy_dir": 5,
+      "player_fb": 11,
+      "player_tick_pending": 107,
+      "render_flags": 127,
+      "fb_front_id": 143,
+      "fb_render_pending": 145,
+      "fb_commit_seq": 146,
+      "fb_sim_seq": 148,
+      "fb_missed_commit": 150,
+      "frames": 2,
+      "par5": 65445,
+      "gime_voff1": 65437,
+      "audio_music_published_busy": 724
+    },
+    "copied_adaptive": {
+      "work_entry": 911,
+      "tick_entry": 914,
+      "global_entry": 917,
+      "key_entry": 920,
+      "audio_dispatch_vector": 923,
+      "audio_binding": 1148,
+      "render_entry": 926,
+      "audio_api_return": 1160,
+      "mode_byte": 48448,
+      "mode_page": 52,
+      "sim_time": 48422,
+      "stage": 47090,
+      "byte_length": 622,
+      "physical_page": 61,
+      "stage_cpu_address": 47090,
+      "stage_file_offset": 6034,
+      "destination_start": 911,
+      "destination_end_exclusive": 1533,
+      "destination_page": 56
+    },
+    "audio_gateway": {
+      "entry": 734,
+      "restore_return": 748,
+      "short_return": 751,
+      "source_start": 41687,
+      "source_end_exclusive": 41705,
+      "source_file_offset": 727,
+      "low_ram_start": 734,
+      "low_ram_end_exclusive": 752,
+      "psg_data": 65361,
+      "psg_post_store_pc": 42140,
+      "allowed_writer_returns": [
+        42041,
+        42068,
+        42093,
+        42118,
+        42130
+      ]
+    },
+    "enemy_state": {
+      "physical_page": 52,
+      "table_cpu": 42096,
+      "table_physical": 427120,
+      "record_bytes": 8,
+      "record_count": 4,
+      "active_count": 88,
+      "released_count": 89,
+      "tag_rule": "occupied tag low nibble is 1; high nibble is source kind"
+    },
+    "audio_state": {
+      "physical_page": 61,
+      "slot0_cpu": 46523,
+      "slot_bytes": 28,
+      "slot0_id_offset": 0,
+      "slot0_pointer_offset": 4,
+      "music_busy_cpu": 724,
+      "queue_count_cpu": 238,
+      "queue_data_cpu": 241,
+      "queue_bytes": 8,
+      "cue6_terminal_rule": "slot0 id 6, cursor equals the authored cue-6 terminal-zero address, then a naturally observed 6-to-255 slot transition; later output action 2 must publish mute values and busy 0"
+    },
+    "presentation": {
+      "physical_page": 56,
+      "flow_tick": 6400,
+      "module_end_exclusive": 7659,
+      "module_length": 1259
+    }
+  },
+  "machine_bytes": {
+    "active_driver": {
+      "source_stage": "physical page $3D, CPU window $B792-$B9FF",
+      "active_destination": "low RAM $038F-$05FC",
+      "length_bytes": 622,
+      "required_equalities": [
+        "staged .bin slice",
+        "physical page-$3D slice",
+        "live low-RAM destination"
+      ],
+      "stage_image_offset": 6034,
+      "audio_binding": {
+        "runtime_entry_breakpoint": 1148,
+        "api_return_breakpoint": 1160,
+        "PAR5_at_binding_entry": 52,
+        "PAR5_at_api_return": 61,
+        "entry_to_return_bytes_hex": "3402863db7ffa53502bdb638",
+        "return_wrapper_bytes_hex": "34028634b7ffa53582",
+        "entry_private_stack_use": "PSHS A before changing PAR5, PULS A before JSR $B638; the private byte is not present on the API-entry stack",
+        "return_private_stack_use": "$0488 stops before PSHS A restores PAR5; S must exactly equal the $047C entry S and the top return PC must be unchanged",
+        "direct_call_sites": [
+          {"instruction_address": 930, "return_pc": 933, "action": 0, "caller": "adaptive_work", "setup_and_call_hex": "4fbd047c"},
+          {"instruction_address": 965, "return_pc": 968, "action": 1, "caller": "adaptive_work", "setup_and_call_hex": "8601bd047c"},
+          {"instruction_address": 1028, "return_pc": 1031, "action": 3, "caller": "adaptive_work", "setup_and_call_hex": "8603bd047c"},
+          {"instruction_address": 1033, "return_pc": 1036, "action": 1, "caller": "adaptive_work", "setup_and_call_hex": "8601bd047c"},
+          {"instruction_address": 1038, "return_pc": 1041, "action": 2, "caller": "adaptive_work", "setup_and_call_hex": "8602bd047c"},
+          {"instruction_address": 1301, "return_pc": 1304, "action": 1, "caller": "adaptive_tick_binding", "setup_and_call_hex": "8601bd047c"}
+        ],
+        "direct_caller_stack_rules": {
+          "adaptive_work": "S at $047C equals outer AD_WORK_EXEC entry S-2: exactly the direct JSR return word, with no caller-private push live at these five source callsites",
+          "adaptive_tick_binding": "S top word is the exact $0518 JSR return; source PSHS A at $0511 remains at S+2 and is read-only checked as its source-derived 0/1 barrier result",
+          "binding_private_pushes": "The binding's own push-A at $047C is popped before the banked JSR; the return push-A begins after the $0488 stop"
+        },
+        "tail_call": {
+          "source_label": "aw_output",
+          "instruction_address": 1062,
+          "preceding_action_hex": "8602",
+          "jmp_hex": "7e047c",
+          "expected_outer_return_pc": 49490,
+          "expected_outer_caller_address": 49487,
+          "stack_relation": "S at $047C equals S at $038F because aw_output JMP adds no return word",
+          "source_staged_physical_live_required": true
+        },
+        "dispatch_stub": {
+          "address": 923,
+          "bytes_hex": "7e047c",
+          "use": "vector used by adaptive_install_active outside the measured worklist; never register it as an audio-entry breakpoint",
+          "breakpoint": false
+        },
+        "api_code": {
+          "start": 46648,
+          "end_exclusive": 46989,
+          "bytes": 341,
+          "map_symbols": ["audio_adaptive_api", "audio_adaptive_last"],
+          "qualification": "page-$3D physical bytes at entry; at $0488 require PAR5=$3D and compare source-pinned artifact, page-$3D physical, and live CPU bytes"
+        }
+      }
+    },
+    "main_markers": {
+      "C116": {
+        "bytes_hex": "13",
+        "runtime_rom_offset": 278
+      },
+      "C14F": {
+        "bytes_hex": "bd038f20c2",
+        "runtime_rom_offset": 335
+      }
+    },
+    "audio_gateway": {
+      "source_audio_image_offset": 727,
+      "source_length": 18,
+      "live_low_ram_start": 734,
+      "live_length": 18,
+      "requires_source_artifact_physical_and_live_equal": true
+    },
+    "psg_write": {
+      "only_watchpoint": {
+        "addr": 65361,
+        "length": 1,
+        "kind": "w"
+      },
+      "accepted_post_store_pc": 42140,
+      "required_owner": 61,
+      "required_cpu_physical_audio_bytes": "STA $FF51 at $A499-$A49B, stop after store at $A49C",
+      "stack_return_pc": [
+        42041,
+        42068,
+        42093,
+        42118,
+        42130
+      ],
+      "required_callsite_check": "return-2 contains the exact relative BSR whose signed target is $A499",
+      "wrong_owner_or_alias": "invalidate detailed audio-write attribution; never waive or count it as audio"
+    },
+    "presentation_flow_tick": {
+      "symbol": "presentation_flow_tick",
+      "cpu_address": 6400,
+      "module_end_exclusive": 7659,
+      "length_bytes": 1259,
+      "source": "src/presentation_runtime.s; org $1900 immediately precedes the symbol",
+      "staged": "build/ladybug-presentation-runtime.bin",
+      "physical_mapping": "PAR0 masked to six bits must equal page $38; read the page-$38 physical span at offset $1900",
+      "required_equalities": [
+        "pinned authored source and source receipt input",
+        "pinned presentation module and map symbol/range",
+        "physical page-$38 span",
+        "live CPU $1900 span"
+      ],
+      "startup_wrapper": "presentation_key_service $DF24 calls key_service with B=3 during startup defaults initialization; it is not a recurring input boundary"
+    },
+    "audio_module": {
+      "physical_page": 61,
+      "staged_bytes": 6656,
+      "comparison": "compare immutable bytes against the pinned audio module; skip only these historically qualified mutable ranges",
+      "mutable_ranges": [
+        [
+          1927,
+          14
+        ],
+        [
+          2073,
+          4
+        ],
+        [
+          5563,
+          125
+        ]
+      ],
+      "cpu_window_rule": "read an Axxx CPU window only when PAR5 masked to six bits equals $3D; otherwise use the explicit page-$3D physical space"
+    }
+  },
+  "input": {
+    "authored_binding_path": "src/keybinding_runtime.s",
+    "binding_ram": 647,
+    "binding_bytes": 5,
+    "expected_project_matrix_defaults": [
+      27,
+      35,
+      43,
+      51,
+      6
+    ],
+    "direction_order": [
+      "Up",
+      "Down",
+      "Left",
+      "Right"
+    ],
+    "direction_values": {
+      "Up": 0,
+      "Down": 2,
+      "Left": 3,
+      "Right": 1
+    },
+    "fixed_coin_project_matrix": 44,
+    "matrix_to_dscan": "project_column=matrix//8; physical_row=matrix%8; row 0..5 maps to dscan_row=(physical_row+2)%6; row 6 maps to 6; row 7 is invalid; DSCAN=dscan_row*8+project_column",
+    "expected_dscan_defaults": [
+      43,
+      44,
+      45,
+      46,
+      48
+    ],
+    "fixed_coin_dscan": 5,
+    "menu_enter_dscan": 48,
+    "permitted_dscan": [
+      5,
+      43,
+      44,
+      45,
+      46,
+      48
+    ],
+    "input_boundaries": [
+      "presentation_flow_tick $1900; exact registered breakpoint id/PC plus source, staged, physical page-$38 and live CPU byte equality; PAR0=$38"
+    ],
+    "natural_sequence": [
+      "At the naturally displayed attract screen only, coin DSCAN 5 press then release on consecutive qualified input boundaries.",
+      "At the naturally displayed high-score/credit menu with credits present only, Enter DSCAN 48 press then release on consecutive qualified input boundaries. Record $A9 as observed event state; never inject it as a key.",
+      "After entry reaches mode 0, screen 2, context 1, entry 0, death 0, cue-6 completion/mute, busy 0 and an actual FRONT publication, press/release the live-source-derived Up binding at qualified input boundaries. Hold only until a natural input-state and movement response is observed, then release."
+    ],
+    "acceptance": "Injection response is not acceptance. Require source-qualified state change plus PLAYER_DIR/PLAYER_WANT/JOY_DIR or cell/step response and an actual FRONT pixel witness. Any unrecognized live binding fails closed.",
+    "startup_wrapper": {
+      "symbol": "presentation_key_service",
+      "address": "$DF24",
+      "use": "startup-only B=3 initialization",
+      "input_boundary": false
+    }
+  },
+  "capture": {
+    "deadline_seconds_per_phase": 45,
+    "maximum_wait_for_stop_seconds": 10,
+    "no_deadline_extension": true,
+    "timeout_meaning": "Required phase marker absent at this observation boundary; not evidence that target code is slow.",
+    "stop_rule": "Stop and reassess after two rejected probes, two observation-tool timeouts, or one material scope/cause expansion.",
+    "required_enemy_release_phases": [
+      "0-to-1",
+      "1-to-2",
+      "2-to-3"
+    ],
+    "mandatory_population": 3,
+    "optional_population": 4,
+    "three_enemy_recurrence": {
+      "completed_consecutive_worklists_minimum": 3,
+      "logical_advances_minimum": 2,
+      "timer_or_animation_state_edges_minimum": 2,
+      "same_count_at_both_worklist_boundaries": 3,
+      "accepted_input_response": true,
+      "actual_front_pixel_witness": true
+    },
+    "worklist_fields": [
+      "event_ticks at entry and return, divided by 8 only when wrap-safe delta is divisible by 8",
+      "enemy active byte plus all four source-tagged records, released count, death and entry flags",
+      "AD_SIM_TIME read only from physical page $3D",
+      "FRAMES, ENEMY_TIMER, ENEMY_ANIM, PICKUP_TIMER, FREEZE_TIMER",
+      "player input/position state and PLAYER_TICK_PENDING",
+      "the 16-byte RENDER_FLAGS span $007F-$008E",
+      "front owner, pending/commit/sim/missed sequence and VOFF1",
+      "audio queue, slot/voice, mix periods/attenuation/noise, shadows, busy, API action intervals and qualified PSG writes",
+      "monitor stop count and per-stop event_ticks before/after"
+    ],
+    "pickup_classification": {
+      "PICKUP_TIMER_nonzero": "intentional collectible pause; preserve as a separate worklist class, do not describe ignored input or held movement as CPU lag",
+      "FREEZE_TIMER_nonzero": "record separately as enemy-freeze state; do not collapse into pickup classification",
+      "DEATH_STATE_or_INITIAL_ENTRY_STATE_nonzero": "transition/entry work, separate from regular controllable gameplay",
+      "regular_controllable": "entry=0, death=0, pickup=0; report enemy-freeze flag alongside it"
+    },
+    "front_pixel_proof": {
+      "front_owner_0": {
+        "physical_pages": [
+          48,
+          49,
+          50,
+          51
+        ],
+        "physical_base": 393216,
+        "voff1": 192
+      },
+      "front_owner_1": {
+        "physical_pages": [
+          44,
+          45,
+          46,
+          47
+        ],
+        "physical_base": 360448,
+        "voff1": 176
+      },
+      "surface_bytes": 30720,
+      "native_row_stride": 160,
+      "actor_window": "8 bytes by 16 rows from the source-qualified PLAYER_FB and each active enemy record's stored framebuffer pointer; require at least one natural visible change tied to the input/animation sequence",
+      "publication": "commit sequence increments; pending retires; missed count unchanged; FRONT ID agrees with VOFF1; physical scanout is read-only"
+    },
+    "event_edges": "Recurrence is based on distinct AD_SIM_TIME changes and ENEMY_TIMER/ENEMY_ANIM state edges, never call count.",
+    "audio": {
+      "state_is_cause": false,
+      "audio_active_music_phase_required": false,
+      "psg_attribution_requires": [
+        "sole exact $FF51 write watchpoint",
+        "$A49C post-store PC",
+        "PAR5=$3D",
+        "CPU/physical/artifact byte equality",
+        "validated stack return and callsite",
+        "one-category output byte classification"
+      ],
+      "existing_shadow_fact": "Eleven shadows suppress unchanged continuation/attenuation/noise output; tone latches remain selected before possible data writes.",
+      "bootstrap_alias": "Install the PSG watchpoint only after the naturally displayed credit menu and current audio-module/runtime ownership have been byte-qualified; do not classify earlier bootstrap writes as gameplay audio."
+    },
+    "accounting": {
+      "outer": "One inclusive $038F-to-$C116 total per worklist; includes IRQ and excludes preceding SYNC.",
+      "subspans": "Only accept exact registered marker id/PC, live bytes, physical/source artifact bytes, mapped owner, and validated dynamic caller/return; otherwise retain cycles as residual. Adaptive audio is timed only from the real $047C binding through $0488; the $039B vector is not counted. Each span retains exact direct-call or aw_output tail-call ownership and reconciles once as a non-overlapping inclusive interval.",
+      "reconciliation": "outer inclusive = qualified non-overlapping inclusive interval buckets + explicit residual; IRQ gets a separate bucket only if its exact span is independently source/byte/stack-qualified.",
+      "invalidity": "Overlaps, unqualified alias/mapping, negative residual, non-divisible ticks, or missing endpoints invalidate component attribution while preserving the outer total.",
+      "observer_overhead": "Record every stop's event_ticks before/after and total stops. State correction unavailable unless a naturally equivalent lower-stop comparison exists; never subtract an estimate or infer game cost from host wall time.",
+      "rank_gate": "No candidate rank, causal claim, savings, or payoff ratio until current-artifact recurring impact is observed and component accounting reconciles. Audio remains a hypothesis."
+    }
+  },
+  "runtime_protocol": {
+    "reuse_only": [
+      "scripts/verify_bug009_monitor_input.py MonitorClient definitions",
+      "scripts/verify_bug011_runtime.py launch_fast helper"
+    ],
+    "deferred_import": "Load those modules only inside --natural-gameplay after hash preflight. Never import BUG-117 observer modules or forced BUG-058 profilers.",
+    "allowed_monitor_methods": [
+      "read_cycles",
+      "read_memory",
+      "read_registers",
+      "get_run_state",
+      "run",
+      "wait_for_stop",
+      "set_breakpoint",
+      "clear_breakpoint",
+      "list_breakpoints",
+      "set_watchpoint",
+      "clear_watchpoint",
+      "list_watchpoints",
+      "inject_key"
+    ],
+    "denied_methods": [
+      "write_memory",
+      "write_registers",
+      "step_instruction",
+      "set_pc",
+      "direct call/jump",
+      "physical/MMU/GIME write",
+      "fixture/setup protocol"
+    ],
+    "exec_breakpoints": [
+      "$1900 only for recurring source-qualified input boundaries",
+      "$038F/$C116 only after active-driver and resident-byte identity",
+      "$047C/$0488 only after active-driver, caller, stack, and PAR qualification",
+      "$02DE/$02EC/$02EF only after gateway artifact/physical/live equality"
+    ],
+    "banked_audio_exec_breakpoints": "none; $B638 code is qualified at the $047C/$0488 low-RAM binding bracket with PAR5=$3D only at return; classify detailed PSG write stops through the sole $FF51 watchpoint and mapped bytes",
+    "watchpoints": "At most one: $FF51 length 1 kind w; list and prove exact identity before and after installing it.",
+    "stop_id": "Execution stops require registered id and PC equality. Watchpoint stops have no id in current monitor implementation and are accepted only when the sole watchpoint exists and all $A49C/PAR5/callsite/byte guards pass.",
+    "physical_address": "page*0x2000 + (cpu_address-$A000) for A000-BFFF addresses",
+    "input_state_machine": {
+      "boundary": "Only exact presentation_flow_tick $1900 registered breakpoint id/PC after complete module and PAR0 qualification",
+      "allowed_injections": "Press a source-derived coin, Enter, or movement DSCAN only at an observed $1900 boundary; release only a key already pressed at an observed $1900 boundary",
+      "forced_release": "Denied; monitor wrapper rejects release without an outstanding press",
+      "startup_DF24": "Never used as recurring input breakpoint"
+    }
+  },
+  "commands": {
+    "offline_self_test": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --self-test",
+    "artifact_check": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --artifact-check --rom build/ladybug.rom --receipt build/source-build-receipt.json",
+    "natural_gameplay": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --natural-gameplay --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --receipt build/source-build-receipt.json --output repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json --phase-deadline-seconds 45 --stop-timeout-seconds 10",
+    "execution_status": "Future runtime command only; this assignment performs offline validation and awaits parent freeze review plus a separate live lease."
+  },
+  "offline_tests": {
+    "must_not": [
+      "launch a process",
+      "open a socket",
+      "connect to monitor",
+      "send input",
+      "read/write build runtime state",
+      "write guest state",
+      "launch XRoar or execute a natural runtime probe during offline preflight"
+    ],
+    "positive": [
+      "static pins/schema",
+      "source default matrix to DSCAN conversion",
+      "correct worklist event tick conversion including wrap",
+      "valid source-tagged enemy records",
+      "valid exact marker/breakpoint stop",
+      "valid nonnegative accounting reconciliation",
+      "sole qualified PSG post-store category",
+      "runtime import is behind main guard/natural flag",
+      "live binding slot conversion and allowlist agreement",
+      "fake-client input pulse at a qualified $1900 marker with exact press/release calls only",
+      "read/run/breakpoint/watchpoint method policy and halted event_ticks stability",
+      "all 266 frozen-capsule source-receipt inputs and all 264 current inputs except the two explicitly excluded FEAT-010 TMXs",
+      "source/map-qualified presentation, active-driver, audio-gateway, $047C binding/$0488 return, direct/tail caller, and physical-page addresses",
+      "read-only helper hashes for the maintained BUG-009 monitor client and BUG-011 launcher",
+      "offline exact direct/tail caller qualification and API stack equality at $047C/$0488 from mapped source bytes",
+      "all six direct $047C callers mapped to adaptive_work/adaptive_tick_binding with exact action and source/staged/physical/live bytes",
+      "aw_output action-2 tail call retains the $C152 outer return PC and entry S",
+      "banked API source/map/artifact/physical/live range and PAR5=$3D return mapping proof"
+    ],
+    "negative": [
+      "missing or changed file pin",
+      "receipt/source revision alone treated as proof",
+      "wrong breakpoint id or PC",
+      "PAR5 alias",
+      "CPU/physical/artifact mismatch",
+      "source-tag/kind/count contradiction",
+      "event_ticks delta not divisible by 8",
+      "negative/overflow event_ticks or API stack values",
+      "deadline above 45 or stop above 10",
+      "duplicate/missing 0-to-1/1-to-2/2-to-3 marker",
+      "absent three-enemy recurrence or required edge",
+      "negative/overlapping reconciliation",
+      "missing required FRONT publication or pixel change",
+      "invalid binding or project-matrix/DSCAN confusion",
+      "$A9 or any unlisted key/action",
+      "Axxx execution breakpoint",
+      "wrong/multiple PSG watchpoint",
+      "wrong PC/PAR/stack/callsite or output category",
+      "$039B used as runtime audio breakpoint, unknown direct caller, wrong caller module/action, wrong aw_output tail return, or source/staged/physical/live mismatch at $047C",
+      "any audio API S or stacked return-PC change despite balanced private push/pull sequences",
+      "adaptive_work direct-call stack not outer S-2 or adaptive_tick_binding saved-A byte outside its source-derived range",
+      "write_memory/write_registers/direct call/setup API",
+      "module import that exposes subprocess/socket at module import time",
+      "startup-only $DF24 presented as a recurring input marker",
+      "PFT symbol/physical-page/live-byte or PAR0 mismatch",
+      "release without a preceding accepted press or duplicate press",
+      "mismatched live binding slot or duplicate movement DSCAN",
+      "enemy kind outside 1..8, direction outside 0..3, or cell outside 24x24 maze",
+      "active-driver destination mapping mismatch",
+      "source/map address mismatch, including stale $A490 enemy-table metadata",
+      "audio immutable code mismatch outside listed mutable state ranges"
+    ]
+  },
+  "report_rules": {
+    "coverage": "Required three-enemy coverage absent means diagnosis incomplete. Optional four-enemy absence is recorded as absent, never pass.",
+    "impact": "Report misses by phase/worklist first; owner is secondary metadata. Do not compare unlike phases as owner A/B causes.",
+    "release_priority": "Pre-1.0 proposal only for evidenced recurring regular-play impact plus bounded high-yield remedy, or a confirmed audio sequencing/correctness fault. Other misses remain post-1.0 proposals after user review.",
+    "no_optimization": true,
+    "no_claim_from_user_feel": "User report that slowdown is usually imperceptible informs priority but is not an instrumented timing pass."
+  },
+  "provenance": {
+    "frozen_source_root": "repro/build-recovery-20261013/capsule",
+    "source_build_receipt": {
+      "path": "build/source-build-receipt.json",
+      "sha256": "11e549b44bba276d8436c70f6577b1f409df5b9ffac1b217e6495f2c712f0251",
+      "meaning": "reconstructed source receipt for the frozen 3cba1bfd/df260e artifact; the lost original receipt is not recreated or relabelled",
+      "verified_current_inputs_count": 264,
+      "verified_current_inputs_manifest_sha256": "d494c99bf3c1c5c13b4c1446fa1624f48dc7e9745b853b11e61986ce726b48ab",
+      "verified_frozen_capsule_inputs_count": 266,
+      "verified_frozen_capsule_inputs_manifest_sha256": "46d362b865b59c213e7de9df8f0856ccdf9e73d527c42c57993340bc59d63116",
+      "excluded_current_user_tmx_inputs": [
+        "tiled/coco-attract-screen.tmx",
+        "tiled/coco-high-score-screen.tmx"
+      ]
+    },
+    "accepted_delivery_qualification": {
+      "path": "repro/build-recovery-20261013/gdb-delivery.json",
+      "sha256": "f687c24f20b38bcfd05d4f7eed894818c05076e7aada85800fb1b418de1f07ce",
+      "status": "parent-accepted historical-capture requalification",
+      "historical_capture_reused_explicitly": true,
+      "new_runtime_capture": false,
+      "source_root": "repro/build-recovery-20261013/capsule",
+      "map_path_only_differences": "normalized to original accepted map hashes; delivered ROM and seven binary/layout hashes match"
+    }
+  },
+  "decisions": {
+    "rejected_DF24_assumption": {
+      "assumption": "Treat presentation_key_service at $DF24 as the recurring input boundary",
+      "discriminator": "src/main.s calls it once in startup with B=3 to initialize defaults; recurring mainloop calls presentation_flow_tick at $1900, whose source invokes scan_keys before dispatch",
+      "decision": "Use $1900 with exact source/staged/physical/live and PAR0 qualification; never arm $DF24 for input"
+    },
+    "audio_api_stack_ownership": {
+      "rejected_assumption": "Expect S to advance by two bytes between the $039B dispatch vector and the $0488 post-call return",
+      "discriminator": "The actual callable binding is $047C. Its private PSHS A/PULS A pair completes before JSR $B638; $0488 is after that call and before the wrapper's restore-PAR5 PSHS A. S therefore equals its value at $047C, and the stacked caller return word is unchanged.",
+      "decision": "Require exact S and stacked return-PC equality across each source-qualified $047C-to-$0488 API interval"
+    },
+    "audio_binding_breakpoint": {
+      "rejected_assumption": "Use the $039B AD_AUDIO_EXEC vector stub as the sole runtime API-entry breakpoint",
+      "discriminator": "The map/source place the actual binding at $047C. Six callsites JSR directly there, including five worklist callers and one adaptive_tick_binding caller; aw_output at $0424 loads action 2 then tail-JMPs from $0426, preserving the outer main-loop return PC $C152. The $039B JMP stub is used by adaptive_install_active outside the worklist and would miss direct calls or double-count routed calls.",
+      "decision": "Register only $047C and pair it with $0488 while a worklist is open. Accept only the six exact source/map/live-qualified direct callsites or the $0426 tail path with S unchanged from $038F and stacked return PC $C152. Do not set a breakpoint at $039B."
+    },
+    "corrected_enemy_table_contract_address": {
+      "rejected_preparation_value": "$A490",
+      "discriminator": "Pinned src/main.s and src/enemy_runtime.s define ENEMY_TABLE as $A470; the frozen main and enemy maps and observer constant agree.",
+      "decision": "Correct symbols.main.enemy_table and symbols.enemy_state.table_cpu to $A470 (decimal 42096)"
+    },
+    "corrected_cue_source_pin": {
+      "rejected_preparation_hash": "e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfe1ad97a147d06b36",
+      "discriminator": "The frozen source receipt and capsule file hash the current authored cue source as e0cd9888c6b71534cf5b82c6b614853a57aebc4a2d4634cfea1d97a147d06b36.",
+      "decision": "Pin the receipt- and capsule-matched source SHA256; do not rebuild or alter the ROM"
+    }
+  }
+}
