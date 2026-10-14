@@ -401,6 +401,17 @@
       "1-to-2",
       "2-to-3"
     ],
+    "enemy_state_gate": {
+      "available_only_when": [
+        "adaptive source/staged/physical/live destination bytes and PAR0 mapping qualify at the current marker",
+        "AD_MODE_BYTE=$00 from the contract-qualified physical page-$34 address",
+        "PRES_MODE=$00, PRES_SCREEN=$02, PRES_CONTEXT=$01",
+        "INITIAL_ENTRY_STATE=$00 and DEATH_STATE=$00"
+      ],
+      "inactive_behavior": "Retain raw ENEMY_ACTIVE, ENEMY_RELEASED and page-$34 ENEMY_TABLE bytes as hex with an unavailable reason; expose semantic active/released/records as null and do not classify regular gameplay or count transitions.",
+      "live_behavior": "Run the existing strict source-tag/kind/pointer/cell/direction/count validator; malformed live records fail closed.",
+      "consumer_rule": "Release, recurrence and FRONT actor consumers require available start/end snapshots. A worklist crossing an unavailable phase cannot supply a count transition, recurrence row or pixel witness."
+    },
     "mandatory_population": 3,
     "optional_population": 4,
     "three_enemy_recurrence": {
@@ -413,9 +424,9 @@
     },
     "worklist_fields": [
       "event_ticks at entry and return, divided by 8 only when wrap-safe delta is divisible by 8",
-      "enemy active byte plus all four source-tagged records, released count, death and entry flags",
-      "AD_SIM_TIME read only from physical page $3D",
-      "FRAMES, ENEMY_TIMER, ENEMY_ANIM, PICKUP_TIMER, FREEZE_TIMER",
+      "Initialized live gameplay: enemy active byte plus all four strictly source-tagged records and released count. Other phases: raw active/released/table bytes as hex plus unavailable reason, with no semantic count.",
+      "AD_SIM_TIME read only from physical page $3D for initialized live gameplay",
+      "FRAMES, ENEMY_TIMER, ENEMY_ANIM, PICKUP_TIMER, FREEZE_TIMER; enemy/gameplay timer fields are unavailable outside initialized live gameplay",
       "player input/position state and PLAYER_TICK_PENDING",
       "the 16-byte RENDER_FLAGS span $007F-$008E",
       "front owner, pending/commit/sim/missed sequence and VOFF1",
@@ -426,7 +437,7 @@
       "PICKUP_TIMER_nonzero": "intentional collectible pause; preserve as a separate worklist class, do not describe ignored input or held movement as CPU lag",
       "FREEZE_TIMER_nonzero": "record separately as enemy-freeze state; do not collapse into pickup classification",
       "DEATH_STATE_or_INITIAL_ENTRY_STATE_nonzero": "transition/entry work, separate from regular controllable gameplay",
-      "regular_controllable": "entry=0, death=0, pickup=0; report enemy-freeze flag alongside it"
+      "regular_controllable": "Available only after adaptive mapping/mode and presentation mode=0, screen=2, context=1, entry=0, death=0; pickup=0. Report enemy-freeze flag alongside it."
     },
     "front_pixel_proof": {
       "front_owner_0": {
@@ -528,7 +539,8 @@
   "commands": {
     "offline_self_test": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --self-test",
     "artifact_check": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --artifact-check --rom build/ladybug.rom --receipt build/source-build-receipt.json",
-    "natural_gameplay": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --natural-gameplay --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --receipt build/source-build-receipt.json --output repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json --phase-deadline-seconds 45 --stop-timeout-seconds 10",
+    "natural_gameplay": "python3 wiki/internal/tickets/evidence/bug058/diagnostic-observer-20261013.py --natural-gameplay --xroar docs/reference/xroar/src/xroar --rom build/ladybug.rom --receipt build/source-build-receipt.json --output repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary-rerun-20261014.json --phase-deadline-seconds 45 --stop-timeout-seconds 10",
+    "output_policy": "Only natural-three-enemy-summary.json or a unique suffixed JSON basename directly inside the owned repro directory is accepted. Parent traversal, symlinks, nested/outside paths, and existing targets are rejected; the selected path is exclusively reserved before any process launch.",
     "execution_status": "Future runtime command only; this assignment performs offline validation and awaits parent freeze review plus a separate live lease."
   },
   "offline_tests": {
@@ -546,6 +558,10 @@
       "source default matrix to DSCAN conversion",
       "correct worklist event tick conversion including wrap",
       "valid source-tagged enemy records",
+      "presentation startup tag $FF retained as raw/unavailable without decoding or zero-count claim",
+      "initialized live gameplay records decode strictly only after active-driver, mode, presentation, entry, and death gates pass",
+      "entry/death transition snapshots remain unavailable and cannot feed count, recurrence, or FRONT actor consumers",
+      "unique capture output path inside the owned directory validates without creating a file",
       "valid exact marker/breakpoint stop",
       "valid nonnegative accounting reconciliation",
       "sole qualified PSG post-store category",
@@ -568,6 +584,10 @@
       "PAR5 alias",
       "CPU/physical/artifact mismatch",
       "source-tag/kind/count contradiction",
+      "invalid live gameplay source tag remains a hard failure",
+      "existing failed-capture basename cannot be overwritten by the default or repeated command",
+      "parent traversal, symlink, nested, outside-directory, or unsafe output basename",
+      "exclusive output reservation cannot be reused; reserved-file replacement through a symlink is rejected without changing the target",
       "event_ticks delta not divisible by 8",
       "negative/overflow event_ticks or API stack values",
       "deadline above 45 or stop above 10",
@@ -628,6 +648,11 @@
     }
   },
   "decisions": {
+    "presentation_startup_enemy_state": {
+      "observation": "The retained current-artifact capture stopped at the source-qualified presentation_flow_tick $1900 boundary before the first phase marker; the raw enemy slot-0 tag was $FF. The receipt is repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json and remains unchanged.",
+      "source_discriminator": "enemy_init_impl calls reset_enemy_state, which clears all 32 ENEMY_TABLE bytes; init_enemy is reached from gameplay state initialization/next-stage paths, while the recurring presentation boundary also runs before that initialization. The observed $FF is therefore phase-inappropriate raw startup data, not evidence that the live record validator is too strict.",
+      "decision": "Qualify installed adaptive bytes/mapping, AD_MODE_BYTE=$00, mode=0/screen=2/context=1, entry=0 and death=0 before interpreting counts or tags. Preserve inactive bytes as raw hex and semantic fields as unavailable. Keep validate_enemy_records strict for available gameplay."
+    },
     "rejected_DF24_assumption": {
       "assumption": "Treat presentation_key_service at $DF24 as the recurring input boundary",
       "discriminator": "src/main.s calls it once in startup with B=3 to initialize defaults; recurring mainloop calls presentation_flow_tick at $1900, whose source invokes scan_keys before dispatch",

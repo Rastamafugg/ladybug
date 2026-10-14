@@ -11,7 +11,9 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import os
 import re
+import stat
 import sys
 import time
 from pathlib import Path
@@ -115,6 +117,10 @@ MONITOR_METHODS = frozenset({
 })
 WATCHPOINT_SPEC = {"addr": PSG_DATA, "length": 1, "kind": "w"}
 TICK_MASK = (1 << 64) - 1
+CAPTURE_OUTPUT_DIR = Path("repro/bug058-diagnosis-assignment-20261013")
+CAPTURE_OUTPUT_NAME = re.compile(
+    r"^natural-three-enemy-summary(?:-[A-Za-z0-9_-]{1,64})?\.json$"
+)
 
 
 class ObserverError(RuntimeError):
@@ -817,6 +823,62 @@ def validate_enemy_records(active_count: int, records: bytes) -> list[dict[str, 
     return occupied
 
 
+def enemy_state_unavailable_reason(driver_qualified: bool, mode_byte: int,
+                                   pres_mode: int, pres_screen: int,
+                                   pres_context: int, entry: int,
+                                   death: int) -> str | None:
+    """Require the installed, initialized live-game boundary before decoding enemies."""
+    if (pres_mode != 0 or pres_screen != 2 or pres_context != 1):
+        return "presentation_or_non_gameplay_phase"
+    if entry != 0:
+        return "entry_transition"
+    if death != 0:
+        return "death_transition"
+    if mode_byte != 0:
+        return "adaptive_mode_uninitialized"
+    if not driver_qualified:
+        return "active_driver_unqualified"
+    return None
+
+
+def read_enemy_state(monitor: GuardedMonitor, available: bool,
+                     unavailable_reason: str | None) -> dict[str, Any]:
+    """Retain raw bytes always; interpret counts and tags only in live gameplay."""
+    active_raw = monitor.byte(ENEMY_ACTIVE)
+    released_raw = monitor.byte(ENEMY_RELEASED)
+    records_raw = monitor.read(physical_address(PAGE_GAME, ENEMY_TABLE), 32,
+                               "physical")
+    raw = {
+        "active_hex": f"{active_raw:02X}",
+        "released_hex": f"{released_raw:02X}",
+        "records_hex": records_raw.hex(),
+        "table_physical_page": PAGE_GAME,
+        "table_cpu_address": ENEMY_TABLE,
+    }
+    if not available:
+        if not unavailable_reason:
+            raise ObserverError("unavailable enemy state lacks a phase reason")
+        return {
+            "enemy_state_available": False,
+            "enemy_state_reason": unavailable_reason,
+            "enemy_state_raw": raw,
+            "enemy_active": None,
+            "enemy_released": None,
+            "enemy_records": None,
+        }
+    if unavailable_reason is not None:
+        raise ObserverError("available enemy state has an unavailable phase reason")
+    enemies = validate_enemy_records(active_raw, records_raw)
+    return {
+        "enemy_state_available": True,
+        "enemy_state_reason": None,
+        "enemy_state_raw": raw,
+        "enemy_active": active_raw,
+        "enemy_released": released_raw,
+        "enemy_records": enemies,
+    }
+
+
 def validate_reconciliation(outer: int, spans: list[tuple[int, int]]) -> int:
     ordered = sorted(spans)
     used = 0
@@ -1210,20 +1272,35 @@ def read_audio_snapshot(monitor: GuardedMonitor,
 
 def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
                   include_audio: bool = True) -> dict[str, Any]:
-    active_count = monitor.byte(ENEMY_ACTIVE)
-    records = monitor.read(physical_address(PAGE_GAME, ENEMY_TABLE), 32, "physical")
-    enemies = validate_enemy_records(active_count, records)
-    sim_time = monitor.word(physical_address(SIM_TIME_PAGE, SIM_TIME_CPU), "physical")
+    pres_mode = monitor.byte(PRES_MODE)
+    pres_screen = monitor.byte(PRES_SCREEN)
+    pres_context = monitor.byte(PRES_CONTEXT)
+    entry = monitor.byte(INITIAL_ENTRY_STATE)
+    death = monitor.byte(DEATH_STATE)
+    driver_qualified = qualify_active_driver_safe(monitor, artifacts)
+    mode_page = require_contract_identity(artifacts)["symbols"]["copied_adaptive"]["mode_page"]
+    mode_byte = monitor.read(physical_address(mode_page, AD_MODE_BYTE), 1,
+                             "physical")[0]
+    unavailable_reason = enemy_state_unavailable_reason(
+        driver_qualified, mode_byte, pres_mode, pres_screen, pres_context,
+        entry, death,
+    )
+    enemy_state = read_enemy_state(
+        monitor, unavailable_reason is None, unavailable_reason,
+    )
+    live_enemy_state = enemy_state["enemy_state_available"]
+    freeze_timer = monitor.word(FREEZE_TIMER)
+    pickup_timer = monitor.byte(PICKUP_TIMER)
+    sim_time = (monitor.word(physical_address(SIM_TIME_PAGE, SIM_TIME_CPU), "physical")
+                if live_enemy_state else None)
     snapshot = {
-        "enemy_active": active_count,
-        "enemy_released": monitor.byte(ENEMY_RELEASED),
-        "enemy_records": enemies,
-        "entry": monitor.byte(INITIAL_ENTRY_STATE),
-        "death": monitor.byte(DEATH_STATE),
-        "pickup_timer": monitor.byte(PICKUP_TIMER),
-        "freeze_timer": monitor.word(FREEZE_TIMER),
-        "enemy_timer": monitor.byte(ENEMY_TIMER),
-        "enemy_anim": monitor.byte(ENEMY_ANIM),
+        **enemy_state,
+        "entry": entry,
+        "death": death,
+        "pickup_timer": pickup_timer if live_enemy_state else None,
+        "freeze_timer": freeze_timer if live_enemy_state else None,
+        "enemy_timer": monitor.byte(ENEMY_TIMER) if live_enemy_state else None,
+        "enemy_anim": monitor.byte(ENEMY_ANIM) if live_enemy_state else None,
         "sim_time": sim_time,
         "frames": monitor.word(FRAMES),
         "player_dir": monitor.byte(PLAYER_DIR),
@@ -1234,9 +1311,9 @@ def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
         "player_fb": monitor.word(PLAYER_FB),
         "player_tick_pending": monitor.byte(PLAYER_TICK_PENDING),
         "render_intents": monitor.read(RENDER_FLAGS, 16).hex(),
-        "pres_mode": monitor.byte(PRES_MODE),
-        "pres_screen": monitor.byte(PRES_SCREEN),
-        "pres_context": monitor.byte(PRES_CONTEXT),
+        "pres_mode": pres_mode,
+        "pres_screen": pres_screen,
+        "pres_context": pres_context,
         "pres_credits": monitor.byte(PRES_CREDITS),
         "pres_event": monitor.byte(PRES_EVENT),
         "fb_front": monitor.byte(FB_FRONT_ID),
@@ -1245,11 +1322,13 @@ def read_snapshot(monitor: GuardedMonitor, artifacts: dict[str, Any],
         "fb_sim_seq": monitor.word(FB_SIM_SEQ),
         "fb_missed": monitor.word(FB_MISSED_COMMIT),
         "voff1": monitor.byte(VOFF1),
-        "classification": classify_pause(
-            monitor.byte(INITIAL_ENTRY_STATE), monitor.byte(DEATH_STATE),
-            monitor.byte(PICKUP_TIMER), monitor.word(FREEZE_TIMER),
+        "classification": (
+            classify_pause(entry, death, pickup_timer, freeze_timer)
+            if live_enemy_state else f"enemy_state_unavailable:{unavailable_reason}"
         ),
-        "enemy_freeze_active": monitor.word(FREEZE_TIMER) != 0,
+        "enemy_freeze_active": freeze_timer != 0 if live_enemy_state else None,
+        "active_driver_qualification": driver_qualified,
+        "adaptive_mode_byte": mode_byte,
         "audio_installed": bool(monitor.byte(AUDIO_INSTALLED)),
     }
     if include_audio and snapshot["audio_installed"]:
@@ -1468,6 +1547,8 @@ def qualify_psg_stop(monitor: GuardedMonitor, artifacts: dict[str, Any],
 
 def verify_front(monitor: GuardedMonitor, snapshot: dict[str, Any],
                  previous: dict[str, Any] | None) -> dict[str, Any] | None:
+    if not snapshot.get("enemy_state_available"):
+        raise ObserverError("FRONT actor witness requires initialized live-game enemy state")
     owner = snapshot["fb_front"]
     if owner not in (0, 1):
         raise ObserverError(f"invalid FRONT owner {owner}")
@@ -1518,11 +1599,13 @@ def _assert_stop(stop: dict[str, Any], address: int, ident: int) -> None:
 class NaturalCapture:
     def __init__(self, monitor: GuardedMonitor, artifacts: dict[str, Any],
                  output: Path, phase_seconds: float, stop_seconds: float,
-                 xroar_info: dict[str, Any]):
+                 xroar_info: dict[str, Any],
+                 output_identity: tuple[int, int]):
         validate_phase_limits(phase_seconds, stop_seconds)
         self.monitor = monitor
         self.artifacts = artifacts
         self.output = output
+        self.output_identity = output_identity
         self.phase_seconds = phase_seconds
         self.stop_seconds = stop_seconds
         self.keycodes = artifacts["keycodes"]
@@ -1564,9 +1647,9 @@ class NaturalCapture:
         self.status = "incomplete"
 
     def save_partial(self, failure: str | None = None) -> None:
-        self.output.parent.mkdir(parents=True, exist_ok=True)
         receipt = self.receipt(failure)
-        self.output.write_text(json.dumps(receipt, indent=2) + "\n", encoding="utf-8")
+        write_reserved_capture(self.output, self.output_identity,
+                               json.dumps(receipt, indent=2) + "\n")
 
     def receipt(self, failure: str | None = None) -> dict[str, Any]:
         samples = []
@@ -1936,6 +2019,14 @@ class NaturalCapture:
 
     def _update_release_and_recurrence(self, row: dict[str, Any]) -> None:
         start, end = row["start"], row["end"]
+        if (not start.get("enemy_state_available")
+                or not end.get("enemy_state_available")):
+            self.regular_run.clear()
+            self.four_enemy_run.clear()
+            self.last_recurrence_snapshot = (
+                end if end.get("enemy_state_available") else None
+            )
+            return
         old_count, new_count = start["enemy_active"], end["enemy_active"]
         old_released, new_released = start["enemy_released"], end["enemy_released"]
         if new_count != old_count:
@@ -2012,6 +2103,10 @@ class NaturalCapture:
             return
         previous = self.previous_front_state
         current = row["end"]
+        if (not previous.get("enemy_state_available")
+                or not current.get("enemy_state_available")):
+            self.previous_front_state = current
+            return
         if current["fb_commit_seq"] != previous["fb_commit_seq"]:
             pixel = verify_front(self.monitor, current, previous)
             if pixel is not None:
@@ -2112,7 +2207,8 @@ class NaturalCapture:
             if (driver_ready and enter_event_seen
                     and state["pres_mode"] == 0 and state["pres_screen"] == 2
                     and state["pres_context"] == 1 and state["entry"] == 0
-                    and state["death"] == 0 and self._audio_terminal_ready(state)
+                    and state["death"] == 0 and state["enemy_state_available"]
+                    and self._audio_terminal_ready(state)
                     and state["fb_pending"] == 0 and self.entry_commit is not None
                     and state["fb_commit_seq"] != self.entry_commit):
                 front = verify_front(self.monitor, state, None)
@@ -2163,6 +2259,14 @@ class NaturalCapture:
                 wait_deadline = cold_deadline
             stop, state = self._next_input_boundary(wait_deadline)
             self._current_audio(state)
+
+            if not state.get("enemy_state_available"):
+                if state["death"] != 0 and self.release_target <= 3:
+                    raise ObserverError(
+                        "death preceded mandatory natural three-enemy release"
+                    )
+                self._leave_input_boundary()
+                continue
 
             if not movement_released:
                 changed = (state["player_cell"] != movement_before["player_cell"]
@@ -2272,33 +2376,112 @@ def xroar_fingerprint(binary: Path) -> dict[str, Any]:
             "monitor_mode": "private JSON-RPC, current source implementation; events.subscribe bp plus wait_for_stop"}
 
 
+def validate_capture_output_path(value: str | Path) -> Path:
+    requested = Path(value)
+    if ".." in requested.parts:
+        raise ObserverError("--output must not contain parent traversal")
+    candidate = repo_path(value)
+    if not CAPTURE_OUTPUT_NAME.fullmatch(candidate.name):
+        raise ObserverError(
+            "--output basename must be natural-three-enemy-summary.json or "
+            "natural-three-enemy-summary-<unique-id>.json"
+        )
+    try:
+        relative = candidate.absolute().relative_to(ROOT.resolve())
+    except ValueError as exc:
+        raise ObserverError("--output must remain inside the repository") from exc
+    cursor = ROOT
+    for part in relative.parts[:-1]:
+        cursor = cursor / part
+        if cursor.is_symlink():
+            raise ObserverError("--output path must not traverse a symlink")
+    output_dir = ROOT / CAPTURE_OUTPUT_DIR
+    if not output_dir.is_dir():
+        raise ObserverError(f"approved output directory is missing: {output_dir}")
+    if candidate.parent.is_symlink():
+        raise ObserverError("--output directory must not be a symlink")
+    try:
+        if candidate.parent.resolve(strict=True) != output_dir.resolve(strict=True):
+            raise ObserverError(
+                f"--output must be directly inside {CAPTURE_OUTPUT_DIR.as_posix()}"
+            )
+    except OSError as exc:
+        raise ObserverError(f"could not resolve --output directory: {exc}") from exc
+    if candidate.is_symlink():
+        raise ObserverError("--output target must not be a symlink")
+    if candidate.exists():
+        raise ObserverError(f"natural-capture output already exists and will not be overwritten: {value}")
+    return candidate
+
+
+def reserve_capture_output(path: Path) -> tuple[int, int]:
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL
+    flags |= getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags, 0o600)
+    except FileExistsError as exc:
+        raise ObserverError(f"natural-capture output already exists and will not be overwritten: {path}") from exc
+    try:
+        status = os.fstat(descriptor)
+        payload = json.dumps({"ticket": "BUG-058", "status": "reserved"}) + "\n"
+        remaining = memoryview(payload.encode("utf-8"))
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written <= 0:
+                raise ObserverError("could not write natural-capture output reservation")
+            remaining = remaining[written:]
+        return status.st_dev, status.st_ino
+    finally:
+        os.close(descriptor)
+
+
+def write_reserved_capture(path: Path, identity: tuple[int, int],
+                           content: str) -> None:
+    flags = os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0)
+    descriptor = os.open(path, flags)
+    try:
+        opened = os.fstat(descriptor)
+        current = path.lstat()
+        if (stat.S_ISLNK(current.st_mode) or (opened.st_dev, opened.st_ino) != identity
+                or (current.st_dev, current.st_ino) != identity):
+            raise ObserverError("natural-capture output identity changed after reservation")
+        os.ftruncate(descriptor, 0)
+        remaining = memoryview(content.encode("utf-8"))
+        while remaining:
+            written = os.write(descriptor, remaining)
+            if written <= 0:
+                raise ObserverError("could not write natural-capture receipt")
+            remaining = remaining[written:]
+    finally:
+        os.close(descriptor)
+
+
 def validate_requested_paths(args: argparse.Namespace,
-                             require_output: bool = False) -> None:
+                             require_output: bool = False) -> Path | None:
     expected = {
         "rom": (ROOT / "build/ladybug.rom").resolve(),
         "receipt": (ROOT / "build/source-build-receipt.json").resolve(),
     }
-    if require_output:
-        expected["output"] = (ROOT / "repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json").resolve()
     for name, target in expected.items():
         if repo_path(getattr(args, name)).resolve() != target:
             raise ObserverError(f"--{name} must name the approved {target.relative_to(ROOT.resolve()).as_posix()} path")
+    return validate_capture_output_path(args.output) if require_output else None
 
 
 def run_natural(args: argparse.Namespace) -> dict[str, Any]:
     # Fail closed before importing any launcher or opening any endpoint.
-    validate_requested_paths(args, require_output=True)
-    if repo_path(args.output).exists():
-        raise ObserverError(f"natural-capture output already exists and will not be overwritten: {args.output}")
+    output = validate_requested_paths(args, require_output=True)
+    assert output is not None
     artifacts = validate_artifact_layout()
+    output_identity = reserve_capture_output(output)
     binary = repo_path(args.xroar)
-    xroar_info = xroar_fingerprint(binary)
-    monitor_module, launcher_module = _runtime_imports()
     process = None
     client = None
-    output = repo_path(args.output)
+    monitor_module = None
     capture: NaturalCapture | None = None
     try:
+        xroar_info = xroar_fingerprint(binary)
+        monitor_module, launcher_module = _runtime_imports()
         process, raw_client = launcher_module.launch_fast(
             monitor_module, binary, repo_path(args.rom)
         )
@@ -2306,7 +2489,7 @@ def run_natural(args: argparse.Namespace) -> dict[str, Any]:
         guarded = GuardedMonitor(client)
         capture = NaturalCapture(
             guarded, artifacts, output, args.phase_deadline_seconds,
-            args.stop_timeout_seconds, xroar_info,
+            args.stop_timeout_seconds, xroar_info, output_identity,
         )
         capture.run()
     except Exception as exc:
@@ -2316,6 +2499,14 @@ def run_natural(args: argparse.Namespace) -> dict[str, Any]:
                 capture.save_partial(str(exc))
             except Exception:
                 pass
+        else:
+            try:
+                write_reserved_capture(output, output_identity, json.dumps({
+                    "ticket": "BUG-058", "status": "incomplete",
+                    "failure": str(exc), "source_revision": "3cba1bfd",
+                }, indent=2) + "\n")
+            except Exception:
+                pass
         raise
     finally:
         if client is not None:
@@ -2323,7 +2514,7 @@ def run_natural(args: argparse.Namespace) -> dict[str, Any]:
                 client.close()
             except Exception:
                 pass
-        if process is not None:
+        if process is not None and monitor_module is not None:
             try:
                 monitor_module.stop(process)
             except Exception:
@@ -2369,6 +2560,52 @@ def self_test() -> None:
                            0x31, 0x57, 0xEC, 0, 14, 12, 0, 0,
                            0, 0, 0, 0, 0, 0, 0, 0])
     assert len(validate_enemy_records(3, valid_records)) == 3
+
+    class FakeEnemyState:
+        def __init__(self, active: int, released: int, records: bytes):
+            self.active = active
+            self.released = released
+            self.records = records
+
+        def byte(self, address: int) -> int:
+            if address == ENEMY_ACTIVE:
+                return self.active
+            if address == ENEMY_RELEASED:
+                return self.released
+            raise AssertionError(f"unexpected enemy-state byte read ${address:04X}")
+
+        def read(self, address: int, length: int, space: str = "cpu") -> bytes:
+            if (address != physical_address(PAGE_GAME, ENEMY_TABLE)
+                    or length != 32 or space != "physical"):
+                raise AssertionError("enemy table must be read from physical page $34")
+            return self.records
+
+    startup_records = bytes([0xFF]) + bytes(31)
+    startup_reason = enemy_state_unavailable_reason(
+        False, 0xFF, 2, 1, 0, 0, 0,
+    )
+    assert startup_reason == "presentation_or_non_gameplay_phase"
+    startup_state = read_enemy_state(
+        FakeEnemyState(0xFF, 0xFF, startup_records), False, startup_reason,
+    )
+    assert startup_state["enemy_active"] is None
+    assert startup_state["enemy_released"] is None
+    assert startup_state["enemy_records"] is None
+    assert startup_state["enemy_state_raw"]["active_hex"] == "FF"
+    assert startup_state["enemy_state_raw"]["records_hex"].startswith("ff")
+    assert enemy_state_unavailable_reason(True, 0, 0, 2, 1, 1, 0) == "entry_transition"
+    assert enemy_state_unavailable_reason(True, 0, 0, 2, 1, 0, 1) == "death_transition"
+    assert enemy_state_unavailable_reason(True, 0, 0, 2, 1, 0, 0) is None
+    live_state = read_enemy_state(FakeEnemyState(3, 2, valid_records), True, None)
+    assert live_state["enemy_state_available"] and live_state["enemy_active"] == 3
+    try:
+        read_enemy_state(
+            FakeEnemyState(3, 2, bytes([0xFF]) + valid_records[1:]), True, None,
+        )
+    except ObserverError:
+        pass
+    else:
+        raise AssertionError("live gameplay accepted an invalid enemy source tag")
     assert validate_reconciliation(100, [(10, 25), (40, 65)]) == 60
     assert decode_call_target(bytes.fromhex("8d5e00"), 0x0440) == (0x049E, 2)
     assert writer_category(0xA46D, 0x9F) == "tone_attenuation"
@@ -2545,6 +2782,24 @@ def self_test() -> None:
         else:
             raise AssertionError(f"negative self-test unexpectedly passed: {function.__name__}")
 
+    from tempfile import TemporaryDirectory
+    with TemporaryDirectory(prefix="bug058-observer-offline-") as temporary:
+        reserved_path = Path(temporary) / "natural-three-enemy-summary-test.json"
+        output_identity = reserve_capture_output(reserved_path)
+        write_reserved_capture(reserved_path, output_identity, "{\"status\":\"test\"}\n")
+        assert json.loads(reserved_path.read_text(encoding="utf-8"))["status"] == "test"
+        rejects(reserve_capture_output, reserved_path)
+        reserved_before_alias = reserved_path.read_text(encoding="utf-8")
+        alias_path = Path(temporary) / "natural-three-enemy-summary-alias.json"
+        os.symlink(reserved_path, alias_path)
+        try:
+            write_reserved_capture(alias_path, output_identity, "{\"status\":\"bad\"}\n")
+        except (ObserverError, OSError):
+            pass
+        else:
+            raise AssertionError("reserved-output writer followed a symlink alias")
+        assert reserved_path.read_text(encoding="utf-8") == reserved_before_alias
+
     rejects(matrix_to_dscan, 7)
     rejects(matrix_to_dscan, 64)
     rejects(event_cycles, 0, 3)
@@ -2566,6 +2821,15 @@ def self_test() -> None:
     rejects(validate_enemy_records, 3, valid_records[:4] + bytes([24]) + valid_records[5:])
     rejects(validate_reconciliation, 10, [(0, 7), (6, 12)])
     rejects(validate_reconciliation, 5, [(0, 7)])
+    unique_output = (ROOT / CAPTURE_OUTPUT_DIR /
+                     f"natural-three-enemy-summary-self-test-{time.time_ns()}.json")
+    assert validate_capture_output_path(unique_output) == unique_output
+    rejects(validate_capture_output_path,
+            ROOT / CAPTURE_OUTPUT_DIR / "natural-three-enemy-summary.json")
+    rejects(validate_capture_output_path,
+            ROOT / CAPTURE_OUTPUT_DIR / ".." / "natural-three-enemy-summary-escape.json")
+    rejects(validate_capture_output_path,
+            ROOT / "repro/other" / "natural-three-enemy-summary-other.json")
     rejects(writer_category, 0xA46D, 0x87)
     rejects(writer_category, 0xA400, 0x9F)
     rejects(_assert_stop, {"pc": PRESENTATION_FLOW_TICK, "bp_id": 8}, PRESENTATION_FLOW_TICK, 9)
@@ -2796,7 +3060,10 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--xroar", default="docs/reference/xroar/src/xroar")
     parser.add_argument("--rom", default="build/ladybug.rom")
     parser.add_argument("--receipt", default="build/source-build-receipt.json")
-    parser.add_argument("--output", default="repro/bug058-diagnosis-assignment-20261013/natural-three-enemy-summary.json")
+    parser.add_argument("--output", default=(
+        "repro/bug058-diagnosis-assignment-20261013/"
+        "natural-three-enemy-summary-rerun-20261014.json"
+    ))
     parser.add_argument("--phase-deadline-seconds", type=float, default=45.0)
     parser.add_argument("--stop-timeout-seconds", type=float, default=10.0)
     return parser
