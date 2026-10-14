@@ -1,0 +1,276 @@
+BUG-120 shared-turn join budget
+2026-10-14
+
+Disposition
+
+This source-only join audit finds a complete instruction-accounted resident design projection at 244 bytes for the affected combined spans, below the 246-byte ceiling by two bytes. This is not assembly or fit evidence and does not make implementation or production Ready. Only this report was written. No source, build, runtime, Git, canonical wiki, or cleanup operation was performed.
+
+Measured starting spans
+
+The retained failed listing measures name_late_turn through its eight-byte nlt_deltas table at 217 bytes. The measured gameplay spans are pt_try_late_turn through pt_begin_late_turn at 56 bytes, pt_begin_late_turn through pt_at_center at 19 bytes, and pt_snap_advance through pt_advance at 70 bytes. The combined affected candidate is 217 + 56 + 19 + 70 = 362 bytes. The matched baseline is 91 + 56 + 19 + 70 = 236 bytes. With the nonadaptive profile's 42 baseline resident bytes free and a required 32-byte minimum, this combined span may grow by at most 10 bytes, to 246.
+
+The prior exact fragments gave a 291-byte projected join starting point: name 185 and gameplay 106. That accounting includes the 18-byte old-edge loop, the 34-byte direct-corner selector, and the 31-byte standalone gameplay snap replacement. It remains a projection. This report joins the snap calculation and adapters, shares state writes, tightens result routing, and prices a common projected-step helper.
+
+Joined name and gameplay code
+
+Place the following private helpers inside the existing complete-profile name routine region before nlt_delta and nlt_deltas. No module, allocation, state byte, map, or owner is added. The shared direction-state helper stores PLAYER_FACE and leaves A equal to PLAYER_WANT. The name caller is within short-BSR range; gameplay uses LBSR because its caller is in the earlier player_tick region.
+
+```asm
+nlt_common_state
+        lda     PLAYER_DIR      ; 2
+        sta     TURN_OLD        ; 2
+        lda     PLAYER_WANT     ; 2
+        sta     PLAYER_DIR      ; 2
+        sta     PLAYER_FACE     ; 2
+        rts                     ; 1
+```
+
+This is eleven bytes. It replaces the repeated eight-byte `LDA PLAYER_DIR / STA TURN_OLD / LDA PLAYER_WANT / STA PLAYER_DIR` sequence at each direct-turn path. The name and gameplay callers use BSR (2 bytes) and LBSR (3 bytes), respectively. The helper also writes `PLAYER_FACE` and leaves A equal to `PLAYER_WANT`; this restores the name path's prior face update and removes the gameplay adapter's duplicate face store. The measured direct paths total 41 bytes (name 22, gameplay 19); their new adapters plus the single helper total 39 (name 16, gameplay 12, helper 11), saving two bytes. The name-specific snap calculation and X restoration remain in its adapter. The gameplay step capture/reset and draw transfer remain in its adapter.
+
+```asm
+nlt_vector
+        ldb     TURN_OLD        ; 2
+        eorb    #2              ; 2, reverse the old direction
+        bsr     nlt_delta       ; 2
+        addd    PLAYER_FB       ; 2
+        std     PLAYER_FB       ; 2
+        ldb     PLAYER_DIR      ; 2
+        bsr     nlt_delta       ; 2
+        addd    PLAYER_FB       ; 2
+        std     PLAYER_FB       ; 2
+        rts                     ; 1
+```
+
+The shared vector calculation is 19 bytes. The existing seven-byte nlt_delta helper and eight-byte table remain counted once in the name span. Both BSR-to-delta displacements remain short with the helper ordering below; the first is +21 and the second +13. The lookup reverses TURN_OLD with XOR 2, applies that old-axis delta, then applies the new PLAYER_DIR delta. This matches the present name calculation and the four gameplay direction cases.
+
+```asm
+nlt_project_old_axis
+        lda     PLAYER_DIR      ; 2
+        sta     TEST_DIR        ; 2
+        lbsr    cm_step_test    ; 3
+        rts                     ; 1
+```
+
+This helper is eight bytes. The name path replaces its seven-byte old-direction TEST_DIR seed and cm_step_test sequence with BSR (2 bytes), a local saving of five. Gameplay replaces the same seven-byte subsequence with LBSR (3 bytes), saving four. The helper adds eight bytes once, so the combined net saving is one byte. Name TEST_X/Y are still seeded by its existing caller. Gameplay retains its four coordinate-seed instructions before the helper. cm_step_test remains the same pure coordinate step.
+
+The name active-snap adapter is six bytes before the existing shared nlt_yes return: BSR nlt_vector (2), DEC $DE (2), DEC TURN_SNAP (2). Gameplay's snap adapter is nine bytes: LBSR nlt_vector (3), INC PLAYER_STEP (2), DEC TURN_SNAP (2), BRA pt_draw (2). PLAYER_TICK already declares A/B/D/X/Y/U/CC undefined on return, so the gameplay adapter does not add register save/restore instructions. The name snap path already clobbers B/U through nlt_delta; neither adapter touches its callback X or PAR5. The existing short gameplay BRA to pt_draw remains valid: the unchanged pt_advance-to-pt_draw distance is the listing's +$50.
+
+The name direct-turn adapter is 16 bytes: BSR nlt_common_state (2); LDA #4, SUBA $DE, STA TURN_SNAP (6); LDA #4, STA $DE (4); PULS X (2); BRA nlt_yes (2). The name callback target remains saved on the existing stack until PULS X.
+
+The gameplay direct-turn adapter is 12 bytes: LDA PLAYER_STEP, STA TURN_SNAP, CLR PLAYER_STEP (6); LBSR nlt_common_state (3); LBRA pt_draw (3). The common helper updates PLAYER_DIR and PLAYER_FACE. This preserves direct can_move admission and its current gate side effect.
+
+Eligibility and return joins
+
+The game caller's existing same/opposite prefilter is outside the three measured gameplay spans and remains unchanged. It is 14 bytes in the listing: LDA PLAYER_WANT (2), CMPA PLAYER_DIR (2), LBEQ pt_advance (4), EORA #2 (2), CMPA PLAYER_DIR (2), BNE pt_try_late_turn (2). The name routine only needs to admit a perpendicular request, so replace its same/opposite pair with the low-bit XOR predicate: `LDA PLAYER_WANT` (2), `EORA PLAYER_DIR` (2), `BITA #1` (2), `BEQ nlt_no` (2). For cardinal values 0..3, same and opposite have an even XOR; perpendicular directions have an odd XOR. This predicate is part of the counted name path.
+
+Move the existing two-byte `nlt_no` body immediately after `TST $DE`. The local entry becomes `TST $DE` (2), `BNE nlt_have_steps` (2), `nlt_no: CLRA; RTS` (2), then the eight-byte perpendicular predicate above. The BNE displacement is +2 and the predicate's BEQ back to nlt_no is -10. Together this replaces the measured 24-byte `$DE` plus same/opposite checks and trailing nlt_no return with 14 bytes, saving ten. Replace the opening `LBNE nlt_snap` with BNE (2 bytes). In the final layout nlt_snap is at offset +113 from name_late_turn; the BNE at offset +2 has displacement +109. This is an explicit short branch, not a hoped-for assembler relaxation.
+
+Share the name assisted-turn result tail. Keep the 15-byte sequence that seeds/calls the projected callback before its result. Replace its separate pass, no-future-exit, and old-edge-hold returns (17 bytes after the shared prefix) with this eight-byte tail:
+
+```asm
+nlt_assist_result                 ; old-edge hold and callback result enter here
+        puls    x               ; 2, restore saved callback target
+        tsta                    ; 1
+        bne     nlt_no          ; 2, backward displacement -102
+        lda     #1              ; 2
+        rts                     ; 1
+```
+
+The old-edge mask block branches to nlt_assist_result only when its computed mask is zero; A is still zero after PULS B. A nonzero projected callback result branches to nlt_no and returns zero, allowing old-axis continuation. A zero projected callback result falls through and returns one, holding. Both paths pop the single saved callback X exactly once. The branch is short in the final layout. This merges the duplicate hold returns without changing B, X, stack depth, PAR5, TEST_X/Y, or lookahead state.
+
+The gameplay projected-admission tail still calls pure cm_admit_from_test and preserves cm_commit's step-3/action conditions. Replace its long conditional branches to pt_advance with local branches to a shared long-branch tail:
+
+```asm
+        pshs    b               ; 2
+        ldb     PLAYER_STEP     ; 2
+        cmpb    #3              ; 2
+        puls    b               ; 2
+        bne     pt_late_advance ; 2, +6
+        tsta                    ; 1
+        beq     pt_late_advance ; 2, +3
+        lbsr    cm_commit       ; 3
+pt_late_advance
+        lbra    pt_advance      ; 3
+```
+
+This is 19 bytes versus the listing's 23-byte step/action/commit routing, saving four. Both local branches land immediately after cm_commit; rejected admission still goes to pt_draw via the preceding unchanged LBCC, non-step-3 and zero-action results advance without commit, and a nonzero gate action commits only at step 3.
+
+The following is the complete changed name control sequence in final order. The helper bodies shown earlier are inserted after nlt_yes and nlt_no, before the existing nlt_delta/table. Instruction comments show 6809 encoded lengths; labels and comments add no bytes.
+
+```asm
+name_late_turn
+        tst     TURN_SNAP      ; 2
+        bne     nlt_snap       ; 2, +109
+        tst     $DE            ; 2
+        bne     nlt_have_steps ; 2, +2
+nlt_no
+        clra                   ; 1
+        rts                    ; 1
+nlt_have_steps
+        lda     PLAYER_WANT    ; 2
+        eora    PLAYER_DIR     ; 2
+        bita    #1             ; 2
+        beq     nlt_no         ; 2, -10
+        pshs    x              ; 2
+        lda     PLAYER_WANT    ; 2
+        jsr     ,x             ; 2
+        tsta                   ; 1
+        beq     nlt_assist     ; 2, +50
+        pshs    b              ; 2
+        lda     PLAYER_DIR     ; 2
+        suba    PLAYER_WANT    ; 2
+        anda    #3             ; 2
+        cmpa    #1             ; 2
+        bne     pair_old_dir   ; 2, +4
+        lda     PLAYER_WANT    ; 2
+        bra     pair_index     ; 2, +2
+pair_old_dir
+        lda     PLAYER_DIR     ; 2
+pair_index
+        tfr     a,b            ; 1
+        lda     #$10           ; 2
+        tstb                   ; 1
+        beq     pair_mask_ready; 2, +4
+pair_mask_loop
+        lsla                   ; 1
+        decb                   ; 1
+        bne     pair_mask_loop ; 2, -4
+pair_mask_ready
+        anda    ,s             ; 2
+        puls    b              ; 2
+        bne     nlt_assist     ; 2, +16
+nlt_direct
+        bsr     nlt_common_state ; 2, +59
+        lda     #4             ; 2
+        suba    $DE            ; 2
+        sta     TURN_SNAP      ; 2
+        lda     #4             ; 2
+        sta     $DE            ; 2
+        puls    x              ; 2
+        bra     nlt_yes        ; 2, +42
+nlt_assist
+        pshs    b              ; 2
+        lda     #1             ; 2
+        ldb     PLAYER_DIR     ; 2
+        beq     mask_ready     ; 2, +4
+mask_loop
+        lsla                   ; 1
+        decb                   ; 1
+        bne     mask_loop      ; 2, -4
+mask_ready
+        anda    ,s             ; 2
+        puls    b              ; 2
+        beq     nlt_assist_result ; 2, +10
+        bsr     nlt_project_old_axis ; 2, +55
+        lda     PLAYER_WANT    ; 2
+        sta     TEST_DIR       ; 2
+        ldx     ,s             ; 2
+        jsr     ,x             ; 2
+nlt_assist_result
+        puls    x              ; 2
+        tsta                   ; 1
+        bne     nlt_no         ; 2, -102
+        lda     #1             ; 2
+        rts                    ; 1
+nlt_snap
+        bsr     nlt_vector     ; 2, +18
+        dec     $DE            ; 2
+        dec     TURN_SNAP      ; 2
+nlt_yes
+        lda     #1             ; 2
+        rts                    ; 1
+
+nlt_common_state
+        lda     PLAYER_DIR     ; 2
+        sta     TURN_OLD       ; 2
+        lda     PLAYER_WANT    ; 2
+        sta     PLAYER_DIR     ; 2
+        sta     PLAYER_FACE    ; 2
+        rts                    ; 1
+nlt_vector
+        ldb     TURN_OLD       ; 2
+        eorb    #2             ; 2
+        bsr     nlt_delta      ; 2, +21
+        addd    PLAYER_FB      ; 2
+        std     PLAYER_FB      ; 2
+        ldb     PLAYER_DIR     ; 2
+        bsr     nlt_delta      ; 2, +13
+        addd    PLAYER_FB      ; 2
+        std     PLAYER_FB      ; 2
+        rts                    ; 1
+nlt_project_old_axis
+        lda     PLAYER_DIR     ; 2
+        sta     TEST_DIR       ; 2
+        lbsr    cm_step_test   ; 3
+        rts                    ; 1
+nlt_delta
+        lslb                   ; 1
+        ldu     #nlt_deltas    ; 3
+        ldd     b,u            ; 2
+        rts                    ; 1
+nlt_deltas
+        fdb     -320,1,320,-1 ; 8
+```
+
+The gameplay changed spans have this exact instruction order. The 14-byte same/opposite prefilter immediately before pt_try_late_turn stays outside these measured ranges and is described separately above.
+
+```asm
+pt_try_late_turn
+        lda     PLAYER_WANT    ; 2
+        lbsr    can_move       ; 3
+        bcs     pt_begin_late_turn ; 2
+        lda     PLAYER_CELL_X  ; 2
+        sta     TEST_X         ; 2
+        lda     PLAYER_CELL_Y  ; 2
+        sta     TEST_Y         ; 2
+        lbsr    nlt_project_old_axis ; 3
+        lda     PLAYER_WANT    ; 2
+        sta     TEST_DIR       ; 2
+        lbsr    cm_admit_from_test ; 3
+        lbcc    pt_draw        ; 4
+        pshs    b              ; 2
+        ldb     PLAYER_STEP    ; 2
+        cmpb    #3             ; 2
+        puls    b              ; 2
+        bne     pt_late_advance ; 2, +6
+        tsta                   ; 1
+        beq     pt_late_advance ; 2, +3
+        lbsr    cm_commit      ; 3
+pt_late_advance
+        lbra    pt_advance     ; 3
+pt_begin_late_turn
+        lda     PLAYER_STEP    ; 2
+        sta     TURN_SNAP      ; 2
+        clr     PLAYER_STEP    ; 2
+        lbsr    nlt_common_state ; 3
+        lbra    pt_draw        ; 3
+pt_snap_advance
+        lbsr    nlt_vector     ; 3
+        inc     PLAYER_STEP    ; 2
+        dec     TURN_SNAP      ; 2
+        bra     pt_draw        ; 2, current relative distance +$50
+```
+
+Full combined before/after spans
+
+The after counts include each helper and every call, return, counter adapter, and local result shim. They are source-encoded counts, not assembled measurements.
+
+The name span is 175 bytes. Its exact composition is: entry and local no/eligibility checks 18; initial callback setup 9; computed pair hazard selector 34; direct-turn adapter 16; old-axis loop 18; projected callback setup and shared result tail 18; snap adapter and nlt_yes 9; common direction-state helper 11; shared vector helper 19; projected old-axis helper 8; existing nlt_delta 7; existing nlt_deltas data 8. Sum: 18 + 9 + 34 + 16 + 18 + 18 + 9 + 11 + 19 + 8 + 7 + 8 = 175.
+
+The gameplay spans total 69 bytes. pt_try_late_turn through pt_begin_late_turn is 48: direct current-cell can_move check 7; four TEST_X/Y seeds 8; LBSR nlt_project_old_axis 3; requested TEST_DIR setup 4; LBSR cm_admit_from_test 3; unchanged LBCC pt_draw 4; step/action/commit tail 19. Sum 7 + 8 + 3 + 4 + 3 + 4 + 19 = 48. pt_begin_late_turn through pt_at_center is 12 as accounted above. pt_snap_advance through pt_advance is 9 as accounted above. Gameplay sum: 48 + 12 + 9 = 69.
+
+The complete joined affected area is 175 + 69 = 244 bytes, versus the measured failed candidate's 362 and matched baseline's 236. Projected recovery is 118 bytes, or 47 bytes below the prior 291-byte projection; projected growth over baseline is eight bytes. Applying the same resident delta to matched profile baselines gives adaptive keyboard 8090 used/102 free, adaptive joystick 8126/66, and nonadaptive keyboard 8158/34. These are projections; the tightest projected margin is two bytes above the required minimum. No build, profile capacity, copied-name size, or helper-end result is claimed.
+
+Branch and ABI checks
+
+Within the proposed name layout, the short displacements are: entry BNE nlt_snap +109; BNE nlt_have_steps +2; BEQ nlt_no -10; first-callback BEQ nlt_assist +50; computed-pair BNE nlt_assist +16; mask-loop BEQ/BNE +4/-4; old-edge BEQ nlt_assist_result +10; shared-result BNE nlt_no -102; direct-return BRA nlt_yes +42; direct BSR nlt_common_state +59; snap BSR nlt_vector +18; vector BSR nlt_delta +21/+13; and name BSR nlt_project_old_axis +55. These offsets follow the 175-byte layout above, with the eleven-byte common-state helper before nlt_vector. Each stays within signed 8-bit range. Gameplay LBSR calls are 16-bit relative; the pt_try local BNE/BEQ displacements are +6/+3, and the snap BRA retains the existing +$50 destination distance. The normal exact-flag lwasm build must still confirm all encodings.
+
+Name direct safe turns still require the current requested edge and clear matching upper hazard bit. The 34-byte selector's clockwise index matches generator/verifier pair order NE=$10, ES=$20, SW=$40, WN=$80: `(PLAYER_DIR - PLAYER_WANT) & 3` is 3 clockwise and 1 counter-clockwise; select WANT for 1, otherwise PLAYER_DIR. The 18-byte old-edge loop maps N/E/S/W values 0/1/2/3 to low mask bits 1/2/4/8. The computed mask is ANDed with the saved graph B, then B is restored before either hold or projected lookup. No future-center snap hazard is tested.
+
+A shared same/opposite/perpendicular classifier does not fit this budget. Its exact 20-byte body is: `LDA PLAYER_WANT` (2), `CMPA PLAYER_DIR` (2), `BEQ same` (2), `EORA #2` (2), `CMPA PLAYER_DIR` (2), `BEQ opposite` (2), `CLRA` (1), `RTS` (1), `same: LDA #1` (2), `RTS` (1), `opposite: LDA #2` (2), `RTS` (1). The name shim is 5 bytes (`BSR` 2, `TSTA` 1, `BNE nlt_no` 2); the game shim is 12 (`LBSR` 3, `TSTA` 1, `BEQ pt_try` 2, `DECA` 1, `BNE pt_reverse` 2, `LBRA pt_advance` 3). Together they replace the 8-byte name parity predicate and 14-byte game prefilter with 37 bytes, a net increase of 15; the joined area would be 259 bytes, 13 over its 246-byte ceiling. Even a smaller shared XOR-return helper is not profitable: a 5-byte `LDA WANT / EORA DIR / RTS` body plus a 6-byte name shim and 15-byte game shim totals 26, versus the existing 22, producing 248 bytes, two over ceiling. Keep the local name parity predicate and game triage because their outcome routing differs; consolidate their common no/return outcomes within the name routine instead. The shared direct-state helper is profitable in the combined measured area: its 11-byte body and 2-/3-byte calls plus the 16-/12-byte adapters total 39 versus the measured 41-byte direct paths, saving two. This is the lowest-cost encoded join found without changing gate ownership or callback ABI.
+
+Copied-name/runtime gates remain separate. The stage callback selector has a source-level 35-to-17-byte replacement with complete B restored and zero/nonzero A passability, but the selected copied image and final 920-byte result are unknown. The helper's candidate end is also unmeasured; its historical end is $B880. The resident 244-byte sketch does not establish either gate. It is a source-encoded projection with two bytes of arithmetic resident headroom; any extra encoding or a required shared classifier would fail the ceiling. Geometry remains 576 bytes and 45 actions under the approved unchanged data contract; no FEAT-010 savings are included.
+
+Disposition
+
+The joined resident source sketch accounts for the previously missing recovery and fits the unchanged arithmetic ceiling by two bytes. Relative to the 291-byte fragment projection it saves 47 bytes, exceeding the 45-byte join requirement. This closes the source-design feasibility step only. Before candidate implementation, parent review should decide whether the two-byte projected resident margin is sufficient to proceed to the already-required normal three-profile builds and geometry oracle. Any branch expansion, copied-name cap miss, helper-end miss, or profile free-space result below 32 remains a failure. No recovery beyond the approved files, source regions, or mapping is proposed.

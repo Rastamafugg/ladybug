@@ -1,0 +1,101 @@
+{
+  "ticket": "BUG-058",
+  "result_class": "observer_failure",
+  "runtime_receipt": "repro\\bug058-diagnosis-assignment-20261013\\natural-three-enemy-summary-audio-qualified-20261014.json",
+  "runtime_sha256": "1f719b0911d875edd0b25bac05556abee9b72c8b33eea67a94dc803bacecad23",
+  "failure": "physical page-$3D audio image differs from pinned artifact outside typed mutable state at $A4A6 (phase=cold boot and first control, boundary=PFT $1900)",
+  "failure_context": {
+    "failure": "physical page-$3D audio image differs from pinned artifact outside typed mutable state at $A4A6 (phase=cold boot and first control, boundary=PFT $1900)",
+    "phase": "cold boot and first control",
+    "stop": {
+      "n": 1013,
+      "pc": 6400,
+      "bp_id": 373,
+      "event_ticks": 153485104,
+      "registers": {
+        "a": 1,
+        "b": 228,
+        "d": 484,
+        "cc": 200,
+        "dp": 0,
+        "x": 42128,
+        "y": 0,
+        "u": 43304,
+        "s": 8188,
+        "pc": 6400
+      },
+      "dp": 0,
+      "s": 8188,
+      "stack_word": 49452,
+      "par0": 56,
+      "par5": 52,
+      "pres_magic": 165,
+      "pres_mode": 0,
+      "pres_screen": 2,
+      "pres_context": 1,
+      "entry": 1,
+      "death": 0
+    },
+    "driver_owned_before_stop": true,
+    "driver_owner_tuple": [
+      0,
+      2,
+      1,
+      1,
+      0
+    ],
+    "pending_expected_038f": false,
+    "lifecycle_tuple": [
+      0,
+      2,
+      1,
+      1,
+      0
+    ],
+    "source_revision": "3cba1bfd",
+    "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+    "audio_module_identity": {
+      "phase": "cold boot and first control",
+      "boundary": "PFT $1900",
+      "module_offset": 1190,
+      "cpu_address": 42150,
+      "physical_page": 61,
+      "physical_page_offset": 1190,
+      "physical_address": 500902,
+      "expected_byte": 0,
+      "actual_byte": 109,
+      "source_sha256": "1bc5d94712684ebc3b57b8135265bc933006c5b430e44c8b59f8d5d3097ca9ca",
+      "expected_sha256": "a6640975943399f1e128b5e7f2507eb962528f83fb109f1de0fb78f0082ba035",
+      "actual_sha256": "cdf1db7542d9d6ec9982bb636d90c453bced0a14da632d752ab2baec3a4e5a29",
+      "expected_immutable_sha256": "1a754c8d7171be3b12b381ac769e97ecd6d8dad75308352d7d9a386a895feafd",
+      "actual_immutable_sha256": "a01c37d03a2098913008fc2801228157dad228cacda60860fee0c9d22dc4db10",
+      "immutable_comparison_index": 1190,
+      "mutable_regions": [
+        {
+          "offset": 1927,
+          "width": 17
+        },
+        {
+          "offset": 2073,
+          "width": 4
+        },
+        {
+          "offset": 5563,
+          "width": 125
+        }
+      ],
+      "par5": 52
+    },
+    "active_bytes": {
+      "source_sha256": "a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a",
+      "staged_sha256": "a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a",
+      "physical_sha256": "a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a",
+      "live_sha256": "a938542f728044875ecb413725f11aa73e4b53fd7a9cc71f334a89915dde220a",
+      "source_stage_first_difference": null,
+      "stage_physical_first_difference": null,
+      "physical_live_first_difference": null
+    }
+  },
+  "completed_regular_worklists": 0,
+  "source_observation": "Frozen audio source and map declare audio_poll_dots at A4A6, through audio_poll_valid at A4B0, each writable fcb0; next audio_mix instruction starts A4B1. Typed observer excludes none of this11-byte span. No production corruption or timing conclusion established. Exhaustive mutable inventory required before another probe."
+}
