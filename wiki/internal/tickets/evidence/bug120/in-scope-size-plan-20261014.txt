@@ -1,0 +1,70 @@
+BUG-120 in-scope size plan
+2026-10-14
+
+Disposition
+
+Ready, read-only source-sizing step. This report is the only writable artifact. No source edit, assembly, build, runtime, Git, cleanup, or canonical-ticket write was performed. BUG-120 remains Approved/High-risk, and the isolated fit remains nonpassing.
+
+Scope classification
+
+Objective: determine whether the measured 217-byte same-ABI name_late_turn body can be reduced enough inside the approved files to leave the required 32 resident bytes free in all three complete profiles. The owned path is repro/bug120-fit-20261013/in-scope-size-plan-20261014.txt. The next role is coding-architect because the target is a hard resident-memory boundary and a possible change to the shared gameplay/name-entry call boundary; QA review closes this read-only audit. Smallest verification for this step is source/listing/map accounting only. No experiment is authorized.
+
+Budget to beat
+
+The matched baseline has 91 bytes from name_late_turn at $DF37 through resident_end at $DF92. The failed candidate has 217 bytes from $DF37 through $E010, exactly +126. Its post-snap continuation is 42 bytes and its nlt_deltas table is 8 bytes. The nonadaptive keyboard baseline has 42 free resident bytes; preserving the required 32 leaves a maximum net BUG-120 resident growth of 10 bytes. Therefore the equivalent body may be at most 101 bytes and, if the 42-byte continuation and 8-byte table stay, pre-snap code may be at most 59 bytes. The current pre-snap code occupies 175 bytes. Required recovery is at least 116 bytes from that region. Adaptive keyboard and joystick could tolerate +78 and +42 bytes, respectively; the nonadaptive profile is controlling.
+
+Measured current block spans
+
+The capsule listing addresses below are inclusive-start/exclusive-end 6809 code spans. Their byte lengths are exact listing/map measurements, not source-character counts:
+
+- $DF37-$DF5C: 37 bytes for snap/step gates, same/opposite request rejection, callback-X save, current-cell callback and passability dispatch.
+- $DF5C-$DF8C: 48 bytes for adjacent-pair hazard classification and four non-destructive graph-bit checks.
+- $DF8C-$DFA2: 22 bytes for accepted-turn state changes and routing.
+- $DFA2-$DFC6: 36 bytes for old-axis edge selection.
+- $DFC6-$DFE6: 32 bytes for projected-center setup, cm_step_test, second callback, X restore and result paths.
+
+These five spans total 175 bytes before the unchanged 42-byte continuation/table tail. The first-fit binary comparison measured four short-to-long branch expansions (+8 bytes) within the first two spans; those 8 are already included in +126. Any proposal that saves 8 bytes by shortening branches still leaves at least 108 bytes to recover.
+
+Optimistic same-ABI instruction floor
+
+The accounting below uses 6809 machine-code bytes, not source bytes. It is a source-only lower-bound screen for a caller-only rewrite that leaves the callback ABI and placement unchanged: name_late_turn receives the callback target in X, the callback returns passability in A and the full graph byte in B, and name_late_turn must preserve X for its caller. It grants zero bytes for pair classification, selecting which hazard applies, all branch routing to shared return labels, and several register reloads. A positive gap means the floor already exceeds the 59-byte pre-snap allowance.
+
+| Required block | Minimum bytes | Required operations included |
+|---|---:|---|
+| Continue partial snap or skip decision | 4 | TST TURN_SNAP; short BNE to the fixed continuation |
+| Skip when no movement step is pending | 4 | TST $DE; short BEQ to the unchanged no-turn return |
+| Preserve X and test the requested current-cell exit | 9 | PSHS X; LDA PLAYER_WANT; JSR ,X; TSTA; BEQ fallback |
+| Commit an admitted direct turn | 16 | Store old direction; compute/store remaining snap; set step to 4; store requested direction |
+| Test the old-axis edge | 7 | With old direction already in A for free: INCA; LSRB/DECA/BNE loop; BCC hold |
+| Probe the projected center and its requested exit | 18 | Seed TEST_DIR with old direction; LBSR cm_step_test; seed requested TEST_DIR/A; LDX ,S; JSR ,X; TSTA; BEQ result |
+| Restore saved X on return | 2 | At least one shared PULS X, even granting common return layout |
+| Test the selected unsafe-corner bit | 8 | Four possible immediate BITB masks, 2 bytes each; pair-to-mask dispatch is granted free |
+| **Optimistic floor before omitted routing** | **68** | **Sum of the required blocks above** |
+
+The 68-byte practical floor exceeds the 59-byte allowance by 9 bytes. It is deliberately favorable: it assumes direction registers are already available for the state commit and old-axis test, grants pair validity and hazard dispatch for free, and excludes branches to nlt_yes/nlt_no, label-distance expansion, extra reloads, and parity/edge-path routing. If the 8-byte hazard-test row is also granted for free, the remaining required-operation subtotal is still 60 bytes, one byte above target before result routing. The 68-byte figure therefore is not a formal proof of every possible 6809 encoding; it is a discriminating floor for a practical same-ABI caller-only rewrite. A destructive variable shift would have to preserve/restore B or fetch the current graph again before checking the old-axis edge, and the omitted dispatch/routing work has positive cost. No source-only implementation meeting 59 bytes is evidenced. Any callback offload is a separate copied-runtime size problem, not a solution to this caller-only bound.
+
+Same-scope offload check
+
+Speculation: The existing name callback could make A mean “requested edge is open and this adjacent turn is hazard-safe,” while still returning the full graph byte in B. That would move pair/hazard work out of resident code but into the copied-name runtime. The pinned assignment records a historical copied-name size of 917/920 bytes and projects the current approved callback/call-site changes at +7, or 924/920. That projection is four bytes over before any added hazard code. The failed build did not assemble ladybug-highscore-runtime.bin/.lst/.map, so there is no receipt-bound callback size or saved-byte evidence. This offload is not a source-only size plan: it has no demonstrated copied-runtime capacity and cannot be counted as a fit.
+
+The 576-byte geometry graph itself is unchanged in length. Cursor/node destinations move by +160 framebuffer bytes with the same record count and width. Neither generated-data change can supply the missing resident bytes. The helper remains at its historical $B880 end limit; the failed build did not reach a candidate helper map. Future FEAT-010 savings remain excluded.
+
+Conclusion and lowest-cost recommendation
+
+A body-only, same-ABI rewrite cannot meet the 59-byte pre-snap target under the optimistic operation floor. Moving the hazard computation into the copied callback has no proven 920-byte fit and worsens the existing +7 projection. Do not start another code rewrite or compile under this report. The lowest-cost same-scope action, if the parent wants to keep that scope open, is a source-only design that accounts for every operation and shows a complete pre-snap budget of at most 59 bytes while also showing a copied-name budget at or below 920. Current evidence does not supply such a design.
+
+Concrete wider-scope High-risk proposal if recovery proceeds
+
+Outcome and baseline: retain the approved BUG-121 selective-corner behavior; direct safe turns; old-axis continuation only when its edge and projected requested exit are both admitted; no future-center snap simulation; full B/X/PAR5/stack/lookahead-purity guarantees; 576 graph bytes; all 45 actions; all existing capacity limits. The measured body delta is +126 bytes. The tightest profile permits +10, so the shared resident implementation must recover at least 116 net bytes; all profiles must retain at least 32 resident bytes free. Copied-name candidate size and non-keyboard profile candidates remain unmeasured.
+
+Proposed scope change: authorize a design and implementation that factors late-turn admission between name entry and the existing player_tick path inside src/main.s, with explicit policy adapters for the name-entry graph and gameplay can_move/gate behavior. The shared boundary would be a new call contract and would change ordinary gameplay code paths, both excluded by the current assignment. Include only src/main.s, the existing name callback/call-site portions of src/shared_text_stage.inc and src/shared_text_ranking.inc, and the existing source_reference.json/routine-catalog entries needed to document the new contract. Keep the resident ceiling, minimum headroom, copied-name cap, helper end, and mappings unchanged. If a new module, runtime owner, mapping, or allocation is required, stop and seek a separate approval rather than infer it from this proposal.
+
+Reason and expected outcome: this is the lowest-cost wider boundary to evaluate. Speculation: code reuse may be possible because the ordinary gameplay path already owns selective turn/center-admission decisions. No byte savings are claimed. The design must show how its distinct gameplay gate-commit semantics remain unchanged and must reach a total resident delta no greater than +10 in the tightest profile before fit can pass.
+
+Material risks: regression in ordinary movement or gate commit timing; callback side effects during lookahead; losing the name graph’s upper-nibble unsafe-sweep check; breaking full-B/X/PAR5/stack/purity contracts; and failing to amortize at least 116 bytes. Exclusions: no cap increase, loader/MMU/PAR mapping change, user TMX/asset changes, FEAT-010 savings, unrelated gameplay movement changes, production integration, or Git operation.
+
+Minimum verification after renewed user approval: complete adaptive-keyboard build followed immediately by the existing geometry oracle; complete adaptive-joystick and nonadaptive-keyboard builds, each retaining at least 32 resident bytes free and all existing name/helper/enemy/audio/assets guards; then one focused runtime set covering ordinary gameplay turn/gate behavior and name-entry direct-safe, unsafe-corner, selective-assist, rejected no-exit, late/aligned callbacks, and B/X/PAR5/stack/lookahead purity. The geometry check must prove the unchanged 576-byte table, reciprocal edges, 45 reachable actions, and zero opaque overlap for the required poses. Natural score-to-ranking flow and sustained-control acceptance remain the separate parent-owned final BUG-120 gate.
+
+QA disposition
+
+The same-ABI caller-only size target has no viable source-only plan in the current evidence. The optimistic lower bound is 68 bytes before required routing, versus a 59-byte allowance. The callback-offload variant has no assembled copied-name evidence and already projects over its cap. The current approved scope should not be reported as fit-capable without new design evidence; if recovery requires sharing with player_tick, return the ticket to Proposed for explicit High-risk approval before implementation.

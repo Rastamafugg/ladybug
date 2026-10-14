@@ -1,0 +1,41 @@
+{
+  "ticket": "BUG-058",
+  "status": "incomplete",
+  "failure": "enemy slot 0 has invalid source tag $FF",
+  "capture_path": "repro\\bug058-diagnosis-assignment-20261013\\natural-three-enemy-summary.json",
+  "capture_sha256": "075e325f26d9144581ab21b143388336903b8d7cbf251676142e80c66e205d1f",
+  "rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "observer_commit": "3926a4a",
+  "phase_markers": [],
+  "worklists_collected": 0,
+  "monitor_observation": {
+    "total_stops": 2,
+    "stop_counts": {
+      "$C116:2": 1,
+      "$1900:1": 1
+    },
+    "event_ticks_before_after_each_stop": [
+      {
+        "n": 1,
+        "phase": "cold boot and first control",
+        "reason": "breakpoint",
+        "pc": 49430,
+        "bp_id": 2,
+        "event_ticks_before_resume": 0,
+        "event_ticks_after_stop": 37542632,
+        "event_ticks_halted_check": 37542632
+      },
+      {
+        "n": 2,
+        "phase": "cold boot and first control",
+        "reason": "breakpoint",
+        "pc": 6400,
+        "bp_id": 1,
+        "event_ticks_before_resume": 37542632,
+        "event_ticks_after_stop": 37634240,
+        "event_ticks_halted_check": 37634240
+      }
+    ]
+  },
+  "interpretation": "Startup observation mechanics rejected an uninitialized enemy tag; no gameplay performance evidence collected. Raw capture retained; no slowdown inference."
+}

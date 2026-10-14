@@ -1,0 +1,58 @@
+BUG-120 shared-turn recovery design
+2026-10-14
+
+Disposition
+
+Read-only design for the canonical Ready step #shared-turn-recovery-approved-20261014. This file is the only writable artifact. No source, build, runtime, Git, or canonical-ticket changes were made. The design stays inside the approved shared-turn boundary. Its resident byte plan is a falsifiable target, not an assembled fit result; parent review is required before any implementation.
+
+Measured baseline and required recovery
+
+The matched baseline has 91 bytes from name_late_turn ($DF37 through $DF92). In the failed candidate, the same routine span is 217 bytes ($DF37 through $E010), including the unchanged 42-byte snap/return/delta-table tail. The measured growth is 126 bytes.
+
+The current gameplay late-turn portions in the failed capsule listing occupy 145 bytes: 56 bytes from pt_try_late_turn to pt_begin_late_turn, 19 bytes from pt_begin_late_turn to pt_at_center, and 70 bytes from pt_snap_advance to pt_advance. Their baseline bytes are already present, so the combined affected baseline is 236 bytes and the failed candidate combined area is 362 bytes. Nonadaptive keyboard has 42 bytes free at baseline and must retain 32; the combined replacement must therefore be no larger than 246 bytes. It must recover at least 116 bytes from the failed candidate. Adaptive keyboard and joystick remain required complete profiles, not substitute evidence.
+
+Shared service and policy boundary
+
+Keep one resident late-turn kernel in src/main.s. Keep its public name_late_turn entry so the copied name-entry caller continues to pass its callback target in X. Add an internal gameplay entry used only from player_tick. Dispatch by entry, without a new resident mode variable or caller-owned memory. The kernel owns eligibility checks, common direction/state transitions, the common snap-vector calculation, and return routing.
+
+The name policy keeps the current graph callback contract. Input A is the requested cardinal direction; TEST_X/Y identify the current or projected cell. The callback returns passability in A and the complete 8-bit graph/hazard value in B, may clobber X during the cold lookup, and restores PAR5 to $34. The kernel saves and restores the callback target in X around each indirect call, keeps the stack balanced, and does not require a callback copy or new helper. It uses the lower nibble to require the old-axis edge before assistance, the requested-edge bit to test the projected center, and the upper nibble only for the actual direct snap hazard. It never tests a hypothetical snap at the future center.
+
+The gameplay policy retains the existing can_move and movement-admission contracts. A direct can_move success may commit a legal endpoint gate and redraw it. A projected cm_admit_from_test success is classification only: keep cm_step_test and cm_admit_from_test read-only, and call cm_commit only at PLAYER_STEP == 3 when the returned gate action A is nonzero. A regular accepted projected exit advances along the old axis without a gate commit. A rejected current cell or projected exit holds the player. Name graph checks must not be routed through gameplay gate state.
+
+The shared return contract is: for name entry, A nonzero consumes the tick (active snap, direct turn, or required hold), while A zero allows ordinary old-axis continuation or ordinary centered handling. The internal gameplay entry maps the same decisions to the existing draw, hold, and pt_advance paths. A direct accepted turn initializes TURN_OLD and TURN_SNAP once; gameplay clears PLAYER_STEP, while name entry sets $DE to four after computing 4 - $DE. On an active snap, both paths use the same signed direction-delta table; gameplay increments PLAYER_STEP and name entry decrements $DE. Neutral input, same-direction movement, reversal, centered movement, automatic entrance behavior, and face timing remain in their existing callers.
+
+Candidate instruction-size envelope
+
+The following are hard source-design ceilings in assembled 6809 bytes, not measurements. Their sum is 238 bytes: 38 for the shared eligibility/direct-turn/state kernel; 88 for name-only hazard classification, old-edge test, projected callback, and result; 50 for gameplay-only current admission, projected admission, and deferred gate commit; 42 for the shared snap-vector routine, delta lookup, return paths, and 8-byte delta data; and 20 for both entry/caller/result shims and the two step-counter adapters. The 238-byte design target would recover 124 bytes from the measured 362-byte failed combined area, leave 2 bytes of resident growth versus the 236-byte baseline area, and project 40 resident bytes free in the tightest profile. These are arithmetic projections only.
+
+The 88-byte name-policy ceiling requires at least 28 bytes of reduction from the measured 116-byte hazard/old-axis/projected portion. The candidate direction is to replace the four-way old-edge dispatch with a compact direction-derived mask test and compute the adjacent-pair hazard selector once, while retaining the exact upper-bit mapping. Reuse the existing cm_step_test only for the name projected coordinate; gameplay keeps cm_admit_from_test's existing origin semantics. If these operations plus branch routing do not fit 88 bytes, stop and return the listing-backed miss. Do not relax callback, geometry, or gameplay semantics to reach the budget.
+
+The 50-byte gameplay-policy ceiling is 25 bytes below its current 75-byte late-turn and direct-commit surface. The common kernel must own the duplicate eligibility and state-write work; the gameplay adapter retains the distinct can_move side effect and pure projected gate path. The 42-byte snap ceiling reuses the measured name tail and delta data while replacing gameplay's 70-byte direction-dispatch snap body; the gameplay increment and name decrement stay in the 20-byte caller/adapter allowance. The assembled routine, branch relaxations, and all shim bytes count against these ceilings.
+
+Copied-name and helper budgets remain independent gates. The failed main build did not assemble the copied high-score runtime or helper. The candidate copied-name value is unknown; 917/920 is historical and the existing source-only estimate is 924/920, which is four bytes over the cap. This design adds no copied turn routine and does not require new name call-site instructions. Before implementation Ready, the existing allowed name_can_move callback edits need a listing-backed plan to recover at least four bytes for the projected overage while preserving A passability, full B, X-save behavior, PAR5 restore, and TEST_X/Y seeding. A callback compaction that mirrors the smaller existing ranking edge-mask calculation in the stage copy is a candidate for measurement, not a claimed saving. Copied runtime must actually be at most 920 bytes.
+
+No code is planned in the mapped helper. Its historical end is $B880, but the candidate helper was not assembled. The final profile must still show end address no later than $B880. All enemy, audio, asset, sparse, bank, and other caps remain unchanged. The 576-byte graph and 45 actions remain fixed; FEAT-010 savings are excluded.
+
+Exact future patch boundary
+
+After parent review, any implementation is limited to the existing capsule's src/main.s late-turn portions: player_tick late-turn dispatch, the existing name_late_turn entry/body, and an in-file shared kernel adjacent to those routines. Preserve can_move, cm_step_test, cm_admit_from_test, and cm_commit semantics. Modify only the existing name_can_move/call-site portions of capsule src/shared_text_stage.inc and src/shared_text_ranking.inc if the measured copied-name saving requires it; do not add a copied module or change action/node records. Update only the existing scripts/source_reference.json entries and routine-catalog.html entries needed to describe player_tick, name_late_turn, the shared kernel, and each policy/callback contract. The existing approved presentation-generator and verifier edits in the capsule remain part of the frozen geometry candidate; this turn refactor does not change their scope. No other production file, allocation, mapping, owner, loader, user TMX, asset, or cap is authorized.
+
+Minimum implementation verification
+
+Run from the frozen capsule root in WSL with its ordinary build directory and no LADYBUG_BUILD_DIR override. Use the assignment's exact sequential complete-profile commands:
+
+1. LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build
+2. LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build
+3. LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build
+
+Immediately after build 1 and before build 2 overwrites the artifacts, run:
+
+python3 scripts/verify_presentation.py --tiled-dir tiled --chars assets/arcade/chars.json --gameplay-map tiled/coco-screen.tmx --gameplay-maze assets/arcade/maze.json --gameplay-chars assets/arcade/chars.json --gameplay-sprites assets/arcade/sprites.json --demo-route assets/arcade/demo_route.json --demo-walk assets/arcade/demo_walk.json --payload build/ladybug-presentation-cold.bin --manifest build/ladybug-presentation.json --tile-patches build/ladybug-presentation-tile-patches.bin --development-profile 1 --complete-profile 1 --highscore-test-profile 0
+
+The default independent oracle must prove the exact hazard bits, reciprocal routes, 576-byte table, 45 reachable actions, zero opaque intersections for required stationary/straight/admitted poses and facings, and BUG-121-equivalent safe, blocked, corner, and projected-center cases. Every complete build must pass its built-in source-reference/shared-text and capacity guards; record resident free, copied-name bytes, helper end, and required maps/listings. Acceptance requires at least 32 resident bytes free in all profiles, copied name at most 920, and helper end no later than $B880. The first assembled listing must also show the affected shared area at most 238 bytes; do not infer this from pre-assembly source counts.
+
+Because this changes ordinary gameplay, fit and static geometry are not behavioral acceptance. Parent-owned current-artifact runtime verification must additionally force a safe direct gameplay turn, a projected gate turn before and at step 3, a rejected projected turn, direct safe and unsafe name corners, selective old-axis assistance, rejected no-exit hold, late and aligned callback seeding, full-B/X/PAR5/stack preservation, and lookahead purity. Natural score-to-ranking and sustained movement remain the separate parent-owned BUG-120 gate. Missing a required path is a failure.
+
+Design decision
+
+The shared boundary is technically bounded within the approved files and preserves the two different admission policies. The 238-byte envelope and four-byte copied-name recovery are not yet demonstrated by assembly. Parent review should accept this as an implementation candidate only if the next source-level breakdown accounts for every operation within these budgets; otherwise stop before editing source and return the exact deficit for a renewed decision. No fit, profile, callback-size, helper-size, runtime, or acceptance pass is claimed here.

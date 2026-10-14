@@ -1,0 +1,34 @@
+BUG-120 shared-turn budget completion
+2026-10-14
+
+Disposition
+
+Read-only source/listing budget completion for the approved shared-turn design step. This file is the only writable artifact. No source, build, runtime, Git, cleanup, or canonical-ticket operation was performed. The proposed shared-turn resident budget is not proven; do not mark implementation Ready from this report.
+
+Tail-accounting correction
+
+The matched baseline name_late_turn span is 91 bytes: 49 bytes pre-snap plus a 42-byte tail. The tail is 34 bytes of snap/return/delta code plus the eight-byte nlt_deltas table. The failed candidate span is 217 bytes: 175 pre-snap plus that same 42-byte tail. Thus baseline routine code is 83 bytes plus eight data bytes. The earlier phrase “42-byte continuation and 8-byte table” double-counted the table. No target arithmetic changes: at a maximum 101-byte whole routine (baseline 91 plus the nonadaptive profile's 10-byte growth allowance), retaining the 42-byte tail leaves 59 bytes for pre-snap code. The existing 68-byte caller-only practical floor still exceeds that by nine bytes before omitted routing.
+
+Resident evidence and unresolved design
+
+The retained failed listing measures the current candidate regions as follows: name_late_turn is 217 bytes; gameplay pt_try_late_turn through pt_begin_late_turn is 56 bytes; pt_begin_late_turn through pt_at_center is 19 bytes; and pt_snap_advance through pt_advance is 70 bytes. Their combined failed-candidate span is 362 bytes. Matched baseline values are 91 and 145 bytes, totaling 236. With 42 bytes baseline free in nonadaptive keyboard and a 32-byte minimum, the combined replacement may be at most 246 bytes. Required recovery is 116 bytes.
+
+The prior design's 238-byte envelope assigned 38/88/50/42/20-byte ceilings to shared core, name policy, gameplay policy, snap/tail, and call shims. Those values were not derived from an instruction listing or a fully specified assembly sketch. In particular, the design did not encode the mode entries, preserve and restore X around both callback forms, route gameplay's carry/A/B gate result separately from name's A/B graph result, or show each short/long branch and return shim. It is therefore an arbitrary target, not evidence that a 238-byte implementation exists. The retained source and listing do not establish a complete shared kernel at or below 246 bytes. Feasibility remains unknown; no resident saving is claimed.
+
+The immediately reusable measured code is limited to the existing regions above. An implementation-level assembly sketch would need to specify every instruction and the offset of every branch, then sum no more than 246 bytes including all entries, mode dispatch, callback saves, direct-turn state writes, projected gate commit routing, shared snap deltas, and the eight-byte table. No such complete sketch is established here. The current evidence does not justify another source edit or build. Parent review or a newly bounded design is required before implementation Ready.
+
+Concrete copied-name callback reduction
+
+The existing stage callback's direction/result block can be replaced by the already-present ranking callback's mask-loop shape. This change is within the assigned callback portion and preserves the callback ABI: input A still holds the requested direction; TEST_X/Y and the graph lookup are unchanged; PAR5 has already been restored to $34; B is saved and restored; A is zero for a blocked edge and nonzero for an open edge; stack depth returns to its entry value; and X remains caller-clobbered for the resident caller to save.
+
+With `setdp $00`, PRES_NAME_TILE is at $00E6. In the stage variant, the selector/result sequence from `lda PRES_NAME_TILE` through the blocked `rts` is 35 bytes: direct LDA 2; three CMPA-immediate/BEQ-short pairs 12; default BITB/BRA 4; the north and east BITB/BRA pairs 8; south BITB 2; result BEQ-short 2; `lda #1` 2; success RTS 1; blocked CLRA/RTS 2. All branches are local and short.
+
+The replacement loop is 17 bytes: `pshs b` 2; `lda #1` 2; direct `ldb PRES_NAME_TILE` 2; `beq name_mask_ready` 2; `lsla` 1; `decb` 1; `bne name_mask_rotate` 2; `anda ,s` 2; `puls b` 2; `rts` 1. The maximum loop branch displacement is local and short. It returns the selected bit value rather than normalizing every open result to 1; current callers use only zero/nonzero, matching the existing ranking callback behavior. This is an exact 18-byte selector-block reduction (35 to 17) at the encoded-instruction level, not a measured copied-runtime result. If the prior 924-byte source projection applies to this stage variant, arithmetic after this local substitution is 906 bytes; that remains a projection until a complete profile assembles the copied runtime. The final copied name must measure at most 920 bytes.
+
+Other component limits remain open
+
+The failed resident guard stopped before the copied high-score runtime and mapped helper were assembled. Historical values are 917/920 copied-name bytes and helper end $B880; neither is a current candidate measurement. The callback replacement above addresses the projected four-byte name overage by an 18-byte local reduction, subject to actual copied-runtime measurement. The shared resident refactor has no helper-code change planned, but helper end must still be measured at or before $B880. Other profile and build caps remain unchanged.
+
+Stop condition and next evidence
+
+No complete 238-byte or 246-byte shared-turn assembly sketch is proven by the available evidence, so implementation is not Ready and no build may be used to discover whether the arbitrary ceiling works. If the parent continues the design, the next source-only deliverable must enumerate the exact resident instructions, encoded widths, callback/save shims, branch destinations/displacements and per-entry returns, with a total at most 246 bytes; it must also retain the 35-to-17 callback reduction and show how stage/ranking preserve their copied-runtime contracts. If that accounting cannot be completed, report the resident recovery as unknown and stop before implementation.
