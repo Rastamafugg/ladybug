@@ -1,0 +1,39 @@
+BUG-117 scheduled-step observer preparation
+Date: 2026-10-15
+Status: offline qualification passed; no live runtime experiment executed.
+
+Approved scope
+- Cost class: High-risk, retained from the approved card because the observer crosses a persistent framebuffer and phase handoff and must prove live caller/mapping identity.
+- Ticket/card: wiki/internal/tickets/bug-117-new-life-entry-music.html#scheduled-comparison-approved-20261015.
+- Owned files: repro/stage-preview-diagnosis-20261014/probe.py and this report directory only.
+- Runtime remains parent-owned. No build, emulator process, production source, shared helper, wiki file, or Git operation was changed by this assignment.
+
+Frozen fixture
+- Revision: 3926a4ad73bae3665e619cf9c3154cb8d3d2ed60
+- ROM SHA-256: 4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5
+- Receipt SHA-256: 5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc
+- Receipt qualification: 266 authored inputs, 4 generated inputs, 87 artifacts.
+- Authorized fixture writes remain exactly 49/15/1/0 at the four approved addresses.
+
+Observer contract
+- Each fresh neutral and Down-held case keeps the approved three 45-second whole-phase limits, 10-second maximum stop wait, 1000 callbacks per phase, and no retry.
+- The scheduled comparison starts at the source-derived stage-2 context release, then captures the first eligible player_tick entry and first pt_draw in that call. It requires the active pending-gate caller bytes to match source, staged, CPU and physical memory, PAR0=38, return PC=04E2, and PLAYER_TICK_PENDING=0 at entry.
+- The held case queues Down while stage-2 preview still owns the foreground. JOY_DIR must show South at the first player_tick entry; otherwise the outcome is missing coverage, not a product pass or failure.
+- Position comparison is by call/draw ordinal and cell/framebuffer-pointer/step. Event clocks and facing do not decide equivalence. The neutral oracle is cell (12,22), FB 89EC step 0 to cell (12,22), FB 88AC step 1. The source checker qualifies the release sequence, caller gate, north delta, pointer store/step increment, step-one draw branch and draw-to-return tail.
+- Preview mask/pixel observations remain in the output as known BUG-046 context and do not enter the BUG-117 product finding list.
+
+Offline verification
+- `wsl python3.8 -m py_compile /mnt/e/projects/ladybug/repro/stage-preview-diagnosis-20261014/probe.py` — passed.
+- `wsl python3.8 /mnt/e/projects/ladybug/repro/stage-preview-diagnosis-20261014/probe.py --help` — passed.
+- `wsl python3.8 /mnt/e/projects/ladybug/repro/stage-preview-diagnosis-20261014/probe.py --self-test` — passed 26 checks: different event clocks accepted for equal semantic positions; facing ignored; cell, framebuffer pointer, and step mutations rejected; missing/duplicate ordinals rejected; unsampled Down reported as missing coverage; existing deadline, write/input guard, source/site, PAR and physical-byte negatives retained.
+- `wsl python3.8 /mnt/e/projects/ladybug/repro/stage-preview-diagnosis-20261014/probe.py --artifact-check --write-preparation --preparation-output /mnt/e/projects/ladybug/repro/bug117-scheduled-step-20261015/preparation.json` — passed. Source/site check passed 11 source/staged windows. Scheduled source check derived release PC 1CBF from the pinned listing and verified active caller bytes `0d4d260c0d6b27080f6bbdcb6b`; the expected north step is -320 bytes.
+- Offline command measurements on this host: compile 0.31 s, self-test 0.46 s, artifact check 6.30 s. Live maximum remains 270 s total across two runs; no live cost was measured.
+
+Remaining status
+- No neutral/held live capture exists yet. The expected behavior remains unmeasured, so BUG-117 is not accepted or closed by this report. The prepared commands below remain proposals for the parent runtime lease.
+- `probe.py` SHA-256: 8c38d8ba5ffe52bf003732afc6a821b4900acc02c3dcd589f2c1225e0eeeace7
+- Detailed machine-readable offline evidence: preparation.json.
+
+Parent-owned proposed runtime commands (not executed)
+`python repro/stage-preview-diagnosis-20261014/probe.py --case neutral --run-live --output repro/bug117-scheduled-step-20261015/scheduled-neutral.json`
+`python repro/stage-preview-diagnosis-20261014/probe.py --case held --run-live --paired-neutral repro/bug117-scheduled-step-20261015/scheduled-neutral.json --output repro/bug117-scheduled-step-20261015/scheduled-held.json`

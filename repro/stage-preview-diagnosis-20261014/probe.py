@@ -18,7 +18,7 @@ from typing import Any, Callable
 
 
 ROOT = Path(__file__).resolve().parents[2]
-OWNED = ROOT / "repro" / "stage-preview-diagnosis-20261014"
+SCHEDULED_OWNED = ROOT / "repro" / "bug117-scheduled-step-20261015"
 CAPSULE = ROOT / "repro" / "bug122-integration-20261014" / "capsule"
 BUILD_DEFAULT = CAPSULE / "build"
 ROM_SHA = "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5"
@@ -32,16 +32,24 @@ MAX_READ = 2048
 FIXTURE = ((0x003C, 0x49), (0x003D, 0x15), (0x0025, 0x01), (0x0033, 0x00))
 KEY_COIN, KEY_ENTER = 5, 48
 KEY_UP, KEY_DOWN = 0x2B, 0x2C
+DIR_NORTH, DIR_SOUTH, DIR_NONE = 0x00, 0x02, 0xFF
 PRES = 0x1900
 ENEMY_ORIGIN = 0x0800
 PRES_MODE, PRES_SCREEN, PRES_CONTEXT = 0xA5, 0xA6, 0xA7
 FRONT, BACK, PENDING, COMMIT = 0x8F, 0x90, 0x91, 0x92
 PLAYER_X, PLAYER_Y, PLAYER_FB, PLAYER_STEP = 0x09, 0x0A, 0x0B, 0x08
-PLAYER_WANT, PLAYER_MANUAL, DIR_NORTH = 0x0F, 0x18, 0x00
+JOY_X, JOY_Y, JOY_DIR = 0x01, 0x04, 0x05
+PLAYER_DIR, PLAYER_FACE = 0x06, 0x07
+PLAYER_WANT, PLAYER_MANUAL = 0x0F, 0x18
 STAGE, DOTS_LEFT, STAGE_PENDING = 0x24, 0x25, 0x26
 SPECIAL, EXTRA, BONUS_LEFT, INITIAL_ENTRY, RENDER_FLAGS = 0x3C, 0x3D, 0x33, 0xA0, 0x7F
 MAZE_STATE, PAR5 = 0xA000, 0xFFA5
 ENTITY_COUNT, ENTITY_TABLE = 0x32, 0xA380
+FRAMES, PLAYER_ERASED, PLAYER_BG_VALID = 0x02, 0x69, 0x6A
+DEATH_STATE, PICKUP_TIMER, TURN_SNAP = 0x4D, 0x51, 0x56
+PLAYER_TICK_PENDING, RENDER_FLAGS2 = 0x6B, 0x80
+FB_SIM_SEQ, FB_RENDER_ACTIVE = 0x94, 0x98
+ACTIVE_ORIGIN = 0x038F
 
 
 class ProbeError(RuntimeError):
@@ -133,7 +141,7 @@ def offline_source_site_check(build: Path) -> dict[str, Any]:
     qualifier = SiteQualifier(build)
     checks = []
     for filename, names, kind in (
-            ("ladybug.map", ("mainloop", "draw_word_progress_hud"), "main"),
+            ("ladybug.map", ("mainloop", "draw_word_progress_hud", "player_tick", "pt_draw"), "main"),
             ("ladybug-enemy-runtime.map", ("fri_stage_background",), "enemy"),
             ("ladybug-presentation-runtime.map",
              ("presentation_flow_tick", "demo_run", "credit_tick", "normal_game", "level_tick"),
@@ -158,7 +166,109 @@ def offline_source_site_check(build: Path) -> dict[str, Any]:
             checks.append({"name": name, "kind": kind, "address": hex(address),
                            "length": 16, "source_sha256": sha(source),
                            "staged_sha256": sha(staged)})
+    release_pc = stage2_release_pc(build)
+    presentation = qualifier.presentation
+    offset = release_pc - PRES
+    listing = qualifier.listings["presentation"]
+    if offset < 0 or offset + 16 > len(presentation) or any(
+            release_pc + i not in listing for i in range(16)):
+        raise ProbeError("source listing lacks the derived stage-2 release site window")
+    source = bytes(listing[release_pc + i] for i in range(16))
+    staged = presentation[offset:offset + 16]
+    if source != staged:
+        raise ProbeError("source/staged release-site bytes differ")
+    checks.append({"name": "stage2_release_clr_mode", "kind": "presentation",
+                   "address": hex(release_pc), "length": 16,
+                   "source_sha256": sha(source), "staged_sha256": sha(staged)})
     return {"checks": checks, "count": len(checks), "result": "pass"}
+
+
+def stage2_release_pc(build: Path) -> int:
+    """Derive the approved context-2 release PC from the pinned listing."""
+    symbols = symbols_for(build, "ladybug-presentation-runtime.map")
+    level_tick = marker_addr(symbols, "level_tick")
+    listing = listing_byte_map(build / "ladybug-presentation-runtime.lst")
+    sequence = bytes.fromhex("7f00a70fa54f39")
+    candidates = [address for address in listing if level_tick < address <= level_tick + 0x40
+                  and all(address + offset in listing for offset in range(len(sequence)))
+                  and bytes_at(listing, address, len(sequence), "stage-2 release sequence") == sequence]
+    if len(candidates) != 1:
+        raise ProbeError("pinned listing does not uniquely derive the level_tick context-2 release")
+    return candidates[0] + 3
+
+
+def bytes_at(image: dict[int, int], address: int, length: int, label: str) -> bytes:
+    if any(address + offset not in image for offset in range(length)):
+        raise ProbeError("source listing lacks scheduled-step bytes for " + label)
+    return bytes(image[address + offset] for offset in range(length))
+
+
+def offline_scheduled_step_check(build: Path) -> dict[str, Any]:
+    """Qualify the release, eligible caller, and first north-step source path."""
+    main_map = symbols_for(build, "ladybug.map")
+    pres_map = symbols_for(build, "ladybug-presentation-runtime.map")
+    active_map = symbols_for(build, "ladybug-adaptive-active.map")
+    main_listing = listing_byte_map(build / "ladybug.lst")
+    pres_listing = listing_byte_map(build / "ladybug-presentation-runtime.lst")
+    active_listing = listing_byte_map(build / "ladybug-adaptive-active.lst")
+
+    release_pc = stage2_release_pc(build)
+    release = bytes_at(pres_listing, release_pc, 4, "stage-2 context release")
+    if (release != bytes.fromhex("0fa54f39") or
+            bytes_at(pres_listing, release_pc - 3, 7, "context-before-mode release") !=
+            bytes.fromhex("7f00a70fa54f39")):
+        raise ProbeError("stage-2 release is not the pinned clear-context/clear-mode/return sequence")
+
+    call_start, call_end = 0x04D5, 0x04E2
+    caller = bytes_at(active_listing, call_start, call_end - call_start,
+                      "pending-gated adaptive player caller")
+    active_binary = (build / "ladybug-adaptive-active.bin").read_bytes()
+    active_staged = active_binary[call_start - ACTIVE_ORIGIN:call_end - ACTIVE_ORIGIN]
+    if (marker_addr(active_map, "atb_no_popup") != call_start or
+            marker_addr(active_map, "player_tick") != marker_addr(main_map, "player_tick") or
+            active_map.get("ADAPTIVE_RENDERING") != 1 or caller != bytes.fromhex("0d4d260c0d6b27080f6bbdcb6b") or
+            active_staged != caller):
+        raise ProbeError("adaptive source/staged caller does not consume pending before player_tick")
+
+    expected_symbols = {"player_tick": 0xCB6B, "pt_at_center": 0xCC17,
+                        "pt_choose_direction": 0xCC30, "pt_check_active": 0xCC4A,
+                        "pt_advance": 0xCCA4, "pt_north": 0xCCB6,
+                        "pt_store_fb": 0xCCC4, "pt_draw": 0xCCF4, "pt_done": 0xCD02,
+                        "PLAYER_CELL_X": 0x09, "PLAYER_CELL_Y": 0x0A,
+                        "PLAYER_DIR": 0x06, "PLAYER_FACE": 0x07,
+                        "PLAYER_FB": 0x0B, "PLAYER_STEP": 0x08,
+                        "PLAYER_MANUAL": 0x18, "PLAYER_WANT": 0x0F,
+                        "PLAYER_TICK_PENDING": PLAYER_TICK_PENDING,
+                        "FB_SIM_SEQ": FB_SIM_SEQ}
+    if any(main_map.get(name) != address for name, address in expected_symbols.items()):
+        raise ProbeError("scheduled-step symbols differ from the frozen source contract")
+    route = {
+        "north_delta_minus_320": bytes_at(main_listing, marker_addr(main_map, "pt_north"), 4,
+                                           "north pixel delta").hex(),
+        "store_fb_and_increment_step": bytes_at(main_listing, marker_addr(main_map, "pt_store_fb"), 6,
+                                                 "store and increment step").hex(),
+        "step_one_branches_to_draw": bytes_at(main_listing, marker_addr(main_map, "pt_store_fb") + 6, 3,
+                                               "step-one draw branch").hex(),
+        "draw_tail_returns_without_position_write": bytes_at(main_listing, marker_addr(main_map, "pt_draw"), 15,
+                                                               "draw tail through return").hex(),
+    }
+    if route != {"north_delta_minus_320": "3089fec0",
+                 "store_fb_and_increment_step": "9f0b0c089608",
+                 "step_one_branches_to_draw": "810425",
+                 "draw_tail_returns_without_position_write": "964d260a96512606967f8a01977f39"}:
+        raise ProbeError("pinned player source no longer proves the approved first northward step")
+    return {
+        "result": "pass", "release": {"address": hex(release_pc),
+            "source_and_staged_hex": release.hex(),
+            "meaning": "context was cleared by the preceding source branch; mode clears here, then RTS"},
+        "eligible_caller": {"address": hex(call_start), "length": len(caller),
+            "source_hex": caller.hex(), "staged_hex": active_staged.hex(),
+            "pending_consumed_before_call": True, "jsr_return_pc": hex(call_end)},
+        "position_path": route,
+        "expected_neutral_step": {"cell_before_after": [12, 22], "fb_before": "0x89ec",
+            "fb_delta": -320, "fb_after": "0x88ac", "step_before": 0, "step_after": 1},
+        "clock_comparison": "movement ordinal and source boundary; event_ticks are diagnostic metadata only",
+    }
 
 
 def parse_symbols(path: Path) -> dict[str, int]:
@@ -541,8 +651,39 @@ def self_test() -> dict[str, Any]:
             pass
     assert "write_memory" not in write_guard.calls and "inject_key" not in write_guard.calls
     guarded.close()
+    def scheduled(case: str, held_dir: int, face: int, event_ticks: int) -> dict[str, Any]:
+        return {"case": case, "scheduled_step": {
+            "movement_ordinal": 1, "player_tick_calls": 1, "draw_ordinal": 1, "draw_count": 1,
+            "entry": {"event_ticks": event_ticks, "position": {"cell": [12, 22],
+                       "fb": "0x89ec", "step": 0},
+                       "input": {"joy_dir": held_dir, "player_face": face}},
+            "draw": {"event_ticks": event_ticks + 128, "position": {"cell": [12, 22],
+                       "fb": "0x88ac", "step": 1}}}}
+    neutral = scheduled("neutral", DIR_NONE, DIR_NORTH, 1000)
+    held = scheduled("held", DIR_SOUTH, DIR_SOUTH, 1128)
+    pair = compare_scheduled_pair(neutral, held)
+    assert pair["result"] == "pass" and pair["event_ticks_compared"] is False
+    assert pair["facing_compared"] is False and pair["same_position"] is True
+    for field, changed in (("cell", [12, 21]), ("fb", "0x89ea"), ("step", 2)):
+        negative = scheduled("held", DIR_SOUTH, DIR_SOUTH, 5000)
+        negative["scheduled_step"]["draw"]["position"][field] = changed
+        assert compare_scheduled_pair(neutral, negative)["result"] == "position_divergence"
+    for field, value in (("movement_ordinal", 0), ("player_tick_calls", 2),
+                         ("draw_ordinal", 2), ("draw_count", 2)):
+        negative = scheduled("held", DIR_SOUTH, DIR_SOUTH, 1128)
+        negative["scheduled_step"][field] = value
+        try:
+            compare_scheduled_pair(neutral, negative)
+            raise AssertionError("missing/duplicate ordinal negative passed: " + field)
+        except ProbeError:
+            pass
+    try:
+        compare_scheduled_pair(neutral, scheduled("held", DIR_NONE, DIR_SOUTH, 1128))
+        raise AssertionError("unsampled held-input negative passed")
+    except MissingCoverage:
+        pass
     strict_import_check(Path(__file__).resolve())
-    return {"result": "pass", "checks": 17, "word_tiles": positive["tiles_checked"],
+    return {"result": "pass", "checks": 26, "word_tiles": positive["tiles_checked"],
             "good_fixture": positive["sha256"], "all_gray_rejected": True,
             "changed_masks_rejected": True,
             "missing_crop_rejected": True, "deadline_floor_rejected": True,
@@ -552,7 +693,12 @@ def self_test() -> dict[str, Any]:
             "source_staged_cpu_physical_site_positive": True,
             "wrong_par_mapping_rejected_before_read": True,
             "physical_site_mismatch_rejected": True,
-            "unauthorized_guest_write_input_rejected": True}
+            "unauthorized_guest_write_input_rejected": True,
+            "scheduled_semantic_boundary_clocks_ignored": True,
+            "scheduled_facing_only_difference_ignored": True,
+            "scheduled_cell_step_framebuffer_negatives_rejected": True,
+            "missing_duplicate_ordinal_rejected": True,
+            "unsampled_held_input_is_missing_coverage": True}
 
 
 def _monitor_module() -> Any:
@@ -1045,6 +1191,119 @@ def position_sample(client: DeadlineClient) -> dict[str, Any]:
                          "step": current["step"]}}
 
 
+def scheduled_position(record: dict[str, Any], label: str) -> dict[str, Any]:
+    if (record.get("movement_ordinal") != 1 or record.get("player_tick_calls") != 1 or
+            record.get("draw_ordinal") != 1 or record.get("draw_count") != 1):
+        raise ProbeError(label + " does not contain exactly the first player_tick and pt_draw")
+    entry, draw = record.get("entry"), record.get("draw")
+    if not isinstance(entry, dict) or not isinstance(draw, dict):
+        raise ProbeError(label + " is missing its entry/draw snapshots")
+    return {"entry": entry["position"], "draw": draw["position"]}
+
+
+def compare_scheduled_pair(neutral: dict[str, Any], held: dict[str, Any]) -> dict[str, Any]:
+    if neutral.get("case") != "neutral" or held.get("case") != "held":
+        raise ProbeError("scheduled-step pair must be neutral then held")
+    neutral_step, held_step = neutral.get("scheduled_step", {}), held.get("scheduled_step", {})
+    n = scheduled_position(neutral_step, "neutral run")
+    h = scheduled_position(held_step, "held run")
+    held_entry = held_step.get("entry", {})
+    if held_entry.get("input", {}).get("joy_dir") != DIR_SOUTH:
+        raise MissingCoverage("held Down was not visible in sampled JOY_DIR at first player_tick entry")
+    if n["entry"] != h["entry"]:
+        raise ProbeError("paired first player_tick entries do not share the approved start position")
+    if n["entry"] != {"cell": [12, 22], "fb": "0x89ec", "step": 0}:
+        raise ProbeError("first scheduled entry differs from the approved stage-2 start pose")
+    neutral_target = {"cell": [12, 22], "fb": "0x88ac", "step": 1}
+    if n["draw"] != neutral_target:
+        return {"result": "neutral_target_miss", "neutral": n, "held": h,
+                "event_ticks_compared": False, "facing_compared": False,
+                "same_position": h["draw"] == n["draw"]}
+    return {"result": "pass" if h["draw"] == n["draw"] else "position_divergence",
+            "neutral": n, "held": h,
+            "event_ticks_compared": False,
+            "facing_compared": False,
+            "same_position": h["draw"] == n["draw"]}
+
+
+def live_active_caller_check(client: DeadlineClient, build: Path) -> dict[str, Any]:
+    start, end = 0x04D5, 0x04E2
+    expected = bytes.fromhex("0d4d260c0d6b27080f6bbdcb6b")
+    source = listing_byte_map(build / "ladybug-adaptive-active.lst")
+    staged = (build / "ladybug-adaptive-active.bin").read_bytes()
+    offset = start - ACTIVE_ORIGIN
+    if (marker_addr(symbols_for(build, "ladybug-adaptive-active.map"), "atb_no_popup") != start or
+            any(start + i not in source for i in range(len(expected)))):
+        raise ProbeError("active pending-gate source callsite is not pinned at its approved symbol")
+    source_bytes = bytes(source[start + i] for i in range(len(expected)))
+    staged_bytes = staged[offset:offset + len(expected)]
+    gime = client.raw.call("read_gime_state", timeout=3.0)
+    if gime["mmu_task"] != 0 or int(gime["pars"]["task0"][0]) != 0x38:
+        raise ProbeError("PAR0/MMU does not map the active player caller")
+    cpu = read_bytes(client, start, len(expected))
+    physical = read_bytes(client, 0x38 * 0x2000 + start, len(expected), "physical")
+    after = client.raw.call("read_gime_state", timeout=3.0)
+    if (gime["pars"] != after["pars"] or gime["registers"] != after["registers"] or
+            gime["mmu_task"] != after["mmu_task"]):
+        raise ProbeError("PAR0/MMU changed during active caller byte qualification")
+    if any(data != expected for data in (source_bytes, staged_bytes, cpu, physical)):
+        raise ProbeError("active source/staged/CPU/physical caller bytes differ")
+    registers = client.raw.call("read_registers", timeout=3.0)
+    stack_raw = registers["s"]
+    stack = int(stack_raw, 0) if isinstance(stack_raw, str) else int(stack_raw)
+    return_pc = read_word(client, stack)
+    pending = read_byte(client, PLAYER_TICK_PENDING)
+    if return_pc != end:
+        raise ProbeError("player_tick entry stack return PC does not prove the scheduled caller JSR")
+    if pending != 0:
+        raise ProbeError("active scheduled caller did not clear pending before player_tick entry")
+    return {"address": hex(start), "length": len(expected), "source_sha256": sha(source_bytes),
+            "staged_sha256": sha(staged_bytes), "cpu_sha256": sha(cpu),
+            "physical_sha256": sha(physical), "par0": 0x38,
+            "return_pc": hex(return_pc), "pending_consumed_before_call": True,
+            "entry_pending_expected": 0, "entry_pending_observed": pending}
+
+
+def scheduled_state(client: DeadlineClient) -> dict[str, Any]:
+    fields = (JOY_X, JOY_Y, JOY_DIR, PLAYER_DIR, PLAYER_FACE, PLAYER_WANT,
+              PLAYER_MANUAL, PLAYER_TICK_PENDING, PLAYER_X, PLAYER_Y,
+              PLAYER_STEP, PLAYER_FB, FRAMES, FB_SIM_SEQ, RENDER_FLAGS,
+              RENDER_FLAGS2, FB_RENDER_ACTIVE, INITIAL_ENTRY, DEATH_STATE,
+              PICKUP_TIMER, TURN_SNAP, PLAYER_ERASED, PLAYER_BG_VALID,
+              FRONT, BACK, PENDING)
+    values = {hex(address): read_byte(client, address) for address in fields}
+    commit_seq = read_word(client, COMMIT)
+    fb = read_word(client, PLAYER_FB)
+    fb_offset = fb - 0x8000
+    if fb_offset < 0 or fb_offset + 7 * 160 + 4 > 30720:
+        raise ProbeError("player framebuffer pointer is outside the pinned 160x192 owner buffer")
+    owner_tiles = {}
+    for owner, page in ((0, 0x30), (1, 0x2C)):
+        base = page * 0x2000
+        tile = b"".join(read_bytes(client, base + fb_offset + row * 160, 4, "physical")
+                         for row in range(8))
+        owner_tiles[str(owner)] = {"page": page, "sha256": sha(tile), "bytes_hex": tile.hex()}
+    gime = client.raw.call("read_gime_state", timeout=3.0)
+    cycles = read_cycles(client)
+    return {"position": {"cell": [values[hex(PLAYER_X)], values[hex(PLAYER_Y)]],
+                          "fb": hex(fb), "step": values[hex(PLAYER_STEP)]},
+            "input": {"joy_x": values[hex(JOY_X)], "joy_y": values[hex(JOY_Y)],
+                      "joy_dir": values[hex(JOY_DIR)], "player_want": values[hex(PLAYER_WANT)],
+                      "player_dir": values[hex(PLAYER_DIR)], "player_face": values[hex(PLAYER_FACE)],
+                      "player_manual": values[hex(PLAYER_MANUAL)]},
+            "flags": {hex(address): values[hex(address)] for address in fields
+                      if address not in (JOY_X, JOY_Y, JOY_DIR, PLAYER_DIR, PLAYER_FACE,
+                                         PLAYER_WANT, PLAYER_MANUAL, PLAYER_X, PLAYER_Y,
+                                         PLAYER_STEP, PLAYER_FB)},
+            "frames": read_word(client, FRAMES), "fb_sim_seq": read_word(client, FB_SIM_SEQ),
+            "front_back_pending_commit": [values[hex(FRONT)], values[hex(BACK)],
+                                          values[hex(PENDING)], commit_seq],
+            "framebuffer_player_tile_by_owner": owner_tiles,
+            "event_ticks": cycles.get("event_ticks"),
+            "gime_registers": gime["registers"], "task0_pars": gime["pars"]["task0"],
+            "task1_pars": gime["pars"]["task1"], "mmu_task": gime["mmu_task"]}
+
+
 def source_module_bytes(client: DeadlineClient, build: Path, address: int,
                         length: int) -> dict[str, Any]:
     staged = (build / "ladybug-enemy-runtime.rom").read_bytes()
@@ -1069,11 +1328,12 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
     if not args.run_live:
         raise ProbeError("live adapter requires explicit --run-live; this invocation is not authorized by offline checks")
     output = Path(args.output).resolve()
-    if not inside(output, OWNED) or output.exists():
+    if not inside(output, SCHEDULED_OWNED) or output.exists():
         raise ProbeError("output must be a fresh, nonexisting path inside the owned scratch directory")
     build = Path(args.build).resolve()
     cases = {"case": args.case, "phases": [], "classifications": {}, "product_findings": [],
-             "scope": "approved two-run stage-entry and preview diagnosis"}
+             "known_bug046_findings": [],
+             "scope": "approved two-run first-scheduled-step diagnosis; preview retained as BUG-046 context"}
     process = None
     client = None
     phase = None
@@ -1126,7 +1386,7 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
             if not args.paired_neutral:
                 raise ProbeError("held case requires the completed neutral evidence path")
             neutral_path = Path(args.paired_neutral).resolve()
-            if not inside(neutral_path, OWNED) or not neutral_path.is_file():
+            if not inside(neutral_path, SCHEDULED_OWNED) or not neutral_path.is_file():
                 raise ProbeError("paired neutral evidence must be an existing file in the owned directory")
             prior = json.loads(neutral_path.read_text(encoding="utf-8"))
             if prior.get("case") != "neutral" or prior.get("paired_predecessor", {}).get("sha256") != cases["paired_predecessor"]["sha256"]:
@@ -1147,211 +1407,108 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
         cases["fixture"] = fixture
         cases["preview_publication"] = preview
         if preview["stored_masks"]["classification"] != "match":
-            cases["product_findings"].append({"phase": "stage2-preview", "kind": "stored-mask-mismatch",
-                                              "detail": preview["stored_masks"]})
+            cases["known_bug046_findings"].append({"phase": "stage2-preview",
+                "kind": "stored-mask-mismatch", "detail": preview["stored_masks"]})
         if preview["word_oracle"]["classification"] != "pixel_match":
-            cases["product_findings"].append({"phase": "stage2-preview", "kind": "word-pixel-mismatch",
-                                              "detail": preview["word_oracle"]})
+            cases["known_bug046_findings"].append({"phase": "stage2-preview",
+                "kind": "word-pixel-mismatch", "detail": preview["word_oracle"]})
         cases["phases"].append({"name": "final-flower-to-first-stage2-preview",
                                  "elapsed_seconds": round(45-phase.remaining(), 3), "stops": phase.stops})
         preview_seq = int(preview["commit_seq"])
-        # Phase 3: source-prove the first stage background, publication, and walk-in.
+        # Phase 3: qualify the stage-2 semantic release and capture exactly one scheduled move.
         phase = PhaseBudget()
         client.budget = phase
-        pft = marker_addr(pres_syms, "presentation_flow_tick")
-        run_to_condition(client, phase, pft, "preview-to-gameplay", lambda:
-                         read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 0 and
-                         read_byte(client, PRES_CONTEXT) == 0,
-                         lambda pc: site_images.qualify(client, pc, "presentation"))
-        onset = {"stage": read_byte(client, STAGE), "mode": read_byte(client, PRES_MODE),
-                 "screen": read_byte(client, PRES_SCREEN), "context": read_byte(client, PRES_CONTEXT),
-                 "entry_state": read_byte(client, INITIAL_ENTRY), "cell": [read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)],
-                 "player_fb": hex(read_word(client, PLAYER_FB))}
-        if onset["stage"] != 2 or onset["entry_state"] != 0 or onset["cell"] != [12, 22] or onset["player_fb"] != "0x89ec":
-            raise ProbeError("stage-2 walk-in source boundary does not match frozen next_stage/init_player")
         if args.case == "held":
+            # The preview remains foreground-owned until the proven context-2 release;
+            # this gives the ordinary decoder time to sample Down before any gameplay call.
             client.raw.call("inject_key", {"key": KEY_DOWN, "action": "press"}, timeout=2.0)
-        enemy_syms = symbols_for(build, "ladybug-enemy-runtime.map")
-        bg_addr = marker_addr(enemy_syms, "fri_stage_background")
-        run_to_condition(client, phase, bg_addr, "stage-background entry", lambda:
-                         read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 0 and
-                         read_byte(client, PRES_CONTEXT) == 0 and (read_byte(client, RENDER_FLAGS) & 0x40) != 0,
-                         lambda pc: site_images.qualify(client, pc, "enemy"))
-        bg_bytes = source_module_bytes(client, build, bg_addr, 16)
-        listing = (build / "ladybug-enemy-runtime.lst").read_text(encoding="utf-8")
-        match = re.search(r"^([0-9A-F]{4}) BDC41B .*jsr\s+draw_word_progress_hud\s*$",
-                          listing, re.MULTILINE | re.IGNORECASE)
-        if match is None:
-            raise ProbeError("pinned staged listing lacks the expected source callsite")
-        callsite = int(match.group(1), 16)
-        if callsite != 0x0C33:
-            raise ProbeError("stage-background word callsite differs from pinned source listing")
-        run_to_condition(client, phase, callsite, "source-qualified word caller", lambda:
-                         read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 0 and
-                         read_byte(client, PRES_CONTEXT) == 0,
-                         lambda pc: site_images.qualify(client, pc, "enemy"))
-        call_proof = source_module_bytes(client, build, callsite, 3)
-        if read_bytes(client, callsite, 3) != bytes.fromhex("bdc41b"):
-            raise ProbeError("live stage-background caller is not the pinned JSR draw_word_progress_hud")
-        draw_word = marker_addr(main_syms, "draw_word_progress_hud")
-        run_to_condition(client, phase, draw_word, "draw_word_progress_hud call", lambda:
-                         read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 0 and
-                         read_byte(client, PRES_CONTEXT) == 0,
-                         lambda pc: site_images.qualify(client, pc, "main"))
-        live_main = read_bytes(client, draw_word, 64)
-        runtime_image = (build / "ladybug-runtime.rom").read_bytes()
-        if live_main != runtime_image[draw_word - 0xC000:draw_word - 0xC000 + 64]:
-            raise ProbeError("live draw_word_progress_hud bytes differ from staged ROM")
-        draw_pose = position_sample(client)
-        neutral_walk = None
-        neutral_samples: dict[Any, dict[str, Any]] = {}
-        matched_samples = 0
-        if args.case == "held":
-            neutral = json.loads(Path(args.paired_neutral).read_text(encoding="utf-8"))
-            neutral_walk = neutral.get("walkin", {})
-            candidates = [neutral_walk.get("draw_sample")] + neutral_walk.get("samples", [])
-            neutral_samples = {item["event_ticks"]: item["position"]
-                               for item in candidates if isinstance(item, dict) and
-                               "event_ticks" in item and "position" in item}
-            expected_at_draw = neutral_samples.get(draw_pose["event_ticks"])
-            if expected_at_draw is not None:
-                matched_samples += 1
-                if draw_pose["position"] != expected_at_draw:
-                    finding = {"phase": "stage2-walkin", "kind": "held-position-divergence",
-                               "boundary": "draw_word_progress_hud",
-                               "event_ticks": draw_pose["event_ticks"],
-                               "expected_position": expected_at_draw,
-                               "actual_position": draw_pose["position"]}
-                    cases["product_findings"].append(finding)
-                    cases["walkin"] = {"onset": onset, "draw_sample": draw_pose,
-                                        "first_divergence": finding}
-                    raise ProductReproduction("held position differs from neutral at matched event tick")
-        walk_samples = [draw_pose]
-        cases["walkin"] = {"onset": onset, "draw_sample": draw_pose, "samples": walk_samples,
-                           "matched_simulation_tick_samples": matched_samples,
-                           "ready_target": "75ec", "ready_reached": False}
-        def record_position() -> None:
-            nonlocal matched_samples
-            current = position_sample(client)
-            if current == walk_samples[-1]:
-                return
-            if neutral_walk is not None:
-                expected = neutral_samples.get(current["event_ticks"])
-                if expected is not None:
-                    matched_samples += 1
-                    if current["position"] != expected:
-                        walk_samples.append(current)
-                        finding = {"phase": "stage2-walkin", "kind": "held-position-divergence",
-                                   "boundary": "mainloop", "event_ticks": current["event_ticks"],
-                                   "expected_position": expected,
-                                   "actual_position": current["position"]}
-                        cases["product_findings"].append(finding)
-                        cases["walkin"] = {"onset": onset, "draw_sample": draw_pose,
-                                            "samples": walk_samples,
-                                            "matched_simulation_tick_samples": matched_samples,
-                                            "first_divergence": finding}
-                        raise ProductReproduction("held position differs from neutral at matched event tick")
-            walk_samples.append(current)
-            cases["walkin"] = {"onset": onset, "draw_sample": draw_pose, "samples": walk_samples,
-                                "matched_simulation_tick_samples": matched_samples,
-                                "ready_target": "75ec", "ready_reached": False}
-        mainloop = marker_addr(main_syms, "mainloop")
-        run_to_condition(client, phase, mainloop, "first committed stage-2 maze publication", lambda:
-                         read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 0 and
-                         read_byte(client, PRES_CONTEXT) == 0 and read_word(client, COMMIT) > preview_seq and
-                         read_byte(client, PENDING) == 0,
-                         lambda pc: site_images.qualify(client, pc, "main"), observe=record_position)
-        owner = read_byte(client, FRONT)
-        maze_masks_actual = {"special": read_byte(client, SPECIAL),
-                             "extra": read_byte(client, EXTRA)}
-        maze_masks = {"expected": {"special": 0x49, "extra": 0x15},
-                      "actual": maze_masks_actual,
-                      "classification": "match" if maze_masks_actual == {"special": 0x49, "extra": 0x15}
-                      else "mismatch"}
-        maze_frame, maze_pub = physical_frame(client, owner)
-        maze_oracle = word_oracle(build.parent)
-        try:
-            word_pixels = {"classification": "pixel_match",
-                           "check": check_word_tiles(maze_frame, maze_oracle)}
-        except ProbeError as exc:
-            word_pixels = {"classification": "pixel_mismatch", "error": str(exc)}
-        maze_pub.update({"screen_role": "stage2-maze", "word_masks_at_first_publication": maze_masks,
-                         "word_oracle": word_pixels,
-                         "stage_background_pc": hex(bg_addr), "stage_background_bytes": bg_bytes,
-                         "word_callsite": hex(callsite), "word_callsite_bytes": call_proof,
-                         "word_callee": hex(draw_word), "source_render_intent_rf_stage": True,
-                         "fresh_commit_after_preview": True})
-        if word_pixels["classification"] != "pixel_match":
-            cases["product_findings"].append({"phase": "stage2-maze", "kind": "word-pixel-mismatch",
-                                              "detail": word_pixels})
-        if maze_masks["classification"] != "match":
-            cases["product_findings"].append({"phase": "stage2-maze", "kind": "stored-mask-mismatch",
-                                              "detail": maze_masks})
-        cases["maze_publication"] = maze_pub
-        cases["classifications"] = {"preview_masks": preview["stored_masks"]["classification"],
-                                     "preview_pixels": preview["word_oracle"]["classification"],
-                                     "maze_masks": maze_masks["classification"],
-                                     "maze_pixels": word_pixels["classification"],
-                                     "stage2_position": "recorded before and at 75ec"}
-        target_fb = 0x75EC
-        if read_word(client, PLAYER_FB) != target_fb:
-            run_to_condition(client, phase, mainloop, "player-ready anchor", lambda:
-                             read_word(client, PLAYER_FB) == target_fb and
-                             read_byte(client, PRES_MODE) == 0 and read_byte(client, PRES_CONTEXT) == 0,
-                             lambda pc: site_images.qualify(client, pc, "main"),
-                             observe=record_position)
-        ready_pose = pose(client)
-        ready_reached = ready_pose["fb"] == "0x75ec"
-        cases["walkin"] = {"onset": onset, "draw_sample": draw_pose, "samples": walk_samples,
-                            "matched_simulation_tick_samples": matched_samples,
-                            "ready_target": "75ec", "ready_pose": ready_pose,
-                            "ready_reached": ready_reached}
-        postready_input = None
-        if args.case == "held":
-            client.raw.call("inject_key", {"key": KEY_DOWN, "action": "release"}, timeout=2.0)
-        else:
-            manual_before = read_byte(client, PLAYER_MANUAL)
-            if manual_before != 0:
-                raise ProbeError("neutral stage-2 walk-in was already marked manual before positive input")
-            motion_before = position_sample(client)
-            pose_before = pose(client)
-            client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
-            run_to_condition(client, phase, mainloop, "post-ready ordinary Up accepted", lambda:
-                             read_byte(client, PLAYER_MANUAL) == 1 and
-                             read_byte(client, PLAYER_WANT) == DIR_NORTH,
+            cases["held_input_setup"] = {"key": KEY_DOWN, "queued_while": "stage-2 preview owns foreground",
+                                          "writes_added": 0}
+        release_pc = stage2_release_pc(build)
+        run_to_condition(client, phase, release_pc, "stage-2 context-2 release branch",
+                         lambda: read_byte(client, STAGE) == 2 and
+                         read_byte(client, PRES_MODE) == 6 and
+                         read_byte(client, PRES_SCREEN) == 2 and
+                         read_byte(client, PRES_CONTEXT) == 0 and
+                         (read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)) == (12, 22) and
+                         read_word(client, PLAYER_FB) == 0x89EC and
+                         read_byte(client, PLAYER_STEP) == 0,
+                         lambda pc: site_images.qualify(client, pc, "presentation"))
+        release_pose = {"stage": read_byte(client, STAGE), "mode": read_byte(client, PRES_MODE),
+                        "screen": read_byte(client, PRES_SCREEN),
+                        "context": read_byte(client, PRES_CONTEXT),
+                        "cell": [read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)],
+                        "fb": hex(read_word(client, PLAYER_FB)),
+                        "step": read_byte(client, PLAYER_STEP),
+                        "release_pc": hex(release_pc)}
+        cases["stage2_release"] = release_pose
+        if release_pose["stage"] != 2 or release_pose["mode"] != 6 or \
+                release_pose["screen"] != 2 or release_pose["context"] != 0 or \
+                release_pose["cell"] != [12, 22] or release_pose["fb"] != "0x89ec" or \
+                release_pose["step"] != 0:
+            raise MissingCoverage("source-qualified stage-2 release did not retain the approved start pose")
+        north_edge = source_neighbor_gate(client, main_syms, build, (12, 22), (12, 21),
+                                          require_flower=False)
+        entry_pc = marker_addr(main_syms, "player_tick")
+        draw_pc = marker_addr(main_syms, "pt_draw")
+        entry_bp = Breakpoint(client, phase, entry_pc, "first scheduled player_tick",
+                              lambda pc: site_images.qualify(client, pc, "main"))
+        draw_bp = Breakpoint(client, phase, draw_pc, "first pt_draw of first scheduled call",
                              lambda pc: site_images.qualify(client, pc, "main"))
-            accepted = {"manual_before": manual_before,
-                        "manual_after": read_byte(client, PLAYER_MANUAL),
-                        "want_after": read_byte(client, PLAYER_WANT),
-                        "dscan_key": KEY_UP, "accepted": True}
-            try:
-                run_to_condition(client, phase, mainloop, "post-ready Up caused positional movement", lambda:
-                                 position_sample(client)["position"] != motion_before["position"],
-                                 lambda pc: site_images.qualify(client, pc, "main"))
-            except PhaseDeadline as exc:
-                raise MissingCoverage("post-ready Up was accepted but positional movement was not observed before the phase deadline") from exc
-            motion_after = position_sample(client)
-            if motion_after["position"] == motion_before["position"]:
-                raise MissingCoverage("post-ready Up movement boundary did not produce a changed position sample")
-            pose_after = pose(client)
-            client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
-            accepted["movement_before"] = motion_before
-            accepted["movement_after"] = motion_after
-            accepted["pose_before"] = pose_before
-            accepted["pose_after"] = pose_after
-            accepted["movement_observed"] = True
-            postready_input = accepted
-        if neutral_walk is not None and matched_samples == 0:
-            raise ProbeError("held run had no matched simulation-tick position samples")
-        cases["walkin"] = {"onset": onset, "draw_sample": draw_pose, "samples": walk_samples,
-                            "matched_simulation_tick_samples": matched_samples,
-                            "ready_target": "75ec", "ready_pose": ready_pose,
-                            "ready_reached": ready_reached}
-        if postready_input is not None:
-            cases["postready_input"] = postready_input
-        cases["phases"].append({"name": "preview-through-walkin", "elapsed_seconds": round(45-phase.remaining(), 3), "stops": phase.stops})
-        cases["result"] = ("captured_with_product_findings" if cases["product_findings"] else
-                            "captured; comparison pending paired neutral/held review")
+        try:
+            entry_stop = entry_bp.hit()
+            entry = scheduled_state(client)
+            cases["scheduled_step"] = {"movement_ordinal": 1, "player_tick_calls": 1,
+                "draw_ordinal": 0, "draw_count": 0, "entry": entry, "draw": None,
+                "entry_stop": entry_stop, "caller_proof": None,
+                "source_legal_north_edge": north_edge, "release_pose": release_pose}
+            caller_proof = live_active_caller_check(client, build)
+            cases["scheduled_step"]["caller_proof"] = caller_proof
+            entry_pending = entry["flags"].get(hex(PLAYER_TICK_PENDING))
+            if entry_pending != 0 or caller_proof["entry_pending_expected"] != 0:
+                raise ProbeError("eligible pending tick was not consumed before player_tick entry")
+            if entry["position"] != {"cell": [12, 22], "fb": "0x89ec", "step": 0}:
+                raise MissingCoverage("first scheduled call entry does not match the approved stage-2 pose")
+            if args.case == "held" and entry["input"]["joy_dir"] != DIR_SOUTH:
+                raise MissingCoverage("held Down was not visible in sampled JOY_DIR at first player_tick entry")
+            if args.case == "neutral" and entry["input"]["joy_dir"] != DIR_NONE:
+                raise MissingCoverage("neutral input was not visible in sampled JOY_DIR at first player_tick entry")
+            draw_stop = draw_bp.hit()
+            draw = scheduled_state(client)
+            cases["scheduled_step"].update({"draw_ordinal": 1, "draw_count": 1,
+                                             "draw": draw, "draw_stop": draw_stop})
+        finally:
+            draw_bp.close()
+            entry_bp.close()
+        cases["scheduled_step"] = {"movement_ordinal": 1, "player_tick_calls": 1,
+            "draw_ordinal": 1, "draw_count": 1, "entry": entry, "draw": draw,
+            "entry_stop": entry_stop, "draw_stop": draw_stop,
+            "caller_proof": caller_proof, "source_legal_north_edge": north_edge,
+            "release_pose": release_pose}
+        cases["phases"].append({"name": "stage2-release-through-first-scheduled-draw",
+                                 "elapsed_seconds": round(45-phase.remaining(), 3),
+                                 "stops": phase.stops, "release_pc": hex(release_pc)})
+        if args.case == "held":
+            comparison = compare_scheduled_pair(prior, cases)
+            cases["scheduled_comparison"] = comparison
+            if comparison["result"] != "pass":
+                cases["product_findings"].append({"phase": "first-scheduled-step",
+                    "kind": comparison["result"], "detail": comparison})
+        elif draw["position"] != {"cell": [12, 22], "fb": "0x88ac", "step": 1}:
+            cases["product_findings"].append({"phase": "first-scheduled-step",
+                "kind": "neutral-target-miss", "expected": {"cell": [12, 22],
+                "fb": "0x88ac", "step": 1}, "actual": draw["position"]})
+        cases["classifications"] = {
+            "preview_masks": preview["stored_masks"]["classification"],
+            "preview_pixels": preview["word_oracle"]["classification"],
+            "preview_findings_are_known_bug046": True,
+            "scheduled_step": cases.get("scheduled_comparison", {}).get("result", "awaiting paired run")}
+        if cases["product_findings"]:
+            cases["result"] = "product_reproduced"
+        elif args.case == "neutral":
+            cases["result"] = "scheduled_step_captured_pair_pending"
+        else:
+            cases["result"] = "scheduled_pair_position_match"
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return cases
@@ -1436,6 +1593,7 @@ def main(argv: list[str] | None = None) -> int:
         if args.artifact_check:
             pins = artifact_check(args.build)
             result = {"pins": pins, "source_site_check": offline_source_site_check(args.build),
+                      "scheduled_step_source_check": offline_scheduled_step_check(args.build),
                       "offline_self_test": self_test(), "word_oracle": word_oracle(),
                       "probe_sha256": file_sha(Path(__file__)),
                       "helper_sha256": {"monitor": file_sha(ROOT / "scripts" / "verify_bug009_monitor_input.py"),
@@ -1448,12 +1606,12 @@ def main(argv: list[str] | None = None) -> int:
                                          "total_seconds_max": 270,
                                          "retry_policy": "none"},
                       "proposed_runtime_commands": [
-                          "python repro/stage-preview-diagnosis-20261014/probe.py --case neutral --run-live --output repro/stage-preview-diagnosis-20261014/natural-neutral.json",
-                          "python repro/stage-preview-diagnosis-20261014/probe.py --case held --run-live --paired-neutral repro/stage-preview-diagnosis-20261014/natural-neutral.json --output repro/stage-preview-diagnosis-20261014/natural-held.json"],
+                          "python repro/stage-preview-diagnosis-20261014/probe.py --case neutral --run-live --output repro/bug117-scheduled-step-20261015/scheduled-neutral.json",
+                          "python repro/stage-preview-diagnosis-20261014/probe.py --case held --run-live --paired-neutral repro/bug117-scheduled-step-20261015/scheduled-neutral.json --output repro/bug117-scheduled-step-20261015/scheduled-held.json"],
                       "commands_are_proposals_only": True}
             if args.write_preparation:
-                manifest_path = (args.preparation_output or (OWNED / "preparation-final.json")).resolve()
-                if not inside(manifest_path, OWNED) or manifest_path.exists():
+                manifest_path = (args.preparation_output or (SCHEDULED_OWNED / "preparation-final.json")).resolve()
+                if not inside(manifest_path, SCHEDULED_OWNED) or manifest_path.exists():
                     raise ProbeError("preparation manifest path already exists or leaves owned directory")
                 manifest_path.parent.mkdir(parents=True, exist_ok=True)
                 result["preparation_path"] = str(manifest_path)
