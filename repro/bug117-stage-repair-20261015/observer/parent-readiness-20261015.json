@@ -1,0 +1,64 @@
+{
+  "date": "2026-10-15",
+  "ticket": "BUG-117",
+  "class": "High-risk",
+  "verdict": "ready_for_approved_runtime_only",
+  "observer_commit": "1561c92486eab3c155cf3ef49b117497935ad00d",
+  "observer_sha256": "cd003b21119d5d9cdba851ae7814fd0df399199b8311d3eecb6445abfd9ffd16",
+  "approved_card": "stage-control-repair-proposed-20261015",
+  "candidate_rom_sha256": "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29",
+  "candidate_receipt_sha256": "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a",
+  "candidate_revision": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+  "parent_checks": {
+    "commit_scope": "exactly observer and two owned correction reports",
+    "wsl_self_test": "pass:46existing checks and9named117groups",
+    "controlled_state_event_read_failure": "pass: raw failure retained; state_evidence_error returned before site/product qualification",
+    "three_pinned_revision_identities": "pass",
+    "frozen_hash": "match",
+    "prior_artifact_gate": "unchanged candidate; corrected observer artifact audit passes266authored/4generated/87artifacts/11sitewindows",
+    "R1": "resolved",
+    "R2": "resolved"
+  },
+  "manifest_binding": "This readiness record supersedes the old642c0072observer hash in preparation-qualified-20261015.json; original artifact/card/oracle/setup identities remain unchanged. Old manifest retained as historical evidence.",
+  "limits": {
+    "fresh_runs_max": 2,
+    "phases_per_run": 3,
+    "whole_phase_seconds_max": 45,
+    "stop_seconds_max": 10,
+    "callbacks_per_phase_max": 1000,
+    "combined_runtime_seconds_max": 270,
+    "retries": 0,
+    "guest_writes_once_per_run": [
+      [
+        "003C",
+        "49"
+      ],
+      [
+        "003D",
+        "15"
+      ],
+      [
+        "0025",
+        "01"
+      ],
+      [
+        "0033",
+        "00"
+      ]
+    ]
+  },
+  "runtime_commands": [
+    "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --build repro/bug117-stage-repair-20261015/capsule/build --case neutral --run-live --output repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json",
+    "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --build repro/bug117-stage-repair-20261015/capsule/build --case held --run-live --paired-neutral repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json --output repro/bug117-stage-repair-20261015/observer/stage-entry-held.json"
+  ],
+  "execution_preconditions": [
+    "Parent exclusive runtime lease; no build, observer writer or interference with user emulator",
+    "Reconfirm frozen observer/artifact identities and fresh owned outputs",
+    "Neutral run first; review its complete pass before held run",
+    "Stop on failure within existing reassessment boundary; no retry/search/deadline growth"
+  ],
+  "manual_and_integration": "Pending one later replacement/music/control check, natural first North name input, BUG046 own contract, and combined-source integration; no product Done/acceptance",
+  "runtime_runs_performed": 0,
+  "production_changes_this_step": false,
+  "capacity": "unchanged104/68/36resident bytes free; minimum32"
+}
