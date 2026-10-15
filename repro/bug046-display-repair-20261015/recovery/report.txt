@@ -1,0 +1,24 @@
+BUG046 two-byte recovery — capsule fit and QA — 2026-10-15
+
+Verdict
+The approved two-byte source recovery passes static qualification and the default complete-profile capsule build. The high-score helper is back to 3136 bytes and ends exactly at $B880; resident code has 110 bytes free against the 32-byte target. This completes the assigned capsule step only. BUG046 remains unaccepted because natural owner0 runtime coverage and parent integration are still outstanding.
+
+Source change and static evidence
+Only `capsule/src/shared_text_stage.inc` changed among the 266 authored inputs. Relative to the frozen source, it contains the previously approved tail `JMP draw_word_progress_hud` plus exactly two pointer substitutions:
+
+- `LDY #vegetable_sprites; LEAY D,Y` became `ADDD #vegetable_sprites; TFR D,Y`.
+- `LDY #object_masks; LEAY D,Y` became `ADDD #object_masks; TFR D,Y`.
+
+The source SHA-256 is 392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50. The assembled listing shows `B148 C3DA6F / B14B 1F02`, `B17C C3EBBA / B17F 1F02`, and the retained tail `B190 7EC41B`.
+
+Static review covered all 18 vegetable indices (0–17) and all 12 object indices (0–11); every candidate pointer equals `base + index*64` modulo 65536. A deliberate base-plus-one negative failed for all 30 cases. Source clamping maps stage values into vegetable indices 0–17; object index12 is rejected as out of range. At the first pointer site, A/B/D are dead after address construction and the following LDA/CMP establishes the flags. In the letter loop, B/U are saved and restored, A is reloaded each iteration, and DECB establishes the branch flags after the blitter. The blitter takes X/Y/U as inputs. Full static data and per-index results are retained in `recovery/static-review.json`.
+
+Build and capacity
+The single authorized command was `wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule bash scripts/build.sh build` with complete profile, keyboard input, and adaptive rendering default. It exited 0. The 65536-byte final ROM SHA-256 is fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d. The complete source receipt has 266 inputs, state `complete`, revision b94af065c4a94a0e1d0b1239831e46e21dd2ac77, and SHA-256 46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee. The capsule files match the receipt, and only `src/shared_text_stage.inc` differs from the frozen baseline input hashes.
+
+The helper measures 3136 bytes at page $23:$AC40-$B880, delta 0 bytes from baseline and exactly at the approved bound. The auxiliary stage is 5214 bytes at $A422-$B880, delta 0. Resident use is 8082/8192 bytes, leaving 110 bytes; the resident ROM hash matches the baseline. GMC spare capacity is 6197 bytes, unchanged; bank 2 is byte-identical to baseline. Sparse reconstruction, one-byte-excess rejection, presentation pixel/blend, PAR5 restoration, source-reference coverage, and source-documentation checks passed in the build. The separate asset region remains 7649/7680 bytes, with 31 bytes free; its build guard passed and its usage is unchanged.
+
+The original failed fit log remains at `capsule/build/logs/fit-default.log` with SHA-256 8b787c2757a0150da5ff0f6fb6e0ffed085e2fa1e8815836a51b03f2e0543315. The successful build log is `capsule/build/logs/fit-recovery-default.log`, SHA-256 3a9ceebbb63134fb2f723884dde99c0ea6bdd92d756772305f4de3e1941fbcd8. No alternate profile was built; parent review is required before any further profile lease.
+
+QA and remaining risk
+QA verdict for this assignment: PASS for the approved capsule implementation, static equivalence, default build, and measured fit. The overall BUG046 acceptance verdict remains BLOCKED because owner0 has no source-qualified natural fixture. No emulator/runtime test, production integration, commit, or wiki change was made. Parent owns integration, ticket/wiki updates, and the next acceptance decision.

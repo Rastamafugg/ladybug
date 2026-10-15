@@ -1,0 +1,22 @@
+BUG046 recovered-capacity profile checks — 2026-10-15
+
+Verdict
+The two authorized additional complete-profile builds passed in isolated capsules. Across default keyboard/adaptive, joystick/adaptive, and keyboard/nonadaptive, the helper is 3136 bytes ending at $B880, the auxiliary stage is 5214 bytes ending at $B880, and resident free space is 110, 74, and 42 bytes respectively. All satisfy the 32-byte resident minimum and build capacity guards. This closes the assigned capacity-profile step only. BUG046 remains blocked on natural owner0 runtime coverage and parent-owned integration.
+
+Source and baseline
+Both profile capsules contain the same 266 receipt-qualified inputs as the recovered default capsule, including the patched `src/shared_text_stage.inc` at SHA-256 392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50. The joystick and nonadaptive copies each had zero filesystem hash findings and zero input-manifest differences. Each also includes the frozen wiki tree and `src/prototype_rate_page34.s`.
+
+The available comparative reference is the recovered default complete keyboard/adaptive candidate, ROM SHA-256 fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d and receipt SHA-256 46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee. A profile-matched pre-repair joystick or nonadaptive baseline was not available in the assigned artifact set. The deltas below compare profiles to that default reference and are not matched-profile deltas.
+
+Joystick with adaptive rendering
+Command: `wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/recovery/profiles/joystick/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build`. Exit 0; complete receipt has 266 inputs. ROM SHA-256 fc27990a2188fb151e3049272d176c9b18049bcc514024fc86a4543ef957d9f9; receipt SHA-256 5aaac15de705dc01b7a34d62a203e027d04d464aa1915baaca7ef2212051e37b; log SHA-256 de720337b97a1ea9e25df51d6bc16be64902eb8910e336efb8e70ee7c4d35c58.
+
+The helper is 3136 bytes at $23:$AC40-$B880; auxiliary staging is 5214 bytes at $A422-$B880. Resident usage is 8118/8192, leaving 74 bytes, 36 fewer than the default comparison. GMC spare is 6195 bytes, 2 fewer than default. Adaptive active, mapped, and banked outputs pass at 622/777, 198/220, and 696/698 bytes. The asset region is 7649/7680 bytes. Sparse and presentation proofs, the exact-boundary/one-byte-excess GMC proof, source reference, and source documentation passed; documentation covers 319/319 routines and 5055/5055 labels across 16 modules.
+
+Keyboard without adaptive rendering
+Command: `wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/recovery/profiles/nonadaptive/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build`. Exit 0; complete receipt has 266 inputs. ROM SHA-256 f1158d5decde685f8faf1f17928dbb286d163091e5cfc333ed6aad11346db538; receipt SHA-256 3f5f7e270b1f5afdf26f561d9365509da95681efccfdcf3e2b13067c44a7e119; log SHA-256 b65b31f2e0a2572f398d834de0d9bbb28a4a5a28bba908ec0c5bc5edb01b0a2f.
+
+The helper is 3136 bytes at $23:$AC40-$B880; auxiliary staging is 5214 bytes at $A422-$B880. Resident usage is 8150/8192, leaving 42 bytes, 68 fewer than the default comparison. GMC spare is 8488 bytes, 2291 more than default. The asset region is 7608/7680 bytes; the presentation module is 1272/1280. Sparse and presentation proofs, GMC boundary proof, source reference, and source documentation passed; documentation covers 296/296 routines and 4783/4783 labels across 13 modules.
+
+QA and remaining blocker
+QA verdict for the assigned capacity step: PASS. Each profile ran once, in a separate capsule, with no retry. No emulator or runtime verification was performed. The previously source-qualified owner1 observation does not cover owner0; natural owner0 coverage remains missing. Overall BUG046 is not accepted, and integration, ticket/wiki updates, and final acceptance remain parent-owned.

@@ -1,0 +1,382 @@
+{
+  "ticket": "BUG046",
+  "assignment": "two-byte recovery static qualification before source edits",
+  "capsule": "repro/bug046-display-repair-20261015/capsule",
+  "source_sha256_before_recovery": "ea52eac8016b5cebc06a61040abbda645e644050ca6f180215e21503f79f7efb",
+  "preexisting_word_tail_jmp_preserved": true,
+  "blitter_contract": {
+    "inputs": [
+      "X destination",
+      "Y sprite bytes",
+      "U lookup table"
+    ],
+    "source": "src/main.s:4515-4536",
+    "scratch": [
+      "A",
+      "B",
+      "CC"
+    ]
+  },
+  "sites": [
+    {
+      "line": 666,
+      "sequence": "LDY #vegetable_sprites (4 bytes); LEAY D,Y (2 bytes)",
+      "live_after": "A/B/D dead before subsequent screen load/compare; following CMPA refreshes CC",
+      "saving_bytes": 1,
+      "replacement": "ADDD #vegetable_sprites (3 bytes); TFR D,Y (2 bytes)"
+    },
+    {
+      "line": 690,
+      "sequence": "LDY #object_masks (4 bytes); LEAY D,Y (2 bytes)",
+      "live_after": "B/U saved and restored; A reloaded on next iteration; DECB sets loop flags after blitter",
+      "saving_bytes": 1,
+      "replacement": "ADDD #object_masks (3 bytes); TFR D,Y (2 bytes)"
+    }
+  ],
+  "total_projected_saving_bytes": 2,
+  "equivalence": {
+    "rows": [
+      {
+        "domain": "vegetable",
+        "index": 0,
+        "mul64": "0x0000",
+        "original": "0xDA6F",
+        "candidate": "0xDA6F",
+        "base_plus1_negative": "0xDA70",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 1,
+        "mul64": "0x0040",
+        "original": "0xDAAF",
+        "candidate": "0xDAAF",
+        "base_plus1_negative": "0xDAB0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 2,
+        "mul64": "0x0080",
+        "original": "0xDAEF",
+        "candidate": "0xDAEF",
+        "base_plus1_negative": "0xDAF0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 3,
+        "mul64": "0x00C0",
+        "original": "0xDB2F",
+        "candidate": "0xDB2F",
+        "base_plus1_negative": "0xDB30",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 4,
+        "mul64": "0x0100",
+        "original": "0xDB6F",
+        "candidate": "0xDB6F",
+        "base_plus1_negative": "0xDB70",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 5,
+        "mul64": "0x0140",
+        "original": "0xDBAF",
+        "candidate": "0xDBAF",
+        "base_plus1_negative": "0xDBB0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 6,
+        "mul64": "0x0180",
+        "original": "0xDBEF",
+        "candidate": "0xDBEF",
+        "base_plus1_negative": "0xDBF0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 7,
+        "mul64": "0x01C0",
+        "original": "0xDC2F",
+        "candidate": "0xDC2F",
+        "base_plus1_negative": "0xDC30",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 8,
+        "mul64": "0x0200",
+        "original": "0xDC6F",
+        "candidate": "0xDC6F",
+        "base_plus1_negative": "0xDC70",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 9,
+        "mul64": "0x0240",
+        "original": "0xDCAF",
+        "candidate": "0xDCAF",
+        "base_plus1_negative": "0xDCB0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 10,
+        "mul64": "0x0280",
+        "original": "0xDCEF",
+        "candidate": "0xDCEF",
+        "base_plus1_negative": "0xDCF0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 11,
+        "mul64": "0x02C0",
+        "original": "0xDD2F",
+        "candidate": "0xDD2F",
+        "base_plus1_negative": "0xDD30",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 12,
+        "mul64": "0x0300",
+        "original": "0xDD6F",
+        "candidate": "0xDD6F",
+        "base_plus1_negative": "0xDD70",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 13,
+        "mul64": "0x0340",
+        "original": "0xDDAF",
+        "candidate": "0xDDAF",
+        "base_plus1_negative": "0xDDB0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 14,
+        "mul64": "0x0380",
+        "original": "0xDDEF",
+        "candidate": "0xDDEF",
+        "base_plus1_negative": "0xDDF0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 15,
+        "mul64": "0x03C0",
+        "original": "0xDE2F",
+        "candidate": "0xDE2F",
+        "base_plus1_negative": "0xDE30",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 16,
+        "mul64": "0x0400",
+        "original": "0xDE6F",
+        "candidate": "0xDE6F",
+        "base_plus1_negative": "0xDE70",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "vegetable",
+        "index": 17,
+        "mul64": "0x0440",
+        "original": "0xDEAF",
+        "candidate": "0xDEAF",
+        "base_plus1_negative": "0xDEB0",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 0,
+        "mul64": "0x0000",
+        "original": "0xEBBA",
+        "candidate": "0xEBBA",
+        "base_plus1_negative": "0xEBBB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 1,
+        "mul64": "0x0040",
+        "original": "0xEBFA",
+        "candidate": "0xEBFA",
+        "base_plus1_negative": "0xEBFB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 2,
+        "mul64": "0x0080",
+        "original": "0xEC3A",
+        "candidate": "0xEC3A",
+        "base_plus1_negative": "0xEC3B",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 3,
+        "mul64": "0x00C0",
+        "original": "0xEC7A",
+        "candidate": "0xEC7A",
+        "base_plus1_negative": "0xEC7B",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 4,
+        "mul64": "0x0100",
+        "original": "0xECBA",
+        "candidate": "0xECBA",
+        "base_plus1_negative": "0xECBB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 5,
+        "mul64": "0x0140",
+        "original": "0xECFA",
+        "candidate": "0xECFA",
+        "base_plus1_negative": "0xECFB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 6,
+        "mul64": "0x0180",
+        "original": "0xED3A",
+        "candidate": "0xED3A",
+        "base_plus1_negative": "0xED3B",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 7,
+        "mul64": "0x01C0",
+        "original": "0xED7A",
+        "candidate": "0xED7A",
+        "base_plus1_negative": "0xED7B",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 8,
+        "mul64": "0x0200",
+        "original": "0xEDBA",
+        "candidate": "0xEDBA",
+        "base_plus1_negative": "0xEDBB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 9,
+        "mul64": "0x0240",
+        "original": "0xEDFA",
+        "candidate": "0xEDFA",
+        "base_plus1_negative": "0xEDFB",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 10,
+        "mul64": "0x0280",
+        "original": "0xEE3A",
+        "candidate": "0xEE3A",
+        "base_plus1_negative": "0xEE3B",
+        "equivalent": true,
+        "negative_caught": true
+      },
+      {
+        "domain": "object",
+        "index": 11,
+        "mul64": "0x02C0",
+        "original": "0xEE7A",
+        "candidate": "0xEE7A",
+        "base_plus1_negative": "0xEE7B",
+        "equivalent": true,
+        "negative_caught": true
+      }
+    ],
+    "rule": "(index*64 + base) mod 65536",
+    "overflow": "No legal-range wrap with current mapped symbols: vegetable end-exclusive 0xDEEF; object end-exclusive 0xEEBA.",
+    "object_passed": true,
+    "vegetable_passed": true
+  },
+  "negative_controls": {
+    "object_index_12": {
+      "pointer": "0xEEBA",
+      "legal_range": "0..11",
+      "index": 12,
+      "accepted": false,
+      "expected": "rejected as one-past-end index"
+    },
+    "vegetable_raw_boundary": [
+      {
+        "raw": 0,
+        "normalized_vegetable_index": 0
+      },
+      {
+        "raw": 1,
+        "normalized_vegetable_index": 0
+      },
+      {
+        "raw": 18,
+        "normalized_vegetable_index": 17
+      },
+      {
+        "raw": 19,
+        "normalized_vegetable_index": 17
+      },
+      {
+        "raw": 255,
+        "normalized_vegetable_index": 17
+      }
+    ],
+    "wrong_base_plus_one": {
+      "detected": 30,
+      "cases": 30,
+      "pass": true
+    }
+  },
+  "status": "static checks pass; patch not yet applied; no build performed in this step"
+}

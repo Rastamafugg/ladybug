@@ -1,0 +1,117 @@
+build: assemble [adaptive core generated module] build/ladybug-adaptive-mapped.s -> build/ladybug-adaptive-mapped.bin
+build: assemble [adaptive core generated module] build/ladybug-adaptive-banked.s -> build/ladybug-adaptive-banked.bin
+{"mapped": {"bytes": 198, "limit": 220, "free": 22}, "banked": {"bytes": 696, "limit": 698, "free": 2}}
+build: profile complete; input keyboard
+maze: 25 styles, 117 dots, 20 gates, 250 walkable cells -> /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/assets/arcade/maze.json, /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug_maze.inc
+screen: 97 unique tiles, 5152 data bytes, 832 gate-transition bytes (168 verified cases), 896 presentation-sparse bytes
+presentation: 9 maps, 174 native descriptors, 14299 cold bytes, e655be946f380101201a54f48dcbe925d177b330447880f5470c7f4dccca4ae0
+event assets: 258 shared tiles; 187 SPECIAL and 83 EXTRA source tiles; 9547 event bytes; 5112 dinosaur bytes
+build: assemble [module] src/audio_runtime.s -> build/ladybug-audio-runtime.bin
+build: audio engine 727/920 bytes; page-$3D payload 6034/8192 bytes
+{
+  "status": "pass",
+  "cases": [
+    {
+      "screen": "attract",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "instructions",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "level-start",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "high-score",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "game-over",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "enter-high-score",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "options",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "credits",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    },
+    {
+      "screen": "keybind-options",
+      "pixel_exact": true,
+      "differences": 0,
+      "first": []
+    }
+  ],
+  "font_bytes": 352,
+  "graphics": 122,
+  "cold_bytes": 14299,
+  "sha256": "e655be946f380101201a54f48dcbe925d177b330447880f5470c7f4dccca4ae0"
+}
+BUG-016 proof: 9 role contracts, 22 raw markers, 2 deferred logo layers, 9 presentation negative diagnostics; BUG-060 shared Background/schema guards valid; frozen snapshot not requested; BUG-059 gameplay marker valid, metadata excluded, 7 negative diagnostics
+build: assemble [initial resident image] src/main.s -> build/ladybug-runtime.rom
+build: resident 8082/8192 bytes; assets 7649/7680 bytes
+build: padded 15841 -> 16384 bytes (/mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug-runtime.rom)
+build: assemble [module] src/enemy_runtime.s -> build/ladybug-enemy-runtime.rom
+build: assemble [module] src/enemy_helpers_page34.s -> build/ladybug-enemy-helper-page34.bin
+build: page-$34 enemy helper 87/93 bytes at $A8A0-$A8F6; six bytes remain
+build: assemble [module] src/prototype_rate_page34.s -> build/ladybug-rate-helper.bin
+build: assemble [provisional presentation runtime] src/presentation_runtime.s -> build/ladybug-presentation-runtime.bin
+build: presentation module 1259/1280 bytes
+build: assemble [resident symbol refresh] src/main.s -> build/ladybug-runtime.rom
+build: resident 8082/8192 bytes; assets 7649/7680 bytes
+build: padded 15841 -> 16384 bytes (/mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug-runtime.rom)
+build: assemble [module] src/demo_runtime.s -> build/ladybug-demo-runtime.bin
+build: demo runtime 143/938 bytes
+build: assemble [module] src/demo_runtime.s -> build/ladybug-highscore-runtime.bin
+build: high-score runtime 917/938 bytes
+build: assemble [module] src/demo_runtime.s -> build/ladybug-highscore-helper.bin
+build: assemble [final presentation runtime] src/presentation_runtime.s -> build/ladybug-presentation-runtime.bin
+build: presentation module 1259/1280 bytes
+build: assemble [module] src/instruction_runtime.s -> build/ladybug-instruction-runtime.bin.new
+build: instruction runtime 935/938 bytes
+build: assemble [module] src/perimeter_reset_helper.s -> build/ladybug-perimeter-reset-helper.bin
+build: presentation helper 331/334 bytes
+build: assemble [adaptive bindings generated module] build/ladybug-adaptive-active.s -> build/ladybug-adaptive-active.bin
+{"active": {"bytes": 622, "limit": 777, "free": 155}}
+build: assemble [adaptive link final audio runtime] src/audio_runtime.s -> build/ladybug-audio-runtime.bin
+build: assemble [adaptive link final resident image] src/main.s -> build/ladybug-runtime.rom
+build: audio engine 727/920 bytes; page-$3D payload 6656/8192 bytes
+build: resident 8082/8192 bytes; assets 7649/7680 bytes
+build: padded 15841 -> 16384 bytes (/mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug-runtime.rom)
+build: assemble [module] src/keybinding_runtime.s -> build/ladybug-keybinding-runtime.bin
+sparse: enemy 23005/24576, player 2294/8192, gate 832 bytes, presentation 896 bytes, perimeter reset 5751 bytes, 12 loader segments, 7 LZSS streams, 6197 CPU-readable GMC bytes spare
+sparse proof: 130 enemy and 16 player frames decode and blend pixel-exactly; 12 loader segments reconstruct actor, gate, presentation, cold, module, page-$34 enemy helper, audio, and auxiliary payloads; 2 standalone ROM assets with 6197 bytes spare
+GMC overflow proof: exact boundary reconstructs across banks 2/3/0; one-byte excess fails
+presentation proof: 9 colour/score, 3 multiplier, and 14 death streams blend pixel-exactly with PAR5-restoring sparse decode
+build: assemble [module] src/gmc_bootstrap.s -> build/ladybug-gmc-boot.rom.tmp
+build: boot loader ends at $C582; overflow starts at $C800
+allocation proof: page $20 is boot-synthesized perimeter ownership; $3A-$3D remain cold presentation
+build: padded 1410 -> 16384 bytes (/mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug-gmc-boot.rom)
+build: init_enemy JMP $D4E5->$A469 matches rate_enemy_init_shim
+build: GMC banks 4 x 16384 -> 65536 bytes (/mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule/build/ladybug.rom)
+source reference: 16 modules, 36624 source lines, coverage=pass
+source documentation: PASS: 16 modules, 319/319 routines, 5053/5053 labels

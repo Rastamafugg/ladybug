@@ -1,0 +1,135 @@
+{
+  "ticket": "BUG046",
+  "approved_assignment": "two-byte-recovery-approved-20261015",
+  "classification": "High-risk",
+  "result": "capsule default-profile implementation and fit passed; BUG046 overall acceptance remains blocked by missing natural owner0 runtime coverage and parent-owned integration",
+  "baseline": {
+    "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+    "receipt_sha256": "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc",
+    "authored_input_count": 266
+  },
+  "source": {
+    "changed_authored_files": ["src/shared_text_stage.inc"],
+    "changed_authored_file_count": 1,
+    "changed_vs_baseline_receipt_inputs": 1,
+    "capsule_receipt_drift": 0,
+    "sha256": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50",
+    "patch": [
+      "LDY #vegetable_sprites; LEAY D,Y -> ADDD #vegetable_sprites; TFR D,Y",
+      "LDY #object_masks; LEAY D,Y -> ADDD #object_masks; TFR D,Y",
+      "Retained the previously approved post-letter-loop JMP draw_word_progress_hud"
+    ],
+    "assembled_listing": [
+      "B148 C3DA6F / B14B 1F02: vegetable pointer construction",
+      "B17C C3EBBA / B17F 1F02: object-mask pointer construction",
+      "B190 7EC41B: word-progress HUD tail JMP"
+    ]
+  },
+  "static_qualification": {
+    "evidence": "repro/bug046-display-repair-20261015/recovery/static-review.json",
+    "evidence_sha256": "1fcfc1046ed6af33f0048a5a1374ed65ecd589a8da79eb30683a130e906d4c71",
+    "vegetable_indices": {"range": "0..17", "equivalent_cases": 18, "cases": 18},
+    "object_indices": {"range": "0..11", "equivalent_cases": 12, "cases": 12},
+    "deliberate_base_plus_one_negative": {"detected_cases": 30, "cases": 30},
+    "vegetable_source_bounds": "PRES_TMP_H zero is promoted to one; values above 18 clamp to 18; DEC A yields only 0..17.",
+    "object_source_bounds": "The authorized object index range is 0..11; index 12 is rejected as one past the range.",
+    "register_and_flags": "At the vegetable site A/B/D are dead after pointer construction and the following LDA/CMP defines CC. In the letter loop B/U are saved and restored, A is loaded on the next iteration, and DECB defines loop CC after the blitter. The blitter consumes X/Y/U inputs and uses A/B/CC as scratch.",
+    "arithmetic": "Both forms compute (base + index*64) modulo 65536. The legal mapped ranges do not wrap."
+  },
+  "build": {
+    "command": "wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule bash scripts/build.sh build",
+    "profile": "complete",
+    "input": "keyboard",
+    "adaptive": "default enabled",
+    "exit_code": 0,
+    "log": "repro/bug046-display-repair-20261015/capsule/build/logs/fit-recovery-default.log",
+    "log_sha256": "3a9ceebbb63134fb2f723884dde99c0ea6bdd92d756772305f4de3e1941fbcd8",
+    "completed_receipt": {
+      "path": "repro/bug046-display-repair-20261015/capsule/build/source-build-receipt.json",
+      "state": "complete",
+      "profile": "complete",
+      "revision": "b94af065c4a94a0e1d0b1239831e46e21dd2ac77",
+      "input_count": 266,
+      "sha256": "46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee"
+    },
+    "rom": {
+      "path": "repro/bug046-display-repair-20261015/capsule/build/ladybug.rom",
+      "bytes": 65536,
+      "sha256": "fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d"
+    },
+    "preserved_prior_failed_fit": {
+      "log": "repro/bug046-display-repair-20261015/capsule/build/logs/fit-default.log",
+      "sha256": "8b787c2757a0150da5ff0f6fb6e0ffed085e2fa1e8815836a51b03f2e0543315",
+      "failure": "Prior un-recovered candidate overlapped the $B880 title boundary by two bytes."
+    },
+    "build_checks": [
+      "Sparse streams and exact-boundary one-byte-excess proof passed; 6197 CPU-readable GMC bytes spare.",
+      "Presentation streams passed pixel-exact blend and PAR5-restoration checks.",
+      "Source-reference coverage passed; source documentation passed for 319/319 routines and 5053/5053 labels."
+    ]
+  },
+  "capacity": {
+    "highscore_helper": {
+      "baseline_bytes": 3136,
+      "candidate_bytes": 3136,
+      "delta_bytes": 0,
+      "stage_page": "0x23",
+      "stage_start": "0xAC40",
+      "stage_end_exclusive": "0xB880",
+      "target": "<=3136 bytes and end <=0xB880",
+      "pass": true,
+      "candidate_sha256": "c514fb3ffa30400145d941e7bd89438520f21cf90e9626df686f946538ffa570"
+    },
+    "auxiliary_stage": {
+      "baseline_bytes": 5214,
+      "candidate_bytes": 5214,
+      "delta_bytes": 0,
+      "start": "0xA422",
+      "end_exclusive": "0xB880"
+    },
+    "resident": {
+      "candidate_used_bytes": 8082,
+      "capacity_bytes": 8192,
+      "free_bytes": 110,
+      "minimum_free_target_bytes": 32,
+      "resident_image_sha256_matches_baseline": true,
+      "pass": true
+    },
+    "asset_region": {
+      "used_bytes": 7649,
+      "capacity_bytes": 7680,
+      "free_bytes": 31,
+      "changed": false,
+      "note": "Separate from the resident-free target; build guard passed."
+    },
+    "gmc": {
+      "baseline_spare_bytes": 6197,
+      "candidate_spare_bytes": 6197,
+      "delta_bytes": 0,
+      "payload_bytes": 35239,
+      "candidate_bank2_sha256_matches_baseline": true,
+      "pass": true
+    },
+    "other_guarded_outputs": {
+      "enemy_bytes": 23005,
+      "player_bytes": 2294,
+      "presentation_bytes": 896,
+      "presentation_module_bytes": "1259/1280",
+      "instruction_runtime_bytes": "935/938",
+      "page34_enemy_helper_bytes": "87/93",
+      "perimeter_helper_bytes": "331/334",
+      "adaptive_active_bytes": "622/777",
+      "audio_engine_bytes": "727/920",
+      "page3D_payload_bytes": "6656/8192"
+    },
+    "profiles_run": ["complete, keyboard, adaptive default"],
+    "other_profiles_run": []
+  },
+  "qa": {
+    "scoped_recovery_step": "PASS: exact approved source change, static equivalence, complete default build, receipt identity, and capacity guards pass.",
+    "bug046_overall": "NOT ACCEPTED: natural owner0 runtime coverage remains missing; no emulator/runtime verification or parent integration was performed.",
+    "next_state_recommendation": "Parent review this capsule step; authorize any remaining profile checks sequentially. Keep BUG046 open until the owner0 requirement and parent integration are resolved.",
+    "commit": "None; Git operations were outside this assignment.",
+    "wiki": "No wiki edits; ticket/wiki integration is parent-owned and outside this assignment."
+  }
+}
