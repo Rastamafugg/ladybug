@@ -1,0 +1,77 @@
+FEAT-010 helper recovery design proposal
+Status: proposal only; no implementation is authorized by this report.
+Class: High-risk. The helper has immutable fixed entries and a hard B880 end boundary; it executes through the resident/copied presentation path. Any accepted change must retain the existing entry, copy, mapping, register, stack, IRQ, and presentation ownership contracts.
+
+Recommendation
+
+Restore the 16-byte attract dispatch prefix and branch to a new internal 14-byte attract wrapper appended after the existing menu-record include and before highscore_phase_helper_end in src/shared_text_stage.inc. The inline FEAT-010 path grows the AC40..AD00 prefix by 12 bytes and causes the first reservation to fail by 11. The later B080 diagnostic is the same displacement carried through an unchanged AD00..B080 source span, not an independent 11-byte shortfall. The wrapper moves the same attract-only operations past B080, where the existing feature tail has a statically projected 80-byte shrink; after the 14-byte wrapper, the projection leaves 66 bytes before B880.
+
+This is a projected fit, not a measured build result. The failed candidate produced no valid helper listing. The proposal changes no cap or fixed address. It does not authorize another profile or runtime attempt. Since the proposed recovery approach changes the helper layout, FEAT-010 must return to Proposed for explicit user approval before implementation.
+
+Evidence and diagnosis
+
+The frozen first complete keyboard/6809/adaptive attempt used one of three profile attempts and stopped at the helper boundary. Its result records presentation at 1271/1280 bytes (9 free), a measured 32-byte saving from 1303, and exact checks of all 32 replacement operands. The partial resident result is 8088/8192 (104 free); assets are 7667/7680 (13 free). Those partial figures do not establish full-profile acceptance. No runtime, final ROM, final receipt, other profile, full source-flow gate, or valid helper listing was produced.
+
+The assembler log reports `RMB HIGHSCORE_PHASE_HELPER_RESUME-*` at src/shared_text_stage.inc:232 as negative 11, followed by `RMB $B080-*` at line 559 as negative 11. The qualified BUG117/046 helper uses AC40 as its start, ACFF as the final byte before the one-byte zero gap, AD00 as the resume entry, B062 as the read-letters wrapper, and B080 as its fixed end. The qualified helper occupies AC40..B880 exactly: 3136 bytes. Its source hash, 392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50, matches current root shared_text_stage.inc and the qualified BUG117/046 capsule. The known-good binary, listing, and map hashes are retained in proposal.json.
+
+The failed feature prefix is 28 encoded bytes; the known-good prefix is 16. The only footprint difference before AD00 is therefore +12 bytes. Since the qualified prefix has one gap byte, the projected first reservation is 1 - 12 = -11, matching the log. Parent source comparison confirms that the authored AD00-through-B080 span is identical to the qualified baseline. With no intervening source growth, the later -11 is explained by the same +12 prefix displacement; it is not evidence for a second independent 11-byte recovery. The later reservation itself has zero spare bytes and must remain byte-for-byte at B080.
+
+Exact before/after source hunk
+
+The frozen failed candidate has this 28-byte inline dispatch:
+
+    highscore_phase_tick
+            lda     PRES_SCREEN
+            cmpa    #PRESENTATION_MAP_ATTRACT
+            bne     highscore_phase_not_attract
+            lbsr    highscore_logo_tick
+            lda     PRES_MODE
+            cmpa    #MODE_ATTRACT
+            lbne    highscore_phase_hold
+            lbra    menu_tick
+    highscore_phase_not_attract
+            lda     PRES_MODE
+            cmpa    #MODE_CREDIT
+            lbeq    menu_tick
+
+Replace it with this same-size 16-byte prefix; retain the remaining existing game-over, name, and timer dispatch below it:
+
+    highscore_phase_tick
+            lda     PRES_SCREEN
+            cmpa    #PRESENTATION_MAP_ATTRACT
+            lbeq    highscore_attract_tick
+    highscore_phase_not_attract
+            lda     PRES_MODE
+            cmpa    #MODE_CREDIT
+            lbeq    menu_tick
+
+Append the following internal block after the existing `include "ladybug_menu_records.inc"` and before `highscore_phase_helper_end`:
+
+    highscore_attract_tick
+            lbsr    highscore_logo_tick
+            lda     PRES_MODE
+            cmpa    #MODE_ATTRACT
+            lbne    highscore_phase_hold
+            lbra    menu_tick
+
+The prefix remains 16 bytes: two direct-page loads (2 bytes each), two immediate compares (2 bytes each), and two long conditional branches (4 bytes each). The wrapper is 14 bytes: LBSR 3, direct-page LDA 2, immediate CMP 2, LBNE 4, and LBRA 3. It preserves the candidate attract sequence: logo update, reload and compare the mode after the call, hold unless mode is ATTRACT, then enter menu_tick. The call returns to the wrapper with balanced stack depth. It adds no PAR4/PAR5 or IRQ operation and adds no persistent state, public ABI, module, or direct-page storage.
+
+The exact proposed helper boundary ledger is a source/listing-based projection, not assembler output. Against the qualified helper listing and current candidate source/generated records, the tail changes are: credit_panel_slice 60 to 9 bytes (-51); removed credit_panel_two_prompt data (-20); menu_tick changes (+32), decomposed as dispatcher insertion +28, menu-enter reorder -6, idle-mode admission +4, prepare trampoline +7, finish trampoline -1; menu_load_original/options path 99 to 73 bytes (-26); generated menu records 132 to 117 bytes (-15). The tail therefore shrinks by 80 bytes. The wrapper adds 14, leaving a projected 66-byte reduction from the 3136-byte baseline and a projected exclusive end at B83E, 66 bytes below B880. The post-change AC40..AD00 gap remains one byte; AD00..B080 remains identical and B080 has zero slack; B880 remains the hard end. This projection must be replaced by actual listing/map measurements after approval.
+
+Do not count the later `draw_high_score_screen` LDX as helper savings or cost: it is inside the legacy/demo conditional branch and is absent from the qualified active helper listing. Do not treat the partial 917/938 generic high-score runtime diagnostic as the helper cap; the complete high-score owner cap remains 920 bytes. No cap is changed here.
+
+Verification and readiness conditions
+
+Before Ready, the ticket must carry user approval for this exact recovery, the source-flow assertion adjustment, and the bounded source-reference metadata additions. The existing scripts/verify_presentation_flow.py currently requires the logo/menu operations inside the old prefix. Update only that assertion to require the prefix branch to highscore_attract_tick and the wrapper's ordered LBSR-logo, mode reload/compare, LBNE-hold, LBRA-menu sequence. Preserve its other assertions. The existing source_reference.json gate also needs explicit BASICBLOCK/data classifications for the 34 already-approved FEAT-010 labels enumerated in parent-preflight.json, plus this one new internal wrapper label. Do not broaden label discovery, add public routines, or repair unrelated registry debt.
+
+The DOC-014 card for the modified existing static gate must be embedded in the ticket before Ready. Its distinct risk is wrong attract dispatch or movement of a fixed helper boundary. Use the exact frozen failed candidate source (SHA-256 c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93) as the negative control: the revised wrapper assertion must reject its inline-only dispatch. The positive wrapper fixture does not yet exist; after user approval, identify its exact source hash and qualify the existing guard against that fixture before Ready. Do not claim qualification from a script name or this proposal.
+
+For the implementation step, reuse the existing source-flow command `python scripts/verify_presentation_flow.py`, then run no more than one serialized first-profile fit using the ticket's existing complete keyboard/6809/adaptive build command. Independently inspect the resulting listing/map for AC40, ACFF, AD00, B062, B080, and end <= B880; retain the build receipt and exact artifact hashes. Expected fixed-slot margins are ACFF=1 byte and B080=0 bytes; helper-end projection is 66 bytes, but acceptance uses measured output. The complete helper and high-score owner caps, all stock caps, 32-byte presentation saving, and existing public entries remain mandatory. If any hard boundary fails, stop and report the measured miss. This recovery step has a proposed command-count cost of one static-gate invocation and at most one first-profile build; elapsed wall time is not present in the retained result, so no minute estimate is claimed. It adds zero runtime probes and no scenario matrix.
+
+Rejected alternatives
+
+Keeping the inline dispatch retains the proven +12-byte prefix growth and -11 first reservation. Direct-page shortening is unavailable: PRES_SCREEN and PRES_MODE already encode as direct-page operands, and all direct-page equates precede this helper. Rewriting fixed addresses, moving B080, relaxing B880 or the 920-byte owner cap, changing copy/MMU policy, adding a module, or changing runtime ownership is outside scope. A smaller local encoding was not proven to recover the 11 bytes while retaining the current behavior; the moved wrapper has a source-level size ledger and tail headroom projection instead.
+
+Artifact identities
+
+Failed candidate shared_text_stage.inc: c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93. Failed first-profile result: repro/feat010-recovery-20261015/first-profile-result.json. Failed log SHA-256: 975404db1b94b5516bb8070b315071af77149de27e57860ad94124771cd72dd4. Candidate shared-text flow verifier SHA-256: 2b1c0ebc3e968e28d8246b50aee005e6d9872d05eff7ec35407745b4b2edfb35. Candidate source_reference.json SHA-256: c92fce404c5e57d66a15224a0c731307377e3bca5eec870b2fd8f5eb2702182f. Generated menu records: candidate 5fe8a540e8b2fc54ca6140ee0ab75697e38815eedfb3303fa1b3707cdb1fa42f; baseline ef45c81a43946d9b544067c200799d99c7011491ff2935b3ac697005e0733751.

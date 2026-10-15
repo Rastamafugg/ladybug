@@ -1,0 +1,200 @@
+{
+  "ticket": "FEAT-010",
+  "artifact": "bounded helper recovery design proposal",
+  "status": "proposal_only_requires_explicit_user_approval",
+  "class": "High-risk",
+  "recommendation": "restore the 16-byte fixed-slot dispatch prefix and move the existing FEAT-010 attract-only branch body to a 14-byte internal wrapper after the menu-record include and before highscore_phase_helper_end in src/shared_text_stage.inc",
+  "scope": {
+    "production_source": [
+      "src/shared_text_stage.inc"
+    ],
+    "existing_gate_assertion": "bounded update to scripts/verify_presentation_flow.py for the new internal wrapper path",
+    "existing_reference_metadata": "explicit BASICBLOCK/data classifications for the 34 already-approved feature labels enumerated in parent-preflight.json, plus highscore_attract_tick",
+    "excluded": [
+      "all other source/wiki/build/assembler/runtime/Git changes before approval",
+      "new module, public ABI, runtime state, or direct-page storage",
+      "fixed entry, copy extent, address, mapping, cap, IRQ, PAR4, or PAR5 changes",
+      "additional profile or runtime attempts in this proposal step"
+    ]
+  },
+  "baseline": {
+    "failed_capsule": "repro/feat010-recovery-20261015/capsule",
+    "failed_candidate_source_sha256": "c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93",
+    "failed_result": "repro/feat010-recovery-20261015/first-profile-result.json",
+    "failed_log_sha256": "975404db1b94b5516bb8070b315071af77149de27e57860ad94124771cd72dd4",
+    "measured_profile": "complete keyboard, 6809, adaptive",
+    "measured_build_attempts": 1,
+    "remaining_profile_attempts_stopped": 2,
+    "runtime_runs": 0,
+    "presentation_bytes": 1271,
+    "presentation_limit": 1280,
+    "presentation_free": 9,
+    "presentation_baseline_bytes": 1303,
+    "presentation_measured_saving": 32,
+    "presentation_binary_sha256": "e26d7d113ba919bb311cf835f14984aa47a8eab383607c57811c26fb2a36425a",
+    "presentation_listing_sha256": "72cc537304e5b1b0cb88739dba77d7379c11557580b64b25146b346e3a6f3e60",
+    "partial_resident_bytes_limit_free": "8088/8192/104; not final acceptance",
+    "partial_assets_bytes_limit_free": "7667/7680/13; not final acceptance",
+    "helper_failed_diagnostics": [
+      "line 232: RMB HIGHSCORE_PHASE_HELPER_RESUME-* negative 11",
+      "line 559: RMB $B080-* negative 11"
+    ],
+    "qualified_baseline": {
+      "capsule": "repro/bug117-stage-repair-20261015/capsule",
+      "source_sha256": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50",
+      "helper_binary_sha256": "8dc7c094d8187135dd1f053ea8b9651052dfaf3c648183aa7f419c0822568d04",
+      "helper_listing_sha256": "8234040842ea0a7107086f69b85c1dd6eac69d2a31ee714f130efc75c0d19ff2",
+      "helper_map_sha256": "f9614dd6c052ca4709675e027efac3556f111eb3cb466c360060c23929b653d0",
+      "span": "AC40..B880 exclusive",
+      "raw_size_bytes": 3136,
+      "first_gap": "ACFF is zero; resume entry AD00; one gap byte",
+      "fixed_second_entry": "B062 read-letters wrapper; B080 end/reservation; zero gap bytes",
+      "receipt_state": "complete"
+    }
+  },
+  "cause_analysis": {
+    "qualified_prefix_bytes": 16,
+    "failed_feature_prefix_bytes": 28,
+    "prefix_growth_bytes": 12,
+    "first_boundary_projection": "1 gap byte - 12 growth bytes = -11",
+    "ad00_through_b080_source_identical_to_qualified_baseline": true,
+    "later_negative_11_interpretation": "same prefix displacement propagated to the later fixed reservation; not an independent second deficit",
+    "failed_candidate_valid_helper_listing_exists": false
+  },
+  "source_change": {
+    "dispatch_prefix": [
+      "highscore_phase_tick",
+      "        lda     PRES_SCREEN",
+      "        cmpa    #PRESENTATION_MAP_ATTRACT",
+      "        lbeq    highscore_attract_tick",
+      "highscore_phase_not_attract",
+      "        lda     PRES_MODE",
+      "        cmpa    #MODE_CREDIT",
+      "        lbeq    menu_tick"
+    ],
+    "internal_wrapper": [
+      "highscore_attract_tick",
+      "        lbsr    highscore_logo_tick",
+      "        lda     PRES_MODE",
+      "        cmpa    #MODE_ATTRACT",
+      "        lbne    highscore_phase_hold",
+      "        lbra    menu_tick"
+    ],
+    "wrapper_placement": "after include ladybug_menu_records.inc and before highscore_phase_helper_end",
+    "prefix_bytes": 16,
+    "wrapper_bytes": 14,
+    "behavior_preserved": [
+      "attract screen dispatches to logo update",
+      "mode is reloaded after logo update",
+      "non-ATTRACT mode branches to the existing hold path",
+      "ATTRACT mode enters the existing menu_tick path",
+      "existing non-attract CREDIT, GAMEOVER, name, and timer dispatch ordering remains"
+    ],
+    "register_stack_irq_mapping": "wrapper uses a balanced LBSR/return; no new PAR4/PAR5/IRQ access, persistent state, module, ABI, or mapping/copy boundary change"
+  },
+  "projected_byte_ledger": {
+    "basis": "qualified baseline helper listing plus source-level 6809 widths and candidate generated-record artifact; static projection only, no candidate helper assembly",
+    "tail_changes": [
+      {
+        "item": "credit_panel_slice",
+        "baseline_bytes": 60,
+        "candidate_bytes": 9,
+        "delta_bytes": -51
+      },
+      {
+        "item": "removed credit_panel_two_prompt data",
+        "delta_bytes": -20
+      },
+      {
+        "item": "menu_tick dispatcher insertion",
+        "delta_bytes": 28
+      },
+      {
+        "item": "menu-enter reorder",
+        "delta_bytes": -6
+      },
+      {
+        "item": "idle mode admission",
+        "delta_bytes": 4
+      },
+      {
+        "item": "prepare trampoline",
+        "delta_bytes": 7
+      },
+      {
+        "item": "finish trampoline replacement",
+        "delta_bytes": -1
+      },
+      {
+        "item": "menu_tick total growth",
+        "delta_bytes": 32
+      },
+      {
+        "item": "menu_load_original/options path",
+        "baseline_bytes": 99,
+        "candidate_bytes": 73,
+        "delta_bytes": -26
+      },
+      {
+        "item": "generated ladybug_menu_records.inc",
+        "baseline_bytes": 132,
+        "candidate_bytes": 117,
+        "delta_bytes": -15
+      }
+    ],
+    "tail_net_before_wrapper_bytes": -80,
+    "wrapper_bytes": 14,
+    "projected_total_delta_bytes": -66,
+    "projected_helper_size_bytes": 3070,
+    "helper_limit_bytes": 3136,
+    "projected_end_exclusive": "B83E",
+    "projected_b880_free_bytes": 66,
+    "projected_fixed_margins": {
+      "acff_before_ad00": 1,
+      "b080_reservation": 0,
+      "b880_end": 66
+    },
+    "confidence": "projection; replace with measured assembler listing/map after approval",
+    "owner_cap_note": "complete high-score owner cap remains 920 bytes; no cap is changed; partial generic 917/938 diagnostic is not treated as complete-profile headroom"
+  },
+  "existing_gate_adjustments": {
+    "flow_guard": "scripts/verify_presentation_flow.py must check LBEQ highscore_attract_tick in the prefix and ordered wrapper operations LBSR highscore_logo_tick, reload/compare MODE_ATTRACT, LBNE highscore_phase_hold, LBRA menu_tick; preserve all other assertions",
+    "source_reference": "scripts/source_reference.json must explicitly classify only the 34 already-approved labels in repro/feat010-helper-proposal-20261015/parent-preflight.json plus highscore_attract_tick; no discovery-policy expansion",
+    "registry_inventory": {
+      "src/presentation_runtime.s": 7,
+      "src/keybinding_runtime.s": 19,
+      "src/shared_text_stage.inc": 8,
+      "new_internal_wrapper": 1
+    }
+  },
+  "verification_card": {
+    "purpose_and_distinct_risk": "Prove attract dispatch reaches the new internal wrapper in order and fixed helper entries remain within their addresses/capacity.",
+    "type": "existing static source/reference guard plus the already-defined first complete-profile build fit; no runtime probe",
+    "profile_and_artifacts": "complete keyboard, 6809, adaptive; failed negative-control source SHA c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93; qualified baseline listing/map hashes above; positive wrapper fixture hash must be recorded after approval and before Ready",
+    "controlled_inputs": "reuse the existing profile flags and generated menu records; no random chooser, runtime state, framebuffer history, or timing input is introduced",
+    "independent_expected_result_and_tolerance": "prefix contains LBEQ highscore_attract_tick; wrapper sequence matches the listed operations; listing/map retain AC40, ACFF, AD00, B062, B080 and end no later than B880. Address/capacity tolerance is zero; projected margins are not acceptance results.",
+    "negative_control": "frozen failed inline-dispatch candidate must fail the revised wrapper-shape assertion",
+    "positive_fixture_status": "not yet available; after approval create/identify a reviewed wrapper-shaped source fixture and qualify the existing gate against it before Ready",
+    "commands": [
+      "python scripts/verify_presentation_flow.py",
+      "one serialized invocation of the existing complete keyboard/6809/adaptive scripts/build.sh build command"
+    ],
+    "cost": "proposed maximum one static-gate invocation and one first-profile build invocation; prior retained evidence records one build attempt and zero runtime runs; elapsed wall time was not retained, so no time estimate is claimed",
+    "failure_evidence": "retain verifier output, build receipt/log, exact source/binary/listing/map hashes, measured fixed-entry addresses and helper extent; any hard-cap miss remains a failure and stops further attempts",
+    "automated_manual_split": "source-flow and address/cap checks automated; no new manual/runtime scenario is part of this bounded recovery step",
+    "approval_and_ownership": "user approval of exact source recovery and bounded existing-gate adjustments required before implementation; parent owns Ready qualification and integration",
+    "readiness_note": "ticket remains Proposed until the positive fixture is identified, gate qualification is recorded, and full ticket verification commands/dependencies are concrete"
+  },
+  "alternatives_rejected": [
+    "keep the inline dispatch: retains +12-byte prefix growth and the proven -11 first reservation",
+    "shorten direct-page accesses: PRES_SCREEN and PRES_MODE already use direct-page encodings; direct-page equates precede this helper",
+    "change fixed addresses, move B080, relax B880 or the 920-byte owner cap, alter copy/MMU policy, add a module, or change runtime ownership: outside scope",
+    "smaller local encoding: no behavior-preserving saving of at least 11 bytes was proven from the available source/listing evidence"
+  ],
+  "artifact_hashes": {
+    "candidate_flow_verifier_sha256": "2b1c0ebc3e968e28d8246b50aee005e6d9872d05eff7ec35407745b4b2edfb35",
+    "candidate_source_reference_sha256": "c92fce404c5e57d66a15224a0c731307377e3bca5eec870b2fd8f5eb2702182f",
+    "candidate_menu_records_sha256": "5fe8a540e8b2fc54ca6140ee0ab75697e38815eedfb3303fa1b3707cdb1fa42f",
+    "baseline_menu_records_sha256": "ef45c81a43946d9b544067c200799d99c7011491ff2935b3ac697005e0733751"
+  }
+}

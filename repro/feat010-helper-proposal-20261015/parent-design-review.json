@@ -1,0 +1,104 @@
+{
+  "status": "parent read-only architecture review; proposed not implemented",
+  "baseline": "qualified BUG117/046 helper AC40..B880 3136bytes",
+  "prefix": {
+    "failed_gap": "AD0B",
+    "fixed_resume": "AD00",
+    "measured_overrun": 11,
+    "recovered_bytes_projected": 12,
+    "new_gap_projected": "ACFF",
+    "zero_pad_projected": 1
+  },
+  "helper_tail_byte_ledger": [
+    {
+      "region": "credit_panel_slice through credit_panel_count",
+      "old": 60,
+      "new_projected": 9,
+      "delta": -51
+    },
+    {
+      "region": "removed credit_panel_two_prompt data",
+      "old": 20,
+      "new_projected": 0,
+      "delta": -20
+    },
+    {
+      "region": "menu_tick through menu_hold",
+      "old": 297,
+      "new_projected": 329,
+      "delta": 32,
+      "hunks": [
+        28,
+        -6,
+        4,
+        7,
+        -1
+      ]
+    },
+    {
+      "region": "menu_load_original through menu_paint_options",
+      "old": 99,
+      "new_projected": 73,
+      "delta": -26
+    },
+    {
+      "region": "generated menu records",
+      "old": 132,
+      "new_projected": 117,
+      "delta": -15
+    }
+  ],
+  "feature_tail_delta_projected": -80,
+  "new_wrapper_bytes_projected": 14,
+  "helper_end_projected": "B83E",
+  "helper_bytes_projected": 3070,
+  "helper_capacity": 3136,
+  "helper_free_projected": 66,
+  "wrapper_source_placement": "after include ladybug_menu_records.inc and before highscore_phase_helper_end; preserves generated table addresses",
+  "unchanged_fixed_entries": [
+    "AC40",
+    "AD00",
+    "B062",
+    "B080"
+  ],
+  "unchanged_clock_expected": {
+    "address": "ACAF",
+    "bytes": 80,
+    "sha256": "b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45e"
+  },
+  "dispatch_oracle": [
+    {
+      "screen": "Attract",
+      "mode": "MODE_ATTRACT",
+      "expected": "logo once; reload mode; menu tail once"
+    },
+    {
+      "screen": "Attract",
+      "mode": "MODE_LOAD or other non-MODE_ATTRACT",
+      "expected": "logo once; reload mode; highscore_phase_hold returns A0"
+    },
+    {
+      "screen": "not Attract",
+      "mode": "MODE_CREDIT",
+      "expected": "no logo; existing menu tail"
+    },
+    {
+      "screen": "not Attract",
+      "mode": "other",
+      "expected": "original highscore timer/gameover/name continuation"
+    }
+  ],
+  "rejected_accounting": [
+    "A3byteLDX lies in inactive legacy ELSE body, not helper; exclude it",
+    "Menu delta34not supported; explicit hunk ledger totals32",
+    "Do not sum the two propagated negative11 reservations as22"
+  ],
+  "projection_only": true,
+  "new_builds": 0,
+  "runtime_runs": 0,
+  "source_edits": 0,
+  "wrapper_address_projected": "B830",
+  "review_note": "Parent selects after-records placement to preserve table addresses; projected end staysB83E. Agent negative-control hash70b9... does not match frozen source and is rejected; canonical card binds verified rawc136... . Full source-flow command requires successful build artifacts and runs only after build.",
+  "allowed_new_build_attempts": 1,
+  "other_profiles": "not dispatched by this bounded first-profile recovery card"
+}
