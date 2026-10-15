@@ -1,0 +1,25 @@
+BUG046 — architecture and isolated fit report — 2026-10-15
+
+Gate verdict
+The proposed display repair is statically safe as a level-start tail transfer, but the isolated default-profile fit failed: the two-byte helper increase extends the page-$23 auxiliary span two bytes beyond the compressed-title boundary at $B880. No recovery was applied and no further build was run. Runtime acceptance also remains blocked because natural owner1 is proven while natural owner0 coverage is missing.
+
+Candidate and baseline
+The frozen baseline ROM SHA-256 is 4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5; its receipt SHA-256 is 5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc. Preflight verified all 266 capsule inputs against the frozen receipt. The only changed authored input was `src/shared_text_stage.inc`, replacing the post-letter-loop RTS with `JMP draw_word_progress_hud`; candidate source SHA-256 is ea52eac8016b5cebc06a61040abbda645e644050ca6f180215e21503f79f7efb. The cause remains the level-start stage panel returning without drawing the word-progress HUD. The generated renderer symbol is already available at $C41B.
+
+Static safety
+The name-entry and non-level-start branches return through their existing paths; only the level-start path reaches the changed tail. The letter loop restores saved B and U, and its nested calls have returned. No caller register is live after that loop. The JMP adds no stack frame, and the renderer RTS uses the caller's existing return. The selected BACK mapping remains in PAR1-PAR4; the renderer draws to $2000 and does not publish FRONT. This is source-level analysis, not runtime verification.
+
+Measured fit result
+The one authorized command was `wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule bash scripts/build.sh build` using the default complete profile and keyboard input. It exited 1 during `build_sparse_sprites.py pack_candidate_banks` with `ValueError: presentation auxiliary overlaps compressed title at $B880`. The fresh log is `capsule/build/logs/fit-default.log`.
+
+The assembled high-score helper is 3138 bytes (SHA-256 68d5195c079c1c8fda203a28c68c83a27e3c7e5136beb8d02a4b7b12b06bd80b), staged on page $23 at $AC40, ending exclusive at $B882. The baseline helper is 3136 bytes at the same address and ends exactly at $B880. The complete auxiliary staging span increased from 5214 bytes/$A422-$B880 to 5216 bytes/$A422-$B882. The projected +2 bytes are confirmed and cause a two-byte overlap.
+
+The initial resident assembly measured 8082/8192 bytes used, leaving 110 bytes free against the 32-byte target. This is a partial default-profile measurement because packing failed; all-profile and complete-build capacity remain unverified. The separate asset region measured 7649/7680 bytes used, leaving 31 bytes. The intermediate `ladybug-runtime.rom` is 16384 bytes with SHA-256 0bbc4581a76d6e8d1536230a23abf50921eaa5e4c3ffa4f856d9e05c74e7ec56; it is not a completed final ROM. The build left a partial source receipt in state `building`, SHA-256 d6334cabf7dfbfcdb26c40865c987638830930adecf66f0f64b9a98d49efc01d. No final `ladybug.rom` or completed receipt was produced.
+
+Fixture gate
+The neutral-corrected fixture uses exactly the authorized writes $003C=$49, $003D=$15, $0025=$01, and $0033=$00. It preserves stored masks, shows mismatching preview pixels and matching maze pixels, and selects owner1. The source-qualified natural stage1-to-stage2 predecessor with the adjacent flower also proves owner1 only. No source proof establishes that one additional naturally committed framebuffer epoch deterministically changes the selected preview to owner0. Do not add writes, force owner/player/seed state, or route-search. Missing owner0 coverage blocks runtime acceptance.
+
+Unapproved recovery proposal
+Read-only review identified a possible same-file two-byte recovery for a separate approval: at both stage-panel sprite-index sites, replace `LDY #base` (4 bytes) followed by `LEAY D,Y` (2 bytes) with `ADDD #base` (3 bytes) followed by `TFR D,Y` (2 bytes). The two substitutions project one byte saved each, returning the helper to 3136 bytes and the auxiliary end to exactly $B880. At the first site A/B/D/CC are not live after pointer construction; the following screen load/compare sets the condition flags. In the letter loop B is saved/restored, A is loaded on the next iteration, and DECB sets the loop flags after the blitter. The blitter consumes X/Y/U as inputs, and 16-bit ADDD plus TFR produces the same modulo-16-bit Y address as LEAY D,Y. This remains uncompiled and unverified; ADDD changes D and CC, and exact-boundary packing leaves no spare auxiliary bytes. Memory recovery was outside the approved brief and must return for renewed approval before any patch or build.
+
+No emulator/runtime test, production edit, root-workspace patch, recovery attempt, alternate-profile build, or further verification command was run. The existing owner fixture gate and the failed packing gate remain open.

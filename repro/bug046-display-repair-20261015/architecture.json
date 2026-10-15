@@ -1,0 +1,55 @@
+{
+  "ticket": "BUG046",
+  "assignment": "architecture-preparation",
+  "classification": "High-risk",
+  "scope": [
+    "repro/bug046-display-repair-20261015/architecture.json",
+    "repro/bug046-display-repair-20261015/report.txt"
+  ],
+  "baseline": {
+    "rom": "repro/bug122-integration-20261014/capsule/build/ladybug.rom",
+    "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+    "receipt_sha256": "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc",
+    "source_inputs": 266,
+    "relevant_source_hashes_match": true,
+    "root_vs_frozen_differences": [
+      "tiled/coco-attract-screen.tmx (known unrelated user work; excluded from capsule)",
+      "tiled/coco-high-score-screen.tmx (known unrelated user work; excluded from capsule)"
+    ]
+  },
+  "confirmed_cause": "stage_panel_finish draws the stage sprites and three letters, then returns without calling draw_word_progress_hud; the selected preview consequently misses the word-progress HUD while maze rendering is correct.",
+  "candidate": {
+    "file": "src/shared_text_stage.inc",
+    "change": "Replace the RTS immediately after the stage_panel_letter_loop with JMP draw_word_progress_hud.",
+    "scope_guard": "The level-start path reaches this tail after the letter loop. Name-entry and other paths retain their existing return branches.",
+    "symbol": "draw_word_progress_hud equ $C41B in generated ladybug_runtime_symbols.inc; visible to the stage include.",
+    "projection": {
+      "mapped_helper_bytes_delta": 2,
+      "resident_bytes_delta": 0,
+      "minimum_resident_free_bytes": 32,
+      "actual_packed_span_verified": false,
+      "resident_margin_verified": false
+    }
+  },
+  "static_safety": {
+    "control_flow": "The tail is reached only after level-start letter rendering; non-level-start branches return as before.",
+    "registers_stack": "The loop's PSHS B,U is paired with PULS B,U; nested calls return before the tail. The renderer may clobber A/B/X/Y/U/CC, none of which is live after the loop. JMP adds no return frame; renderer RTS consumes the caller's existing return address.",
+    "mapping_framebuffer": "The existing caller selects BACK in PAR1-PAR4. The callee writes the selected BACK at $2000, does not publish FRONT, and returns through the existing mapped caller. Static source review only; runtime mapping and publication remain unverified.",
+    "parity_fixture": "No source proof found that one additional naturally committed framebuffer epoch deterministically flips the selected preview owner."
+  },
+  "verification_evidence": {
+    "natural_fixture": {
+      "writes": {"$003C": "0x49", "$003D": "0x15", "$0025": "0x01", "$0033": "0x00"},
+      "result": "stored masks remain intact; preview pixels mismatch; maze pixels match",
+      "owner": 1,
+      "other_owner_covered": false
+    },
+    "source_qualified_predecessor": "Natural stage1-to-stage2 sequence with adjacent flower and the same four authorized writes; proven to select owner1 only.",
+    "fit_commands_not_run": ["bash scripts/build.sh build", "bash scripts/build.sh verify-gmc"]
+  },
+  "gate": {
+    "capsule_fit_only": "May proceed after parent review, using the isolated frozen-input capsule and one default-profile build; verify exact packing and resident free space.",
+    "runtime_acceptance": "BLOCKED: required both-natural-owner coverage is missing; do not infer a passing owner0 case, add fixture writes, force state, or search routes.",
+    "production_integration": "Not authorized by this architecture assignment."
+  }
+}

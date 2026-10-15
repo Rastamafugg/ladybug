@@ -1,0 +1,13 @@
+diff --git a/repro/bug122-integration-20261014/capsule/src/shared_text_stage.inc b/repro/bug046-display-repair-20261015/capsule/src/shared_text_stage.inc
+index 604a70c..8bce1eb 100644
+--- a/repro/bug122-integration-20261014/capsule/src/shared_text_stage.inc
++++ b/repro/bug046-display-repair-20261015/capsule/src/shared_text_stage.inc
+@@ -695,7 +695,7 @@ stage_panel_letter_loop
+         leax -2552,x
+         decb
+         bne stage_panel_letter_loop
+-        rts
++        jmp draw_word_progress_hud
+ stage_schedule
+         fdb 288
+         fdb $3450

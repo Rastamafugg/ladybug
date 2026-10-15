@@ -1,0 +1,83 @@
+{
+  "ticket": "BUG046",
+  "experiment": "isolated capsule fit only",
+  "baseline": {
+    "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+    "receipt_sha256": "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc",
+    "authored_inputs": 266,
+    "helper_bytes": 3136,
+    "helper_stage_page": "0x23",
+    "helper_stage_address": "0xAC40",
+    "helper_end_exclusive": "0xB880",
+    "auxiliary_staged_bytes": 5214,
+    "auxiliary_end_exclusive": "0xB880"
+  },
+  "candidate": {
+    "changed_authored_inputs": ["src/shared_text_stage.inc"],
+    "source_change": "Post-letter-loop RTS replaced with JMP draw_word_progress_hud.",
+    "source_sha256": "ea52eac8016b5cebc06a61040abbda645e644050ca6f180215e21503f79f7efb",
+    "helper_bytes": 3138,
+    "helper_sha256": "68d5195c079c1c8fda203a28c68c83a27e3c7e5136beb8d02a4b7b12b06bd80b",
+    "helper_stage_page": "0x23",
+    "helper_stage_address": "0xAC40",
+    "helper_end_exclusive": "0xB882",
+    "auxiliary_staged_bytes": 5216,
+    "auxiliary_end_exclusive": "0xB882",
+    "overlap_past_title_boundary_bytes": 2
+  },
+  "build": {
+    "command": "wsl.exe --cd /mnt/e/projects/ladybug/repro/bug046-display-repair-20261015/capsule bash scripts/build.sh build",
+    "profile": "complete (default)",
+    "exit_code": 1,
+    "log": "repro/bug046-display-repair-20261015/capsule/build/logs/fit-default.log",
+    "failure": "ValueError: presentation auxiliary overlaps compressed title at $B880",
+    "failure_stage": "build_sparse_sprites.py pack_candidate_banks",
+    "final_rom_produced": false,
+    "complete_fresh_source_build_receipt_produced": false,
+    "partial_source_build_receipt": {
+      "path": "repro/bug046-display-repair-20261015/capsule/build/source-build-receipt.json",
+      "state": "building",
+      "profile": "complete",
+      "revision": "404143138cdb42c8066546ec5aefc9ae145766ee",
+      "input_count": 266,
+      "sha256": "d6334cabf7dfbfcdb26c40865c987638830930adecf66f0f64b9a98d49efc01d"
+    },
+    "intermediate_runtime_rom": {
+      "bytes": 16384,
+      "sha256": "0bbc4581a76d6e8d1536230a23abf50921eaa5e4c3ffa4f856d9e05c74e7ec56",
+      "complete_final_rom": false
+    },
+    "resident_assembly_partial_measurement": {
+      "used_bytes": 8082,
+      "capacity_bytes": 8192,
+      "free_bytes": 110,
+      "minimum_free_target_bytes": 32,
+      "target_met_at_this_partial_stage": true,
+      "complete_build_capacity_verified": false
+    },
+    "asset_region_measurement": {
+      "used_bytes": 7649,
+      "capacity_bytes": 7680,
+      "free_bytes": 31,
+      "separate_from_resident_code_measurement": true
+    },
+    "all_profiles_verified": false,
+    "followup_builds_or_recovery_attempts": 0
+  },
+  "fixture_gate": {
+    "natural_owner1_proven": true,
+    "natural_owner0_proven": false,
+    "runtime_acceptance": "blocked for missing both-natural-owner coverage"
+  },
+  "separate_recovery_proposal": {
+    "status": "read-only follow-up proposal; not approved, applied, compiled, or measured",
+    "source_locations": ["src/shared_text_stage.inc:666", "src/shared_text_stage.inc:690"],
+    "transformation": "At each of the two stage-panel sprite-index sites, replace LDY #base (4 bytes) plus LEAY D,Y (2 bytes) with ADDD #base (3 bytes) plus TFR D,Y (2 bytes).",
+    "projected_helper_savings_bytes": 2,
+    "projected_helper_bytes": 3136,
+    "projected_helper_end_exclusive": "0xB880",
+    "static_safety_basis": "Both sites use D only to construct Y; A/B/D are dead after construction at the first site. At the letter-loop site B is saved/restored, A is reloaded on the next iteration, and the conditional branch flags are produced later by DECB. The blitter consumes X/Y/U as its inputs. ADDD computes the same 16-bit modulo sum as LEAY D,Y; TFR transfers it to Y.",
+    "risks_and_limitations": "ADDD changes D and condition codes; safety is static reasoning only and requires assembler/build validation. This is a memory-recovery scope change requiring renewed approval. Restoring the baseline span would leave the auxiliary end exactly at $B880 with no spare bytes."
+  },
+  "verdict": "Fit failed. The projected +2 helper bytes are confirmed and extend the complete auxiliary span two bytes past the $B880 title boundary. Do not integrate or attempt memory recovery under this assignment; both fit and owner coverage require reviewed follow-up."
+}
