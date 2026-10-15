@@ -1,0 +1,95 @@
+{
+  "ticket": "BUG-117",
+  "qualification": "offline source and guard encoding only",
+  "result": "qualified for parent fit-only follow-up; not implementation or runtime acceptance",
+  "scope": {
+    "authorized_writes": [
+      "repro/bug117-stage-repair-20261015/qualification.json",
+      "repro/bug117-stage-repair-20261015/report.txt",
+      "repro/bug117-stage-repair-20261015/guard-qualification/*"
+    ],
+    "production_or_capsule_source_changed": false,
+    "project_build_or_emulator_run": false,
+    "commit_created": false
+  },
+  "source_identity": {
+    "capsule_provenance": "Parent-prepared capsule, described by parent as 266 hash-verified recovered BUG-046 receipt inputs plus frozen wiki and prototype_rate_page34.s. The capsule directory has no separate 266-entry receipt manifest; hashes below pin the materials read for this qualification.",
+    "root_main_s_sha256_before_and_after": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+    "root_main_s_equals_capsule_main_s": true,
+    "qualified_inputs_sha256": {
+      "capsule/src/main.s": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+      "capsule/src/adaptive_active.s": "af39bc47cd753f35831e828d747ecd7776a71cf61d52f4402ff1b1096d6fd1ec",
+      "capsule/src/presentation_runtime.s": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+      "capsule/src/shared_text_stage.inc": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50",
+      "capsule/src/shared_text_ranking.inc": "3a418ca424587424f71edca4bd6917fcbdd80dbc9abb8ebce7208f409b23d9d0",
+      "capsule/src/demo_runtime.s": "35614479667e8ce8d2e2bcac4ab5bc24c54fa92d70eac2b83aec5a14bbe62a18",
+      "capsule/src/enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "capsule/scripts/build.sh": "395fbbaf65e64df44f527ec8200664dcba31c9ba6656741befc977cb32a90cee",
+      "capsule/assets/arcade/maze.json": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+      "capsule/scripts/derive_maze.py": "b1387c37227169245204afe03aca275f74b8a56db3cdbefe6abba2997d0f2fbe",
+      "capsule/scripts/verify_bug012_demo_walk.py": "8b94a5288e4914b3038229e5209fadbd8a6203db85a6ddc63f4cadd3bf0038e2"
+    }
+  },
+  "source_findings": {
+    "proposed_guard": "Immediately after the existing INITIAL_ENTRY_STATE test/branch in read_joystick:rj_request, LDB PLAYER_MANUAL; ORB PLAYER_DIR; BEQ rj_done.",
+    "register_effect": "LDB/ORB/BEQ preserve A; B and condition codes are scratch. ORB is zero only when PLAYER_MANUAL=0 and PLAYER_DIR=0.",
+    "guard_truth_cases": {
+      "automatic_north_manual0_dir_north0": "branch skips JOY_DIR/WANT/FACE/manual stores",
+      "first_name_north_manual0_dir_none_ff": "branch is not taken; A=North ($00) is stored and PLAYER_MANUAL becomes 1",
+      "ordinary_manual_north_manual1_dir_north0": "branch is not taken; the ordinary input remains admitted"
+    },
+    "manual_writers": [
+      "main.s:init_player clears PLAYER_MANUAL while setting PLAYER_DIR=North and JOY_DIR/PLAYER_WANT=DIR_NONE.",
+      "main.s:read_joystick:rj_request sets PLAYER_MANUAL=1 only after a direction is admitted past the existing INITIAL_ENTRY_STATE barrier and proposed guard.",
+      "demo_runtime.s and the duplicated shared_text_stage.inc/shared_text_ranking.inc demo-route implementations set PLAYER_MANUAL=1 when the autonomous route reaches cell (12,18); they own demo movement and are not extra physical-reader paths."
+    ],
+    "name_input": "Name preparation sets PLAYER_DIR and PLAYER_WANT to DIR_NONE and name_tick calls PRES_MAIN_READ_JOY; scripts/build.sh maps that symbol to read_joystick. Name preparation does not write PLAYER_MANUAL. The exact manual0/DIR_NONE first-North guard case is encoded in the fixture. Natural predecessor state remains runtime-owned and is not claimed here.",
+    "release_and_order": "pt_at_center stops the manual0 automatic player at cell (12,18) by setting PLAYER_DIR and PLAYER_WANT to DIR_NONE without movement. Adaptive input samples before its batch (adaptive_active.s:22-30). The nonadaptive main path runs player_tick (~main.s:814), then reaches main_render/render_frame/read_joystick (~main.s:854-860), so its sample is after the current tick/render and before the next scheduled tick. In either order, the first real sample that observes PLAYER_DIR=DIR_NONE admits input.",
+    "maze_edges": [
+      {"from": [12, 22], "direction": "N", "to": [12, 21], "legal": true, "target_gate_owner": 0},
+      {"from": [12, 21], "direction": "N", "to": [12, 20], "legal": true, "target_gate_owner": 0},
+      {"from": [12, 20], "direction": "N", "to": [12, 19], "legal": true, "target_gate_owner": 0},
+      {"from": [12, 19], "direction": "N", "to": [12, 18], "legal": true, "target_gate_owner": 0},
+      {"from": [12, 18], "direction": "N", "to": [12, 17], "legal": true, "target_gate_owner": 0},
+      {"from": [12, 18], "direction": "S", "to": [12, 19], "legal": true, "target_gate_owner": 0}
+    ],
+    "maze_check": "Existing verify_bug012_demo_walk.can_move model; each fixed edge returned legal with target gate_owner=0 and no gate-state mutation. maze_nav x=12, y=17..22 is [5,15,5,5,5,11]. No route search was performed.",
+    "dynamic_limit": "Entity collision safety along the post-stop route cannot be established by maze_nav/gate_owner alone; runtime preflight remains required."
+  },
+  "guard_fixture": {
+    "source": "guard-qualification/guard-qualification.s",
+    "source_sha256": "66eacec91341ae6d94e0d35f45e5c6eb06190c051097cddaf635d7aae3da3d46",
+    "assembler": "lwasm from lwtools 4.24, 6809 mode, raw output",
+    "command_template": "wsl -e lwasm -9 --format=raw --define=GUARD_VARIANT=<0..3> --output=/mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/variant-<n>.bin --list=/mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/variant-<n>.lst /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/guard-qualification.s",
+    "approved_variant": {
+      "variant": 0,
+      "full_bytes_hex": "0D A0 26 10 D6 18 DA 06 27 0A 97 05 97 0F 97 07 86 01 97 18 39",
+      "guard_offset": 4,
+      "guard_bytes_hex": "D6 18 DA 06 27 0A",
+      "following_stores_match_all_controls": true,
+      "branch_target": "$C014 (rj_done)",
+      "binary_sha256": "db6a3151785aa3ba3f79beab6069218fc3dfe7e2ab63d36207188ca52fd3a695"
+    },
+    "negative_controls": [
+      {"variant": 1, "meaning": "guard absent", "bytes_hex": "0D A0 26 0A 97 05 97 0F 97 07 86 01 97 18 39", "sha256": "51521068a5ce0d20ce5a5929333242a8cb95f4945e12ec91ceede937288e0df8"},
+      {"variant": 2, "meaning": "manual-only guard incorrectly blocks manual0/DIR_NONE name input", "bytes_hex": "0D A0 26 0E D6 18 27 0A 97 05 97 0F 97 07 86 01 97 18 39", "sha256": "940b412c98cde222e61414d9e764b7ac8c7c348dcbf335aad47b670c19a4b3e5"},
+      {"variant": 3, "meaning": "inverted branch incorrectly admits automatic north and blocks manual north", "bytes_hex": "0D A0 26 10 D6 18 DA 06 26 0A 97 05 97 0F 97 07 86 01 97 18 39", "sha256": "bdc5c56b1d4c2f7a525aa51014fd09db6959709690e00173ee802f4a105560b0"}
+    ],
+    "assertion_level": "Assembler output bytes, offsets, six-byte delta, and unchanged downstream store sequence were checked. This is not an executing 6809 test and does not prove candidate relocation or built-map placement.",
+    "outputs_retained": [
+      "guard-qualification/variant-0.bin and .lst",
+      "guard-qualification/variant-1.bin and .lst",
+      "guard-qualification/variant-2.bin and .lst",
+      "guard-qualification/variant-3.bin and .lst"
+    ]
+  },
+  "fit_and_acceptance": {
+    "ticket_baseline_free_bytes_by_profile": [110, 74, 42],
+    "ticket_projected_free_bytes_after_six_bytes": [104, 68, 36],
+    "minimum_free_bytes": 32,
+    "fit_status": "not measured; projection only",
+    "runtime_status": "not run",
+    "candidate_maps_status": "not built",
+    "product_acceptance": false
+  }
+}

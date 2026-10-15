@@ -1,0 +1,49 @@
+BUG-117 joystick/adaptive fit report
+Date: 2026-10-15
+Profile: complete joystick/adaptive
+
+Result
+------
+The one complete joystick/adaptive build exited 0. Resident usage is 8124/8192
+bytes, leaving 68 free. This is six bytes above the recovered BUG-046 profile
+baseline (8118 used, 74 free) and leaves 36 bytes above the 32-byte minimum.
+Receipt state is complete; all 266 authored inputs, 4 generated inputs, and
+87 artifacts match their recorded hashes. The authored and generated input
+maps match the separately built default candidate.
+
+Source and encoded guard
+------------------------
+The profile capsule main.s SHA256 matches the default candidate:
+88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4. The root
+main.s remains at baseline SHA256
+c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226. The final
+listing places rj_request at $CB5B; immediately after the INITIAL_ENTRY_STATE
+branch, the six guard bytes at $CB5F are D6 18 DA 06 27 0A, branching to
+rj_done at $CB6F. The recovered BUG-046 rate-helper source is unchanged.
+
+Capacity and complete-build checks
+----------------------------------
+The resident ends at $DFBC. Measured limits: assets 7649/7680; audio engine
+727/920; page-$3D payload 6656/8192; adaptive mapped helper 198/220, banked
+helper 696/698, and active module 622/777; page-$34 enemy helper 87/93 ending
+at $A8F6; presentation module 1259/1280; demo 143/938; high-score runtime
+917/938; instruction runtime 935/938; presentation helper 331/334. Sparse
+packing reports enemy 23005/24576, player 2294/8192, 832 gate bytes, 896
+presentation bytes, 5751 perimeter-reset bytes, 12 loader segments, 7 LZSS
+streams, and 6195 CPU-readable GMC bytes spare. Complete packing, sparse
+boundary, pixel-exact sparse/presentation proofs, source-reference coverage
+(16 modules, 36628 lines), and source documentation (16 modules, 319 routines,
+5055 labels) pass. The ROM is 65536 bytes.
+
+Command and retained identities
+-------------------------------
+    wsl.exe --cd /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/profiles/joystick/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build
+
+The build ran once and exited 0. ROM SHA256: 9639c04cef19cf6d8e987f29ba12b5120e8a376c7fc72f99a00b745bc60fe7ba.
+Receipt SHA256: 515414bf8bd5733281601070fd4026c77741f558566083895e66407134f70dfa.
+Final log SHA256: c241d9afa223d336a3b4e4a889d70aecd776f3b75de54ae2bfecf38cce959761.
+See fit-joystick.json for exact paths, source and capacity details.
+
+This isolated profile fit is not runtime verification, root integration, or
+ticket acceptance. Keyboard/nonadaptive fit, runtime qualification, parent
+integration/QA, and manual card results remain outstanding.

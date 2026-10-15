@@ -1,0 +1,138 @@
+{
+  "ticket": "BUG-117",
+  "step": "stage-repair-profile-fits-resumed-ready-20261015",
+  "profile": {
+    "name": "complete keyboard nonadaptive",
+    "command": "wsl.exe --cd /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/profiles/nonadaptive/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build",
+    "exit_code": 0,
+    "attempts": 1
+  },
+  "receipt": {
+    "path": "profiles/nonadaptive/capsule/build/source-build-receipt.json",
+    "sha256": "a12e92cea98f1db5acab24d14b2d8fa97aab314ab2edc3d10d53e4b50c57ca09",
+    "state": "complete",
+    "profile": "complete",
+    "authored_inputs": 266,
+    "generated_inputs": 1,
+    "artifacts": 72,
+    "all_receipt_hashes_verified": true,
+    "receipt_hashes_verified": 339,
+    "authored_input_hashes_match_default_candidate": true,
+    "generated_rate_source_sha256": "a69fab1593dfabca5657773d0b98853cf32af2ee99fe6173dc87d1ad62986d22"
+  },
+  "source": {
+    "candidate_main_s_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+    "default_candidate_main_s_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+    "matches_default_candidate": true,
+    "root_main_unchanged_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+    "guard_listing": {
+      "rj_request": "$CB8E",
+      "INITIAL_ENTRY_STATE_branch": "$CB90",
+      "guard_address": "$CB92",
+      "bytes": "D6 18 DA 06 27 0A",
+      "branch_target": "rj_done at $CBA2"
+    },
+    "source_patch_sha256": "f381c9b96ec0bb148fa7b6d5e9e09445049839d18cec6aca58339e4f8dfc7dd3"
+  },
+  "capacity": {
+    "resident": {
+      "recovered_bug046_profile_baseline_used_bytes": 8150,
+      "recovered_bug046_profile_baseline_free_bytes": 42,
+      "candidate_used_bytes": 8156,
+      "candidate_free_bytes": 36,
+      "minimum_free_bytes": 32,
+      "measured_growth_bytes": 6,
+      "result": "pass"
+    },
+    "candidate_limits": {
+      "resident_end": "$DFDC",
+      "assets": {
+        "used_bytes": 7608,
+        "limit_bytes": 7680
+      },
+      "audio_engine": {
+        "used_bytes": 727,
+        "limit_bytes": 920
+      },
+      "page_3d_payload": {
+        "used_bytes": 5677,
+        "limit_bytes": 8192
+      },
+      "page_34_enemy_helper": {
+        "used_bytes": 87,
+        "limit_bytes": 93,
+        "end_address": "$A8F6"
+      },
+      "presentation_module": {
+        "used_bytes": 1272,
+        "limit_bytes": 1280
+      },
+      "demo_runtime": {
+        "used_bytes": 143,
+        "limit_bytes": 938
+      },
+      "high_score_runtime": {
+        "used_bytes": 917,
+        "limit_bytes": 938
+      },
+      "instruction_runtime": {
+        "used_bytes": 935,
+        "limit_bytes": 938
+      },
+      "presentation_helper": {
+        "used_bytes": 331,
+        "limit_bytes": 334
+      },
+      "sparse_enemy": {
+        "used_bytes": 23005,
+        "limit_bytes": 24576
+      },
+      "sparse_player": {
+        "used_bytes": 2294,
+        "limit_bytes": 8192
+      },
+      "sparse_gate_bytes": 832,
+      "sparse_presentation_bytes": 896,
+      "sparse_perimeter_reset_bytes": 5751,
+      "gmc_loader_segments": 11,
+      "lzss_streams": 7,
+      "gmc_cpu_readable_spare_bytes": 8488,
+      "recovered_bug046_highscore_phase_helper_end": "$B880"
+    },
+    "checks": [
+      "complete build packing/capacity checks pass",
+      "sparse boundary and pixel-exact decode/blend proofs pass",
+      "presentation pixel-exact proofs pass",
+      "source reference coverage: 13 modules, 35577 source lines",
+      "source documentation: 13 modules, 296/296 routines, 4783/4783 labels"
+    ]
+  },
+  "artifacts": {
+    "rom": {
+      "path": "profiles/nonadaptive/capsule/build/ladybug.rom",
+      "bytes": 65536,
+      "sha256": "9094e5675a5bf7df14b2ac777cdb8ddb7b3425da326efd8e9cff5136090040be"
+    },
+    "log": {
+      "path": "profiles/nonadaptive/capsule/build/logs/fit-stage-control-nonadaptive.log",
+      "sha256": "4befd8daa14c49272a464fbb91ba142dbab2111408b3b0ea7e7158cc612c2755"
+    },
+    "receipt_sha256": "a12e92cea98f1db5acab24d14b2d8fa97aab314ab2edc3d10d53e4b50c57ca09",
+    "rate_helper_sha256": "c90d80a2989e46c05dfeacd20a8a183a065b0348f914b5a876d149aae320d4dc",
+    "highscore_helper": {
+      "bytes": 3136,
+      "sha256": "c3caab630ac98a569ed97e69c95a7ee7b786cec184f50e575760cd844d85b182"
+    }
+  },
+  "scope_result": {
+    "runtime_run": false,
+    "root_source_integration": false,
+    "other_profile_builds_completed": false,
+    "ticket_acceptance": false,
+    "remaining": [
+      "runtime qualification",
+      "parent integration and QA",
+      "manual card results"
+    ]
+  }
+}

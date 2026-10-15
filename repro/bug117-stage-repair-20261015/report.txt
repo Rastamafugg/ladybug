@@ -1,0 +1,99 @@
+BUG-117 offline qualification report
+Date: 2026-10-15
+Scope: source and assembler encoding qualification only
+
+Result
+------
+No source counterexample was found. The approved six-byte guard has the expected
+6809 raw encoding, and the absent, manual-only, and inverted-branch controls
+produce distinct bytes. This qualifies the source/encoding step for parent
+review and a separate fit-only capsule step. It does not implement BUG-117,
+qualify a built map, execute 6809 instructions, or establish runtime acceptance.
+
+Identity and change boundary
+----------------------------
+The parent-prepared capsule is described by the parent as 266 hash-verified
+recovered BUG-046 receipt inputs plus frozen wiki and prototype_rate_page34.s.
+The capsule contains no separate 266-entry receipt manifest. qualification.json
+pins the hashes of the relevant source, maze, build mapping, and verifier
+materials read here. The root and capsule src/main.s both hash to
+c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226 before and
+after this work. No production, capsule, probe, wiki, build, or emulator file
+was modified; no Git commit was created.
+
+Source proof
+------------
+In the current read_joystick:rj_request, after the INITIAL_ENTRY_STATE
+barrier, the approved sequence is LDB PLAYER_MANUAL; ORB PLAYER_DIR;
+BEQ rj_done. LDB/ORB/BEQ leave A unchanged and use B/CC as scratch. The OR
+result is zero only for manual=0 and active direction North=0, so the automatic
+North request is suppressed. Once pt_at_center stops the automatic entrant at
+(12,18), PLAYER_DIR and PLAYER_WANT become DIR_NONE; the next actual read passes
+the guard. A North request with manual=0 and DIR_NONE is admitted and sets the
+manual latch. An already-manual North request is also admitted.
+
+The PLAYER_MANUAL writer audit found init_player clearing the latch, physical
+rj_request setting it only after an admitted direction, and autonomous demo
+route code setting it at its handoff cell. Demo route code owns that path and
+does not add another physical read_joystick path. Name preparation sets
+PLAYER_DIR/PLAYER_WANT to DIR_NONE and name_tick calls PRES_MAIN_READ_JOY;
+scripts/build.sh maps that symbol to read_joystick. Name preparation does not
+write PLAYER_MANUAL. The manual0/DIR_NONE admission case is covered by the
+compiled truth case; any natural predecessor state remains a runtime fact.
+
+The existing movement model verified the fixed North edges (12,22)->(12,21),
+(12,21)->(12,20), (12,20)->(12,19), (12,19)->(12,18), then default Up
+(12,18)->(12,17), plus held Down (12,18)->(12,19). Every target gate_owner is
+zero and the gate-state array remained unchanged. No path search was performed.
+Entity collision safety is dynamic and remains a runtime preflight requirement.
+Adaptive input samples before its batch (adaptive_active.s:22-30). The
+nonadaptive main path runs player_tick (~main.s:814), then reaches
+main_render/render_frame/read_joystick (~main.s:854-860), after the current
+tick/render and before the next scheduled tick. In either order, the first real
+sample that observes PLAYER_DIR=DIR_NONE admits input.
+
+Assembler fixture
+-----------------
+Fixture source: guard-qualification/guard-qualification.s
+SHA256: 66eacec91341ae6d94e0d35f45e5c6eb06190c051097cddaf635d7aae3da3d46
+Assembler: lwasm from lwtools 4.24
+
+The four variants were assembled in 6809 mode with raw output and per-variant
+listings using:
+
+    wsl -e lwasm -9 --format=raw --define=GUARD_VARIANT=<0..3> --output=/mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/variant-<n>.bin --list=/mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/variant-<n>.lst /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/guard-qualification/guard-qualification.s
+
+Variant 0 encodes the guard as D6 18 DA 06 27 0A at offset 4, branching to
+rj_done at $C014. Its downstream stores match every control. Variant 1 omits
+the guard. Variant 2 uses a manual-only condition that rejects manual0 name
+input. Variant 3 reverses the branch and rejects already-manual North while
+admitting automatic North. Full binary bytes and hashes are retained in
+qualification.json; .bin and .lst outputs are in guard-qualification/.
+
+The fixture verifies assembler encoding and static truth cases only. It is not
+a 6809 interpreter or CPU execution harness. It does not establish that the
+candidate build places the guard at the qualified runtime address.
+
+Commands and checks
+-------------------
+- `wsl -e lwasm --version` reported `lwasm from lwtools 4.24`.
+- The four lwasm variants above assembled successfully.
+- The fixed route check imported the existing
+  `verify_bug012_demo_walk.can_move` and evaluated only the six recorded edges.
+- `rg -n -i "(clr|sta|stb|std)\s+PLAYER_(MANUAL|DIR)"` plus the full symbol
+  occurrence search audited direct player direction/manual writers and common
+  reader references in the capsule source.
+- SHA256 checks confirmed root/capsule `src/main.s` equality after qualification.
+- No project build, profile fit check, emulator, runtime test, or new interpreter
+  was run.
+
+Parent follow-up
+----------------
+Review the hashes and fixture. Then perform the separately leased combined-source
+fit step. The projected free bytes are 104/68/36 against baseline 110/74/42;
+they are not candidate measurements. Candidate maps/listings and full-profile
+free-space numbers remain outstanding, with the ticket minimum at 32 bytes.
+Only after fit review should the parent assign the approved candidate runtime
+card, including dynamic entity-safety preflight and the natural held/neutral
+stage-entry checks. This report does not mark BUG-117 Ready for implementation,
+Verification, or Done.

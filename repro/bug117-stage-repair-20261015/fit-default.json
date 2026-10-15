@@ -1,0 +1,93 @@
+{
+  "ticket": "BUG-117",
+  "step": "stage-repair-profile-fits-resumed-ready-20261015/default-retained-fit",
+  "profile": {
+    "name": "complete keyboard adaptive",
+    "command": "wsl.exe --cd /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "exit_code": 0,
+    "build_rerun": false
+  },
+  "receipt": {
+    "path": "capsule/build/source-build-receipt.json",
+    "sha256": "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a",
+    "authored_inputs": 266,
+    "generated_inputs": 4,
+    "artifacts": 87,
+    "parent_independent_audit": "pass",
+    "audit_path": "parent-default-audit.json"
+  },
+  "source": {
+    "root_main_s_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+    "candidate_capsule_main_s_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+    "root_unchanged": true,
+    "approved_authored_change_vs_recovered_bug046": ["src/main.s"],
+    "source_patch": {
+      "path": "source.patch",
+      "sha256": "f381c9b96ec0bb148fa7b6d5e9e09445049839d18cec6aca58339e4f8dfc7dd3",
+      "authored_delta": "one concise comment and LDB PLAYER_MANUAL / ORB PLAYER_DIR / BEQ rj_done; 6 emitted bytes"
+    },
+    "listing_proof": {
+      "path": "capsule/build/ladybug.lst",
+      "rj_request_address": "$CB4A",
+      "guard_address": "$CB4E",
+      "guard_bytes": "D6 18 DA 06 27 0A",
+      "branch_target": "rj_done at $CB5E"
+    }
+  },
+  "capacity": {
+    "resident": {
+      "baseline_used_bytes": 8082,
+      "baseline_free_bytes": 110,
+      "candidate_used_bytes": 8088,
+      "candidate_free_bytes": 104,
+      "minimum_free_bytes": 32,
+      "measured_growth_bytes": 6,
+      "result": "pass"
+    },
+    "candidate_limits": {
+      "resident_end": "$DF98",
+      "assets": {"used_bytes": 7649, "limit_bytes": 7680},
+      "audio_engine": {"used_bytes": 727, "limit_bytes": 920},
+      "page_3d_payload": {"used_bytes": 6656, "limit_bytes": 8192},
+      "adaptive_mapped_helper": {"used_bytes": 198, "limit_bytes": 220},
+      "adaptive_banked_helper": {"used_bytes": 696, "limit_bytes": 698},
+      "adaptive_active_module": {"used_bytes": 622, "limit_bytes": 777},
+      "page_34_enemy_helper": {"used_bytes": 87, "limit_bytes": 93, "end_address": "$A8F6"},
+      "presentation_module": {"used_bytes": 1259, "limit_bytes": 1280},
+      "demo_runtime": {"used_bytes": 143, "limit_bytes": 938},
+      "high_score_runtime": {"used_bytes": 917, "limit_bytes": 938},
+      "instruction_runtime": {"used_bytes": 935, "limit_bytes": 938},
+      "presentation_helper": {"used_bytes": 331, "limit_bytes": 334},
+      "sparse_enemy": {"used_bytes": 23005, "limit_bytes": 24576},
+      "sparse_player": {"used_bytes": 2294, "limit_bytes": 8192},
+      "sparse_gate_bytes": 832,
+      "sparse_presentation_bytes": 896,
+      "sparse_perimeter_reset_bytes": 5751,
+      "gmc_loader_segments": 12,
+      "lzss_streams": 7,
+      "gmc_cpu_readable_spare_bytes": 6197,
+      "recovered_bug046_highscore_phase_helper_end": "$B880"
+    },
+    "checks": [
+      "exact sparse boundary reconstructs across banks 2/3/0; one-byte excess fails",
+      "sparse enemy/player frames decode and blend pixel-exactly",
+      "presentation streams blend pixel-exactly",
+      "source reference: 16 modules, 36628 source lines, coverage pass",
+      "all build packing/capacity guards pass"
+    ]
+  },
+  "artifacts": {
+    "rom": {"path": "capsule/build/ladybug.rom", "bytes": 65536, "sha256": "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29"},
+    "log": {"path": "capsule/build/logs/fit-stage-control-default.log", "sha256": "2faf1f1c462c728a25b87bdf991155d05c2d6ea428894c2ac9a2a3811bae98cc"},
+    "prototype_rate_page34_source_sha256": "a69fab1593dfabca5657773d0b98853cf32af2ee99fe6173dc87d1ad62986d22",
+    "rate_helper_sha256": "c90d80a2989e46c05dfeacd20a8a183a065b0348f914b5a876d149aae320d4dc",
+    "highscore_helper_sha256": "8dc7c094d8187135dd1f053ea8b9651052dfaF3c648183aa7f419c0822568d04"
+  },
+  "scope_result": {
+    "runtime_run": false,
+    "root_source_integration": false,
+    "other_profile_builds_in_this_step": false,
+    "ticket_acceptance": false,
+    "remaining": ["complete joystick/adaptive fit", "complete keyboard/nonadaptive fit", "runtime qualification", "parent integration and QA", "manual card results"]
+  }
+}

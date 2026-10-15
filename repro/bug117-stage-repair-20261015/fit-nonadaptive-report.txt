@@ -1,0 +1,49 @@
+BUG-117 keyboard/nonadaptive fit report
+Date: 2026-10-15
+Profile: complete keyboard/nonadaptive
+
+Result
+------
+The one complete keyboard/nonadaptive build exited 0. Resident usage is
+8156/8192 bytes, leaving 36 free. This is six bytes above the recovered
+BUG-046 profile baseline (8150 used, 42 free) and leaves 4 bytes above the
+32-byte minimum. The receipt is complete; all 266 authored inputs, 1 generated
+input, and 72 artifacts match their recorded hashes. The authored input map
+matches the separately built default candidate. The generated rate-helper
+source hash matches the retained prototype_rate_page34.s.
+
+Source and encoded guard
+------------------------
+The profile capsule main.s SHA256 matches the default candidate:
+88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4. The root
+main.s remains at baseline SHA256
+c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226. The final
+listing places rj_request at $CB8E; immediately after the INITIAL_ENTRY_STATE
+branch, the six guard bytes at $CB92 are D6 18 DA 06 27 0A, branching to
+rj_done at $CBA2. The recovered BUG-046 rate-helper source is unchanged.
+
+Capacity and complete-build checks
+----------------------------------
+The resident ends at $DFDC. Measured limits: assets 7608/7680; audio engine
+727/920; page-$3D payload 5677/8192; page-$34 enemy helper 87/93 ending at
+$A8F6; presentation module 1272/1280; demo 143/938; high-score runtime
+917/938; instruction runtime 935/938; presentation helper 331/334. Sparse
+packing reports enemy 23005/24576, player 2294/8192, 832 gate bytes, 896
+presentation bytes, 5751 perimeter-reset bytes, 11 loader segments, 7 LZSS
+streams, and 8488 CPU-readable GMC bytes spare. Complete packing, sparse
+boundary, pixel-exact sparse/presentation proofs, source-reference coverage
+(13 modules, 35577 lines), and source documentation (13 modules, 296 routines,
+4783 labels) pass. The ROM is 65536 bytes.
+
+Command and retained identities
+-------------------------------
+    wsl.exe --cd /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/profiles/nonadaptive/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=0 bash scripts/build.sh build
+
+The build ran once and exited 0. ROM SHA256: 9094e5675a5bf7df14b2ac777cdb8ddb7b3425da326efd8e9cff5136090040be.
+Receipt SHA256: a12e92cea98f1db5acab24d14b2d8fa97aab314ab2edc3d10d53e4b50c57ca09.
+Final log SHA256: 4befd8daa14c49272a464fbb91ba142dbab2111408b3b0ea7e7158cc612c2755.
+See fit-nonadaptive.json for exact paths, source and capacity details.
+
+This isolated profile fit is not runtime verification, root integration, or
+ticket acceptance. Runtime qualification, parent integration/QA, and manual
+card results remain outstanding.

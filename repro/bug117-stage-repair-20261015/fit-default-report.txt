@@ -1,0 +1,56 @@
+BUG-117 default fit report
+Date: 2026-10-15
+Profile: complete keyboard/adaptive
+
+Result
+------
+The retained default build exited 0. The resident image uses 8088/8192 bytes,
+leaving 104 free. This is the exact approved six-byte growth from baseline
+8082/8192 with 110 free, and exceeds the 32-byte minimum by 72 bytes. The ROM,
+complete build receipt, map/listing, and final log are retained under capsule.
+
+Source identity
+---------------
+Candidate capsule src/main.s SHA256:
+88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4
+Root src/main.s remains at the recovered baseline SHA256
+c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226.
+Parent's independent receipt audit passed all 266 authored inputs, 4 generated
+inputs, and 87 artifacts. Against recovered BUG-046, src/main.s is the only
+authored input change. source.patch retains the exact comment and six emitted
+guard bytes; no other source was edited.
+
+The final listing places rj_request at $CB4A and the guard at $CB4E:
+D6 18 (LDB PLAYER_MANUAL), DA 06 (ORB PLAYER_DIR), 27 0A (BEQ rj_done).
+The branch target is $CB5E after the unchanged direction/facing/manual stores.
+The candidate map gives resident_end=$DF98. The inherited BUG-046
+highscore_phase_helper_end remains $B880.
+
+Capacity and complete-build checks
+----------------------------------
+The log reports assets 7649/7680 bytes, engine 727/920 bytes, page-$3D payload
+6656/8192 bytes, adaptive mapped helper 198/220, adaptive banked helper 696/698,
+and active module 622/777. The page-$34 enemy helper is 87/93 bytes and ends at
+$A8F6; presentation module is 1259/1280; demo runtime 143/938; high-score
+runtime 917/938; instruction runtime 935/938; presentation helper 331/334.
+Sparse packing reports enemy 23005/24576, player 2294/8192, 832 gate bytes,
+896 presentation bytes, and 5751 perimeter-reset bytes, with 12 loader segments,
+7 LZSS streams, and 6197 CPU-readable GMC bytes spare. Sparse boundary,
+pixel-exact decode/blend, presentation, and source-reference coverage checks
+pass. The full ROM is 65536 bytes.
+
+Command and immutable outputs
+-----------------------------
+    wsl.exe --cd /mnt/e/projects/ladybug/repro/bug117-stage-repair-20261015/capsule env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build
+
+Exit code: 0. The complete source receipt SHA256 is
+8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a. The full
+ROM SHA256 is 8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29.
+The final log SHA256 is
+2faf1f1c462c728a25b87bdf991155d05c2d6ea428894c2ac9a2a3811bae98cc.
+See fit-default.json for all module limits and paths.
+
+This isolated fit is not runtime verification, root integration, or ticket
+acceptance. The joystick/adaptive and keyboard/nonadaptive complete profiles
+must also pass. Runtime, parent integration/QA, and manual card results remain
+outstanding.
