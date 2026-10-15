@@ -1,0 +1,70 @@
+FEAT-010 bounded recovery proposal
+Date: 2026-10-15
+Status: read-only proposal; no source edit, assembly, build, runtime, Git, or cleanup performed.
+
+Decision basis
+Attempt 06 measured a 1,303-byte complete/keyboard/adaptive presentation module, ending at $1E17 from $1900 against the $1E00 limit (1,280 bytes): 23 bytes over. The measured module is build/ladybug-presentation-runtime.bin in the retained fit copy. Proposed recovery is exactly 32 explicit direct-page operands in the same complete-profile presentation source block. In that listing each listed operand is extended and each target is $00xx; replacing it with the direct form removes one byte. Projection: 1,303 - 32 = 1,271 bytes, end $1DF7, 9 bytes below the cap. This is projected, not measured; only an assembler/build can confirm the emitted result after rebase.
+
+DP and equivalence proof
+The selected complete-profile equates resolve to PRES_SCREEN=$00A6, PRES_CELL=$00AA, PRES_CELL+1=$00AB, PRES_X=$00AC, PRES_Y=$00AD, PRES_DST=$00AE, PRES_TIMER=$00B0, PRES_TIMER+1=$00B1, PRES_RUN=$00BB, PRES_VALUE=$00BC, PRES_ROWS=$00C6, PRES_PHASE=$00CA, and PRES_HOLD_STATE=$00D4. The isolated build uses HIGHSCORE_TEST_PROFILE=0; its alternate test-profile PRES_RUN/PRES_VALUE at $00EA/$00EB are not in this allowlist.
+
+Assembler source sets `setdp $00`. Runtime DP is not globally zero during boot: gmc_bootstrap sets DP=$02, then main entry executes `clra; tfr a,dp` before presentation callers (`jsr $1900`). Parent's source-wide scan found no other active runtime DP writers/restores in the presentation caller closure. The generated include closure from scripts/build_presentation.py (`ladybug_presentation.inc`, `ladybug_presentation_symbols.inc`, `ladybug_presentation_resident.inc`, and `ladybug_presentation_timer_records.inc`) supplies constants, external symbol equates, and data tables; it does not write DP or redefine the selected internal page-$00 state equates. On these callers, `<symbol` therefore encodes the same absolute $00xx byte address using DP=$00. Each change retains the operation and register/condition-code behavior; the LDY extended-to-direct conversion retains its 0x10 opcode prefix. No call, branch, callback, stack operation, owner, state transition, or MMU operation changes. Reassembly must still verify emitted size and branch diagnostics.
+
+Exact 32-site allowlist
+`pc` and `source_line` refer to the attempt06 listing and its frozen fit-copy source, not post-rebase line numbers. `before` and `after` are emitted opcode bytes; each site's projected saving is one byte. The exact operand text is in `operand`.
+
+| # | PC | Line | Operand | Before → after | Target |
+|---:|---:|---:|---|---|---:|
+| 1 | $1AA6 | 532 | `<PRES_RUN` | 7F00BB → 0FBB | $00BB |
+| 2 | $1AAF | 537 | `<PRES_CELL` | FD00AA → DDAA | $00AA |
+| 3 | $1AB2 | 538 | `<PRES_X` | FD00AC → DDAC | $00AC |
+| 4 | $1AB8 | 541 | `<PRES_DST` | FD00AE → DDAE | $00AE |
+| 5 | $1AE6 | 570 | `<PRES_HOLD_STATE` | B600D4 → 96D4 | $00D4 |
+| 6 | $1AF0 | 575 | `<PRES_ROWS` | B700C6 → 97C6 | $00C6 |
+| 7 | $1AF3 | 577 | `<PRES_CELL` | FC00AA → DCAA | $00AA |
+| 8 | $1AFC | 580 | `<PRES_RUN` | 7D00BB → 0DBB | $00BB |
+| 9 | $1B04 | 583 | `<PRES_RUN` | B700BB → 97BB | $00BB |
+| 10 | $1B0A | 585 | `<PRES_VALUE` | B700BC → 97BC | $00BC |
+| 11 | $1B16 | 591 | `<PRES_VALUE` | F600BC → D6BC | $00BC |
+| 12 | $1B1C | 593 | `<PRES_RUN` | 7A00BB → 0ABB | $00BB |
+| 13 | $1B1F | 594 | `<PRES_CELL+1` | 7C00AB → 0CAB | $00AB |
+| 14 | $1B24 | 596 | `<PRES_CELL` | 7C00AA → 0CAA | $00AA |
+| 15 | $1B27 | 598 | `<PRES_X` | 7C00AC → 0CAC | $00AC |
+| 16 | $1B2A | 599 | `<PRES_X` | B600AC → 96AC | $00AC |
+| 17 | $1B31 | 602 | `<PRES_X` | 7F00AC → 0FAC | $00AC |
+| 18 | $1B34 | 603 | `<PRES_Y` | 7C00AD → 0CAD | $00AD |
+| 19 | $1B37 | 604 | `<PRES_DST` | FC00AE → DCAE | $00AE |
+| 20 | $1B3D | 606 | `<PRES_DST` | FD00AE → DDAE | $00AE |
+| 21 | $1B40 | 608 | `<PRES_ROWS` | 7A00C6 → 0AC6 | $00C6 |
+| 22 | $1B84 | 661 | `<PRES_HOLD_STATE` | B600D4 → 96D4 | $00D4 |
+| 23 | $1B8D | 665 | `<PRES_SCREEN` | B600A6 → 96A6 | $00A6 |
+| 24 | $1BBD | 690 | `<PRES_SCREEN` | B600A6 → 96A6 | $00A6 |
+| 25 | $1BD7 | 706 | `<PRES_HOLD_STATE` | B700D4 → 97D4 | $00D4 |
+| 26 | $1BEA | 719 | `<PRES_SCREEN` | F600A6 → D6A6 | $00A6 |
+| 27 | $1BF3 | 724 | `<PRES_PHASE` | B700CA → 97CA | $00CA |
+| 28 | $1BFD | 729 | `<PRES_TIMER` | 7F00B0 → 0FB0 | $00B0 |
+| 29 | $1C00 | 730 | `<PRES_TIMER+1` | 7F00B1 → 0FB1 | $00B1 |
+| 30 | $1C0D | 746 | `<PRES_DST` | 10BE00AE → 109EAE | $00AE |
+| 31 | $1C14 | 749 | `<PRES_DST` | BE00AE → 9EAE | $00AE |
+| 32 | $1C19 | 751 | `<PRES_DST` | BF00AE → 9FAE | $00AE |
+
+Rebase and scope
+The fit source is a retained candidate, not current root source. Current integrated source is commit 759b8e6 (`main.s` includes the approved six-byte automatic-entry guard; `shared_text_stage.inc` includes the shared-stage word tail and two one-byte savings). FEAT-010's approved patch also touches `shared_text_stage.inc`; reconcile that hunk against the current revision. Do not count those root changes as presentation-module savings. Apply this allowlist by routine/operand context to current `src/presentation_runtime.s`; do not apply stale line numbers or modify the alternate profile block.
+
+Five short-form branch changes identified in the listing save at most five bytes and do not independently cover the 23-byte miss. No branch shortening or logic/state factoring is included. Parent reports the current-root build is blocked by the authored High Score TMX missing `Coin Positions`; do not weaken or bypass that validator. This audit did not run a build.
+
+Gates and remaining limits
+No gate or scenario is added. After parent review and explicit user approval of any implementation assignment, use the ticket's existing ordinary build/capacity gates for complete keyboard/adaptive, complete joystick/adaptive, and complete keyboard/nonadaptive profiles, plus existing acceptance/runtime gates. Attempt06 measures only keyboard/adaptive and records presentation 1,303/1,280, resident 8,082/8,192, assets 7,667/7,680, audio engine 727/920, page-$3D payload 6,034/8,192, and page-$34 helper 87/93. These are historical attempt06 results, not integrated-revision headroom. The remaining profiles, generated-template deltas, current integrated resident/assets/helpers, and runtime behavior are unmeasured. The 32-byte module recovery leaves only 9 projected module bytes, so any further module growth can miss the cap.
+
+Evidence hashes (SHA-256)
+- attempt06 log: `580AB522C8F9E131D5143D6961A0EC2414757F2CD87BB6259314B38A06A9AD09`
+- attempt06 presentation source: `B6D0EC5A7A685C1D4615596E5712D1C8C41E1138DF6073551F92053620FCCAAE`
+- attempt06 shared-stage source: `6DBD2549D70DAA534E78300E7DE9D8832FDCD75D7362D1FD30E373E7195B0FF4`
+- measured presentation binary (1,303 bytes): `5D7F6577D882784FB73851E7AB347F841F74F35DE7304D0BF28BA969350B181D`
+- measured presentation listing: `E6FC86CAFF670CA2CDEFF67813A9F69592C075C048F6DA4D9E7A573C21294134`
+- fit report: `3CDCD485E0EF204632523CF729121FCD3EBD44F64715979FC774CB819335E6DE`
+- architecture report: `270BB472AA4CFAD3B757012D8E3F24D51FDBEACF49FC901F74AF278920436E5A`
+- source-freeze manifest: `36F2AC4AEB7AB229E59D34C2AF1B92671F6BEF27EAB6AA9556288F3B1B08475E`
+- current root `src/main.s`: `88D9EF86A470488F81EECA51255B0DDB752E1D29F18685425EBB28B4868407A4`
+- current root `src/shared_text_stage.inc`: `392C0B2B2ABC97F00C3FDABCD85439A685D9FBBE5C4F783EDA1A76B672294D50`
+- current root `src/presentation_runtime.s`: `5498BBE1785127218E3B5DA1F15FE1FF6C6AB239AB3DCF5224AA57F0E7E4F13C`

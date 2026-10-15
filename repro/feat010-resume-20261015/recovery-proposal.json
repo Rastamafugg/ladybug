@@ -1,0 +1,115 @@
+{
+  "ticket": "FEAT-010",
+  "audit_date": "2026-10-15",
+  "status": "read-only proposal; projection only",
+  "measured_baseline": {
+    "profile": "complete keyboard adaptive",
+    "module_start": "0x1900",
+    "module_end": "0x1E17",
+    "module_bytes": 1303,
+    "cap_bytes": 1280,
+    "over_cap_bytes": 23,
+    "binary_sha256": "5D7F6577D882784FB73851E7AB347F841F74F35DE7304D0BF28BA969350B181D",
+    "listing_sha256": "E6FC86CAFF670CA2CDEFF67813A9F69592C075C048F6DA4D9E7A573C21294134"
+  },
+  "projection": {
+    "strategy": "force direct-page addressing for 32 existing PRES state operands in the complete-profile presentation block",
+    "sites": 32,
+    "bytes_saved_projected": 32,
+    "module_bytes_projected": 1271,
+    "module_end_projected": "0x1DF7",
+    "headroom_projected": 9,
+    "measured_after_recovery": false
+  },
+  "dp_proof": {
+    "assembler_dp": "0x00 via setdp in presentation_runtime.s",
+    "runtime_dp_scope": "DP is set to 0x02 in gmc_bootstrap during boot, then main entry sets DP to 0 before presentation callers execute",
+    "selected_targets": {
+      "PRES_SCREEN": "0x00A6",
+      "PRES_CELL": "0x00AA",
+      "PRES_CELL+1": "0x00AB",
+      "PRES_X": "0x00AC",
+      "PRES_Y": "0x00AD",
+      "PRES_DST": "0x00AE",
+      "PRES_TIMER": "0x00B0",
+      "PRES_TIMER+1": "0x00B1",
+      "PRES_RUN": "0x00BB",
+      "PRES_VALUE": "0x00BC",
+      "PRES_ROWS": "0x00C6",
+      "PRES_PHASE": "0x00CA",
+      "PRES_HOLD_STATE": "0x00D4"
+    },
+    "excluded_alternate_test_equates": {
+      "PRES_RUN": "0x00EA",
+      "PRES_VALUE": "0x00EB"
+    },
+    "generated_template_closure": "scripts/build_presentation.py outputs ladybug_presentation.inc, ladybug_presentation_symbols.inc, ladybug_presentation_resident.inc, and ladybug_presentation_timer_records.inc; these supply constants, external symbols, and data tables and contain no DP writes or selected internal PRES state redefinitions",
+    "equivalence": "With runtime DP=0, direct operands address the same absolute 0x00xx locations. Opcode operation and register/condition-code effects are unchanged; LDY retains its 0x10 prefix. Calls, branches, stack, callbacks, ownership, state transitions, and MMU operations are unchanged. Reassembly is required to check final size and branch diagnostics."
+  },
+  "sites": [
+    {"n":1,"pc":"0x1AA6","source_line":532,"operand":"<PRES_RUN","before":"7F00BB","after":"0FBB","target":"0x00BB","saving":1},
+    {"n":2,"pc":"0x1AAF","source_line":537,"operand":"<PRES_CELL","before":"FD00AA","after":"DDAA","target":"0x00AA","saving":1},
+    {"n":3,"pc":"0x1AB2","source_line":538,"operand":"<PRES_X","before":"FD00AC","after":"DDAC","target":"0x00AC","saving":1},
+    {"n":4,"pc":"0x1AB8","source_line":541,"operand":"<PRES_DST","before":"FD00AE","after":"DDAE","target":"0x00AE","saving":1},
+    {"n":5,"pc":"0x1AE6","source_line":570,"operand":"<PRES_HOLD_STATE","before":"B600D4","after":"96D4","target":"0x00D4","saving":1},
+    {"n":6,"pc":"0x1AF0","source_line":575,"operand":"<PRES_ROWS","before":"B700C6","after":"97C6","target":"0x00C6","saving":1},
+    {"n":7,"pc":"0x1AF3","source_line":577,"operand":"<PRES_CELL","before":"FC00AA","after":"DCAA","target":"0x00AA","saving":1},
+    {"n":8,"pc":"0x1AFC","source_line":580,"operand":"<PRES_RUN","before":"7D00BB","after":"0DBB","target":"0x00BB","saving":1},
+    {"n":9,"pc":"0x1B04","source_line":583,"operand":"<PRES_RUN","before":"B700BB","after":"97BB","target":"0x00BB","saving":1},
+    {"n":10,"pc":"0x1B0A","source_line":585,"operand":"<PRES_VALUE","before":"B700BC","after":"97BC","target":"0x00BC","saving":1},
+    {"n":11,"pc":"0x1B16","source_line":591,"operand":"<PRES_VALUE","before":"F600BC","after":"D6BC","target":"0x00BC","saving":1},
+    {"n":12,"pc":"0x1B1C","source_line":593,"operand":"<PRES_RUN","before":"7A00BB","after":"0ABB","target":"0x00BB","saving":1},
+    {"n":13,"pc":"0x1B1F","source_line":594,"operand":"<PRES_CELL+1","before":"7C00AB","after":"0CAB","target":"0x00AB","saving":1},
+    {"n":14,"pc":"0x1B24","source_line":596,"operand":"<PRES_CELL","before":"7C00AA","after":"0CAA","target":"0x00AA","saving":1},
+    {"n":15,"pc":"0x1B27","source_line":598,"operand":"<PRES_X","before":"7C00AC","after":"0CAC","target":"0x00AC","saving":1},
+    {"n":16,"pc":"0x1B2A","source_line":599,"operand":"<PRES_X","before":"B600AC","after":"96AC","target":"0x00AC","saving":1},
+    {"n":17,"pc":"0x1B31","source_line":602,"operand":"<PRES_X","before":"7F00AC","after":"0FAC","target":"0x00AC","saving":1},
+    {"n":18,"pc":"0x1B34","source_line":603,"operand":"<PRES_Y","before":"7C00AD","after":"0CAD","target":"0x00AD","saving":1},
+    {"n":19,"pc":"0x1B37","source_line":604,"operand":"<PRES_DST","before":"FC00AE","after":"DCAE","target":"0x00AE","saving":1},
+    {"n":20,"pc":"0x1B3D","source_line":606,"operand":"<PRES_DST","before":"FD00AE","after":"DDAE","target":"0x00AE","saving":1},
+    {"n":21,"pc":"0x1B40","source_line":608,"operand":"<PRES_ROWS","before":"7A00C6","after":"0AC6","target":"0x00C6","saving":1},
+    {"n":22,"pc":"0x1B84","source_line":661,"operand":"<PRES_HOLD_STATE","before":"B600D4","after":"96D4","target":"0x00D4","saving":1},
+    {"n":23,"pc":"0x1B8D","source_line":665,"operand":"<PRES_SCREEN","before":"B600A6","after":"96A6","target":"0x00A6","saving":1},
+    {"n":24,"pc":"0x1BBD","source_line":690,"operand":"<PRES_SCREEN","before":"B600A6","after":"96A6","target":"0x00A6","saving":1},
+    {"n":25,"pc":"0x1BD7","source_line":706,"operand":"<PRES_HOLD_STATE","before":"B700D4","after":"97D4","target":"0x00D4","saving":1},
+    {"n":26,"pc":"0x1BEA","source_line":719,"operand":"<PRES_SCREEN","before":"F600A6","after":"D6A6","target":"0x00A6","saving":1},
+    {"n":27,"pc":"0x1BF3","source_line":724,"operand":"<PRES_PHASE","before":"B700CA","after":"97CA","target":"0x00CA","saving":1},
+    {"n":28,"pc":"0x1BFD","source_line":729,"operand":"<PRES_TIMER","before":"7F00B0","after":"0FB0","target":"0x00B0","saving":1},
+    {"n":29,"pc":"0x1C00","source_line":730,"operand":"<PRES_TIMER+1","before":"7F00B1","after":"0FB1","target":"0x00B1","saving":1},
+    {"n":30,"pc":"0x1C0D","source_line":746,"operand":"<PRES_DST","before":"10BE00AE","after":"109EAE","target":"0x00AE","saving":1},
+    {"n":31,"pc":"0x1C14","source_line":749,"operand":"<PRES_DST","before":"BE00AE","after":"9EAE","target":"0x00AE","saving":1},
+    {"n":32,"pc":"0x1C19","source_line":751,"operand":"<PRES_DST","before":"BF00AE","after":"9FAE","target":"0x00AE","saving":1}
+  ],
+  "rebase": {
+    "integrated_revision": "759b8e6",
+    "current_main_sha256": "88D9EF86A470488F81EECA51255B0DDB752E1D29F18685425EBB28B4868407A4",
+    "current_shared_text_stage_sha256": "392C0B2B2ABC97F00C3FDABCD85439A685D9FBBE5C4F783EDA1A76B672294D50",
+    "current_presentation_runtime_sha256": "5498BBE1785127218E3B5DA1F15FE1FF6C6AB239AB3DCF5224AA57F0E7E4F13C",
+    "known_changes": [
+      "main.s: approved six-byte automatic-entry guard",
+      "shared_text_stage.inc: shared-stage word tail and two one-byte savings",
+      "FEAT-010 approved patch also touches shared_text_stage.inc and must be reconciled against the integrated version"
+    ],
+    "root_build_blocker_reported_by_parent": "current authored High Score TMX is missing Coin Positions; do not relax or bypass the validator"
+  },
+  "alternative": "The five safe in-range long-branch shortenings save at most 5 bytes and leave the 23-byte miss unresolved; no branch edits or logic/state factoring are proposed.",
+  "remaining_unmeasured": [
+    "keyboard adaptive is the only measured profile; joystick adaptive and keyboard nonadaptive remain unmeasured",
+    "integrated-revision resident/assets/helpers and generated-template capacity deltas",
+    "runtime behavior and acceptance gates"
+  ],
+  "evidence_sha256": {
+    "attempt06_log": "580AB522C8F9E131D5143D6961A0EC2414757F2CD87BB6259314B38A06A9AD09",
+    "attempt06_presentation_source": "B6D0EC5A7A685C1D4615596E5712D1C8C41E1138DF6073551F92053620FCCAAE",
+    "attempt06_shared_text_stage_source": "6DBD2549D70DAA534E78300E7DE9D8832FDCD75D7362D1FD30E373E7195B0FF4",
+    "fit_report": "3CDCD485E0EF204632523CF729121FCD3EBD44F64715979FC774CB819335E6DE",
+    "architecture_report": "270BB472AA4CFAD3B757012D8E3F24D51FDBEACF49FC901F74AF278920436E5A",
+    "source_freeze_manifest": "36F2AC4AEB7AB229E59D34C2AF1B92671F6BEF27EAB6AA9556288F3B1B08475E"
+  },
+  "execution": {
+    "source_modified": false,
+    "assembly_or_build_run": false,
+    "runtime_or_emulator_run": false,
+    "git_operation_run": false
+  }
+}
