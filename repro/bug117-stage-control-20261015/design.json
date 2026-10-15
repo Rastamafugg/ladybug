@@ -1,0 +1,124 @@
+{
+  "artifact": "BUG-117 stage-entry control repair approval design",
+  "date": "2026-10-15",
+  "status": "read-only design recommendation; no repair approval or implementation authorization",
+  "classification": "High-risk",
+  "owned_artifacts": [
+    "repro/bug117-stage-control-20261015/design.json",
+    "repro/bug117-stage-control-20261015/report.txt"
+  ],
+  "proposed_production_scope": {
+    "file": "src/main.s",
+    "routine": "rj_request",
+    "edit_point": "after the existing INITIAL_ENTRY_STATE guard and before JOY_DIR, PLAYER_WANT, PLAYER_FACE, or PLAYER_MANUAL are written",
+    "logic": "Use B to OR PLAYER_MANUAL with PLAYER_DIR; when the result is zero, return through rj_done without publishing the computed direction. Otherwise keep the current A value and execute existing admission stores.",
+    "source_projection_bytes": 6,
+    "projection_breakdown": [
+      {"instruction": "ldb PLAYER_MANUAL", "bytes": 2},
+      {"instruction": "orb PLAYER_DIR", "bytes": 2},
+      {"instruction": "beq rj_done", "bytes": 2}
+    ],
+    "state_invariant": "init_player sets PLAYER_MANUAL=0 and PLAYER_DIR=DIR_NORTH=0. The automatic entrance remains north-directed until pt_at_center recognizes cell (12,18) and clears PLAYER_DIR to DIR_NONE. The first admitted manual request sets PLAYER_MANUAL=1, which remains latched until init_player. The input tests do not overwrite A, so the resolved direction remains intact."
+  },
+  "confirmed_baseline": {
+    "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+    "source_receipt_sha256": "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc",
+    "observer_sha256": "8c38d8ba5ffe52bf003732afc6a821b4900acc02c3dcd589f2c1225e0eeeace7",
+    "paired_predecessor_sha256": "4cc7e9b5afb8143e274ef6a2126669d1c78ea1bbbf744792bb0301486c3e572a",
+    "result_file": "repro/bug117-scheduled-step-20261015/parent-result.json",
+    "observed": {
+      "common_entry": {"cell": [12, 22], "framebuffer": "0x89ec", "step": 0},
+      "neutral_first_draw": {"cell": [12, 22], "framebuffer": "0x88ac", "step": 1, "manual": 0},
+      "held_down_first_draw": {"cell": [12, 22], "framebuffer": "0x89ec", "step": 0, "manual": 1, "joy_dir": 2, "player_want": 2},
+      "classification": "qualified positional divergence; first stage2 scheduled movement was suppressed by early manual ownership"
+    }
+  },
+  "source_evidence": [
+    {
+      "path": "src/main.s",
+      "lines": "2743-2753",
+      "finding": "rj_request first honors INITIAL_ENTRY_STATE, then publishes the resolved A direction to JOY_DIR, PLAYER_WANT and PLAYER_FACE and latches PLAYER_MANUAL. JOY_DIR is cleared earlier by read_joystick; the proposed block retains neutral direction while preserving raw axis samples."
+    },
+    {
+      "path": "src/main.s",
+      "lines": "2640-2654; 1057-1076",
+      "finding": "init_player establishes cell (12,22), north direction 0, step 0, manual 0, and framebuffer $89EC. next_stage calls init_player before presenting the next-stage level map."
+    },
+    {
+      "path": "src/main.s",
+      "lines": "2930-2942; 3008-3050",
+      "finding": "The automatic north path advances the framebuffer by -320 per scheduled step. At center cell (12,18), pt_at_center clears PLAYER_DIR and PLAYER_WANT to $FF before normal joystick sampling resumes. The arrival step itself reaches y=18/step=0; a following no-movement center call clears direction."
+    },
+    {
+      "path": "src/main.s",
+      "lines": "752-854; 870-994",
+      "finding": "The nonadaptive main loop samples joystick after player_tick; adaptive_active samples before its bounded simulation batch and also calls read_joystick while presentation is retained. The proposed guard is therefore evaluated in both orderings. The INITIAL_ENTRY_STATE barrier and its marker/music sequence remain unchanged."
+    },
+    {
+      "path": "src/adaptive_active.s",
+      "lines": "28-30",
+      "finding": "The adaptive foreground input path calls read_joystick outside MODE_DEMO, including retained presentation modes. A MODE_NORMAL-only guard would therefore admit the held request during MODE_LEVEL preview and is rejected."
+    },
+    {
+      "path": "src/shared_text_stage.inc",
+      "lines": "1531-1543; 1590-1601",
+      "finding": "Name-entry initialization sets PLAYER_DIR to DIR_NONE before name_tick reads joystick. Its first non-neutral request passes the proposed OR guard and latches PLAYER_MANUAL=1; subsequent north input also passes."
+    },
+    {
+      "path": "src/shared_text_ranking.inc",
+      "lines": "775-787; 834-845",
+      "finding": "The alternate ranking/name path likewise initializes PLAYER_DIR to DIR_NONE before its joystick read."
+    },
+    {
+      "path": "src/main.s and src/demo_runtime.s",
+      "lines": "main.s:2650,2751; demo_runtime.s:447-467",
+      "finding": "The relevant manual-flag writers clear it at init_player and set it on directional admission or at demo alignment; demo direction is separately owned, and main skips resident joystick reads in MODE_DEMO."
+    },
+    {
+      "path": "src/presentation_runtime.s",
+      "lines": "400-440; 801-868; 1569-1574",
+      "finding": "PRES_SCREEN is presentation-map state. Start/menu input is handled through PRES_EVENT and MENU_SCAN; the proposed guard is confined to resident directional admission and does not change that raw menu path."
+    }
+  ],
+  "capacity_projection": {
+    "source": "Parent-provided BUG-120 Ready fit baseline; values are resident free bytes, not a new build measurement.",
+    "minimum_reserve_bytes": 32,
+    "profiles": [
+      {"profile": "keyboard adaptive", "baseline_free": 110, "after_6_byte_projection": 104},
+      {"profile": "joystick adaptive", "baseline_free": 74, "after_6_byte_projection": 68},
+      {"profile": "keyboard nonadaptive", "baseline_free": 42, "after_6_byte_projection": 36}
+    ],
+    "tightest_projected_margin_above_minimum": 4,
+    "qualification": "projection only; assembler map and every shipped profile must confirm fit after explicit repair approval"
+  },
+  "rejected_options": [
+    {
+      "option": "PRES_SCREEN=2, PLAYER_MANUAL=0, CELL_X=12, CELL_Y>=19",
+      "projected_bytes": 22,
+      "reason": "The source projection leaves 20 bytes free in the tightest 42-byte profile, 12 below the required 32-byte minimum."
+    },
+    {
+      "option": "PRES_MODE=0 plus PLAYER_MANUAL=0 and PLAYER_DIR=0",
+      "projected_bytes": 10,
+      "reason": "It fails the required preview boundary: the adaptive path samples joystick input while MODE_LEVEL is retained, so a MODE_NORMAL-only filter does not protect the held input before release."
+    },
+    {
+      "option": "Reuse ENTRY_MAZE_ENTRY or wait on AUDIO_MUSIC_PUBLISHED_BUSY",
+      "reason": "That couples stage preview placement to the existing life-entry/audio handoff, adds lifecycle behavior and waits, and is outside the authorized repair scope."
+    }
+  ],
+  "approval_card_outline": {
+    "purpose_and_risk": "Prevent directional requests from taking manual ownership while PLAYER_DIR=DIR_NORTH and PLAYER_MANUAL=0 identify the source-proven automatic entrance. Distinct risk: input ownership leaks during a retained stage preview and blocks scheduled placement.",
+    "automated_target": "With the frozen approved predecessor and an actually sampled held Down request, the first scheduled north step must match neutral position: entry (12,22)/$89EC/step0; first result (12,22)/$88AC/step1; PLAYER_MANUAL remains 0 and no held direction is published before placement. Facing is not the oracle. Keep the existing first-result stop and phase/deadline limits.",
+    "source_liveness_target": "At the authored placement (12,18)/$75EC/step0, the existing center branch clears north direction without translating the player. The next normal joystick sample can admit the held request; the first directional request then latches manual ownership. Verify the bounded one-center-tick release behavior and do not permit any extra position step.",
+    "negative_controls": [
+      "A manually owned north-moving state (PLAYER_MANUAL nonzero) must continue through existing input admission.",
+      "Name-entry state starts with PLAYER_DIR=DIR_NONE; its first directional request must pass, latch manual, and subsequent north requests must remain admitted.",
+      "A missing sampled Down or missing/duplicate first scheduled result is setup or missing coverage, never a pass."
+    ],
+    "commands_and_limits": "Reuse the already approved scheduled-step observer, frozen capsule, two neutral/held cases, 45-second whole-phase ceilings, 10-second stop ceiling, 1000 callbacks per phase and 270-second aggregate upper bound. Exact candidate-build commands and map-fit checks belong in the assignment after repair approval; no runtime command was executed for this design review.",
+    "manual_split": "This focused observer does not replace the existing BUG-117 manual life/death checklist or establish ticket completion."
+  },
+  "open_approval_point": "The compact guard intentionally keeps control neutral through the target arrival pose and reopens on the next normal center call, which clears PLAYER_DIR without moving the sprite. Approval should accept that bounded no-movement tick; otherwise the one-file/6-byte proposal does not establish same-sample release and requires a revised fit-safe design before implementation."
+}
+
