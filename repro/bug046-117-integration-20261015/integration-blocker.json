@@ -1,0 +1,58 @@
+{
+  "date": "2026-10-15",
+  "tickets": [
+    "BUG-046",
+    "BUG-117"
+  ],
+  "integration_source_commit": "759b8e6",
+  "status": "source_integrated_build_blocked",
+  "class": "High-risk integration with unrelated pending asset dependency",
+  "production_source_hashes": {
+    "src/main.s": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+    "src/shared_text_stage.inc": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50"
+  },
+  "preserved_user_TMX_hashes": {
+    "tiled/coco-attract-screen.tmx": "137e6818a974888f3e5d894b075d24553e665332b517fc3b66132dcf9b0adb76",
+    "tiled/coco-high-score-screen.tmx": "98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425"
+  },
+  "failed_command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+  "build_exit_code": 1,
+  "failure": "build_presentation.py high-score layer contract mismatch; missing/duplicate=[Coin Positions], unexpected=[]",
+  "failure_phase": "presentation asset compilation before complete packaging",
+  "log_path": "repro\\bug046-117-integration-20261015\\build-joystick.log",
+  "log_sha256": "304a4cdc9f695772fe88ec76d76cf5479180d398da1c5a075108bb5eb2206821",
+  "current_receipt_state": "building",
+  "delivered_ROM_same_as_before": true,
+  "delivered_ROM_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "prior_ROM_and_receipt_retained": "repro\\bug046-117-integration-20261015\\before",
+  "partial_build_is_not_accepted": true,
+  "remaining_profiles_not_run": [
+    "keyboard/nonadaptive",
+    "keyboard/adaptive"
+  ],
+  "runtime_not_run": true,
+  "rejected_unapproved_actions": [
+    "Restoring user TMX edits in place",
+    "Changing presentation layer validator/game behavior as an incidental repair",
+    "Treating old ROM or failed receipt as a new integrated artifact"
+  ],
+  "next_options": [
+    {
+      "work": "Build isolated combined source with the last qualified buildable attract/high-score TMXs; preserve user files and keep FEAT010 paused",
+      "reason": "Current unbuilt FEAT010 assets prevent any standard build",
+      "baseline": "Source integrated; standard build fails Coin Positions contract before packaging",
+      "target": "All3standard profiles complete with at least32resident bytes free and all existing caps; deliver revision-identified ROM with explicit frozen-asset provenance",
+      "measurement": "standard build receipts/ROM hashes and focused source/staged/copied-artifact comparison against qualified capsule evidence",
+      "order": "Authorize isolated frozen-asset build, qualify exact inputs, serial builds/defaultlast, artifact QA, then manual checks",
+      "risks": "Delivered build excludes pending attract/high-score layout edits; current root TMXs will still require FEAT010 completion",
+      "exclusions": "No user-file replacement, compiler relaxation, feature work, memory/cap changes or added scenario matrix"
+    },
+    {
+      "work": "Resume approved FEAT010 separately to make current Tiled inputs and code agree",
+      "reason": "User assets intentionally removed Coin Positions and moved menu",
+      "target": "Current-asset standard build passes compatible feature contracts before bug integration verification",
+      "risks": "Broader paused behavior-changing feature work, not a two-file bug integration",
+      "exclusions": "No incidental validator bypass"
+    }
+  ]
+}

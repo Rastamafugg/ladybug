@@ -1,0 +1,18 @@
+build: assemble [adaptive core generated module] build/ladybug-adaptive-mapped.s -> build/ladybug-adaptive-mapped.bin
+build: assemble [adaptive core generated module] build/ladybug-adaptive-banked.s -> build/ladybug-adaptive-banked.bin
+{"mapped": {"bytes": 198, "limit": 220, "free": 22}, "banked": {"bytes": 696, "limit": 698, "free": 2}}
+build: profile complete; input joystick
+maze: 25 styles, 117 dots, 20 gates, 250 walkable cells -> /mnt/e/projects/ladybug/assets/arcade/maze.json, /mnt/e/projects/ladybug/build/ladybug_maze.inc
+screen: 97 unique tiles, 5152 data bytes, 832 gate-transition bytes (168 verified cases), 896 presentation-sparse bytes
+Traceback (most recent call last):
+  File "/mnt/e/projects/ladybug/scripts/build_presentation.py", line 2729, in <module>
+    main()
+  File "/mnt/e/projects/ladybug/scripts/build_presentation.py", line 1961, in main
+    shared = SharedText(args, sys.modules[__name__])
+  File "/mnt/e/projects/ladybug/scripts/shared_text.py", line 41, in __init__
+    else:root,flat,sources=p.flatten_map(path)
+  File "/mnt/e/projects/ladybug/scripts/build_presentation.py", line 771, in flatten_map
+    layer_contract = validate_presentation_layers(root, path)
+  File "/mnt/e/projects/ladybug/scripts/build_presentation.py", line 688, in validate_presentation_layers
+    raise ValueError(
+ValueError: /mnt/e/projects/ladybug/tiled/coco-high-score-screen.tmx: high-score layer contract mismatch; missing/duplicate=['Coin Positions'], unexpected=[]
