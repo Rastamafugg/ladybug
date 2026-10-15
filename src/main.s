@@ -2744,6 +2744,10 @@ rj_request
         ; Transfer owns facing and manual state; axes still sample normally.
         tst     INITIAL_ENTRY_STATE
         bne     rj_done
+        ; Preserve automatic north until the center-stop clears PLAYER_DIR.
+        ldb     PLAYER_MANUAL
+        orb     PLAYER_DIR
+        beq     rj_done
         sta     JOY_DIR
         sta     PLAYER_WANT      ; buffer turns across intermediate steps
         sta     PLAYER_FACE      ; facing follows live input even when blocked

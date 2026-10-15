@@ -663,8 +663,8 @@ stage_finish_index
         deca
         ldb #64
         mul
-        ldy #vegetable_sprites
-        leay d,y
+        addd #vegetable_sprites
+        tfr d,y
         pshs y
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
@@ -687,15 +687,15 @@ stage_panel_letter_loop
         pshs b,u
         ldb #64
         mul
-        ldy #object_masks
-        leay d,y
+        addd #object_masks
+        tfr d,y
         ldu #sprite_blue_pairs
         jsr blit_packed_sprite
         puls b,u
         leax -2552,x
         decb
         bne stage_panel_letter_loop
-        rts
+        jmp draw_word_progress_hud
 stage_schedule
         fdb 288
         fdb $3450
