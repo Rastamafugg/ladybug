@@ -1,0 +1,193 @@
+{
+  "ticket": "BUG-046",
+  "date": "2026-10-15",
+  "classification": "High-risk",
+  "status": "source-only reassessment; no implementation or runtime work",
+  "scope": {
+    "owned_outputs": [
+      "repro/bug046-hidden-owner-20261015/reassessment.json",
+      "repro/bug046-hidden-owner-20261015/reassessment-report.txt"
+    ],
+    "excluded": [
+      "probe.py and other source files",
+      "wiki and ticket pages",
+      "build, emulator, network, or runtime execution",
+      "guest writes beyond the existing four-byte fixture",
+      "Git staging or commit"
+    ]
+  },
+  "baseline": {
+    "candidate": {
+      "profile": "complete",
+      "revision": "b94af065c4a94a0e1d0b1239831e46e21dd2ac77",
+      "rom_sha256": "fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d",
+      "source_build_receipt_sha256": "46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee",
+      "presentation_listing_sha256": "448bd49ba08038a93d5f14db063b1b72fda6d7d7d32fe382cb263afb08fdd0ad",
+      "enemy_listing_sha256": "128837c08883959b5a6f9fb68cd2b2dd2ce9d36783035818741a44192b295f26",
+      "main_listing_sha256": "e43e45cd6f942a635aca0ef1a790c49b3a82878e77f69e9489deb662b521eec3"
+    },
+    "failed_candidate_run": {
+      "path": "repro/bug046-hidden-owner-20261015/hidden-owner.json",
+      "sha256": "d4ddd2c8658405b3c51e9138b9a402fa4d41869419257bc5b6df7c889a887867",
+      "result": "missing_coverage",
+      "failure": "helper return was not a stable HYDRATE crop with no pending publication",
+      "last_marker": "presentation caller return at $1B21",
+      "source_staged_cpu_physical_bytes": "matched",
+      "phases": [
+        {"name": "cold-legal-predecessor", "seconds": 4.198, "stops": 212},
+        {"name": "hidden owner pass 1", "seconds": 0.100, "stops": 3}
+      ],
+      "fixture_writes": [["$003C", 73], ["$003D", 21], ["$0025", 1], ["$0033", 0]],
+      "crops_or_pixel_assertions_reached": false,
+      "raw_hold_state_retained": false,
+      "classification": "observer fixture / missing coverage; no product assertion and no owner-0 hidden evidence"
+    }
+  },
+  "source_finding": {
+    "source": "repro/bug046-display-repair-20261015/capsule/src/presentation_runtime.s",
+    "source_sha256": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+    "listing": "repro/bug046-display-repair-20261015/capsule/build/ladybug-presentation-runtime.lst",
+    "control_flow": [
+      "start_screen_map at $1A71 maps the selected BACK and reads PRES_SCREEN",
+      "CMPA #PRESENTATION_MAP_LEVEL_START at $1A7C; BEQ $1A83 at $1A7E",
+      "PRESENTATION_HOLD_BEGIN call at $1A80 is skipped when the selector is level-start (2)",
+      "normal_stage and normal_start select level-start before calling start_screen"
+    ],
+    "conclusion": "The approved generic dual-hidden-hydration premise does not apply to the level-start sequence. The retained failure at $1B21 is missing coverage, not a failed pixel gate."
+  },
+  "owner_equivalence_assessment": {
+    "basis": "frozen recovered BUG-046 candidate source and generated listings only",
+    "source_hashes": {
+      "main.s": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+      "enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "shared_text_runtime.inc": "92db435ac61a4bb6b734bdd6d15bef81813a64a57c2b2dc90518ff382a0392d0",
+      "adaptive_active.s": "af39bc47cd753f35831e828d747ecd7776a71cf61d52f4402ff1b1096d6fd1ec",
+      "adaptive_runtime.s": "ffa30b03a31da2f2154d76c8aab2bfac1d46b67ffc35b4d4fba6f3dfe24d661c"
+    },
+    "compiled_path": [
+      {"symbol": "framebuffer_prepare_back", "address": "$0DDF", "role": "prepares selected BACK and calls gate_map_live"},
+      {"symbol": "gate_map_live", "address": "$15B4", "role": "selects the legal framebuffer mapping from FB_BACK_ID"},
+      {"symbol": "fri_stage_background", "address": "$0C21", "role": "RF_STAGE path redraws panel, HUD, words, and lives"},
+      {"symbol": "draw_word_progress_hud", "address": "$C41B", "role": "sets SPECIAL/EXTRA coordinates and color, then calls the resident shared renderer"},
+      {"symbol": "asset_draw_recolored_map_tile", "address": "$FB96", "role": "selects the authored glyph cell and enters the shared glyph renderer"},
+      {"symbol": "asset_draw_hud_digit", "address": "$FB78", "role": "computes the virtual destination and enters shared_mask"},
+      {"symbol": "shared_mask", "address": "$FBBE", "role": "writes the same 8 rows by 4 bytes using the selected color lookup"}
+    ],
+    "write_address_formula": "$2000 + 1280 * HUD_Y + 4 * HUD_X; each row advances 160 bytes; each glyph writes 8 rows by 4 bytes",
+    "word_pixel_bounds": {
+      "SPECIAL_y1_cols1_to7": ["$2504", "$297F"],
+      "EXTRA_y4_cols1_to5": ["$3404", "$3877"],
+      "virtual_window": ["$2000", "$3FFF"]
+    },
+    "color_inputs": {
+      "TEXT_SPECIAL": 1,
+      "TEXT_EXTRA": 2,
+      "selected_masks": {"SPECIAL": 73, "EXTRA": 21},
+      "oracle_expected_unselected": 7,
+      "oracle_expected_background": 0,
+      "text_color_include_sha256": "18026d19dfc10f405bf6a599bc998aa989beb1e5e86aaaae908afe981ba11513",
+      "shared_text_data_include_sha256": "4ff84648ee267ac1ef59d52571fdbb723b55a4f12486cfbe484aa1000e39fac6"
+    },
+    "legal_persistent_mappings_after_FB_INIT_STATE": {
+      "owner_0_BACK": {"PAR1_PAR4": ["$30", "$31", "$32", "$33"], "physical_base": "$60000"},
+      "owner_1_BACK": {"PAR1_PAR4": ["$2C", "$2D", "$2E", "$2F"], "physical_base": "$58000"},
+      "difference": "only the physical page base; the same virtual $2000-$3FFF offsets, glyph bytes, masks, and color code are used"
+    },
+    "owner_ledger_reads_in_glyph_path": false,
+    "source_equivalence_result": "The source supports identical word-render writes for both legal BACK mappings; this is not a runtime observation of owner 0.",
+    "unproven_owner_specific_risks": [
+      "owner-0 physical storage contents and write/decode behavior in the candidate run",
+      "owner-0 stale-content/history interaction",
+      "owner-0 actual GIME scanout and publication"
+    ]
+  },
+  "retained_predecessor": {
+    "path": "repro/bug046-hidden-owner-20261015/hidden-owner.json#paired_predecessor",
+    "sha256": "4cc7e9b5afb8143e274ef6a2126669d1c78ea1bbbf744792bb0301486c3e572a",
+    "front_back_pending_commit_hex": "00010107df",
+    "gime_scanout_owner": 0,
+    "task0_PARs": [56, 44, 45, 46, 47, 52, 62, 63],
+    "task1_PARs": [56, 48, 49, 50, 51, 61, 53, 63],
+    "input_down": [],
+    "legal_entry_edge": "north from (12,18) to (12,17), empty and unoccupied",
+    "legal_flower_edge": "north from (12,17) to (12,16), unoccupied flower",
+    "sufficient_state_for_a_second_commit_route": false,
+    "reason": "The retained record has hashes and edge facts but not decoded enemy positions, chooser/RNG state, or a source-qualified no-op render trigger. An extra player move would add enemy, clock, and framebuffer-history effects."
+  },
+  "recommended_revised_card": {
+    "path": "source-equivalence proof + existing wrong-mapping negative + one actual natural published-preview-to-maze pixel run",
+    "baseline": "Frozen recovered BUG-046 candidate; actual historical broken owner-1 visible preview is retained separately in scheduled-neutral.json.",
+    "target": "One natural actual preview publication and the first new RF_STAGE maze publication pass the unchanged exact word, mask, heart, and random-letter gates; source proves both legal BACK mappings use identical word bytes, virtual addresses, and colors.",
+    "zero_tolerance": true,
+    "owner_0_runtime_status": "untested; explicitly waived only if the user approves the revised card",
+    "acceptance": [
+      "Qualify frozen candidate source, staged, CPU, physical bytes, PAR1-PAR4 mapping, and actual GIME scanout before pixel interpretation.",
+      "Use a natural level-start sequence; do not force an owner, seed, mode, or parity.",
+      "At the actual preview publication, require SPECIAL=0x49 and EXTRA=0x15; selected SPECIAL/EXTRA colors 1/2, unselected gray 7, background 0; preserve absolute heart and random-letter oracles.",
+      "After source-qualified context-2 release, require RF_STAGE cleared, a new commit, actual maze scanout, exact word pixels and masks, and preview-to-maze word-crop identity.",
+      "Retain the existing independent wrong-selected-BACK-mapping negative and stale-publication negative; neither substitutes for the actual natural publication.",
+      "Report the actual owner observed. Do not claim owner 0 passed when it was not the actual runtime owner."
+    ],
+    "distinct_risk_coverage": {
+      "source_equivalence": "owner-specific glyph code/address/color or owner-ledger divergence",
+      "mapping_negative": "wrong virtual-to-physical BACK selection before crop interpretation",
+      "one_natural_run": "actual selected owner pixels, GIME publication, heart/letter preservation, and preview-to-maze handoff",
+      "residual": "owner-0 physical storage, stale history, and scanout remain unobserved if owner 1 is the only runtime owner"
+    },
+    "approval": "Material acceptance and verification-scope change. Return BUG-046 to Proposed and require explicit user approval before probe adaptation, Ready assignment, or runtime."
+  },
+  "alternatives": {
+    "alternate_owner_fixture": {
+      "assessment": "not currently source-qualified from retained predecessor evidence",
+      "bounded_plan_if_both_live_owners_remain_required": [
+        "Perform offline review of one exact, source-legal ordinary pre-transition action that would create one additional actual publication; do not search routes or use owner/parity forcing.",
+        "Before any live action, state the exact coordinates, target occupancy, current entity state, input sampling point, commit precondition, expected FRONT/BACK transition, and abort marker in the card.",
+        "Use one parent-leased run only if all predecessors and clock/input bounds can be independently checked; otherwise stop with missing coverage and reassess.",
+        "Keep the original four guest writes, no retry, three entire phases of at most 45 seconds, 10-second per-stop cap, and 1000 callbacks per phase."
+      ],
+      "current_blocker": "No exact extra-commit route is supported by the retained entity/chooser/clock/framebuffer state. No route or owner order is guessed."
+    },
+    "manual_or_coverage_waiver": {
+      "assessment": "lower automation cost but weaker evidence",
+      "proposal": "The user may explicitly waive owner-0 live coverage and inspect one natural visible preview-to-maze sequence manually; this cannot satisfy the zero-pixel oracle or prove owner-0 mapping.",
+      "status": "not passed; manual evidence remains pending until reported by the user",
+      "approval": "Requires explicit revised-card approval of the waiver and any change to the automated/manual split."
+    }
+  },
+  "existing_oracle_evidence": {
+    "oracle_path": "repro/bug122-heart-verification-20261014/pixel_oracle.py",
+    "oracle_sha256": "14b765a97f265d2053fe9e0fb67c32190265e14c9c1cf792966b8ebd4c417009",
+    "parent_qa": "repro/bug046-hidden-owner-20261015/parent-qa.json",
+    "parent_offline_self_tests": 46,
+    "offline_qualification": "good authored fixture passes; synthetic all-gray/broken word fixture, modified glyph, wrong BACK mapping, wrong GIME owner, stale publication, shifted heart, shifted random letter, changed masks, and missing crops reject",
+    "observed_broken_owner1": {
+      "path": "repro/bug117-scheduled-step-20261015/scheduled-neutral.json",
+      "sha256": "de874554a3fbf83527c5e481e4e1a9c64d58222ccb7693d6d2acfd68fbb864cd",
+      "owner": 1,
+      "actual_word_pixel_result": "pixel_mismatch at SPECIAL [1,1]",
+      "actual_hash": "4b427eec80b46551e179cd3dff8d9d1b1a8f9c865fd86f51822e5c71cf622bb7",
+      "expected_hash": "fe056146074bd1417a95790616b7bc7a21f2b13f7ad2c1224f1de73096441b10",
+      "limitation": "historical visible owner-1 evidence; no retained crop bytes and no owner-0 hidden evidence"
+    }
+  },
+  "commands_and_cost": {
+    "existing_offline_artifact_check": "python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario hidden-owner --build repro/bug046-display-repair-20261015/capsule/build --artifact-check",
+    "existing_offline_self_test": "python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario hidden-owner --self-test",
+    "offline_status": "46 self-tests and candidate artifact/source-site qualification already passed in parent-qa.json; these are not a runtime pass",
+    "current_live_command_status": "none is suitable: hidden-owner still requires both hidden crops, while scheduled-step does not capture actual maze pixels",
+    "future_cli_constraint": "After explicit revised-card approval, adapt the existing probe only, preserve BUG-117 mode, pin the new probe hash, and record an exact runnable command before Ready. Do not execute the stale hidden-owner CLI.",
+    "future_one_run_bound": {
+      "runs": 1,
+      "phases": 3,
+      "seconds_per_phase_max": 45,
+      "planned_entire_phase_ceiling_seconds": 135,
+      "stop_seconds_max": 10,
+      "callbacks_per_phase_max": 1000,
+      "retries": 0,
+      "guest_writes": [["$003C", 73], ["$003D", 21], ["$0025", 1], ["$0033", 0]],
+      "ordinary_input": "fixed, source-legal sequence only; no route search or owner forcing"
+    }
+  },
+  "capacity": "unchanged by this source-only report; no build or capacity measurement was performed",
+  "decision": "Recommend the source-equivalence + mapping-negative + one natural preview/maze run option as the proportional replacement. Do not mark Ready or acceptance until the user approves the changed scope and owner-0 runtime waiver."
+}

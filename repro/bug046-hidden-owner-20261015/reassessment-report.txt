@@ -1,0 +1,49 @@
+BUG-046 hidden-owner fixture reassessment
+2026-10-15 | Source-only | High-risk
+
+Disposition
+
+The approved dual-hidden-hydration fixture is invalid for the level-start path. Frozen source branches around PRESENTATION_HOLD_BEGIN when PRES_SCREEN is PRESENTATION_MAP_LEVEL_START. The failed candidate run therefore stopped at missing coverage, before any crop or pixel assertion. It is not evidence of a product pixel failure, and it provides no owner-0 hidden evidence.
+
+The proportional replacement is a source-equivalence proof for the two legal BACK mappings, the existing wrong-mapping negative, and one actual natural published-preview-to-maze pixel run. This changes the approved owner-0 runtime requirement. BUG-046 must return to Proposed and receive explicit user approval before the existing probe is adapted, made Ready, or run. The report does not claim owner 0 passed.
+
+Evidence and source path
+
+The failed run is repro/bug046-hidden-owner-20261015/hidden-owner.json, SHA-256 d4ddd2c8658405b3c51e9138b9a402fa4d41869419257bc5b6df7c889a887867. It reached the caller return at $1B21 with source, staged, CPU, and physical bytes matching. The cold legal predecessor took 4.198 seconds and 212 stops. The next phase stopped after 0.100 seconds and 3 stops because the expected stable HYDRATE/no-pending crop did not exist. No crop or pixel comparison ran; raw hold state was not retained. The exact four fixture writes were $003C=73, $003D=21, $0025=1, and $0033=0.
+
+In the frozen recovered candidate source, start_screen_map at $1A71 maps the selected BACK, reads PRES_SCREEN, and compares it to PRESENTATION_MAP_LEVEL_START at $1A7C. The BEQ at $1A7E branches to start_screen_done at $1A83, skipping the PRESENTATION_HOLD_BEGIN call at $1A80. normal_stage and normal_start select level-start before calling start_screen. The candidate source SHA-256 is 5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c; the frozen presentation listing SHA-256 is 448bd49ba08038a93d5f14db063b1b72fda6d7d7d32fe382cb263afb08fdd0ad.
+
+Source-equivalence assessment
+
+The pinned artifact is the recovered complete-profile BUG-046 ROM, SHA-256 fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d, source-build receipt 46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee, revision b94af065c4a94a0e1d0b1239831e46e21dd2ac77. The assessed files and generated listings are under repro/bug046-display-repair-20261015/capsule; no current-root artifact was substituted.
+
+The compiled stage path prepares BACK at framebuffer_prepare_back ($0DDF), maps it through gate_map_live ($15B4), reaches the RF_STAGE renderer fri_stage_background ($0C21), and calls draw_word_progress_hud ($C41B). The word routine calls resident asset_draw_recolored_map_tile ($FB96), asset_draw_hud_digit ($FB78), and shared_mask ($FBBE). It computes each destination as $2000 + 1280*HUD_Y + 4*HUD_X. shared_mask writes eight rows of four bytes, advancing 160 bytes per row. The word path does not read FB_BACK_ID, FRONT/BACK history, or the framebuffer ledger; its glyph source, masks, destination formula, and color lookup are shared.
+
+For the selected masks SPECIAL=$49 and EXTRA=$15, the full address bounds are SPECIAL row 1, columns 1-7: $2504-$297F; EXTRA row 4, columns 1-5: $3404-$3877. Both are inside the same virtual $2000-$3FFF framebuffer window. The candidate text-colour table sets TEXT_SPECIAL=1 and TEXT_EXTRA=2. The unchanged absolute pixel oracle expects unselected gray 7 and background 0.
+
+After persistent framebuffer initialization, owner 0 maps PAR1-PAR4 to $30-$33 (physical base $60000); owner 1 maps them to $2C-$2F (physical base $58000). The pages are consecutive in both cases. The mapping changes only the physical base; the renderer uses identical virtual offsets, glyph bytes, masks, and colors. This proves source-level write equivalence. It does not prove owner-0 physical memory contents, stale-history behavior, or GIME scanout in a runtime sequence.
+
+The retained predecessor hash is 4cc7e9b5afb8143e274ef6a2126669d1c78ea1bbbf744792bb0301486c3e572a. It records FRONT=0, BACK=1, PENDING=1, commit $07DF; GIME scanout owner 0; no scripted key held; a legal empty north edge from (12,18) to (12,17); and an unoccupied flower north edge from (12,17) to (12,16). It does not retain decoded enemy positions or enough chooser/RNG, input-sampling, and clock state to qualify another neutral publication. An extra player move can change enemy, clock, and framebuffer history. No second-owner route is inferred from parity or guessed from the saved BACK value.
+
+Proposed replacement and alternatives
+
+Recommended revised gate: retain exact zero-tolerance word/mask checks, the existing heart and random-letter checks, the real GIME publication checks, and source/staged/CPU/physical/mapping qualification. Require one natural preview publication followed by the first new RF_STAGE maze publication. Check SPECIAL=$49 and EXTRA=$15, selected colors 1/2, unselected gray 7, background 0, heart slots, random-letter identity, actual visible owner, pending state, commit advance, and preview-to-maze word-crop identity. Reuse the existing wrong-selected-BACK-mapping and stale-publication negatives. Report which owner was actually observed. Mark owner-0 runtime coverage explicitly untested and waived only if the user approves.
+
+The oracle setup is already qualified in parent-qa.json: 46 offline tests passed, including the authored good fixture and negatives for all-gray/broken words, modified glyph, wrong BACK mapping, wrong GIME owner, stale publication, shifted heart, shifted letter, changed masks, and missing crops. The retained known-broken visible owner-1 run is repro/bug117-scheduled-step-20261015/scheduled-neutral.json, SHA-256 de874554a3fbf83527c5e481e4e1a9c64d58222ccb7693d6d2acfd68fbb864cd. It records an actual SPECIAL [1,1] mismatch, hash 4b427eec80b46551e179cd3dff8d9d1b1a8f9c865fd86f51822e5c71cf622bb7 against expected fe056146074bd1417a95790616b7bc7a21f2b13f7ad2c1224f1de73096441b10. This is visible owner-1 historical evidence; no crop bytes or owner-0 hidden baseline are retained.
+
+The alternative that preserves two actual live owners needs one exact, source-legal extra publication before the stage transition. No such route is qualified by the retained predecessor. A future card could first review one fixed ordinary input action offline, fully specify source cell, target occupancy, entities, sampled input, commit precondition, expected owner transition, and abort marker, then authorize at most one no-retry run. If those facts cannot be proved before the run, stop with missing coverage. This path costs more and has no presently supported deterministic fixture.
+
+A manual/coverage waiver is cheaper to automate but weaker: the user could inspect one natural visible preview-to-maze sequence, but visual inspection cannot meet the zero-pixel oracle or prove owner-0 mapping. Manual evidence remains pending until the user reports it. Either this waiver or the source-equivalence replacement changes the approved acceptance and automated/manual split, so explicit user approval is required.
+
+Commands, cost, and readiness
+
+The existing offline commands are:
+
+python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario hidden-owner --build repro/bug046-display-repair-20261015/capsule/build --artifact-check
+python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario hidden-owner --self-test
+
+Parent already recorded 46 offline self-tests and candidate artifact/source-site checks as passing in parent-qa.json. This is offline qualification, not a runtime pass. No current live command satisfies the proposed reduced contract: hidden-owner still requires both hidden crops, and scheduled-step does not capture the actual maze pixels. Do not execute the stale hidden-owner command. A revised card must approve a narrow adaptation of this same probe, preserve the BUG-117 scenario, pin the resulting probe hash, and record an exact runnable CLI before Ready.
+
+Proposed future runtime bounds are one run, three entire phases of at most 45 seconds each (135 seconds total planned ceiling), 10 seconds per stop, at most 1000 callbacks per phase, and zero retries. Keep the existing four guest writes and only a fixed source-legal ordinary input sequence. Phase 1 establishes and qualifies the cold predecessor; phase 2 reaches and captures the actual natural preview publication; phase 3 follows source-qualified context-2 release through the first new RF_STAGE maze publication. Stop after that maze capture. Do not increase these limits without a new approval.
+
+This report made no build or capacity measurement. Capacity is unchanged by this source-only assessment. No product code, probe, wiki, or shared oracle was modified; no runtime retry, owner forcing, new writes, build, staging, or commit was performed.
