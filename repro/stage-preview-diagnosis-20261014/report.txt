@@ -1,0 +1,41 @@
+BUG-117 / BUG-046 offline observer preparation
+Date: 2026-10-14
+
+Scope: owned scratch probe and qualification only. This agent performed no build, emulator, live GDB, production, canonical ticket, Git, or cleanup action. Live execution remains unauthorized here; any follow-up run requires the parent runtime lease.
+
+Frozen identity:
+- Source revision: 3926a4ad73bae3665e619cf9c3154cb8d3d2ed60
+- Source-build receipt SHA-256: 5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc
+- ROM SHA-256: 4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5
+- Receipt coverage checked: 266 authored inputs, 4 generated inputs, 87 artifacts
+- Probe SHA-256: 35f0f0f37c11ec8805325e2518eeca4d011889f3d4c2c1b8de84067d1b4f8495
+- Current manifest: preparation-final-4.json
+- Manifest SHA-256: bcc5c20659cbc70a30081bde741f457bee162780330e8f74e217a957c3fd697c
+
+Offline verification passed:
+- Python compile, CLI help, and 17 focused self-tests.
+- Artifact check matched the frozen receipt and ROM; 8 source/staged marker byte checks passed.
+- Self-tests include good/broken word-crop fixtures, import socket/process denial, same-phase RPC/read/wait clamps, zero-budget no-RPC behavior, source/staged/CPU/physical site comparisons, mapping and byte mismatch rejection, and unauthorized write/input rejection.
+- No emulator was started by this agent.
+
+Observer behavior:
+- First-life approach edge (12,18)->(12,17) checks legal reciprocal nav, gate, entity safety and mapped CPU/physical state, but does not require a dot at that intermediate cell. It records target byte and dot membership. The final flower edge (12,17)->(12,16) requires an uncollected dot.
+- Stage-2 masks and independent SPECIAL/EXTRA glyph crops are recorded at first stable committed physical publication, before readiness/post-input waits. Preview mismatches remain product findings while capture continues.
+- Walk samples persist progressively. Held versus neutral comparison uses only matching simulation event_ticks and cell/framebuffer/step positions. First matched divergence is reported as product reproduction and closes the owned process.
+- Neutral post-ready Up must set the input state and produce observed positional movement. Before/after simulation samples and poses are retained. If the phase deadline expires first, result is missing coverage, with no slowdown claim.
+- Monitor setup/deadline failures clean up only the owned XRoar process. The user's GUI process is not targeted.
+
+Retained prior runtime attempt from parent:
+- The neutral run stopped before fixture writes at the approach gate because the earlier helper incorrectly required an uncollected dot at intermediate cell (12,17). Parent evidence is `neutral-parent-20261014.json`; 4.793 seconds, 205 stops. This is a probe-setup failure, not a product result. The current `require_flower=False` approach predicate addresses that mechanics error; the final target still uses `require_flower=True`.
+
+Offline commands:
+- python -m py_compile repro/stage-preview-diagnosis-20261014/probe.py
+- python repro/stage-preview-diagnosis-20261014/probe.py --help
+- python repro/stage-preview-diagnosis-20261014/probe.py --self-test
+- python repro/stage-preview-diagnosis-20261014/probe.py --artifact-check --write-preparation --preparation-output repro/stage-preview-diagnosis-20261014/preparation-final-4.json
+
+Proposed runtime commands only; parent authorization is required. Each run has three 45-second phases, 10-second stop bound, at most 1000 stops per phase, with no retry. Total cap is 270 seconds for both runs.
+- python repro/stage-preview-diagnosis-20261014/probe.py --build repro/bug122-integration-20261014/capsule/build --case neutral --run-live --output repro/stage-preview-diagnosis-20261014/natural-neutral-rerun.json
+- python repro/stage-preview-diagnosis-20261014/probe.py --build repro/bug122-integration-20261014/capsule/build --case held --run-live --paired-neutral repro/stage-preview-diagnosis-20261014/natural-neutral-rerun.json --output repro/stage-preview-diagnosis-20261014/natural-held-rerun.json
+
+Unresolved until an authorized run: paired cold predecessor equivalence, physical preview/maze scanout, mask/pixel result, stage-2 trajectory, held/neutral positional comparison, and actual post-ready movement. No product verdict, slowdown ranking, savings, or runtime pass is claimed.

@@ -914,7 +914,8 @@ def marker_addr(symbols: dict[str, int], name: str) -> int:
 
 
 def source_neighbor_gate(client: DeadlineClient, symbols: dict[str, int], build: Path,
-                         origin: tuple[int, int], target: tuple[int, int]) -> dict[str, Any]:
+                         origin: tuple[int, int], target: tuple[int, int],
+                         require_flower: bool) -> dict[str, Any]:
     if target != (origin[0], origin[1] - 1) or not (0 <= origin[0] < 24 and 1 <= origin[1] < 24):
         raise ProbeError("only the approved one-cell north edge is permitted")
     gime = client.raw.call("read_gime_state", timeout=3.0)
@@ -967,12 +968,14 @@ def source_neighbor_gate(client: DeadlineClient, symbols: dict[str, int], build:
     # a zero gate-owner byte selects the source regular-cell branch.
     if not (origin_nav & 0x01) or not (target_nav & 0x04) or gates_live[offset] != 0:
         raise ProbeError("approved north edge is not source-admitted for this live state")
-    if not (target_cell & 0x80):
-        raise ProbeError("approved adjacent dot/flower at %r is absent or already collected" % (target,))
+    target_is_dot = bool(target_cell & 0x80)
+    if require_flower and not target_is_dot:
+        raise ProbeError("approved final flower at %r is absent or already collected" % (target,))
     return {"player_cell": [x, y], "target_cell": list(target), "target_byte": target_cell,
             "origin_nav": origin_nav, "target_nav": target_nav, "target_gate_owner": gates_live[offset],
             "entity_count": entity_count, "target_active_entity_indexes": occupied,
-            "target_is_dot": True, "target_is_unoccupied": True,
+            "target_is_dot": target_is_dot, "target_is_unoccupied": True,
+            "required_uncollected_flower": require_flower,
             "legal_edge": "north; current and reciprocal target nav bits pass, no target gate owner"}
 
 
@@ -1105,13 +1108,15 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
         start_cell = [read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)]
         if start_cell != [12, 18]:
             raise ProbeError("first-life automatic entry reached an unexpected source cell: %r" % start_cell)
-        entry_edge = source_neighbor_gate(client, main_syms, build, (12, 18), (12, 17))
+        entry_edge = source_neighbor_gate(client, main_syms, build, (12, 18), (12, 17),
+                                          require_flower=False)
         client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
         run_to_condition(client, phase, mainloop, "one-cell legal approach", lambda:
                          (read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)) == (12, 17),
                          lambda pc: site_images.qualify(client, pc, "main"))
         client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
-        adjacency = source_neighbor_gate(client, main_syms, build, (12, 17), (12, 16))
+        adjacency = source_neighbor_gate(client, main_syms, build, (12, 17), (12, 16),
+                                         require_flower=True)
         pre = state_snapshot(client)
         cases["paired_predecessor"] = {"state": pre, "sha256": canonical_hash(pre),
                                          "entry_edge": entry_edge, "flower_edge": adjacency}
@@ -1270,6 +1275,24 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
                            "check": check_word_tiles(maze_frame, maze_oracle)}
         except ProbeError as exc:
             word_pixels = {"classification": "pixel_mismatch", "error": str(exc)}
+        maze_pub.update({"screen_role": "stage2-maze", "word_masks_at_first_publication": maze_masks,
+                         "word_oracle": word_pixels,
+                         "stage_background_pc": hex(bg_addr), "stage_background_bytes": bg_bytes,
+                         "word_callsite": hex(callsite), "word_callsite_bytes": call_proof,
+                         "word_callee": hex(draw_word), "source_render_intent_rf_stage": True,
+                         "fresh_commit_after_preview": True})
+        if word_pixels["classification"] != "pixel_match":
+            cases["product_findings"].append({"phase": "stage2-maze", "kind": "word-pixel-mismatch",
+                                              "detail": word_pixels})
+        if maze_masks["classification"] != "match":
+            cases["product_findings"].append({"phase": "stage2-maze", "kind": "stored-mask-mismatch",
+                                              "detail": maze_masks})
+        cases["maze_publication"] = maze_pub
+        cases["classifications"] = {"preview_masks": preview["stored_masks"]["classification"],
+                                     "preview_pixels": preview["word_oracle"]["classification"],
+                                     "maze_masks": maze_masks["classification"],
+                                     "maze_pixels": word_pixels["classification"],
+                                     "stage2_position": "recorded before and at 75ec"}
         target_fb = 0x75EC
         if read_word(client, PLAYER_FB) != target_fb:
             run_to_condition(client, phase, mainloop, "player-ready anchor", lambda:
@@ -1318,24 +1341,6 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
             accepted["pose_after"] = pose_after
             accepted["movement_observed"] = True
             postready_input = accepted
-        maze_pub.update({"screen_role": "stage2-maze", "word_masks_at_first_publication": maze_masks,
-                         "word_oracle": word_pixels,
-                         "stage_background_pc": hex(bg_addr), "stage_background_bytes": bg_bytes,
-                         "word_callsite": hex(callsite), "word_callsite_bytes": call_proof,
-                         "word_callee": hex(draw_word), "source_render_intent_rf_stage": True,
-                         "fresh_commit_after_preview": True})
-        if word_pixels["classification"] != "pixel_match":
-            cases["product_findings"].append({"phase": "stage2-maze", "kind": "word-pixel-mismatch",
-                                              "detail": word_pixels})
-        if maze_masks["classification"] != "match":
-            cases["product_findings"].append({"phase": "stage2-maze", "kind": "stored-mask-mismatch",
-                                              "detail": maze_masks})
-        cases["maze_publication"] = maze_pub
-        cases["classifications"] = {"preview_masks": preview["stored_masks"]["classification"],
-                                     "preview_pixels": preview["word_oracle"]["classification"],
-                                     "maze_masks": maze_masks["classification"],
-                                     "maze_pixels": word_pixels["classification"],
-                                     "stage2_position": "recorded before and at 75ec"}
         if neutral_walk is not None and matched_samples == 0:
             raise ProbeError("held run had no matched simulation-tick position samples")
         cases["walkin"] = {"onset": onset, "draw_sample": draw_pose, "samples": walk_samples,
