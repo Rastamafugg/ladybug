@@ -1,0 +1,46 @@
+BUG-117 observer R1/R2 correction
+Date: 2026-10-15
+Status: offline correction checks pass; parent review pending
+
+Scope is limited to the existing stage-preview observer and these two reports.
+No product source, wiki, build, emulator, or runtime was changed or executed.
+
+R1: Stage observations are retained before validation. The direct-page CPU and
+physical reads now record independent lengths and hashes, and read failures are
+retained separately. A shared state-evidence check rejects read errors, missing
+pose/input/control/register/cycle fields, CPU/physical mismatch, and invalid
+state mapping before stage boundary, predecessor, or event values are used by
+product assertions. The existing outer ProbeError path classifies these as
+setup_or_observer_failure. The stream records the failed evidence on
+last_observation before stopping. The guard does not require PAR5 at the
+presentation release boundary; the existing player-tick enemy preflight owns
+that check.
+
+R2: artifact_check and live_image_check use pinned_build_identity. The
+revision selection is shared and constant-time; receipt-wide hashing remains
+only in artifact_check. Offline controls confirm revisions for known-broken
+3926a4ad73bae3665e619cf9c3154cb8d3d2ed60, BUG-117 candidate
+4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3, and hidden-owner candidate
+b94af065c4a94a0e1d0b1239831e46e21dd2ac77. An unknown build path remains
+rejected.
+
+Focused controls: complete state passes; missing direct-page values, failed
+read, CPU/physical mismatch, and invalid map are rejected; a valid evidence
+record with a changed position remains distinguishable as a product discrepancy.
+`--self-test` reports the existing 46 pixel/BUG-046 checks separately from nine
+named BUG-117 assertion groups.
+
+Verification:
+- `python -B -c "from pathlib import Path; compile(Path('repro/stage-preview-diagnosis-20261014/probe.py').read_text(encoding='utf-8'), 'probe.py', 'exec')"` — pass.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --help` — pass.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --self-test` — pass; legacy 46 and stage-entry 9 groups.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --artifact-check --build repro/bug117-stage-repair-20261015/capsule/build` — pass; revision 4ca28826…, 266 authored inputs, 4 generated inputs, 87 artifacts, 11 source/site windows; runtime not authorized.
+- `git diff --check -- repro/stage-preview-diagnosis-20261014/probe.py` — pass.
+
+Corrected probe SHA-256: cd003b21119d5d9cdba851ae7814fd0df399199b8311d3eecb6445abfd9ffd16.
+Root `src/main.s` remains c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226.
+Candidate capsule `src/main.s` remains 88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4.
+
+Runtime full-walk evidence and manual replacement/name-entry results remain
+pending. Parent must review this correction and set the canonical Ready verdict
+before a separate runtime lease.

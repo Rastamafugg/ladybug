@@ -1,0 +1,89 @@
+{
+  "date": "2026-10-15",
+  "ticket": "BUG-117",
+  "baseline": {
+    "parent_review_commit": "3860ba6e2bb2b9f5bdb6aca121ccf117120cca7e",
+    "reviewed_probe_sha256": "642c007290aa3ccf8b3d6eefda1e823dc86dcb8dfb56fb34380e189934edcc9c",
+    "review_artifact": "repro/bug117-stage-repair-20261015/observer/parent-review-20261015.json"
+  },
+  "result": "offline_corrections_pass_parent_review_pending",
+  "scope": {
+    "owned_changes": [
+      "repro/stage-preview-diagnosis-20261014/probe.py",
+      "repro/bug117-stage-repair-20261015/observer/correction-report.json",
+      "repro/bug117-stage-repair-20261015/observer/correction-report.txt"
+    ],
+    "production_source_changed": false,
+    "wiki_changed": false,
+    "build_or_emulator_run": false,
+    "runtime_probe_runs": 0,
+    "guest_writes_added": 0,
+    "scenarios_or_deadlines_added": false
+  },
+  "corrected_findings": {
+    "R1": {
+      "change": "Stage snapshots now retain independent direct-page CPU and physical read lengths and hashes, selected pose/input/flag fields when available, mapping evidence, CPU registers, cycles, and read errors. A shared fail-closed state-evidence check runs before stage boundary, predecessor, and event records can feed product assertions. Incomplete reads, CPU/physical mismatch, invalid mapping, or missing required fields raise ProbeError and therefore remain setup_or_observer_failure. The observation is stored before validation; stream failures retain the last observation and state-evidence error.",
+      "mapping_rule": "MMU task 0; task 0 and task 1 PAR arrays are complete and in range; PAR0=$38 and PAR6/7=$3E/$3F. PAR5 remains unconstrained at presentation release and is checked by the existing player-tick enemy preflight.",
+      "focused_controls": {
+        "complete_state_passes": true,
+        "missing_direct_page_values_rejected": true,
+        "failed_state_read_rejected": true,
+        "cpu_physical_mismatch_rejected": true,
+        "invalid_state_mapping_rejected": true,
+        "valid_state_product_position_discrepancy_preserved": true
+      }
+    },
+    "R2": {
+      "change": "artifact_check and live_image_check now share pinned_build_identity; live_image_check reports the revision selected from that same immutable build identity without repeating the receipt-wide audit.",
+      "qualified_identities": {
+        "known-broken": "3926a4ad73bae3665e619cf9c3154cb8d3d2ed60",
+        "stage-entry-repair-candidate": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+        "hidden-owner-candidate": "b94af065c4a94a0e1d0b1239831e46e21dd2ac77"
+      },
+      "unknown_build_path_rejected": true
+    }
+  },
+  "candidate_artifact": {
+    "path": "repro/bug117-stage-repair-20261015/capsule/build",
+    "rom_sha256": "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29",
+    "receipt_sha256": "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a",
+    "revision": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+    "artifact_check": "pass",
+    "authored_inputs": 266,
+    "generated_inputs": 4,
+    "artifacts": 87,
+    "source_site_windows": 11,
+    "runtime_authorized": false
+  },
+  "tests": [
+    {
+      "command": "python -B -c \"from pathlib import Path; compile(Path('repro/stage-preview-diagnosis-20261014/probe.py').read_text(encoding='utf-8'), 'probe.py', 'exec')\"",
+      "result": "pass"
+    },
+    {
+      "command": "python -B repro/stage-preview-diagnosis-20261014/probe.py --help",
+      "result": "pass"
+    },
+    {
+      "command": "python -B repro/stage-preview-diagnosis-20261014/probe.py --self-test",
+      "result": "pass; legacy checks=46; stage-entry groups=9; R1 and R2 controls pass"
+    },
+    {
+      "command": "python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --artifact-check --build repro/bug117-stage-repair-20261015/capsule/build",
+      "result": "pass; 266 authored, 4 generated, 87 artifacts, 11 source/site windows; offline self-test pass; runtime_authorized=false"
+    },
+    {
+      "command": "git diff --check -- repro/stage-preview-diagnosis-20261014/probe.py",
+      "result": "pass"
+    }
+  ],
+  "hashes": {
+    "corrected_probe_sha256": "cd003b21119d5d9cdba851ae7814fd0df399199b8311d3eecb6445abfd9ffd16",
+    "root_src_main_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+    "candidate_capsule_src_main_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4"
+  },
+  "remaining": [
+    "Parent review of the corrected observer and reports, followed by the canonical runtime Ready verdict.",
+    "No live runtime result is claimed. Approved full-walk runs and manual replacement/name-entry checks remain pending."
+  ]
+}

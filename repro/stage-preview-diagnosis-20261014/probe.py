@@ -124,7 +124,7 @@ def canonical_hash(value: Any) -> str:
     return sha(raw)
 
 
-def artifact_check(build: Path) -> dict[str, Any]:
+def pinned_build_identity(build: Path) -> tuple[str, str, str, str]:
     build = build.resolve()
     pins = {
         BUILD_DEFAULT.resolve(): (RECEIPT_SHA, ROM_SHA, REVISION, "known-broken"),
@@ -134,8 +134,13 @@ def artifact_check(build: Path) -> dict[str, Any]:
                                  HIDDEN_REVISION, "hidden-owner-candidate"),
     }
     if build not in pins:
-        raise ProbeError("build path must be one of the two parent-pinned immutable capsules")
-    expected_receipt, expected_rom, expected_revision, identity = pins[build]
+        raise ProbeError("build path is not one of the three parent-pinned immutable capsules")
+    return pins[build]
+
+
+def artifact_check(build: Path) -> dict[str, Any]:
+    build = build.resolve()
+    expected_receipt, expected_rom, expected_revision, identity = pinned_build_identity(build)
     capsule = build.parent
     receipt_path = build / "source-build-receipt.json"
     receipt_bytes = receipt_path.read_bytes()
@@ -1421,7 +1426,53 @@ def self_test() -> dict[str, Any]:
         "post-ready predecessor ordinals 0..3 including initial PLAYER_DIR=DIR_NONE",
         "authoritative enemy-table safe/unsafe/invalid/mismatch fixtures",
         "enemy page mapping good/PAR5/PAR6 negatives",
-        "stage enemy-reset/release source and staged-byte proof"]
+        "stage enemy-reset/release source and staged-byte proof",
+        "R1 state-evidence good, missing/read/mismatch/mapping negatives and product differential",
+        "R2 three pinned revision identities and unknown-build rejection"]
+    state_pars = [0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x34, 0x3E, 0x3F]
+    good_state = {
+        "errors": [], "direct_page_cpu_physical_match": True,
+        "direct_page_cpu_length": 0xA8, "direct_page_physical_length": 0xA8,
+        "direct_page_cpu_sha256": "state-hash", "direct_page_physical_sha256": "state-hash",
+        "gime": {"mmu_task": 0, "task0_pars": state_pars, "task1_pars": state_pars},
+        "state_mapping_expected": True, "pose": stage_walk_pose(0),
+        "input": {"joy_x": 32, "joy_y": 32, "joy_dir": DIR_NONE,
+                  "player_dir": DIR_NORTH, "player_face": DIR_NORTH,
+                  "player_want": DIR_NONE, "player_manual": 0},
+        "flags": {key: 0 for key in ("initial_entry_state", "player_tick_pending", "box_timer",
+            "box_index", "enemy_active", "enemy_released", "enemy_roaming", "death_state",
+            "pickup_timer", "stage", "presentation_mode", "presentation_screen",
+            "presentation_context")},
+        "cpu": {"pc": "0x8123", "s": "0x7000", "cc": "0", "dp": "0"},
+        "cycles": {"event_ticks": 100, "cpu_cycles": 200}}
+    assert stage_state_evidence_check(good_state)["pass"]
+    state_negatives = [
+        ({**good_state, "pose": None, "input": None}, "missing direct-page values"),
+        ({**good_state, "errors": ["direct-page CPU read: controlled failure"]}, "failed state read"),
+        ({**good_state, "direct_page_cpu_physical_match": False}, "CPU/physical mismatch"),
+        ({**good_state, "gime": {**good_state["gime"],
+                                  "task0_pars": [0x39] + state_pars[1:]},
+          "state_mapping_expected": False}, "invalid state mapping")]
+    for snapshot, label in state_negatives:
+        evidence = stage_state_evidence_check(snapshot)
+        if evidence["pass"] or not evidence["errors"]:
+            raise AssertionError("R1 state evidence negative passed: " + label)
+    product_state = {**good_state, "pose": stage_walk_pose(1)}
+    if not stage_state_evidence_check(product_state)["pass"] or \
+            not validate_stage_walk_entry(product_state, 0, "neutral"):
+        raise AssertionError("valid state evidence did not preserve product discrepancy discrimination")
+    pinned_identities = ((BUILD_DEFAULT, REVISION, "known-broken"),
+                         (STAGE_ENTRY_BUILD, STAGE_ENTRY_REVISION,
+                          "stage-entry-repair-candidate"),
+                         (HIDDEN_BUILD, HIDDEN_REVISION, "hidden-owner-candidate"))
+    for path, revision, identity in pinned_identities:
+        if pinned_build_identity(path)[2:] != (revision, identity):
+            raise AssertionError("R2 pinned build identity mismatch: " + str(path))
+    try:
+        artifact_check(ROOT / "repro" / "unapproved-build")
+        raise AssertionError("R2 unknown build path was accepted")
+    except ProbeError:
+        pass
     stage_map = symbols_for(STAGE_ENTRY_BUILD, "ladybug.map")
     stage_qualifier = SiteQualifier(STAGE_ENTRY_BUILD)
     stage_fake = ImageMonitor(build=STAGE_ENTRY_BUILD)
@@ -1657,6 +1708,12 @@ def self_test() -> dict[str, Any]:
             "checks_scope": "pre-existing pixel/BUG-046 oracle checks only",
             "stage_entry_checks": {"result": "pass", "count": len(stage_entry_assertions),
                                    "groups": stage_entry_assertions},
+             "stage_state_evidence_positive": True,
+             "stage_state_evidence_negatives_rejected": [label for _, label in state_negatives],
+             "valid_state_product_discrepancy_preserved": True,
+             "pinned_build_revision_identities_qualified": {
+                 identity: revision for _, revision, identity in pinned_identities},
+             "unknown_build_path_rejected": True,
             "word_tiles": positive["tiles_checked"],
             "good_fixture": positive["sha256"], "all_gray_rejected": True,
             "changed_masks_rejected": True,
@@ -1895,6 +1952,7 @@ class SiteQualifier:
 
 
 def live_image_check(client: DeadlineClient, build: Path) -> dict[str, Any]:
+    _, _, source_revision, _ = pinned_build_identity(build)
     runtime = (build / "ladybug-runtime.rom").read_bytes()
     presentation = (build / "ladybug-presentation-runtime.bin").read_bytes()
     if len(runtime) != 0x4000:
@@ -1929,7 +1987,7 @@ def live_image_check(client: DeadlineClient, build: Path) -> dict[str, Any]:
             "presentation_physical_sha256": sha(physical_presentation),
             "presentation_par0": par0, "gime_registers": gime["registers"],
             "task0_pars": gime["pars"]["task0"], "task1_pars": gime["pars"]["task1"],
-            "source_revision": (HIDDEN_REVISION if build.resolve() == HIDDEN_BUILD.resolve() else REVISION)}
+            "source_revision": source_revision}
 
 
 def physical_frame(client: DeadlineClient, owner: int) -> tuple[bytes, dict[str, Any]]:
@@ -2789,43 +2847,116 @@ def _number(value: Any) -> int:
     return int(value, 0) if isinstance(value, str) else int(value)
 
 
+def stage_state_evidence_check(snapshot: dict[str, Any]) -> dict[str, Any]:
+    """Fail closed on incomplete or unqualified state before interpreting stage behavior."""
+    errors = []
+    if not isinstance(snapshot, dict):
+        return {"pass": False, "errors": ["state snapshot is not an object"]}
+    if snapshot.get("errors"):
+        errors.append("state snapshot contains failed reads")
+    if snapshot.get("direct_page_cpu_physical_match") is not True:
+        errors.append("direct-page CPU/physical bytes are not qualified equal")
+    for key in ("direct_page_cpu_sha256", "direct_page_physical_sha256"):
+        if not isinstance(snapshot.get(key), str) or not snapshot[key]:
+            errors.append("missing direct-page evidence: " + key)
+    if snapshot.get("direct_page_cpu_length") != 0xA8 or \
+            snapshot.get("direct_page_physical_length") != 0xA8:
+        errors.append("direct-page evidence is incomplete")
+    if snapshot.get("direct_page_cpu_sha256") != snapshot.get("direct_page_physical_sha256"):
+        errors.append("direct-page CPU/physical hashes differ")
+    gime = snapshot.get("gime")
+    if not isinstance(gime, dict):
+        errors.append("missing GIME state evidence")
+    else:
+        task0, task1 = gime.get("task0_pars"), gime.get("task1_pars")
+        try:
+            p0 = [_number(value) for value in task0]
+            p1 = [_number(value) for value in task1]
+            valid_pars = (len(p0) == 8 and len(p1) == 8 and
+                          all(0 <= value <= 0x3F for value in p0 + p1))
+            valid_state_map = (gime.get("mmu_task") == 0 and valid_pars and
+                               (p0[0], p0[6], p0[7]) == (0x38, 0x3E, 0x3F))
+        except (TypeError, ValueError):
+            valid_state_map = False
+        if not valid_state_map or snapshot.get("state_mapping_expected") is not True:
+            errors.append("state CPU/PAR mapping is missing or invalid")
+    pose = snapshot.get("pose")
+    if (not isinstance(pose, dict) or not isinstance(pose.get("cell"), list) or
+            len(pose["cell"]) != 2 or pose.get("fb") is None or pose.get("step") is None):
+        errors.append("direct-page pose evidence is incomplete")
+    input_state = snapshot.get("input")
+    input_keys = ("joy_x", "joy_y", "joy_dir", "player_dir", "player_face",
+                  "player_want", "player_manual")
+    if not isinstance(input_state, dict) or any(input_state.get(key) is None for key in input_keys):
+        errors.append("direct-page input evidence is incomplete")
+    flag_keys = ("initial_entry_state", "player_tick_pending", "box_timer", "box_index",
+                 "enemy_active", "enemy_released", "enemy_roaming", "death_state",
+                 "pickup_timer", "stage", "presentation_mode", "presentation_screen",
+                 "presentation_context")
+    flags = snapshot.get("flags")
+    if not isinstance(flags, dict) or any(flags.get(key) is None for key in flag_keys):
+        errors.append("direct-page control-state evidence is incomplete")
+    cpu = snapshot.get("cpu")
+    if not isinstance(cpu, dict) or any(cpu.get(key) is None for key in ("pc", "s", "cc", "dp")):
+        errors.append("CPU register evidence is incomplete")
+    cycles = snapshot.get("cycles")
+    if not isinstance(cycles, dict) or any(cycles.get(key) is None for key in ("event_ticks", "cpu_cycles")):
+        errors.append("cycle evidence is incomplete")
+    return {"pass": not errors, "errors": errors}
+
+
 def stage_brief_snapshot(client: DeadlineClient, pc: int, event: str) -> dict[str, Any]:
     """Best-effort short state record, retained before stage observer assertions."""
     result: dict[str, Any] = {"event": event, "pc": hex(pc), "errors": []}
     try:
         gime = client.raw.call("read_gime_state", timeout=3.0)
-        result["gime"] = {"mmu_task": gime.get("mmu_task"),
-                          "task0_pars": gime.get("pars", {}).get("task0"),
-                          "task1_pars": gime.get("pars", {}).get("task1")}
+        pars = gime.get("pars") if isinstance(gime, dict) else None
+        result["gime"] = {"mmu_task": gime.get("mmu_task") if isinstance(gime, dict) else None,
+                          "task0_pars": pars.get("task0") if isinstance(pars, dict) else None,
+                          "task1_pars": pars.get("task1") if isinstance(pars, dict) else None}
+        if not isinstance(pars, dict):
+            result["errors"].append("GIME snapshot returned an incomplete PAR mapping")
     except Exception as exc:
         gime = None
         result["errors"].append("GIME snapshot: %s: %s" % (type(exc).__name__, exc))
+    direct = None
+    physical = None
     try:
         direct = read_bytes(client, 0, 0xA8)
-        physical = read_bytes(client, 0x38 * 0x2000, 0xA8, "physical")
+        result["direct_page_cpu_length"] = len(direct)
         result["direct_page_cpu_sha256"] = sha(direct)
-        result["direct_page_physical_sha256"] = sha(physical)
-        result["direct_page_cpu_physical_match"] = direct == physical
-        result["pose"] = {"cell": [direct[PLAYER_X], direct[PLAYER_Y]],
-                          "fb": hex((direct[PLAYER_FB] << 8) | direct[PLAYER_FB + 1]),
-                          "step": direct[PLAYER_STEP]}
-        result["input"] = {"joy_x": direct[JOY_X], "joy_y": direct[JOY_Y],
-                           "joy_dir": direct[JOY_DIR], "player_dir": direct[PLAYER_DIR],
-                           "player_face": direct[PLAYER_FACE], "player_want": direct[PLAYER_WANT],
-                           "player_manual": direct[PLAYER_MANUAL]}
-        result["flags"] = {"initial_entry_state": direct[INITIAL_ENTRY],
-                           "player_tick_pending": direct[PLAYER_TICK_PENDING],
-                           "box_timer": direct[BOX_TIMER], "box_index": direct[BOX_INDEX],
-                           "enemy_active": direct[ENEMY_ACTIVE],
-                           "enemy_released": direct[ENEMY_RELEASED],
-                           "enemy_roaming": direct[ENEMY_ROAMING],
-                           "death_state": direct[DEATH_STATE],
-                           "pickup_timer": direct[PICKUP_TIMER],
-                           "stage": direct[STAGE], "presentation_mode": direct[PRES_MODE],
-                           "presentation_screen": direct[PRES_SCREEN],
-                           "presentation_context": direct[PRES_CONTEXT]}
     except Exception as exc:
-        result["errors"].append("direct-page snapshot: %s: %s" % (type(exc).__name__, exc))
+        result["errors"].append("direct-page CPU read: %s: %s" % (type(exc).__name__, exc))
+    try:
+        physical = read_bytes(client, 0x38 * 0x2000, 0xA8, "physical")
+        result["direct_page_physical_length"] = len(physical)
+        result["direct_page_physical_sha256"] = sha(physical)
+    except Exception as exc:
+        result["errors"].append("direct-page physical read: %s: %s" % (type(exc).__name__, exc))
+    if direct is not None and physical is not None:
+        result["direct_page_cpu_physical_match"] = direct == physical
+    if direct is not None:
+        try:
+            result["pose"] = {"cell": [direct[PLAYER_X], direct[PLAYER_Y]],
+                              "fb": hex((direct[PLAYER_FB] << 8) | direct[PLAYER_FB + 1]),
+                              "step": direct[PLAYER_STEP]}
+            result["input"] = {"joy_x": direct[JOY_X], "joy_y": direct[JOY_Y],
+                               "joy_dir": direct[JOY_DIR], "player_dir": direct[PLAYER_DIR],
+                               "player_face": direct[PLAYER_FACE], "player_want": direct[PLAYER_WANT],
+                               "player_manual": direct[PLAYER_MANUAL]}
+            result["flags"] = {"initial_entry_state": direct[INITIAL_ENTRY],
+                               "player_tick_pending": direct[PLAYER_TICK_PENDING],
+                               "box_timer": direct[BOX_TIMER], "box_index": direct[BOX_INDEX],
+                               "enemy_active": direct[ENEMY_ACTIVE],
+                               "enemy_released": direct[ENEMY_RELEASED],
+                               "enemy_roaming": direct[ENEMY_ROAMING],
+                               "death_state": direct[DEATH_STATE],
+                               "pickup_timer": direct[PICKUP_TIMER],
+                               "stage": direct[STAGE], "presentation_mode": direct[PRES_MODE],
+                               "presentation_screen": direct[PRES_SCREEN],
+                               "presentation_context": direct[PRES_CONTEXT]}
+        except Exception as exc:
+            result["errors"].append("direct-page decode: %s: %s" % (type(exc).__name__, exc))
     try:
         registers = client.raw.call("read_registers", timeout=3.0)
         result["cpu"] = {key: registers.get(key) for key in ("pc", "s", "cc", "dp")}
@@ -2836,12 +2967,16 @@ def stage_brief_snapshot(client: DeadlineClient, pc: int, event: str) -> dict[st
     except Exception as exc:
         result["errors"].append("cycle snapshot: %s: %s" % (type(exc).__name__, exc))
     result["scripted_keys_down"] = sorted(client.key_down)
-    if gime is not None:
-        pars = gime.get("pars", {}).get("task0", [])
-        result["state_mapping_expected"] = (gime.get("mmu_task") == 0 and len(pars) == 8 and
-                                             _number(pars[0]) == 0x38 and
-                                             (_number(pars[6]), _number(pars[7])) == (0x3E, 0x3F))
-        result["par5_observed_without_release_site_assumption"] = pars[5] if len(pars) == 8 else None
+    if gime is not None and isinstance(gime, dict):
+        try:
+            pars = gime.get("pars", {}).get("task0", [])
+            result["state_mapping_expected"] = (gime.get("mmu_task") == 0 and len(pars) == 8 and
+                                                 _number(pars[0]) == 0x38 and
+                                                 (_number(pars[6]), _number(pars[7])) == (0x3E, 0x3F))
+            result["par5_observed_without_release_site_assumption"] = pars[5] if len(pars) == 8 else None
+        except Exception as exc:
+            result["state_mapping_expected"] = False
+            result["errors"].append("GIME mapping decode: %s: %s" % (type(exc).__name__, exc))
     return result
 
 
@@ -3027,6 +3162,10 @@ def stage_stream_event(client: DeadlineClient, phase: PhaseBudget,
         raise ProbeError("unexpected stage-entry stop at %04x" % pc)
     event, kind = sites[pc]
     observation = stage_brief_snapshot(client, pc, event)
+    observation["state_evidence"] = stage_state_evidence_check(observation)
+    if not observation["state_evidence"]["pass"]:
+        observation["state_evidence_error"] = "; ".join(observation["state_evidence"]["errors"])
+        return event, result, observation
     try:
         proof = site_images.qualify(client, pc, kind)
         observation["site_proof"] = _brief_site(proof)
@@ -3082,18 +3221,32 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
             if client is None:
                 return
             snap = stage_brief_snapshot(client, pc, label)
+            cases.setdefault("boundary_snapshots", {})[label] = snap
+            snap["state_evidence"] = stage_state_evidence_check(snap)
+            if not snap["state_evidence"]["pass"]:
+                snap["state_evidence_error"] = "; ".join(snap["state_evidence"]["errors"])
+                raise ProbeError("stage boundary state evidence failed at " + label + ": " +
+                                 snap["state_evidence_error"])
             try:
                 proof = site_images.qualify(client, pc, kind)
                 snap["site_proof"] = _brief_site(proof)
             except Exception as exc:
                 snap["site_proof_error"] = "%s: %s" % (type(exc).__name__, exc)
-            cases.setdefault("boundary_snapshots", {})[label] = snap
+
+        def qualify_boundary(pc: int, label: str, kind: str) -> dict[str, Any]:
+            try:
+                return site_images.qualify(client, pc, kind)
+            except Exception:
+                # run_to_condition invokes its site qualifier before its observer;
+                # capture the failed boundary before propagating a setup failure.
+                boundary(label, pc, kind)
+                raise
 
         def reach(symbols: dict[str, int], name: str, tag: str) -> dict[str, Any]:
             address = marker_addr(symbols, name)
             kind = "presentation" if symbols is pres_syms else "main"
             return run_to_condition(client, phase, address, tag, lambda: True,
-                                    lambda pc: site_images.qualify(client, pc, kind),
+                                    lambda pc: qualify_boundary(pc, tag, kind),
                                     lambda: boundary(tag, address, kind))
 
         # Phase 1: cold natural first-life route to the authored final flower.
@@ -3128,9 +3281,15 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
             target_snap.clear()
             target_snap.update(snap)
             cases.setdefault("boundary_snapshots", {})["first-life one-cell approach"] = snap
+            snap["state_evidence"] = stage_state_evidence_check(snap)
+            if not snap["state_evidence"]["pass"]:
+                snap["state_evidence_error"] = "; ".join(snap["state_evidence"]["errors"])
+                raise ProbeError("first-life predecessor state evidence failed: " +
+                                 snap["state_evidence_error"])
             return snap.get("pose", {}).get("cell") == [12, 17]
         approach_stop = run_to_condition(client, phase, mainloop, "one-cell legal approach",
-            reached_first_flower, lambda pc: site_images.qualify(client, pc, "main"))
+            reached_first_flower,
+            lambda pc: qualify_boundary(pc, "first-life one-cell approach", "main"))
         client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
         flower_edge = source_neighbor_gate(client, main_syms, build, (12, 17), (12, 16),
                                            require_flower=True)
@@ -3163,7 +3322,7 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
         preview_stop = run_to_condition(client, phase, level_tick, "final flower to stage-2 preview",
             lambda: read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 6 and
                     read_byte(client, PRES_SCREEN) == 2 and read_byte(client, PRES_CONTEXT) == 2,
-            lambda pc: site_images.qualify(client, pc, "presentation"),
+            lambda pc: qualify_boundary(pc, "published stage-2 preview probe", "presentation"),
             lambda: boundary("published stage-2 preview probe", level_tick, "presentation"))
         client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
         owner = read_byte(client, FRONT)
@@ -3196,7 +3355,7 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
                     read_byte(client, PRES_SCREEN) == 2 and read_byte(client, PRES_CONTEXT) == 0 and
                     (read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)) == (12, 22) and
                     read_word(client, PLAYER_FB) == 0x89EC and read_byte(client, PLAYER_STEP) == 0,
-            lambda pc: site_images.qualify(client, pc, "presentation"),
+            lambda pc: qualify_boundary(pc, "stage-2 release predecessor", "presentation"),
             lambda: boundary("stage-2 release predecessor", release_pc, "presentation"))
         release_snapshot = cases["boundary_snapshots"]["stage-2 release predecessor"]
         release_pose = release_snapshot.get("pose")
@@ -3225,7 +3384,12 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
             marker_addr(main_syms, "maze_gate_owner") - 0xC000 + 576]
         release_obs = stage_brief_snapshot(client, release_pc, "stage-2 release qualified")
         release_obs["site_proof"] = release_snapshot.get("site_proof")
+        release_obs["state_evidence"] = stage_state_evidence_check(release_obs)
         cases["observations"].append(release_obs)
+        if not release_obs["state_evidence"]["pass"]:
+            release_obs["state_evidence_error"] = "; ".join(release_obs["state_evidence"]["errors"])
+            raise ProbeError("stage-2 release state evidence failed: " +
+                             release_obs["state_evidence_error"])
 
         read_call = next(iter(calls_to(listing_byte_map(build / "ladybug-adaptive-active.lst"),
                                        marker_addr(main_syms, "read_joystick"), ACTIVE_ORIGIN,
@@ -3261,6 +3425,9 @@ def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
                 cases["last_observation"] = record
                 if event != "input-return":
                     cases["observations"].append(record)
+                if record.get("state_evidence_error"):
+                    raise ProbeError("stage state evidence failed at " + event + ": " +
+                                     record["state_evidence_error"])
                 if record.get("site_proof_error"):
                     raise ProbeError("candidate source/live site qualification failed at " + event)
                 snap_input = record.get("input", {})
