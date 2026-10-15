@@ -1,0 +1,29 @@
+BUG-046 preview-publication observer preparation
+Date: 2026-10-15
+Classification: High-risk, verification-only preparation under the approved source-equivalence card.
+
+Implemented observer
+The existing stage-preview probe now has an explicit `--scenario preview-publication` branch. It reuses `run_hidden_case`; the legacy hidden-owner and BUG-117 scenarios remain available. The new path records one natural helper/word/caller chain, the actual preview, and the first maze publication. It does not require HOLD/HYDRATE or an assumed hidden owner. Raw helper-return evidence is retained before mapping guards and covers the full 0x100-byte direct page, including hold-state bytes. A second published-preview owner remains explicitly runtime-untested.
+
+Offline qualification
+Candidate: complete recovered capsule ROM `fddedcb5698dbdaa5a5b3b622cfc97bcb4c7d54a3eefdfc2756f1e755fbd0f9d`, receipt `46d58ab7b1e83d2418b82e7e2adeb9cc7c9bbd9be12c553c20f33660236140ee`, revision `b94af065c4a94a0e1d0b1239831e46e21dd2ac77`. The separately pinned defective capsule is ROM `4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5`.
+
+The source/artifact check passes for the level-start HOLD_BEGIN bypass, B190/C41B/1B21 helper-to-caller path, RF_STAGE renderer call window, shared word renderer, both legal BACK mappings, and the full 149-byte authored panel-load loop against listing and staged bytes. The SPECIAL/EXTRA footprints stay within virtual PAR1 `$2000-$3FFF`; the renderer source has no owner-ledger reads. The check pins source/staged hashes and the capsule inputs. The explicit check does not launch an emulator.
+
+The reused absolute oracle is pinned at `repro/bug122-heart-verification-20261014/pixel_oracle.py` SHA-256 `14b765a97f265d2053fe9e0fb67c32190265e14c9c1cf792966b8ebd4c417009`. Compiler imports resolve to the receipt-pinned candidate capsule scripts. The authored good fixture matches all 12 word tiles, three hearts, and three prepared letter identities. The synthetic all-unlit word fixture is rejected with SPECIAL[1,1] hash `4b427eec80b46551e179cd3dff8d9d1b1a8f9c865fd86f51822e5c71cf622bb7`. The historical BUG-117 capture independently records that same mismatch for visible owner 1, but retains no crop bytes and proves no owner-0 hidden or published evidence. These are synthetic and historical oracle qualifications, not a current candidate runtime result.
+
+Verification run on this probe revision:
+- `python -m py_compile repro/stage-preview-diagnosis-20261014/probe.py` — passed.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --help` — passed; the new scenario is explicit.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --self-test` — passed: existing 46 checks remain separately identified, existing BUG-117 stage-entry group remains 9 checks, and the new preview-publication group passes 2 checks. The new group verifies raw direct-page capture plus failed-read retention, and rejects a commit that advanced after preview but not after RF_STAGE entry while accepting a later maze commit.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario preview-publication --build repro/bug046-display-repair-20261015/capsule/build --artifact-check --write-preparation --preparation-output repro/bug046-hidden-owner-20261015/preview-publication-preparation.json` — passed. The JSON manifest pins the candidate/broken identities, source/artifact windows, oracle inputs, offline test groups, phase limits, and proposed CLI.
+
+Proposed future runtime command, not executed:
+`python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario preview-publication --build repro/bug046-display-repair-20261015/capsule/build --run-live --output repro/bug046-hidden-owner-20261015/published-preview.json`
+
+If separately authorized by the parent, the command is limited to one run: three entire phases of at most 45 seconds each, 10-second stop cap, 1000 callbacks per phase, 135 seconds total, no retries. It preserves the reviewed natural predecessor and exact four fixture writes. Phase 2 qualifies B190, C41B, and 1B21 before interpreting the direct-page/mapping evidence, then checks the actual preview with zero pixel/mask tolerance, SPECIAL/EXTRA masks 0x49/0x15, all three authored hearts, and the same three prepared letters. Phase 3 requires source-qualified context release and RF_STAGE entry, cleared RF_STAGE, no pending publication, stable actual GIME scanout, and a commit advanced from both preview and RF_STAGE entry; it then checks maze words/masks and preview-to-maze crop identity. It does not apply the panel heart/letter oracle to the maze.
+
+Result and limits
+No runtime was launched and no current-candidate preview/maze pixels were observed. The earlier failed BUG-046 attempt remains `missing_coverage` at helper return; it is not a product assertion. Historical visible owner-1 evidence remains distinct. Owner-specific storage/history and the second published-preview owner remain unobserved. The second-owner omission is explicit in the approved card and is not represented as a passing test. Build, emulator, production source, and wiki were not changed. Capacity/headroom is unchanged by this preparation; no capacity measurement was run. Runtime readiness remains pending parent source review and a separate exclusive one-run lease.
+
+Probe SHA-256: `a88d0519fe8e03feaa9a06cd8be65b38be6c0a6ce88a667838c8663836e69f3f`.

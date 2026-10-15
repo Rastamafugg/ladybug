@@ -657,7 +657,8 @@ def offline_stage_entry_check(build: Path) -> dict[str, Any]:
 
 
 def offline_hidden_owner_check(candidate: Path = HIDDEN_BUILD,
-                               broken: Path = BUILD_DEFAULT) -> dict[str, Any]:
+                               broken: Path = BUILD_DEFAULT,
+                               include_hold_source: bool = True) -> dict[str, Any]:
     """Qualify the repaired helper tail against the immutable defective capsule."""
     candidate, broken = candidate.resolve(), broken.resolve()
     candidate_pins, broken_pins = artifact_check(candidate), artifact_check(broken)
@@ -717,25 +718,26 @@ def offline_hidden_owner_check(candidate: Path = HIDDEN_BUILD,
             helper_layout.get("bytes")) != (HIDDEN_HELPER_PAGE, HIDDEN_HELPER_ORIGIN, len(candidate_helper)):
         raise ProbeError("candidate helper sparse placement is not page $23 at $AC40")
 
-    hold_listing = listing_byte_map(candidate / "ladybug-perimeter-reset-helper.lst")
-    if min(hold_listing) != HIDDEN_HOLD_HELPER_ORIGIN or \
-            max(hold_listing) - HIDDEN_HOLD_HELPER_ORIGIN + 1 != len(
-                (candidate / "ladybug-perimeter-reset-helper.bin").read_bytes()):
-        raise ProbeError("compatibility hold helper source range differs from its staged origin")
-    hold_stage = bytes_at(hold_listing, 0x0712, 16, "compatibility publication request")
-    publish_stage = bytes_at(hold_listing, 0x0723, 24, "compatibility publication restore")
-    hold_image = (candidate / "ladybug-perimeter-reset-helper.bin").read_bytes()
-    hold_stage_image = hold_image[0x0712 - HIDDEN_HOLD_HELPER_ORIGIN:
-                                  0x0712 - HIDDEN_HOLD_HELPER_ORIGIN + len(hold_stage)]
-    publish_image = hold_image[0x0723 - HIDDEN_HOLD_HELPER_ORIGIN:
-                               0x0723 - HIDDEN_HOLD_HELPER_ORIGIN + len(publish_stage)]
-    if hold_stage != hold_stage_image or publish_stage != publish_image:
-        raise ProbeError("compatibility hold helper listing and staged bytes differ")
-    if bytes_at(hold_listing, 0x0712, 5, "owner2 request") != bytes.fromhex("1a10860297"):
-        raise ProbeError("hold request no longer selects owner2 before publication")
-    if bytes_at(hold_listing, 0x072D, 16, "hold owner restore") != \
-            bytes.fromhex("96d6978f96d797900fd9860397d41cef"):
-        raise ProbeError("hold publish no longer restores saved owners before HYDRATE")
+    if include_hold_source:
+        hold_listing = listing_byte_map(candidate / "ladybug-perimeter-reset-helper.lst")
+        if min(hold_listing) != HIDDEN_HOLD_HELPER_ORIGIN or \
+                max(hold_listing) - HIDDEN_HOLD_HELPER_ORIGIN + 1 != len(
+                    (candidate / "ladybug-perimeter-reset-helper.bin").read_bytes()):
+            raise ProbeError("compatibility hold helper source range differs from its staged origin")
+        hold_stage = bytes_at(hold_listing, 0x0712, 16, "compatibility publication request")
+        publish_stage = bytes_at(hold_listing, 0x0723, 24, "compatibility publication restore")
+        hold_image = (candidate / "ladybug-perimeter-reset-helper.bin").read_bytes()
+        hold_stage_image = hold_image[0x0712 - HIDDEN_HOLD_HELPER_ORIGIN:
+                                      0x0712 - HIDDEN_HOLD_HELPER_ORIGIN + len(hold_stage)]
+        publish_image = hold_image[0x0723 - HIDDEN_HOLD_HELPER_ORIGIN:
+                                   0x0723 - HIDDEN_HOLD_HELPER_ORIGIN + len(publish_stage)]
+        if hold_stage != hold_stage_image or publish_image != publish_stage:
+            raise ProbeError("compatibility hold helper listing and staged bytes differ")
+        if bytes_at(hold_listing, 0x0712, 5, "owner2 request") != bytes.fromhex("1a10860297"):
+            raise ProbeError("hold request no longer selects owner2 before publication")
+        if bytes_at(hold_listing, 0x072D, 16, "hold owner restore") != \
+                bytes.fromhex("96d6978f96d797900fd9860397d41cef"):
+            raise ProbeError("hold publish no longer restores saved owners before HYDRATE")
     return {
         "result": "pass", "candidate": candidate_pins, "frozen_broken": broken_pins,
         "candidate_hidden_tail": {"pc": hex(HIDDEN_TAIL_PC), "listing_hex": candidate_tail.hex(),
@@ -752,11 +754,168 @@ def offline_hidden_owner_check(candidate: Path = HIDDEN_BUILD,
         "selected_back_mapping": {"pc": hex(map_back), "length": len(map_back_source),
                                   "source_staged_sha256": sha(map_back_source),
                                   "meaning": "static mapper selects FB_BACK_ID pages in PAR1-PAR4 and sets its own PAR5 to $3A"},
-        "hold_owner2_source_staged": True,
+        "hold_owner2_source_staged": include_hold_source,
         "runtime_hidden_back_reads_qualified_yet": False,
         "actual_GIME_hidden_scanout_qualified_yet": False,
         "broken_baseline_pixel_capture_observed": False,
         "fixture_class": "source/artifact qualification only; no emulator was launched",
+    }
+
+
+def offline_preview_publication_check(candidate: Path = HIDDEN_BUILD,
+                                      broken: Path = BUILD_DEFAULT) -> dict[str, Any]:
+    """Qualify only the source path and address equivalence used by the approved live gate."""
+    candidate, broken = candidate.resolve(), broken.resolve()
+    candidate_pins, broken_pins = artifact_check(candidate), artifact_check(broken)
+    sites = SiteQualifier(candidate)
+
+    def qualify_window(kind: str, address: int, length: int, label: str) -> dict[str, Any]:
+        artifact = {"main": sites.main, "enemy": sites.enemy,
+                    "presentation": sites.presentation}[kind]
+        origin = {"main": 0xC000, "enemy": ENEMY_ORIGIN,
+                  "presentation": PRES}[kind]
+        listing = sites.listings[kind]
+        if address < origin or address + length > origin + len(artifact):
+            raise ProbeError("preview-publication source window leaves its staged module: " + label)
+        source = bytes_at(listing, address, length, label)
+        staged = artifact[address - origin:address - origin + length]
+        if source != staged:
+            raise ProbeError("preview-publication listing/staged mismatch: " + label)
+        return {"label": label, "kind": kind, "address": hex(address), "length": length,
+                "source_sha256": sha(source), "staged_sha256": sha(staged),
+                "bytes_hex": source.hex()}
+
+    pres_map = symbols_for(candidate, "ladybug-presentation-runtime.map")
+    pres_listing = sites.listings["presentation"]
+    start = marker_addr(pres_map, "start_screen_map")
+    bypass_bytes = bytes_at(pres_listing, start, 19, "level-start HOLD_BEGIN bypass")
+    expected_bypass = bytes.fromhex("cc2000fd00ae1701b496a681022703bd06c539")
+    if (start != 0x1A71 or marker_addr(pres_map, "start_screen_hold") != 0x1A80 or
+            marker_addr(pres_map, "start_screen_done") != 0x1A83 or
+            bypass_bytes != expected_bypass or
+            sites.presentation[start - PRES:start - PRES + len(bypass_bytes)] != bypass_bytes):
+        raise ProbeError("level-start source does not branch around HOLD_BEGIN to the common return")
+    # The listing bytes decode as CMPA #2; BEQ $1A83; JSR $06C5; RTS.
+    bypass = qualify_window("presentation", start, len(expected_bypass), "start_screen_map")
+
+    enemy_map = symbols_for(candidate, "ladybug-enemy-runtime.map")
+    main_map = symbols_for(candidate, "ladybug.map")
+    enemy_listing = sites.listings["enemy"]
+    main_listing = sites.listings["main"]
+    render_pc = marker_addr(enemy_map, "fri_stage_background")
+    render_calls = bytes.fromhex("bdd588bdc7f2bdce5b170adebdc6b7bdc45abdc41bbdc52417fd6e39")
+    render_source = bytes_at(enemy_listing, render_pc, len(render_calls), "RF_STAGE renderer call sequence")
+    render_staged = sites.enemy[render_pc - ENEMY_ORIGIN:render_pc - ENEMY_ORIGIN + len(render_calls)]
+    if render_source != render_calls or render_staged != render_source:
+        raise ProbeError("RF_STAGE source/staged sequence does not include the expected word renderer")
+
+    mapper_pc = marker_addr(enemy_map, "gate_map_live")
+    mapper_expected = bytes.fromhex("86300d9a27060d902702862cb7ffa14cb7ffa24cb7ffa34cb7ffa439")
+    mapper_bytes = bytes_at(enemy_listing, mapper_pc, len(mapper_expected),
+                            "both-owner live framebuffer mapping")
+    if mapper_pc != 0x15B4 or mapper_bytes != mapper_expected or \
+            sites.enemy[mapper_pc - ENEMY_ORIGIN:mapper_pc - ENEMY_ORIGIN + len(mapper_bytes)] != mapper_bytes:
+        raise ProbeError("candidate gate_map_live does not select both legal owner mappings")
+
+    prep_pc = marker_addr(enemy_map, "framebuffer_prepare_back")
+    prep = qualify_window("enemy", prep_pc, 32, "framebuffer_prepare_back")
+    mapper = qualify_window("enemy", mapper_pc, len(mapper_expected), "gate_map_live")
+    render = qualify_window("enemy", render_pc, len(render_calls), "fri_stage_background")
+
+    word_pc = marker_addr(main_map, "draw_word_progress_hud")
+    draw_hud_pc = marker_addr(main_map, "draw_hud")
+    word_length = draw_hud_pc - word_pc
+    word = qualify_window("main", word_pc, word_length, "draw_word_progress_hud")
+    shared_symbols = {name: marker_addr(main_map, name) for name in (
+        "asset_draw_hud_digit", "asset_draw_recolored_map_tile", "shared_mask")}
+    shared = [qualify_window("main", address, 16, name)
+              for name, address in shared_symbols.items()]
+    word_source_text = (candidate.parent / "src" / "main.s").read_text(encoding="utf-8")
+    word_start = re.search(r"(?m)^draw_word_progress_hud\s*$", word_source_text)
+    word_end = (re.search(r"(?m)^draw_hud\s*$", word_source_text[word_start.end():])
+                if word_start else None)
+    if word_start is None or word_end is None:
+        raise ProbeError("source does not contain line-anchored word-renderer routine boundaries")
+    word_block = word_source_text[word_start.end():word_start.end() + word_end.start()]
+    forbidden = re.findall(r"\b(?:FB_BACK_ID|FB_FRONT_ID|FB_META_[AB]|FB_OWNER|FRONT|BACK)\b",
+                           "\n".join(line.split(";", 1)[0] for line in word_block.splitlines()))
+    if forbidden:
+        raise ProbeError("word renderer source references owner or ledger state: " + ",".join(forbidden))
+
+    gate_source = (candidate.parent / "src" / "enemy_runtime.s").read_text(encoding="utf-8")
+    if (not re.search(r"(?m)^\s*FB_B_PAGE0\s+equ\s+\$2C\s*$", gate_source) or
+            not re.search(r"(?m)^\s*LIVE_PAGE0\s+equ\s+\$30\s*$", gate_source) or
+            not re.search(r"(?m)^gate_map_live\s*$", gate_source)):
+        raise ProbeError("receipt-qualified source lacks the approved BACK page constants")
+
+    formula = {"virtual_base": 0x2000, "tile_row_stride_bytes": 1280,
+               "tile_column_stride_bytes": 4, "glyph_rows": 8,
+               "glyph_row_stride_bytes": 160, "glyph_bytes_per_row": 4}
+    footprints = {
+        "SPECIAL": {"mask": 0x49, "color": 1, "row": 1, "columns": [1, 7],
+                    "low": 0x2504, "high": 0x297F},
+        "EXTRA": {"mask": 0x15, "color": 2, "row": 4, "columns": [1, 5],
+                  "low": 0x3404, "high": 0x3877},
+    }
+    for name, item in footprints.items():
+        low = formula["virtual_base"] + item["row"] * formula["tile_row_stride_bytes"] + \
+              item["columns"][0] * formula["tile_column_stride_bytes"]
+        high = formula["virtual_base"] + item["row"] * formula["tile_row_stride_bytes"] + \
+               item["columns"][1] * formula["tile_column_stride_bytes"] + \
+               (formula["glyph_rows"] - 1) * formula["glyph_row_stride_bytes"] + \
+               formula["glyph_bytes_per_row"] - 1
+        if (low, high) != (item["low"], item["high"]) or not (0x2000 <= low <= high < 0x4000):
+            raise ProbeError("source-equivalent word footprint leaves virtual PAR1 window: " + name)
+
+    presentation_source_path = candidate.parent / "src" / "presentation_runtime.s"
+    presentation_source = presentation_source_path.read_text(encoding="utf-8")
+    reload_start = re.search(r"(?m)^load_tick\s*$", presentation_source)
+    reload_end = (re.search(r"(?m)^load_done\s*$", presentation_source[reload_start.end():])
+                  if reload_start else None)
+    if reload_start is None or reload_end is None:
+        raise ProbeError("source lacks the line-anchored complete-profile panel load loop")
+    reload_block = presentation_source[reload_start.end():reload_start.end() + reload_end.start()]
+    reload_markers = ("cmpd    #PRESENTATION_MAP_BYTES", "bhs     load_done",
+                      "lbsr    draw_cell", "PRES_STAGE_SLICE")
+    if any(marker not in reload_block for marker in reload_markers):
+        raise ProbeError("authored 960-cell panel loader source path is incomplete")
+    load_pc, load_done_pc = marker_addr(pres_map, "load_tick"), marker_addr(pres_map, "load_done")
+    if (load_pc != 0x1A84 or load_done_pc != 0x1B19 or load_done_pc <= load_pc or
+            re.search(r"(?m)^load_tick\s*$", presentation_source) is None or
+            re.search(r"(?m)^load_done\s*$", presentation_source) is None):
+        raise ProbeError("panel loader source labels do not match the pinned mapped source window")
+    reload_window = qualify_window("presentation", load_pc, load_done_pc - load_pc,
+                                   "complete authored panel reload loop")
+    helper_caller_source = offline_hidden_owner_check(candidate, broken,
+                                                       include_hold_source=False)
+    return {
+        "result": "pass", "classification": "offline source/artifact qualification; no emulator launched",
+        "candidate": candidate_pins, "frozen_broken": broken_pins,
+        "level_start_hold_bypass": {**bypass, "selected_screen": 2,
+                                     "branch_target": "start_screen_done at $1A83",
+                                     "hold_begin_site": "$1A80 skipped on level-start"},
+        "natural_word_call_path": {"rf_stage_renderer": render, "framebuffer_prepare_back": prep,
+                                    "gate_map_live": mapper, "draw_word_progress_hud": word,
+                                    "shared_render_sites": shared,
+                                    "word_source_has_no_owner_ledger_reads": True,
+                                    "authored_panel_reload": {
+                                        "source_path": str(presentation_source_path),
+                                        "source_sha256": file_sha(presentation_source_path),
+                                        "map_cells": 960, "loop_markers": list(reload_markers),
+                                        "source_staged_window": reload_window,
+                                        "complete_loop_bytes_match_staged": True},
+                                    "helper_caller_source": helper_caller_source},
+        "legal_back_mappings": {
+            "owner0": {"back_id": 0, "PAR1_PAR4": [0x30, 0x31, 0x32, 0x33],
+                       "physical_base": 0x60000},
+            "owner1": {"back_id": 1, "PAR1_PAR4": [0x2C, 0x2D, 0x2E, 0x2F],
+                       "physical_base": 0x58000},
+            "source_staged_mapping_sequence_sha256": sha(mapper_bytes),
+            "source_constants": {"LIVE_PAGE0": 0x30, "FB_B_PAGE0": 0x2C}},
+        "word_address_formula": formula, "word_footprints": footprints,
+        "unselected_or_background_pixels": {"unselected": 7, "background": 0},
+        "second_published_preview_owner_runtime_untested": True,
+        "owner0_source_mapping_proved": True,
     }
 
 
@@ -1703,6 +1862,13 @@ def self_test() -> dict[str, Any]:
         [{**natural_owner_pair[0], "pixel_checks": synthetic_broken_panel}, natural_owner_pair[1]],
         {"before": 17, "published": 18})
     assert hidden_product_negative["result"] == "product_reproduced"
+    stale_after_preview = maze_commit_advanced(current=11, preview_marker=10,
+                                               stage_render_marker=11)
+    advanced_after_render = maze_commit_advanced(current=12, preview_marker=10,
+                                                 stage_render_marker=11)
+    if stale_after_preview or not advanced_after_render:
+        raise AssertionError("stale post-preview/pre-maze publication negative failed")
+    preview_raw_checks = preview_raw_capture_self_test()
     strict_import_check(Path(__file__).resolve())
     return {"result": "pass", "checks": 46,
             "checks_scope": "pre-existing pixel/BUG-046 oracle checks only",
@@ -1724,6 +1890,10 @@ def self_test() -> dict[str, Any]:
             "source_staged_cpu_physical_site_positive": True,
             "wrong_par_mapping_rejected_before_read": True,
             "physical_site_mismatch_rejected": True,
+             "preview_publication_checks": {"result": "pass", "count": 2,
+                                            "raw_state_capture": preview_raw_checks,
+                                            "stale_post_preview_pre_maze_commit_rejected": True,
+                                            "new_maze_commit_after_RF_STAGE_accepted": True},
             "unauthorized_guest_write_input_rejected": True,
             "scheduled_semantic_boundary_clocks_ignored": True,
             "scheduled_facing_only_difference_ignored": True,
@@ -2031,6 +2201,17 @@ def gime_scanout_identity(gime: dict[str, Any]) -> dict[str, int]:
             "owner": {0x60000: 0, 0x58000: 1, 0x50000: 2}.get(base, -1)}
 
 
+def commit_advanced_from(current: int, marker: int) -> bool:
+    return ((int(current) - int(marker)) & 0xFFFF) != 0
+
+
+def maze_commit_advanced(current: int, preview_marker: int,
+                         stage_render_marker: int) -> bool:
+    """Require a publication after both the preview and RF_STAGE entry markers."""
+    return (commit_advanced_from(current, preview_marker) and
+            commit_advanced_from(current, stage_render_marker))
+
+
 def capture_hidden_back(client: DeadlineClient, site_proofs: list[dict[str, Any]]) -> tuple[bytes, dict[str, Any]]:
     """Capture the selected hidden BACK while proving the independent GIME scanout owner."""
     before_gime = client.raw.call("read_gime_state", timeout=4.0)
@@ -2186,6 +2367,142 @@ def state_snapshot(client: DeadlineClient) -> dict[str, Any]:
             "scripted_keys_down": sorted(client.key_down), "ram_init": "clear",
             "state_cpu_physical_match": True,
             "front_back_pending_commit": read_bytes(client, FRONT, 5).hex()}
+
+
+def preview_return_raw_state(client: DeadlineClient) -> dict[str, Any]:
+    """Capture unguarded helper-return state for source/mapping diagnosis."""
+    result: dict[str, Any] = {"errors": [], "scripted_keys_down": sorted(client.key_down)}
+    gime_before = None
+    low_cpu = low_physical = None
+    try:
+        gime_before = client.raw.call("read_gime_state", timeout=3.0)
+        result["gime_before"] = gime_before
+    except Exception as exc:
+        result["errors"].append("GIME-before: %s: %s" % (type(exc).__name__, exc))
+    try:
+        low_cpu = read_bytes(client, 0, 0x100)
+        result["direct_page_cpu_hex"] = low_cpu.hex()
+        result["direct_page_cpu_sha256"] = sha(low_cpu)
+        result["direct_page_length"] = len(low_cpu)
+    except Exception as exc:
+        result["errors"].append("direct-page CPU: %s: %s" % (type(exc).__name__, exc))
+    try:
+        low_physical = read_bytes(client, 0x38 * 0x2000, 0x100, "physical")
+        result["direct_page_physical_hex"] = low_physical.hex()
+        result["direct_page_physical_sha256"] = sha(low_physical)
+        result["direct_page_physical_length"] = len(low_physical)
+    except Exception as exc:
+        result["errors"].append("direct-page physical: %s: %s" % (type(exc).__name__, exc))
+    if low_cpu is not None:
+        result["direct_page_cpu_physical_match"] = low_cpu == low_physical
+        if len(low_cpu) == 0x100:
+            result["raw_direct_page_state"] = {
+                "front": low_cpu[FRONT], "back": low_cpu[BACK],
+                "pending": low_cpu[PENDING],
+                "commit_seq": int.from_bytes(low_cpu[COMMIT:COMMIT + 2], "big"),
+                "hold_state": low_cpu[PRES_HOLD_STATE],
+                "hold_saved_front": low_cpu[PRES_HOLD_SAVED_FRONT],
+                "hold_saved_back": low_cpu[PRES_HOLD_SAVED_BACK],
+                "hold_owner": low_cpu[PRES_HOLD_OWNER],
+                "stage": low_cpu[STAGE], "mode": low_cpu[PRES_MODE],
+                "screen": low_cpu[PRES_SCREEN], "context": low_cpu[PRES_CONTEXT],
+                "special_mask": low_cpu[SPECIAL], "extra_mask": low_cpu[EXTRA]}
+    try:
+        result["letter_variants"] = list(read_bytes(client, STAGE_LETTER_VARIANTS, 3))
+    except Exception as exc:
+        result["errors"].append("letter variants: %s: %s" % (type(exc).__name__, exc))
+    try:
+        regs = client.raw.call("read_registers", timeout=3.0)
+        result["cpu_registers"] = {key: regs.get(key) for key in ("pc", "s", "cc", "dp")}
+    except Exception as exc:
+        result["errors"].append("CPU registers: %s: %s" % (type(exc).__name__, exc))
+    try:
+        result["cycles"] = read_cycles(client)
+    except Exception as exc:
+        result["errors"].append("cycles: %s: %s" % (type(exc).__name__, exc))
+    try:
+        gime_after = client.raw.call("read_gime_state", timeout=3.0)
+        result["gime_after"] = gime_after
+        result["gime_mapping_stable_during_capture"] = bool(
+            gime_before is not None and
+            gime_before.get("pars") == gime_after.get("pars") and
+            gime_before.get("registers") == gime_after.get("registers") and
+            gime_before.get("mmu_task") == gime_after.get("mmu_task"))
+        if gime_before is not None:
+            result["gime_scanout"] = gime_scanout_identity(gime_before)
+            result["task0_pars"] = list(gime_before["pars"]["task0"])
+            result["task1_pars"] = list(gime_before["pars"]["task1"])
+            result["mmu_task"] = gime_before["mmu_task"]
+    except Exception as exc:
+        result["errors"].append("GIME-after: %s: %s" % (type(exc).__name__, exc))
+    return result
+
+
+def preview_raw_capture_self_test() -> dict[str, Any]:
+    class FakeRaw:
+        def __init__(self, fail_physical: bool = False):
+            self.memory = bytearray(0x100)
+            self.memory[FRONT], self.memory[BACK] = 0, 1
+            self.memory[PENDING] = 1
+            self.memory[COMMIT:COMMIT + 2] = bytes((0x12, 0x34))
+            self.memory[PRES_HOLD_STATE] = 3
+            self.memory[PRES_HOLD_SAVED_FRONT] = 0
+            self.memory[PRES_HOLD_SAVED_BACK] = 1
+            self.memory[PRES_HOLD_OWNER] = 1
+            self.memory[STAGE] = 2
+            self.memory[PRES_MODE], self.memory[PRES_SCREEN], self.memory[PRES_CONTEXT] = 6, 2, 2
+            self.memory[SPECIAL], self.memory[EXTRA] = 0x49, 0x15
+            self.variants = bytes((2, 4, 8))
+            self.fail_physical = fail_physical
+            self.gime = {"mmu_task": 0, "pars": {
+                "task0": [0x38, 0x2C, 0x2D, 0x2E, 0x2F, 0x23, 0x3E, 0x3F],
+                "task1": [0x38, 0x39, 0x3A, 0x3B, 0x3C, 0x34, 0x3E, 0x3F]},
+                "registers": {"FF98": 0x80, "FF99": 0x1E, "FF9D": 0xC0, "FF9E": 0}}
+
+        def call(self, method: str, params: dict[str, Any] | None = None,
+                 timeout: float = 20.0) -> dict[str, Any]:
+            if method == "read_gime_state":
+                return self.gime
+            if method == "read_registers":
+                return {"pc": HIDDEN_RETURN_PC, "s": 0x7F00, "cc": 0, "dp": 0}
+            if method == "read_cycles":
+                return {"event_ticks": 19, "cpu_cycles": 1200}
+            if method == "read_memory":
+                params = params or {}
+                address, length = int(params["addr"]), int(params["length"])
+                if params.get("space") == "physical":
+                    if self.fail_physical:
+                        raise ProbeError("fixture physical read failure")
+                    if address >= 0x70000:
+                        address -= 0x70000
+                if address == STAGE_LETTER_VARIANTS and length == 3:
+                    return {"data": self.variants.hex()}
+                data = bytes(self.memory[address:address + length])
+                if len(data) != length:
+                    raise ProbeError("raw-capture fixture request leaves modeled memory")
+                return {"data": data.hex()}
+            raise ProbeError("unexpected raw-capture fixture RPC: " + method)
+
+    class FakeClient:
+        def __init__(self, raw: FakeRaw):
+            self.raw = raw
+            self.key_down = {KEY_UP}
+
+    good = preview_return_raw_state(FakeClient(FakeRaw()))
+    if (good["errors"] or good.get("direct_page_length") != 0x100 or
+            good.get("direct_page_cpu_physical_match") is not True or
+            good.get("raw_direct_page_state", {}).get("hold_saved_back") != 1 or
+            good.get("raw_direct_page_state", {}).get("hold_owner") != 1 or
+            good.get("letter_variants") != [2, 4, 8]):
+        raise AssertionError("preview raw-capture fixture missed real direct-page offsets")
+    failed = preview_return_raw_state(FakeClient(FakeRaw(fail_physical=True)))
+    if (not failed["errors"] or "direct-page physical" not in failed["errors"][0] or
+            len(failed.get("direct_page_cpu_hex", "")) != 0x200 or
+            failed.get("direct_page_cpu_physical_match") is not False):
+        raise AssertionError("preview raw-capture failed-read evidence was not retained")
+    return {"result": "pass", "checks": 1,
+            "groups": ["0x100-byte raw direct-page offsets and failed physical-read retention"],
+            "good_fixture": "pass", "failed_read_fixture": "retained before guards"}
 
 
 def run_to_condition(client: DeadlineClient, budget: PhaseBudget, address: int,
@@ -2519,9 +2836,9 @@ def scheduled_state(client: DeadlineClient) -> dict[str, Any]:
             "task1_pars": gime["pars"]["task1"], "mmu_task": gime["mmu_task"]}
 
 
-def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
+def run_hidden_case(args: argparse.Namespace, scenario: str = "hidden-owner") -> dict[str, Any]:
     if not args.run_live:
-        raise ProbeError("hidden-owner runtime requires --run-live and a separate parent runtime lease")
+        raise ProbeError(scenario + " runtime requires --run-live and a separate parent runtime lease")
     output = Path(args.output).resolve()
     build = Path(args.build).resolve()
     if build != HIDDEN_BUILD.resolve():
@@ -2529,19 +2846,23 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
     if not inside(output, HIDDEN_OWNED) or output.exists():
         raise ProbeError("hidden-owner output must be a fresh path inside its owned evidence directory")
     cases: dict[str, Any] = {
-        "scenario": "hidden-owner", "phases": [], "product_findings": [],
-        "scope": "one natural candidate run: hidden BACK0/BACK1 while GIME owner2, then actual preview and first maze scanout",
+        "scenario": scenario, "phases": [], "product_findings": [],
+        "scope": ("one natural preview-to-maze run; source-equivalence covers both BACK mappings; second published-preview owner remains untested"
+                  if scenario == "preview-publication" else
+                  "one natural candidate run: hidden BACK0/BACK1 while GIME owner2, then actual preview and first maze scanout"),
         "fixture_contract": [[hex(address), value] for address, value in FIXTURE],
         "phase_contract": {"whole_phase_seconds_max": PHASE_SECONDS, "stop_seconds_max": STOP_SECONDS,
                            "stops_per_phase_max": MAX_STOPS, "phases_per_run": 3,
-                           "max_runs": 2, "retries": 0},
+                           "max_runs": 1 if scenario == "preview-publication" else 2, "retries": 0},
     }
     process = None
     client = None
     phase: PhaseBudget | None = None
     try:
         cases["pins"] = artifact_check(build)
-        cases["source_site_check"] = offline_hidden_owner_check(HIDDEN_BUILD, BUILD_DEFAULT)
+        cases["source_site_check"] = (offline_preview_publication_check(HIDDEN_BUILD, BUILD_DEFAULT)
+                                       if scenario == "preview-publication" else
+                                       offline_hidden_owner_check(HIDDEN_BUILD, BUILD_DEFAULT))
         underlay, oracle_info, pixel_oracle, masks, blue = hidden_underlay(build)
         cases["pixel_oracle_inputs"] = oracle_info
         monitor = _monitor_module()
@@ -2549,6 +2870,22 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
         main_syms = symbols_for(build, "ladybug.map")
         site_images = SiteQualifier(build)
         xroar = Path(args.xroar) if args.xroar else ROOT / "docs" / "reference" / "xroar" / "src" / "xroar"
+
+        def qualify_preview_boundary(pc: int, label: str, kind: str) -> dict[str, Any]:
+            snapshot = stage_brief_snapshot(client, pc, label)
+            cases.setdefault("preview_boundary_snapshots", {})[label] = snapshot
+            snapshot["state_evidence"] = stage_state_evidence_check(snapshot)
+            if not snapshot["state_evidence"]["pass"]:
+                snapshot["state_evidence_error"] = "; ".join(snapshot["state_evidence"]["errors"])
+                raise ProbeError("preview boundary state evidence failed at " + label + ": " +
+                                 snapshot["state_evidence_error"])
+            try:
+                proof = site_images.qualify(client, pc, kind)
+                snapshot["site_proof"] = _brief_site(proof)
+                return proof
+            except Exception as exc:
+                snapshot["site_proof_error"] = "%s: %s" % (type(exc).__name__, exc)
+                raise
 
         # Phase 1: the same cold legal predecessor used by the approved natural route.
         phase = PhaseBudget()
@@ -2590,58 +2927,108 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
                                 "elapsed_seconds": round(45 - phase.remaining(), 3),
                                 "stops": phase.stops})
 
-        # Phase 2: exactly four fixture writes, then observe each natural helper
-        # return before the dispatcher republishes the preview.
+        # Phase 2: one caller chain for the revised gate, or the historical
+        # two hidden-owner captures for the legacy scenario.
         phase = PhaseBudget()
         client.budget = phase
         cases["fixture"] = apply_fixture(client)
         cases["fixture_write_trace"] = [[hex(address), value] for address, value in client.fixture_seen]
         client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
         hidden_captures = []
-        for ordinal in (1, 2):
+        if scenario == "preview-publication":
             tail = run_to_condition(client, phase, HIDDEN_TAIL_PC,
-                                    "hidden pass %d banked-helper tail" % ordinal, lambda: True,
-                                    lambda pc: site_images.qualify(client, pc, "banked_helper"))
+                                    "natural stage preview banked-helper tail", lambda: True,
+                                    lambda pc: qualify_preview_boundary(
+                                        pc, "banked helper tail", "banked_helper"))
             word = run_to_condition(client, phase, HIDDEN_WORD_PC,
-                                    "hidden pass %d resident word renderer" % ordinal, lambda: True,
-                                    lambda pc: site_images.qualify(client, pc, "main"))
+                                    "natural stage preview word renderer", lambda: True,
+                                    lambda pc: qualify_preview_boundary(
+                                        pc, "resident word renderer", "main"))
             returned = run_to_condition(client, phase, HIDDEN_RETURN_PC,
-                                        "hidden pass %d caller return" % ordinal, lambda: True,
-                                        lambda pc: site_images.qualify(client, pc, "presentation"))
-            hold_request = site_images.qualify(client, 0x0712, "hold_helper")
-            hold_restore = site_images.qualify(client, 0x072D, "hold_helper")
-            back_map = site_images.qualify(
-                client, marker_addr(pres_syms, "map_back"), "presentation")
-            frame, evidence = capture_hidden_back(client, [tail["site_proof"], word["site_proof"],
-                                                           returned["site_proof"], hold_request,
-                                                           hold_restore, back_map])
-            saved_pair = {evidence["hold_saved_front"], evidence["hold_saved_back"]}
-            if saved_pair != {0, 1}:
-                raise MissingCoverage("helper-return history does not identify saved FRONT/BACK owners0 and1")
-            expected_owner = (evidence["hold_saved_back"] if ordinal == 1
-                              else evidence["hold_saved_front"])
-            if ordinal == 2 and (evidence["hold_saved_front"], evidence["hold_saved_back"]) != (
-                    hidden_captures[0]["hold_saved_front"], hidden_captures[0]["hold_saved_back"]):
-                raise MissingCoverage("saved FRONT/BACK source history changed between hidden passes")
-            if evidence["back_owner"] != expected_owner:
-                raise MissingCoverage("natural hidden pass %d selected BACK%d, expected restored identity BACK%d" %
-                                      (ordinal, evidence["back_owner"], expected_owner))
-            evidence["pixel_checks"] = panel_pixel_check(
-                frame, evidence["masks"], evidence["letter_variants"], build,
-                underlay, pixel_oracle, masks, blue)
-            if hidden_captures and evidence["letter_variants"] != hidden_captures[0]["letter_variants"]:
-                raise MissingCoverage("natural hidden passes do not share random-letter identities")
-            if (evidence["pixel_checks"]["word_pixels"]["classification"] != "pixel_match" or
-                    evidence["pixel_checks"]["stored_masks"]["classification"] != "match" or
-                    not evidence["pixel_checks"]["random_letters"]["all_slots_match"] or
-                    not evidence["pixel_checks"]["hearts"]["all_slots_match"]):
-                cases["product_findings"].append({"phase": "hidden-BACK%d" % expected_owner,
-                    "kind": "hidden-pixel-gate-failure", "detail": evidence["pixel_checks"]})
-            hidden_captures.append(evidence)
+                                        "natural stage preview caller return", lambda: True,
+                                        lambda pc: qualify_preview_boundary(
+                                            pc, "original caller return", "presentation"))
+            chain = {"sequence": ["B190 banked helper tail", "C41B resident word renderer",
+                                   "1B21 original caller return"],
+                     "site_proofs": [tail["site_proof"], word["site_proof"],
+                                     returned["site_proof"]]}
+            raw_return = preview_return_raw_state(client)
+            chain["raw_return_state"] = raw_return
+            cases["preview_helper_chain"] = chain
+            if raw_return["errors"] or raw_return.get("direct_page_cpu_physical_match") is not True:
+                raise ProbeError("helper-return raw state is incomplete or CPU/physical DP differs")
+            if raw_return.get("gime_mapping_stable_during_capture") is not True:
+                raise ProbeError("GIME mapping changed during helper-return evidence capture")
+            if raw_return.get("mmu_task") != 0 or raw_return.get("task0_pars", [None])[0] != 0x38:
+                raise ProbeError("helper-return CPU mapping does not qualify low direct-page state")
+            task0 = raw_return.get("task0_pars", [])
+            if len(task0) != 8 or task0[5] != 0x23 or (task0[6], task0[7]) != (0x3E, 0x3F):
+                raise ProbeError("helper-return PAR5/PAR6/PAR7 differ from caller/runtime source mapping")
+            state = raw_return.get("raw_direct_page_state", {})
+            owner = state.get("back")
+            expected_pars = {0: [0x30, 0x31, 0x32, 0x33],
+                             1: [0x2C, 0x2D, 0x2E, 0x2F]}.get(owner)
+            if expected_pars is None or task0[1:5] != expected_pars:
+                raise ProbeError("helper-return PAR1-PAR4 do not map the observed selected BACK owner")
+            variants = raw_return.get("letter_variants", [])
+            if len(variants) != 3 or any(value >= 12 for value in variants):
+                raise MissingCoverage("helper-return prepared random-letter identities are incomplete")
+            cases["preview_selected_back_mapping"] = {
+                "front_metadata": state.get("front"), "back_owner": owner,
+                "PAR1_PAR4": task0[1:5], "PAR5": task0[5],
+                "actual_GIME_scanout_at_helper_return": raw_return.get("gime_scanout"),
+                "scanout_interpreted": False,
+                "mapping_source": "receipt-qualified gate_map_live; no hidden crop or owner2 assertion"}
+            preview_prepared_variants = variants
+        else:
+            for ordinal in (1, 2):
+                tail = run_to_condition(client, phase, HIDDEN_TAIL_PC,
+                                        "hidden pass %d banked-helper tail" % ordinal, lambda: True,
+                                        lambda pc: site_images.qualify(client, pc, "banked_helper"))
+                word = run_to_condition(client, phase, HIDDEN_WORD_PC,
+                                        "hidden pass %d resident word renderer" % ordinal, lambda: True,
+                                        lambda pc: site_images.qualify(client, pc, "main"))
+                returned = run_to_condition(client, phase, HIDDEN_RETURN_PC,
+                                            "hidden pass %d caller return" % ordinal, lambda: True,
+                                            lambda pc: site_images.qualify(client, pc, "presentation"))
+                hold_request = site_images.qualify(client, 0x0712, "hold_helper")
+                hold_restore = site_images.qualify(client, 0x072D, "hold_helper")
+                back_map = site_images.qualify(
+                    client, marker_addr(pres_syms, "map_back"), "presentation")
+                frame, evidence = capture_hidden_back(client, [tail["site_proof"], word["site_proof"],
+                                                               returned["site_proof"], hold_request,
+                                                               hold_restore, back_map])
+                saved_pair = {evidence["hold_saved_front"], evidence["hold_saved_back"]}
+                if saved_pair != {0, 1}:
+                    raise MissingCoverage("helper-return history does not identify saved FRONT/BACK owners0 and1")
+                expected_owner = (evidence["hold_saved_back"] if ordinal == 1
+                                  else evidence["hold_saved_front"])
+                if ordinal == 2 and (evidence["hold_saved_front"], evidence["hold_saved_back"]) != (
+                        hidden_captures[0]["hold_saved_front"], hidden_captures[0]["hold_saved_back"]):
+                    raise MissingCoverage("saved FRONT/BACK source history changed between hidden passes")
+                if evidence["back_owner"] != expected_owner:
+                    raise MissingCoverage("natural hidden pass %d selected BACK%d, expected restored identity BACK%d" %
+                                          (ordinal, evidence["back_owner"], expected_owner))
+                evidence["pixel_checks"] = panel_pixel_check(
+                    frame, evidence["masks"], evidence["letter_variants"], build,
+                    underlay, pixel_oracle, masks, blue)
+                if hidden_captures and evidence["letter_variants"] != hidden_captures[0]["letter_variants"]:
+                    raise MissingCoverage("natural hidden passes do not share random-letter identities")
+                if (evidence["pixel_checks"]["word_pixels"]["classification"] != "pixel_match" or
+                        evidence["pixel_checks"]["stored_masks"]["classification"] != "match" or
+                        not evidence["pixel_checks"]["random_letters"]["all_slots_match"] or
+                        not evidence["pixel_checks"]["hearts"]["all_slots_match"]):
+                    cases["product_findings"].append({"phase": "hidden-BACK%d" % expected_owner,
+                        "kind": "hidden-pixel-gate-failure", "detail": evidence["pixel_checks"]})
+                hidden_captures.append(evidence)
+            preview_prepared_variants = hidden_captures[0]["letter_variants"]
         preview_pc = marker_addr(pres_syms, "level_tick")
         run_to_condition(client, phase, preview_pc, "first actual stage-2 preview", lambda:
                          read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 6 and
                          read_byte(client, PRES_SCREEN) == 2 and read_byte(client, PRES_CONTEXT) == 2,
+                         (lambda pc: qualify_preview_boundary(
+                             pc, "first actual stage-2 preview", "presentation"))
+                         if scenario == "preview-publication" else
                          lambda pc: site_images.qualify(client, pc, "presentation"))
         client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
         visible_owner = read_byte(client, FRONT)
@@ -2653,13 +3040,24 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
         preview_publication["pixel_checks"] = panel_pixel_check(
             preview_frame, preview_masks, list(preview_variants), build,
             underlay, pixel_oracle, masks, blue)
-        if list(preview_variants) != hidden_captures[0]["letter_variants"]:
-            raise MissingCoverage("published stage-2 preview changed the hidden random-letter identity")
-        hidden_contract = hidden_owner_identity_check(hidden_captures,
-            {"before": hidden_captures[-1]["commit_seq"],
-             "published": preview_publication["commit_seq"]})
-        cases["hidden_captures"] = hidden_captures
-        cases["hidden_owner_contract"] = hidden_contract
+        if list(preview_variants) != preview_prepared_variants:
+            raise MissingCoverage("published stage-2 preview changed the prepared random-letter identity")
+        if scenario == "preview-publication":
+            predecessor_commit_bytes = bytes.fromhex(
+                cases["paired_predecessor"]["state"]["front_back_pending_commit"])
+            predecessor_commit = int.from_bytes(predecessor_commit_bytes[3:5], "big")
+            preview_advanced = ((preview_publication["commit_seq"] - predecessor_commit) & 0xFFFF) != 0
+            if not preview_advanced:
+                raise MissingCoverage("published stage-2 preview did not advance the predecessor commit")
+            cases["preview_commit_advanced_from_predecessor"] = {
+                "before": predecessor_commit, "published": preview_publication["commit_seq"],
+                "advanced": True}
+        if scenario != "preview-publication":
+            hidden_contract = hidden_owner_identity_check(hidden_captures,
+                {"before": hidden_captures[-1]["commit_seq"],
+                 "published": preview_publication["commit_seq"]})
+            cases["hidden_captures"] = hidden_captures
+            cases["hidden_owner_contract"] = hidden_contract
         cases["preview_publication"] = preview_publication
         preview_pixels = preview_publication["pixel_checks"]
         if (preview_pixels["word_pixels"]["classification"] != "pixel_match" or
@@ -2668,10 +3066,12 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
                 not preview_pixels["hearts"]["all_slots_match"]):
             cases["product_findings"].append({"phase": "stage2-preview",
                 "kind": "preview-pixel-gate-failure", "detail": preview_pixels})
-        if hidden_contract["result"] == "product_reproduced":
+        if scenario != "preview-publication" and hidden_contract["result"] == "product_reproduced":
             cases["product_findings"].append({"phase": "hidden-owners",
                 "kind": "hidden-pixel-gate-failure", "detail": hidden_contract["absolute_pixel_gates"]})
-        cases["phases"].append({"name": "hidden-BACK0-BACK1-and-first-stage2-preview",
+        phase_name = ("one-helper-chain-and-first-stage2-preview" if scenario == "preview-publication"
+                      else "hidden-BACK0-BACK1-and-first-stage2-preview")
+        cases["phases"].append({"name": phase_name,
                                 "elapsed_seconds": round(45 - phase.remaining(), 3),
                                 "stops": phase.stops})
 
@@ -2687,6 +3087,9 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
                          (read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)) == (12, 22) and
                          read_word(client, PLAYER_FB) == 0x89EC and
                          read_byte(client, PLAYER_STEP) == 0,
+                         (lambda pc: qualify_preview_boundary(
+                             pc, "stage-2 context release", "presentation"))
+                         if scenario == "preview-publication" else
                          lambda pc: site_images.qualify(client, pc, "presentation"))
         cases["stage2_release"] = {"pc": hex(release_pc), "stage": read_byte(client, STAGE),
                                    "mode": read_byte(client, PRES_MODE),
@@ -2701,17 +3104,27 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
             client, phase, stage_render_pc, "source-qualified RF_STAGE background render",
             lambda: (read_byte(client, STAGE) == 2 and read_byte(client, PRES_CONTEXT) == 0 and
                      read_byte(client, PRES_MODE) != 6 and (read_byte(client, RENDER_FLAGS) & RF_STAGE) != 0),
+            (lambda pc: qualify_preview_boundary(
+                pc, "RF_STAGE background render", "enemy"))
+            if scenario == "preview-publication" else
             lambda pc: site_images.qualify(client, pc, "enemy"))
         cases["maze_stage_render_entry"] = {
             "pc": hex(stage_render_pc), "site_proof": stage_render_entry["site_proof"],
-            "render_flags": read_byte(client, RENDER_FLAGS), "RF_STAGE": RF_STAGE}
+            "render_flags": read_byte(client, RENDER_FLAGS), "RF_STAGE": RF_STAGE,
+            "commit_seq_at_entry": read_word(client, COMMIT)}
         preview_commit = int(preview_publication["commit_seq"])
+        stage_render_commit = cases["maze_stage_render_entry"]["commit_seq_at_entry"]
         def maze_ready() -> bool:
             if (read_byte(client, STAGE) != 2 or read_byte(client, PRES_SCREEN) != 2 or
                     read_byte(client, PRES_CONTEXT) != 0 or read_byte(client, PRES_MODE) == 6 or
                     read_byte(client, PENDING) != 0 or
-                    (read_byte(client, RENDER_FLAGS) & RF_STAGE) != 0 or
-                    ((read_word(client, COMMIT) - preview_commit) & 0xFFFF) == 0):
+                    (read_byte(client, RENDER_FLAGS) & RF_STAGE) != 0):
+                return False
+            current_commit = read_word(client, COMMIT)
+            if scenario == "preview-publication":
+                if not maze_commit_advanced(current_commit, preview_commit, stage_render_commit):
+                    return False
+            elif not commit_advanced_from(current_commit, preview_commit):
                 return False
             front = read_byte(client, FRONT)
             if front not in (0, 1):
@@ -2721,6 +3134,9 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
                 "mode": 0x80, "vres": 0x1E,
                 "base": {0: 0x60000, 1: 0x58000}[front], "owner": front}
         run_to_condition(client, phase, mainloop, "first actual maze scanout", maze_ready,
+                         (lambda pc: qualify_preview_boundary(
+                             pc, "first actual maze scanout", "main"))
+                         if scenario == "preview-publication" else
                          lambda pc: site_images.qualify(client, pc, "main"))
         maze_owner = read_byte(client, FRONT)
         maze_frame, maze_publication = physical_frame(client, maze_owner)
@@ -2745,25 +3161,36 @@ def run_hidden_case(args: argparse.Namespace) -> dict[str, Any]:
             cases["product_findings"].append({"phase": "first-maze",
                 "kind": "maze-preview-word-crop-identity-mismatch",
                 "detail": {"preview": preview_word, "maze": maze_word_result}})
-        cases["maze_publication"] = {"screen_role": "first-maze-after-stage2-release",
-                                     "commit_seq": maze_publication["commit_seq"],
-                                     "owner": maze_publication["owner"],
-                                     "physical_base": maze_publication["physical_base"],
-                                     "frame_sha256": sha(maze_frame),
-                                     "gime_mode": maze_publication["gime_mode"],
-                                     "gime_vres": maze_publication["gime_vres"],
-                                     "pending": maze_publication["pending"],
-                                     "render_flags": read_byte(client, RENDER_FLAGS),
-                                     "RF_STAGE_cleared": (read_byte(client, RENDER_FLAGS) & RF_STAGE) == 0,
-                                     "commit_advanced_from_preview":
-                                         ((maze_publication["commit_seq"] - preview_commit) & 0xFFFF) != 0,
-                                     "masks": maze_masks, "word_pixels": maze_word_result,
-                                     "word_crop_matches_preview": maze_word_identity,
-                                     "word_crop_identity": maze_word_result.get("sha256")}
+        maze_publication_record = {"screen_role": "first-maze-after-stage2-release",
+                                   "commit_seq": maze_publication["commit_seq"],
+                                   "owner": maze_publication["owner"],
+                                   "physical_base": maze_publication["physical_base"],
+                                   "frame_sha256": sha(maze_frame),
+                                   "gime_mode": maze_publication["gime_mode"],
+                                   "gime_vres": maze_publication["gime_vres"],
+                                   "pending": maze_publication["pending"],
+                                   "render_flags": read_byte(client, RENDER_FLAGS),
+                                   "RF_STAGE_cleared": (read_byte(client, RENDER_FLAGS) & RF_STAGE) == 0,
+                                   "commit_advanced_from_preview": commit_advanced_from(
+                                       maze_publication["commit_seq"], preview_commit),
+                                   "masks": maze_masks, "word_pixels": maze_word_result,
+                                   "word_crop_matches_preview": maze_word_identity,
+                                   "word_crop_identity": maze_word_result.get("sha256")}
+        if scenario == "preview-publication":
+            maze_publication_record["commit_seq_at_RF_STAGE_entry"] = stage_render_commit
+            maze_publication_record["commit_advanced_from_RF_STAGE_entry"] = commit_advanced_from(
+                maze_publication["commit_seq"], stage_render_commit)
+        cases["maze_publication"] = maze_publication_record
         cases["phases"].append({"name": "stage2-release-through-first-maze-scanout",
                                 "elapsed_seconds": round(45 - phase.remaining(), 3),
                                 "stops": phase.stops, "release_pc": hex(release_pc)})
-        cases["result"] = "product_reproduced" if cases["product_findings"] else "candidate_hidden_owner_pass"
+        if cases["product_findings"]:
+            cases["result"] = "product_reproduced"
+        elif scenario == "preview-publication":
+            cases["result"] = "candidate_preview_to_maze_pass_second_preview_owner_untested"
+            cases["second_published_preview_owner_runtime_untested"] = True
+        else:
+            cases["result"] = "candidate_hidden_owner_pass"
         output.parent.mkdir(parents=True, exist_ok=True)
         output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         return cases
@@ -3937,9 +4364,10 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", type=Path, default=BUILD_DEFAULT)
-    parser.add_argument("--scenario", choices=("scheduled-step", "hidden-owner", "stage-entry"),
+    parser.add_argument("--scenario", choices=("scheduled-step", "hidden-owner", "stage-entry",
+                                                "preview-publication"),
                         default="scheduled-step",
-                        help="select the legacy scheduled-step, BUG-046 hidden-owner, or BUG-117 full-walk path")
+                        help="select a legacy scheduled-step, BUG-046 hidden-owner/preview-publication, or BUG-117 path")
     parser.add_argument("--case", choices=("neutral", "held"))
     parser.add_argument("--paired-neutral", type=Path)
     parser.add_argument("--xroar", type=Path)
@@ -4019,6 +4447,29 @@ def main(argv: list[str] | None = None) -> int:
                               "python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario hidden-owner --build repro/bug046-display-repair-20261015/capsule/build --run-live --output repro/bug046-hidden-owner-20261015/hidden-owner.json"],
                           "commands_are_proposals_only": True,
                           "runtime_readiness": "offline preparation only; parent lease and review required"}
+            elif args.scenario == "preview-publication":
+                pins = artifact_check(args.build)
+                result = {"scenario": "preview-publication", "pins": pins,
+                          "source_equivalence": offline_preview_publication_check(
+                              HIDDEN_BUILD, BUILD_DEFAULT),
+                          "oracle_fixture_qualification": hidden_offline_qualification(),
+                          "offline_self_test": self_test(),
+                          "probe_sha256": file_sha(Path(__file__)),
+                          "helper_sha256": {"monitor": file_sha(ROOT / "scripts" / "verify_bug009_monitor_input.py"),
+                                            "runtime": file_sha(ROOT / "scripts" / "verify_bug011_runtime.py")},
+                          "runtime_authorized": False, "capsule_only": True,
+                          "max_runs": 1, "second_published_preview_owner_runtime_untested": True,
+                          "phase_contract": {"phase_seconds_max": PHASE_SECONDS,
+                                             "stop_seconds_max": STOP_SECONDS,
+                                             "stops_per_phase_max": MAX_STOPS,
+                                             "phases_per_run": 3, "max_runs": 1,
+                                             "max_seconds_per_run": 135,
+                                             "max_seconds_total": 135,
+                                             "retry_policy": "none"},
+                          "proposed_runtime_commands": [
+                              "python3 -B repro/stage-preview-diagnosis-20261014/probe.py --scenario preview-publication --build repro/bug046-display-repair-20261015/capsule/build --run-live --output repro/bug046-hidden-owner-20261015/published-preview.json"],
+                          "commands_are_proposals_only": True,
+                          "runtime_readiness": "offline only; parent review and exclusive one-run lease required"}
             else:
                 pins = artifact_check(args.build)
                 result = {"pins": pins, "source_site_check": offline_source_site_check(args.build),
@@ -4040,8 +4491,10 @@ def main(argv: list[str] | None = None) -> int:
                           "commands_are_proposals_only": True}
             if args.write_preparation:
                 preparation_root = (STAGE_ENTRY_OWNED if args.scenario == "stage-entry" else
-                                    HIDDEN_OWNED if args.scenario == "hidden-owner" else SCHEDULED_OWNED)
+                                    HIDDEN_OWNED if args.scenario in ("hidden-owner", "preview-publication")
+                                    else SCHEDULED_OWNED)
                 default_name = ("preparation.json" if args.scenario == "stage-entry" else
+                                "preview-publication-preparation.json" if args.scenario == "preview-publication" else
                                 "offline-preparation.json" if args.scenario == "hidden-owner" else
                                 "preparation-final.json")
                 manifest_path = (args.preparation_output or (preparation_root / default_name)).resolve()
@@ -4073,6 +4526,16 @@ def main(argv: list[str] | None = None) -> int:
             if args.output is None:
                 parser.error("hidden-owner runtime requires --output inside repro/bug046-hidden-owner-20261015/")
             result = run_hidden_case(args)
+            print(json.dumps({"result": result.get("result"), "output": str(args.output),
+                              "sha256": file_sha(Path(args.output)) if Path(args.output).is_file() else None},
+                             indent=2, sort_keys=True))
+            return 0
+        if args.scenario == "preview-publication":
+            if args.case is not None or args.paired_neutral is not None:
+                parser.error("preview-publication scenario has no --case or --paired-neutral mode")
+            if args.output is None:
+                parser.error("preview-publication runtime requires a fresh --output in repro/bug046-hidden-owner-20261015/")
+            result = run_hidden_case(args, scenario="preview-publication")
             print(json.dumps({"result": result.get("result"), "output": str(args.output),
                               "sha256": file_sha(Path(args.output)) if Path(args.output).is_file() else None},
                              indent=2, sort_keys=True))
