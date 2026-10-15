@@ -19,11 +19,18 @@ from typing import Any, Callable
 
 ROOT = Path(__file__).resolve().parents[2]
 SCHEDULED_OWNED = ROOT / "repro" / "bug117-scheduled-step-20261015"
+STAGE_ENTRY_OWNED = ROOT / "repro" / "bug117-stage-repair-20261015" / "observer"
 CAPSULE = ROOT / "repro" / "bug122-integration-20261014" / "capsule"
 BUILD_DEFAULT = CAPSULE / "build"
 ROM_SHA = "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5"
 RECEIPT_SHA = "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc"
 REVISION = "3926a4ad73bae3665e619cf9c3154cb8d3d2ed60"
+STAGE_ENTRY_BUILD = ROOT / "repro" / "bug117-stage-repair-20261015" / "capsule" / "build"
+STAGE_ENTRY_ROM_SHA = "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29"
+STAGE_ENTRY_RECEIPT_SHA = "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a"
+STAGE_ENTRY_REVISION = "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3"
+STAGE_ENTRY_MAIN_SHA = "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4"
+STAGE_ENTRY_GUARD = bytes.fromhex("d618da06270a")
 HIDDEN_OWNED = ROOT / "repro" / "bug046-hidden-owner-20261015"
 HIDDEN_CAPSULE = ROOT / "repro" / "bug046-display-repair-20261015" / "capsule"
 HIDDEN_BUILD = HIDDEN_CAPSULE / "build"
@@ -70,6 +77,9 @@ STAGE, DOTS_LEFT, STAGE_PENDING = 0x24, 0x25, 0x26
 SPECIAL, EXTRA, BONUS_LEFT, INITIAL_ENTRY, RENDER_FLAGS = 0x3C, 0x3D, 0x33, 0xA0, 0x7F
 MAZE_STATE, PAR5 = 0xA000, 0xFFA5
 ENTITY_COUNT, ENTITY_TABLE = 0x32, 0xA380
+BOX_TIMER, BOX_INDEX = 0x4A, 0x4B
+ENEMY_ACTIVE, ENEMY_RELEASED, ENEMY_ROAMING = 0x58, 0x59, 0x7E
+ENEMY_TABLE, ENEMY_RECORD_SIZE, ENEMY_RECORDS = 0xA470, 8, 4
 FRAMES, PLAYER_ERASED, PLAYER_BG_VALID = 0x02, 0x69, 0x6A
 DEATH_STATE, PICKUP_TIMER, TURN_SNAP = 0x4D, 0x51, 0x56
 PLAYER_TICK_PENDING, RENDER_FLAGS2 = 0x6B, 0x80
@@ -118,6 +128,8 @@ def artifact_check(build: Path) -> dict[str, Any]:
     build = build.resolve()
     pins = {
         BUILD_DEFAULT.resolve(): (RECEIPT_SHA, ROM_SHA, REVISION, "known-broken"),
+        STAGE_ENTRY_BUILD.resolve(): (STAGE_ENTRY_RECEIPT_SHA, STAGE_ENTRY_ROM_SHA,
+                                      STAGE_ENTRY_REVISION, "stage-entry-repair-candidate"),
         HIDDEN_BUILD.resolve(): (HIDDEN_RECEIPT_SHA, HIDDEN_ROM_SHA,
                                  HIDDEN_REVISION, "hidden-owner-candidate"),
     }
@@ -138,6 +150,8 @@ def artifact_check(build: Path) -> dict[str, Any]:
     artifacts = receipt.get("artifacts", {})
     if len(inputs) != 266 or len(generated) != 4:
         raise ProbeError("receipt must contain exactly 266 authored inputs and four generated inputs")
+    if identity == "stage-entry-repair-candidate" and inputs.get("src/main.s") != STAGE_ENTRY_MAIN_SHA:
+        raise ProbeError("stage-entry candidate main.s hash differs from the approved guard capsule")
     checked_inputs = 0
     for rel, expected in inputs.items():
         path = capsule / rel
@@ -283,6 +297,340 @@ def offline_scheduled_step_check(build: Path) -> dict[str, Any]:
                                                "step-one draw branch").hex(),
         "draw_tail_returns_without_position_write": bytes_at(main_listing, marker_addr(main_map, "pt_draw"), 15,
                                                                "draw tail through return").hex(),
+    }
+
+
+def calls_to(listing: dict[int, int], target: int, origin: int, end: int) -> list[int]:
+    """Return absolute JSR targets found in one receipt-pinned listing range."""
+    return [address for address in range(origin, end - 2)
+            if listing.get(address) == 0xBD and
+            listing.get(address + 1) == (target >> 8) and
+            listing.get(address + 2) == (target & 0xFF)]
+
+
+def relative_calls_to(listing: dict[int, int], target: int, start: int, end: int) -> list[int]:
+    """Return LBSR sites resolving to target inside one candidate listing range."""
+    found = []
+    for address in range(start, end - 2):
+        if listing.get(address) != 0x17 or address + 2 not in listing:
+            continue
+        displacement = int.from_bytes(bytes((listing[address + 1], listing[address + 2])),
+                                      "big", signed=True)
+        if (address + 3 + displacement) & 0xFFFF == target:
+            found.append(address)
+    return found
+
+
+def offline_stage_enemy_source_check(build: Path) -> dict[str, Any]:
+    """Qualify stage reset, enemy record layout, and release cadence offline."""
+    main_map = symbols_for(build, "ladybug.map")
+    enemy_map = symbols_for(build, "ladybug-enemy-runtime.map")
+    main_listing = listing_byte_map(build / "ladybug.lst")
+    enemy_listing = listing_byte_map(build / "ladybug-enemy-runtime.lst")
+    main_image = (build / "ladybug-runtime.rom").read_bytes()
+    enemy_image = (build / "ladybug-enemy-runtime.rom").read_bytes()
+    expected = {"ENEMY_TABLE": ENEMY_TABLE, "RECORD_SIZE": ENEMY_RECORD_SIZE,
+                "ENEMY_ACTIVE": ENEMY_ACTIVE, "ENEMY_RELEASED": ENEMY_RELEASED,
+                "BOX_TIMER": BOX_TIMER, "BOX_INDEX": BOX_INDEX}
+    if any(enemy_map.get(name) != value for name, value in expected.items()):
+        raise ProbeError("candidate enemy record or spawner symbols differ from the approved source layout")
+    next_stage = marker_addr(main_map, "next_stage")
+    init_enemy = marker_addr(main_map, "init_enemy")
+    reset_enemy = marker_addr(main_map, "reset_enemy_state")
+    reset_clear = marker_addr(main_map, "reset_enemy_clear")
+    perimeter = marker_addr(main_map, "perimeter_timer_tick")
+    ptt_done = marker_addr(main_map, "ptt_done")
+    release = marker_addr(main_map, "enemy_release")
+    enemy_init = marker_addr(enemy_map, "enemy_init_impl")
+    enemy_contact = marker_addr(enemy_map, "enemy_player_contact")
+    enemy_release_impl = marker_addr(enemy_map, "enemy_release_impl")
+    stage_init_calls = relative_calls_to(main_listing, init_enemy, next_stage, next_stage + 0x80)
+    reset_calls = relative_calls_to(enemy_listing, reset_enemy, enemy_init, enemy_init + 0x20)
+    timer_release_calls = relative_calls_to(main_listing, release, perimeter, ptt_done)
+    if len(stage_init_calls) != 1 or len(reset_calls) != 1 or len(timer_release_calls) != 1:
+        raise ProbeError("candidate stage reset or timed-release call path is not unique")
+    reset_tail = bytes_at(main_listing, reset_clear - 2, 8, "32-byte enemy table clear loop")
+    reset_tail_staged = main_image[reset_clear - 2 - 0xC000:reset_clear + 6 - 0xC000]
+    if reset_tail != bytes.fromhex("c6206f805a26fb39") or reset_tail != reset_tail_staged:
+        raise ProbeError("candidate enemy reset no longer clears exactly four 8-byte records")
+    init_bridge = bytes_at(main_listing, init_enemy, 3, "enemy init dispatch bridge")
+    init_bridge_staged = main_image[init_enemy - 0xC000:init_enemy - 0xC000 + 3]
+    if init_bridge != bytes.fromhex("7ea469") or init_bridge != init_bridge_staged:
+        raise ProbeError("candidate next-stage enemy initializer dispatch changed")
+    init_call = reset_calls[0]
+    init_call_bytes = bytes_at(enemy_listing, init_call, 3, "enemy init reset call")
+    enemy_init_staged = enemy_image[init_call - ENEMY_ORIGIN:init_call - ENEMY_ORIGIN + 3]
+    if init_call_bytes != enemy_init_staged:
+        raise ProbeError("enemy-init source/staged reset call differs")
+    contact_window = bytes_at(enemy_listing, enemy_contact, 16, "enemy/player collision neighborhood")
+    contact_staged = enemy_image[enemy_contact - ENEMY_ORIGIN:enemy_contact - ENEMY_ORIGIN + 16]
+    release_window = bytes_at(enemy_listing, enemy_release_impl, 16, "enemy release record publication")
+    release_staged = enemy_image[enemy_release_impl - ENEMY_ORIGIN:
+                                 enemy_release_impl - ENEMY_ORIGIN + 16]
+    if contact_window != contact_staged or release_window != release_staged:
+        raise ProbeError("candidate enemy collision/release source bytes differ from staged image")
+    timer_window = bytes_at(main_listing, perimeter, ptt_done - perimeter,
+                            "perimeter timer and enemy-release threshold")
+    timer_staged = main_image[perimeter - 0xC000:ptt_done - 0xC000]
+    if timer_window != timer_staged:
+        raise ProbeError("candidate perimeter timer source/staged bytes differ")
+    return {"result": "pass", "record_table": hex(ENEMY_TABLE),
+            "record_size": ENEMY_RECORD_SIZE, "record_count": ENEMY_RECORDS,
+            "enemy_init_symbol": hex(enemy_init), "enemy_reset_call": hex(init_call),
+            "stage_init_call": hex(stage_init_calls[0]),
+            "reset_loop_source_staged_hex": reset_tail.hex(),
+            "init_dispatch_source_staged_hex": init_bridge.hex(),
+            "collision_source_staged_sha256": sha(contact_window),
+            "release_source_staged_sha256": sha(release_window),
+            "timer_source_staged_sha256": sha(timer_window),
+            "timer_release_call": hex(timer_release_calls[0]),
+            "source_interpretation": {
+                "active_record": "record byte 0 is nonzero; cell x/y are offsets 4/5",
+                "collision_neighborhood": "enemy_player_contact compares each cell-axis distance to 1",
+                "released_counter": "monotonic per-stage release count at $0059",
+                "release_cadence": "92 perimeter cells; stage 2 reloads a six-tick box interval",
+                "collectibles_excluded": "ENTITY_TABLE at $A380 is not roaming ENEMY_TABLE at $A470"}}
+
+
+def stage_guard_contract(manual: int, direction: int, entry_state: int = 0) -> dict[str, Any]:
+    """Specification truth table only; this is not a 6809 instruction emulator."""
+    suppress = bool(entry_state) or ((manual | direction) == 0)
+    return {"manual": manual, "direction": direction, "entry_state": entry_state,
+            "suppressed": suppress, "admitted": not suppress}
+
+
+def validate_stage_guard(barrier: bytes, guard: bytes, request: int, done: int) -> dict[str, Any]:
+    if barrier != bytes.fromhex("0da02610") or guard != STAGE_ENTRY_GUARD:
+        raise ProbeError("guard bytes are absent, misplaced, or incorrect")
+    relative = guard[5] if guard[5] < 0x80 else guard[5] - 0x100
+    target = request + 10 + relative
+    if target != done:
+        raise ProbeError("guard BEQ target does not resolve to rj_done")
+    return {"request_pc": hex(request), "guard_pc": hex(request + 4),
+            "source_hex": guard.hex(), "branch_target": hex(target),
+            "done_pc": hex(done)}
+
+
+def stage_walk_pose(advance: int) -> dict[str, Any]:
+    if not 0 <= advance <= 16:
+        raise ProbeError("stage walk ordinal is outside the approved 0..16 path")
+    return {"cell": [12, 22 - advance // 4],
+            "fb": hex(0x89EC - 320 * advance), "step": advance % 4}
+
+
+def stage_post_ready_pose(completed_draws: int, direction: int) -> dict[str, Any]:
+    if not 0 <= completed_draws <= 3 or direction not in (DIR_NORTH, DIR_SOUTH):
+        raise ProbeError("post-ready predecessor is outside the approved 0..3 draw path")
+    delta = 320 * completed_draws * (1 if direction == DIR_SOUTH else -1)
+    cell_y = 18 + completed_draws // 4 * (1 if direction == DIR_SOUTH else -1)
+    return {"cell": [12, cell_y], "fb": hex(0x75EC + delta),
+            "step": completed_draws % 4}
+
+
+def validate_post_ready_predecessor(snapshot: dict[str, Any], completed_draws: int,
+                                    direction: int) -> list[str]:
+    try:
+        expected = stage_post_ready_pose(completed_draws, direction)
+    except ProbeError as exc:
+        return [str(exc)]
+    errors = []
+    if snapshot.get("pose") != expected:
+        errors.append("post-ready player-tick predecessor differs from the completed draw ordinal")
+    input_state = snapshot.get("input", {})
+    expected_player_dir = DIR_NONE if completed_draws == 0 else direction
+    if (input_state.get("player_manual"), input_state.get("player_dir"),
+            input_state.get("player_face"), input_state.get("player_want"),
+            input_state.get("joy_dir")) != \
+            (1, expected_player_dir, direction, direction, direction):
+        errors.append("post-ready predecessor lost the sampled manual direction")
+    return errors
+
+
+def validate_stage_walk_entry(snapshot: dict[str, Any], advance: int, case: str) -> list[str]:
+    """Check one observed pre-move record; return discrepancies for fail-closed callers."""
+    if case not in ("neutral", "held") or not 0 <= advance < 16:
+        return ["invalid approved case or movement ordinal"]
+    errors = []
+    if snapshot.get("pose") != stage_walk_pose(advance):
+        errors.append("position/step does not match the source-derived movement ordinal")
+    input_state = snapshot.get("input", {})
+    expected_axes = (32, 64) if case == "held" else (32, 32)
+    if (input_state.get("joy_x"), input_state.get("joy_y")) != expected_axes:
+        errors.append("sampled raw axes do not match neutral/held fixture")
+    if (input_state.get("joy_dir"), input_state.get("player_dir"),
+            input_state.get("player_face"), input_state.get("player_want"),
+            input_state.get("player_manual")) != (DIR_NONE, DIR_NORTH, DIR_NORTH,
+                                                    DIR_NONE, 0):
+        errors.append("automatic entry input publication invariant changed before center stop")
+    return errors
+
+
+def offline_stage_entry_check(build: Path) -> dict[str, Any]:
+    """Qualify the approved candidate guard, adaptive callers, and fixed lane offline."""
+    build = build.resolve()
+    if build != STAGE_ENTRY_BUILD.resolve():
+        raise ProbeError("stage-entry qualification is pinned to the approved combined candidate capsule")
+    pins = artifact_check(build)
+    broken_pins = artifact_check(BUILD_DEFAULT)
+    candidate_map = symbols_for(build, "ladybug.map")
+    candidate_listing = listing_byte_map(build / "ladybug.lst")
+    candidate_main = (build / "ladybug-runtime.rom").read_bytes()
+    broken_map = symbols_for(BUILD_DEFAULT, "ladybug.map")
+    broken_listing = listing_byte_map(BUILD_DEFAULT / "ladybug.lst")
+    broken_main = (BUILD_DEFAULT / "ladybug-runtime.rom").read_bytes()
+
+    request = marker_addr(candidate_map, "rj_request")
+    done = marker_addr(candidate_map, "rj_done")
+    barrier = bytes_at(candidate_listing, request, 4, "initial-entry input barrier")
+    guard = bytes_at(candidate_listing, request + 4, len(STAGE_ENTRY_GUARD), "six-byte stage guard")
+    runtime_guard = candidate_main[request + 4 - 0xC000:request + 10 - 0xC000]
+    branch_pc = request + 8
+    relative = guard[5] if guard[5] < 0x80 else guard[5] - 0x100
+    branch_target = branch_pc + 2 + relative
+    guard_proof = validate_stage_guard(barrier, guard, request, done)
+    if runtime_guard != guard or branch_target != done:
+        raise ProbeError("candidate guard is not the exact post-initial-entry six-byte source/staged branch")
+    broken_request = marker_addr(broken_map, "rj_request")
+    broken_guard_window = bytes_at(broken_listing, broken_request + 4,
+                                   len(STAGE_ENTRY_GUARD), "frozen broken guard window")
+    if broken_guard_window == STAGE_ENTRY_GUARD:
+        raise ProbeError("frozen broken capsule unexpectedly contains the candidate guard")
+
+    # Bind the candidate listing to its staged image and the defective fixture
+    # to its own immutable image. The unrelated BUG-046 difference in the
+    # combined candidate is reported rather than attributed to BUG-117.
+    candidate_inputs = json.loads((build / "source-build-receipt.json").read_text(encoding="utf-8"))["inputs"]
+    broken_inputs = json.loads((BUILD_DEFAULT / "source-build-receipt.json").read_text(encoding="utf-8"))["inputs"]
+    input_deltas = [{"path": name, "broken_sha256": broken_inputs.get(name),
+                     "candidate_sha256": candidate_inputs.get(name)}
+                    for name in sorted(set(candidate_inputs) | set(broken_inputs))
+                    if candidate_inputs.get(name) != broken_inputs.get(name)]
+    if sorted(item["path"] for item in input_deltas) != ["src/main.s", "src/shared_text_stage.inc"]:
+        raise ProbeError("combined candidate authored-input delta changed from the reviewed BUG-046/117 capsules")
+
+    main_symbols = ("player_tick", "pt_at_center", "pt_choose_direction", "pt_advance",
+                    "pt_north", "pt_store_fb", "pt_cell_north", "pt_draw", "can_move",
+                    "cm_entry_masks")
+    main_symbol_addresses = {name: hex(marker_addr(candidate_map, name)) for name in main_symbols}
+    center = marker_addr(candidate_map, "pt_at_center")
+    center_source = bytes_at(candidate_listing, center, 25, "automatic center-stop branch")
+    expected_center = bytes.fromhex("961826159609810c260f960a8112260986ff9706970f1600c4")
+    if center_source != expected_center:
+        raise ProbeError("candidate player center-stop path no longer clears direction/request without movement")
+    entry_masks = bytes_at(candidate_listing, marker_addr(candidate_map, "cm_entry_masks"), 4,
+                           "reciprocal movement entry masks")
+    if entry_masks != bytes.fromhex("04080102"):
+        raise ProbeError("candidate can_move reciprocal entry-mask order changed")
+    staged_source_points = {}
+    for name in main_symbols:
+        address = marker_addr(candidate_map, name)
+        count = 4 if name == "cm_entry_masks" else 16
+        source = bytes_at(candidate_listing, address, count, "main source/staged marker " + name)
+        staged = candidate_main[address - 0xC000:address - 0xC000 + count]
+        if source != staged:
+            raise ProbeError("candidate source/staged main bytes differ at " + name)
+        staged_source_points[name] = {"address": hex(address), "length": count,
+                                      "sha256": sha(source)}
+
+    capsule = build.parent
+    maze_path = capsule / "assets" / "arcade" / "maze.json"
+    maze_doc = json.loads(maze_path.read_text(encoding="utf-8"))
+    if tuple(maze_doc.get("dimensions", ())) != (24, 24):
+        raise ProbeError("source maze dimensions differ from the approved 24x24 map")
+    nav = bytes(value for row in maze_doc["maze_nav"] for value in row)
+    gates = bytes(value for row in maze_doc["gate_owner"] for value in row)
+    if len(nav) != 576 or len(gates) != 576:
+        raise ProbeError("source maze nav/gate tables are not complete 24x24 arrays")
+    nav_addr = marker_addr(candidate_map, "maze_nav")
+    gate_addr = marker_addr(candidate_map, "maze_gate_owner")
+    staged_nav = candidate_main[nav_addr - 0xC000:nav_addr - 0xC000 + 576]
+    staged_gates = candidate_main[gate_addr - 0xC000:gate_addr - 0xC000 + 576]
+    if staged_nav != nav or staged_gates != gates:
+        raise ProbeError("authored maze nav/gate arrays differ from candidate staged tables")
+    route_edges = []
+    edges = [("automatic-north", (12, y), (12, y - 1), 0, 0x04)
+             for y in range(22, 18, -1)]
+    edges.extend([("post-ready-up", (12, 18), (12, 17), 0, 0x04),
+                  ("held-down", (12, 18), (12, 19), 0x02, 0x01)])
+    for label, origin, target, direction_bit, reciprocal_bit in edges:
+        ox, oy = origin
+        tx, ty = target
+        origin_nav, target_nav = nav[oy * 24 + ox], nav[ty * 24 + tx]
+        target_gate = gates[ty * 24 + tx]
+        if not (origin_nav & (1 << direction_bit)) or not (target_nav & reciprocal_bit) or target_gate != 0:
+            raise ProbeError("authored stage lane has an illegal or gated edge: " + label)
+        route_edges.append({"label": label, "origin": list(origin), "target": list(target),
+                            "origin_nav": origin_nav, "target_nav": target_nav,
+                            "target_gate_owner": target_gate, "source_legal": True})
+
+    active_map = symbols_for(build, "ladybug-adaptive-active.map")
+    active_listing = listing_byte_map(build / "ladybug-adaptive-active.lst")
+    active_staged = (build / "ladybug-adaptive-active.bin").read_bytes()
+    read_site = calls_to(active_listing, marker_addr(candidate_map, "read_joystick"),
+                         ACTIVE_ORIGIN, ACTIVE_ORIGIN + len(active_staged))
+    tick_site = calls_to(active_listing, marker_addr(candidate_map, "player_tick"),
+                         ACTIVE_ORIGIN, ACTIVE_ORIGIN + len(active_staged))
+    atb = marker_addr(active_map, "atb_no_popup")
+    if (len(read_site) != 1 or len(tick_site) != 1 or
+            marker_addr(active_map, "player_tick") != marker_addr(candidate_map, "player_tick")):
+        raise ProbeError("adaptive active module does not expose unique input and movement callsites")
+    read_call, tick_call = read_site[0], tick_site[0]
+    read_return, tick_return = read_call + 3, tick_call + 3
+    caller_prefix = bytes_at(active_listing, atb, tick_return - atb,
+                             "pending-gated adaptive player caller")
+    expected_prefix = bytes.fromhex("0d4d260c0d6b27080f6bbdcb71")
+    if (caller_prefix != expected_prefix or tick_call != atb + 10 or
+            bytes_at(active_listing, read_call, 3, "adaptive input call") !=
+            bytes.fromhex("bd" + f"{marker_addr(candidate_map, 'read_joystick'):04x}") or
+            bytes_at(active_listing, tick_call, 3, "adaptive player call") !=
+            bytes.fromhex("bd" + f"{marker_addr(candidate_map, 'player_tick'):04x}")):
+        raise ProbeError("adaptive input/player caller bytes do not match candidate source ordering")
+    for address, count, label in ((read_call, 3, "input call"),
+                                  (tick_call, len(caller_prefix) - 10, "pending/player caller")):
+        source = bytes_at(active_listing, address, count, label)
+        staged = active_staged[address - ACTIVE_ORIGIN:address - ACTIVE_ORIGIN + count]
+        if source != staged:
+            raise ProbeError("active module source/staged caller bytes differ: " + label)
+
+    contracts = [stage_guard_contract(0, DIR_NORTH),
+                 stage_guard_contract(0, DIR_NONE),
+                 stage_guard_contract(1, DIR_NORTH),
+                 stage_guard_contract(0, DIR_NONE, entry_state=1)]
+    if [item["admitted"] for item in contracts] != [False, True, True, False]:
+        raise ProbeError("stage guard contract truth table failed")
+    enemy_setup = offline_stage_enemy_source_check(build)
+    return {
+        "result": "pass", "pins": pins, "frozen_broken": broken_pins,
+        "authored_input_deltas_vs_broken": input_deltas,
+        "guard": {"request_pc": hex(request), "initial_entry_barrier_hex": barrier.hex(),
+                  "guard_pc": hex(request + 4), "source_hex": guard.hex(),
+                  "staged_hex": runtime_guard.hex(), "branch_target": hex(branch_target),
+                  "done_pc": hex(done), "frozen_broken_window_hex": broken_guard_window.hex(),
+                  "name_manual0_dir_none_admitted": contracts[1]["admitted"],
+                  "ordinary_manual_north_admitted": contracts[2]["admitted"],
+                  "automatic_manual0_dir_north_suppressed": not contracts[0]["admitted"],
+                  "initial_entry_still_suppressed": not contracts[3]["admitted"],
+                  "semantics_method": "specification truth table; no CPU interpreter"},
+        "movement_source_points": staged_source_points,
+        "enemy_reset_and_release_source": enemy_setup,
+        "center_stop_source_hex": center_source.hex(),
+        "reciprocal_entry_masks_hex": entry_masks.hex(),
+        "adaptive_callers": {"input_call": hex(read_call), "input_return": hex(read_return),
+                             "player_call": hex(tick_call), "player_return": hex(tick_return),
+                             "pending_clear_before_player_tick": True,
+                             "input_sample_order": "adaptive input call runs before pending-gated player_tick"},
+        "authored_maze_sha256": file_sha(maze_path),
+        "candidate_staged_nav_sha256": sha(staged_nav),
+        "candidate_staged_gate_sha256": sha(staged_gates),
+        "route_edges": route_edges,
+        "walk_model": [{"advance": n, "cell": [12, 22 - n // 4],
+                        "fb": hex(0x89EC - 320 * n), "step": n % 4}
+                       for n in range(17)],
+        "runtime_enemy_safety": "dynamic authoritative ENEMY_TABLE and release-state preflight at every observed player_tick; unsafe lane occupancy is missing coverage, no route search",
+        "runtime_and_manual_claims": {"live_runtime_observed": False,
+                                      "manual_name_replacement": "pending",
+                                      "adaptive_input_order": "source/staged only",
+                                      "nonadaptive_profile": "not covered by this keyboard/adaptive scenario"},
     }
     if route != {"north_delta_minus_320": "3089fec0",
                  "store_fb_and_increment_step": "9f0b0c089608",
@@ -919,11 +1267,13 @@ def self_test() -> dict[str, Any]:
     # backed only by the receipt-pinned staged images. No process or socket is
     # created by these tests.
     class ImageMonitor:
-        def __init__(self, par0: int = 0x38, corrupt_physical: bool = False):
+        def __init__(self, par0: int = 0x38, corrupt_physical: bool = False,
+                     build: Path = BUILD_DEFAULT):
             self.par0, self.corrupt_physical = par0, corrupt_physical
-            self.runtime = (BUILD_DEFAULT / "ladybug-runtime.rom").read_bytes()
-            self.enemy = (BUILD_DEFAULT / "ladybug-enemy-runtime.rom").read_bytes()
-            self.presentation = (BUILD_DEFAULT / "ladybug-presentation-runtime.bin").read_bytes()
+            self.runtime = (build / "ladybug-runtime.rom").read_bytes()
+            self.enemy = (build / "ladybug-enemy-runtime.rom").read_bytes()
+            self.presentation = (build / "ladybug-presentation-runtime.bin").read_bytes()
+            self.active = (build / "ladybug-adaptive-active.bin").read_bytes()
             self.calls: list[str] = []
         def _read(self, deadline: float) -> dict[str, Any]:
             raise AssertionError("site qualification should not use transport reads")
@@ -949,6 +1299,8 @@ def self_test() -> dict[str, Any]:
                         value = self.presentation[offset - PRES]
                     elif page == 0x38 and ENEMY_ORIGIN <= offset < ENEMY_ORIGIN + len(self.enemy):
                         value = self.enemy[offset - ENEMY_ORIGIN]
+                    elif page == 0x38 and ACTIVE_ORIGIN <= offset < ACTIVE_ORIGIN + len(self.active):
+                        value = self.active[offset - ACTIVE_ORIGIN]
                     elif page == 0x3E:
                         value = self.runtime[offset]
                     elif page == 0x3F and offset < 0x1E00:
@@ -963,6 +1315,8 @@ def self_test() -> dict[str, Any]:
                     value = self.presentation[pos - PRES]
                 elif ENEMY_ORIGIN <= pos < ENEMY_ORIGIN + len(self.enemy):
                     value = self.enemy[pos - ENEMY_ORIGIN]
+                elif ACTIVE_ORIGIN <= pos < ACTIVE_ORIGIN + len(self.active):
+                    value = self.active[pos - ACTIVE_ORIGIN]
                 else:
                     raise AssertionError("fake CPU read outside qualified sites")
                 out.append(value)
@@ -1057,6 +1411,131 @@ def self_test() -> dict[str, Any]:
         pass
     finally:
         guarded.close()
+    # Candidate-relative BUG-117 source/site qualification has its own fixture;
+    # it proves the active-page mapping without launching XRoar.
+    stage_static = offline_stage_entry_check(STAGE_ENTRY_BUILD)
+    assert stage_static["result"] == "pass"
+    stage_entry_assertions = ["candidate/frozen-broken guard and source/staged bytes",
+        "candidate caller and CPU/physical mapping positives plus mapping negatives",
+        "sixteen-step ordinal/input fixtures and position/input negatives",
+        "post-ready predecessor ordinals 0..3 including initial PLAYER_DIR=DIR_NONE",
+        "authoritative enemy-table safe/unsafe/invalid/mismatch fixtures",
+        "enemy page mapping good/PAR5/PAR6 negatives",
+        "stage enemy-reset/release source and staged-byte proof"]
+    stage_map = symbols_for(STAGE_ENTRY_BUILD, "ladybug.map")
+    stage_qualifier = SiteQualifier(STAGE_ENTRY_BUILD)
+    stage_fake = ImageMonitor(build=STAGE_ENTRY_BUILD)
+    guarded = DeadlineClient(stage_fake, PhaseBudget(20.0), dict(FIXTURE), {KEY_UP})
+    guard_proof = stage_qualifier.qualify(guarded,
+        marker_addr(stage_map, "rj_request") + 4, "main")
+    active_call = stage_static["adaptive_callers"]["input_call"]
+    active_proof = stage_qualifier.qualify(guarded, int(active_call, 16), "active")
+    guarded.close()
+    assert guard_proof["source_sha256"] == guard_proof["staged_sha256"] == \
+           guard_proof["cpu_sha256"] == guard_proof["physical_sha256"]
+    assert active_proof["source_sha256"] == active_proof["staged_sha256"] == \
+           active_proof["cpu_sha256"] == active_proof["physical_sha256"]
+    stage_bad_map = ImageMonitor(par0=0x39, build=STAGE_ENTRY_BUILD)
+    guarded = DeadlineClient(stage_bad_map, PhaseBudget(10.0), dict(FIXTURE), {KEY_UP})
+    try:
+        stage_qualifier.qualify(guarded, int(active_call, 16), "active")
+        raise AssertionError("candidate active-page mapping negative passed")
+    except ProbeError:
+        pass
+    finally:
+        guarded.close()
+    assert "read_memory" not in stage_bad_map.calls
+    stage_bad_physical = ImageMonitor(corrupt_physical=True, build=STAGE_ENTRY_BUILD)
+    guarded = DeadlineClient(stage_bad_physical, PhaseBudget(10.0), dict(FIXTURE), {KEY_UP})
+    try:
+        stage_qualifier.qualify(guarded, marker_addr(stage_map, "rj_request") + 4, "main")
+        raise AssertionError("candidate physical guard-byte negative passed")
+    except ProbeError:
+        pass
+    finally:
+        guarded.close()
+    for barrier, guard in ((bytes.fromhex("0da02610"), bytes(6)),
+                           (bytes.fromhex("0da02610"), bytes.fromhex("d618da062709")),
+                           (bytes.fromhex("0da02611"), STAGE_ENTRY_GUARD)):
+        try:
+            validate_stage_guard(barrier, guard, 0xCB4A, 0xCB5E)
+            raise AssertionError("absent/wrong stage guard fixture passed")
+        except ProbeError:
+            pass
+    stage_entry_negative = False
+    try:
+        validate_stage_guard(bytes.fromhex("0da02610"), STAGE_ENTRY_GUARD,
+                             0xCB4A, 0xCB5F)
+    except ProbeError:
+        stage_entry_negative = True
+    assert stage_entry_negative
+    assert validate_stage_guard(bytes.fromhex("0da02610"), STAGE_ENTRY_GUARD,
+                                0xCB4A, 0xCB5E)["branch_target"] == "0xcb5e"
+    truth = [stage_guard_contract(0, DIR_NORTH)["admitted"],
+             stage_guard_contract(0, DIR_NONE)["admitted"],
+             stage_guard_contract(1, DIR_NORTH)["admitted"]]
+    assert truth == [False, True, True]
+    held_entry = {"pose": stage_walk_pose(7), "input": {"joy_x": 32, "joy_y": 64,
+        "joy_dir": DIR_NONE, "player_dir": DIR_NORTH, "player_face": DIR_NORTH,
+        "player_want": DIR_NONE, "player_manual": 0}}
+    assert validate_stage_walk_entry(held_entry, 7, "held") == []
+    for snapshot, ordinal, case, label in (
+            ({**held_entry, "pose": stage_walk_pose(8)}, 7, "held", "position ordinal"),
+            (held_entry, 17, "held", "out-of-range ordinal"),
+            ({**held_entry, "input": {**held_entry["input"], "joy_y": 32}}, 7, "held", "input axis")):
+        if not validate_stage_walk_entry(snapshot, ordinal, case):
+            raise AssertionError("stage position/input negative passed: " + label)
+    post_ready_snaps = []
+    for ordinal in range(4):
+        pose = stage_post_ready_pose(ordinal, DIR_NORTH)
+        post_ready_snaps.append({"pose": pose, "input": {"player_manual": 1,
+            "player_dir": DIR_NONE if ordinal == 0 else DIR_NORTH,
+            "player_face": DIR_NORTH, "player_want": DIR_NORTH, "joy_dir": DIR_NORTH}})
+        if validate_post_ready_predecessor(post_ready_snaps[-1], ordinal, DIR_NORTH):
+            raise AssertionError("source-derived post-ready predecessor fixture rejected")
+    if not validate_post_ready_predecessor(post_ready_snaps[1], 0, DIR_NORTH):
+        raise AssertionError("post-ready draw-ordinal predecessor negative passed")
+    wrong_initial_dir = {"pose": stage_post_ready_pose(0, DIR_SOUTH),
+        "input": {"player_manual": 1, "player_dir": DIR_SOUTH, "player_face": DIR_SOUTH,
+                  "player_want": DIR_SOUTH, "joy_dir": DIR_SOUTH}}
+    if not validate_post_ready_predecessor(wrong_initial_dir, 0, DIR_SOUTH):
+        raise AssertionError("post-ready initial PLAYER_DIR negative passed")
+    lane_origin, lane_target = (12, 22), (12, 21)
+    empty_lifecycle = {"enemy_active": 0, "enemy_released": 0, "enemy_roaming": 0,
+                       "box_index": 2, "box_timer": 5, "death_state": 0, "pickup_timer": 0}
+    empty_enemy = bytes(ENEMY_RECORD_SIZE * ENEMY_RECORDS)
+    assert stage_enemy_lane_snapshot(empty_enemy, empty_enemy, empty_lifecycle,
+                                     lane_origin, lane_target)["pass"]
+    far_enemy = bytearray(empty_enemy)
+    far_enemy[0:8] = bytes((1, 0x57, 0xEC, 0, 1, 1, 0, 0))
+    far_lifecycle = {**empty_lifecycle, "enemy_active": 1, "enemy_released": 1}
+    assert stage_enemy_lane_snapshot(bytes(far_enemy), bytes(far_enemy), far_lifecycle,
+                                     lane_origin, lane_target)["pass"]
+    near_enemy = bytearray(far_enemy)
+    near_enemy[4], near_enemy[5] = 12, 21
+    if stage_enemy_lane_snapshot(bytes(near_enemy), bytes(near_enemy), far_lifecycle,
+                                 lane_origin, lane_target)["pass"]:
+        raise AssertionError("active enemy lane hazard negative passed")
+    physical_enemy = bytearray(empty_enemy)
+    physical_enemy[0] = 1
+    if stage_enemy_lane_snapshot(empty_enemy, bytes(physical_enemy), empty_lifecycle,
+                                 lane_origin, lane_target)["pass"]:
+        raise AssertionError("enemy CPU/physical mapping negative passed")
+    if stage_enemy_lane_snapshot(bytes(far_enemy), bytes(far_enemy), empty_lifecycle,
+                                 lane_origin, lane_target)["pass"]:
+        raise AssertionError("enemy active counter mismatch negative passed")
+    invalid_enemy = bytearray(empty_enemy)
+    invalid_enemy[0:8] = bytes((1, 0x57, 0xEC, 0, 24, 22, 0, 0))
+    invalid_lifecycle = {**empty_lifecycle, "enemy_active": 1}
+    if stage_enemy_lane_snapshot(bytes(invalid_enemy), bytes(invalid_enemy), invalid_lifecycle,
+                                 lane_origin, lane_target)["pass"]:
+        raise AssertionError("invalid active enemy position negative passed")
+    bad_enemy_mapping = [0x38, 0, 0, 0, 0, 0x35, 0x3E, 0x3F]
+    good_enemy_mapping = [0x38, 0, 0, 0, 0, 0x34, 0x3E, 0x3F]
+    assert stage_enemy_mapping_check(0, good_enemy_mapping)["pass"]
+    if stage_enemy_mapping_check(0, bad_enemy_mapping)["pass"] or \
+            stage_enemy_mapping_check(0, [0x38, 0, 0, 0, 0, 0x34, 0x3D, 0x3F])["pass"]:
+        raise AssertionError("enemy page mapping negative passed")
     write_guard = ImageMonitor()
     guarded = DeadlineClient(write_guard, PhaseBudget(10.0), dict(FIXTURE), {KEY_UP})
     for method, params in (("write_memory", {"addr": 0x3C, "data": "49", "space": "physical"}),
@@ -1174,7 +1653,11 @@ def self_test() -> dict[str, Any]:
         {"before": 17, "published": 18})
     assert hidden_product_negative["result"] == "product_reproduced"
     strict_import_check(Path(__file__).resolve())
-    return {"result": "pass", "checks": 46, "word_tiles": positive["tiles_checked"],
+    return {"result": "pass", "checks": 46,
+            "checks_scope": "pre-existing pixel/BUG-046 oracle checks only",
+            "stage_entry_checks": {"result": "pass", "count": len(stage_entry_assertions),
+                                   "groups": stage_entry_assertions},
+            "word_tiles": positive["tiles_checked"],
             "good_fixture": positive["sha256"], "all_gray_rejected": True,
             "changed_masks_rejected": True,
             "missing_crop_rejected": True, "deadline_floor_rejected": True,
@@ -1321,24 +1804,27 @@ class SiteQualifier:
         self.main = (build / "ladybug-runtime.rom").read_bytes()
         self.enemy = (build / "ladybug-enemy-runtime.rom").read_bytes()
         self.presentation = (build / "ladybug-presentation-runtime.bin").read_bytes()
+        self.active = (build / "ladybug-adaptive-active.bin").read_bytes()
         self.helper = (build / "ladybug-highscore-helper.bin").read_bytes()
         self.hold_helper = (build / "ladybug-perimeter-reset-helper.bin").read_bytes()
         self.listings = {
             "main": listing_byte_map(build / "ladybug.lst"),
             "enemy": listing_byte_map(build / "ladybug-enemy-runtime.lst"),
             "presentation": listing_byte_map(build / "ladybug-presentation-runtime.lst"),
+            "active": listing_byte_map(build / "ladybug-adaptive-active.lst"),
             "banked_helper": listing_byte_map(build / "ladybug-highscore-helper.lst"),
             "hold_helper": listing_byte_map(build / "ladybug-perimeter-reset-helper.lst"),
         }
         self.main_origin = min(self.listings["main"])
         self.enemy_origin = min(self.listings["enemy"])
         self.presentation_origin = min(self.listings["presentation"])
+        self.active_origin = min(self.listings["active"])
         self.helper_origin = min(self.listings["banked_helper"])
         self.hold_helper_origin = min(self.listings["hold_helper"])
         layout = json.loads((build / "ladybug-sparse-layout.json").read_text(encoding="utf-8"))
         placement = layout.get("highscore_helper", {})
         if (self.main_origin != 0xC000 or self.enemy_origin != ENEMY_ORIGIN or
-                self.presentation_origin != PRES or
+                self.presentation_origin != PRES or self.active_origin != ACTIVE_ORIGIN or
                 self.helper_origin != placement.get("stage_address") or
                 placement.get("stage_page") != HIDDEN_HELPER_PAGE or
                 placement.get("bytes") != len(self.helper) or
@@ -1359,6 +1845,10 @@ class SiteQualifier:
             physical_page, physical_offset = 0x38, address
         elif kind == "presentation" and self.presentation_origin <= address < self.presentation_origin + len(self.presentation):
             artifact, source_addr, par_indexes = self.presentation, address - self.presentation_origin, (0,)
+            expected_pars = (0x38,)
+            physical_page, physical_offset = 0x38, address
+        elif kind == "active" and self.active_origin <= address < self.active_origin + len(self.active):
+            artifact, source_addr, par_indexes = self.active, address - self.active_origin, (0,)
             expected_pars = (0x38,)
             physical_page, physical_offset = 0x38, address
         elif kind == "banked_helper" and self.helper_origin <= address < self.helper_origin + len(self.helper):
@@ -2295,6 +2785,741 @@ def source_module_bytes(client: DeadlineClient, build: Path, address: int,
             "par0": par0, "physical_sha256": sha(physical)}
 
 
+def _number(value: Any) -> int:
+    return int(value, 0) if isinstance(value, str) else int(value)
+
+
+def stage_brief_snapshot(client: DeadlineClient, pc: int, event: str) -> dict[str, Any]:
+    """Best-effort short state record, retained before stage observer assertions."""
+    result: dict[str, Any] = {"event": event, "pc": hex(pc), "errors": []}
+    try:
+        gime = client.raw.call("read_gime_state", timeout=3.0)
+        result["gime"] = {"mmu_task": gime.get("mmu_task"),
+                          "task0_pars": gime.get("pars", {}).get("task0"),
+                          "task1_pars": gime.get("pars", {}).get("task1")}
+    except Exception as exc:
+        gime = None
+        result["errors"].append("GIME snapshot: %s: %s" % (type(exc).__name__, exc))
+    try:
+        direct = read_bytes(client, 0, 0xA8)
+        physical = read_bytes(client, 0x38 * 0x2000, 0xA8, "physical")
+        result["direct_page_cpu_sha256"] = sha(direct)
+        result["direct_page_physical_sha256"] = sha(physical)
+        result["direct_page_cpu_physical_match"] = direct == physical
+        result["pose"] = {"cell": [direct[PLAYER_X], direct[PLAYER_Y]],
+                          "fb": hex((direct[PLAYER_FB] << 8) | direct[PLAYER_FB + 1]),
+                          "step": direct[PLAYER_STEP]}
+        result["input"] = {"joy_x": direct[JOY_X], "joy_y": direct[JOY_Y],
+                           "joy_dir": direct[JOY_DIR], "player_dir": direct[PLAYER_DIR],
+                           "player_face": direct[PLAYER_FACE], "player_want": direct[PLAYER_WANT],
+                           "player_manual": direct[PLAYER_MANUAL]}
+        result["flags"] = {"initial_entry_state": direct[INITIAL_ENTRY],
+                           "player_tick_pending": direct[PLAYER_TICK_PENDING],
+                           "box_timer": direct[BOX_TIMER], "box_index": direct[BOX_INDEX],
+                           "enemy_active": direct[ENEMY_ACTIVE],
+                           "enemy_released": direct[ENEMY_RELEASED],
+                           "enemy_roaming": direct[ENEMY_ROAMING],
+                           "death_state": direct[DEATH_STATE],
+                           "pickup_timer": direct[PICKUP_TIMER],
+                           "stage": direct[STAGE], "presentation_mode": direct[PRES_MODE],
+                           "presentation_screen": direct[PRES_SCREEN],
+                           "presentation_context": direct[PRES_CONTEXT]}
+    except Exception as exc:
+        result["errors"].append("direct-page snapshot: %s: %s" % (type(exc).__name__, exc))
+    try:
+        registers = client.raw.call("read_registers", timeout=3.0)
+        result["cpu"] = {key: registers.get(key) for key in ("pc", "s", "cc", "dp")}
+    except Exception as exc:
+        result["errors"].append("CPU snapshot: %s: %s" % (type(exc).__name__, exc))
+    try:
+        result["cycles"] = read_cycles(client)
+    except Exception as exc:
+        result["errors"].append("cycle snapshot: %s: %s" % (type(exc).__name__, exc))
+    result["scripted_keys_down"] = sorted(client.key_down)
+    if gime is not None:
+        pars = gime.get("pars", {}).get("task0", [])
+        result["state_mapping_expected"] = (gime.get("mmu_task") == 0 and len(pars) == 8 and
+                                             _number(pars[0]) == 0x38 and
+                                             (_number(pars[6]), _number(pars[7])) == (0x3E, 0x3F))
+        result["par5_observed_without_release_site_assumption"] = pars[5] if len(pars) == 8 else None
+    return result
+
+
+def _brief_site(proof: dict[str, Any]) -> dict[str, Any]:
+    return {key: proof.get(key) for key in ("kind", "address", "length", "source_sha256",
+                                             "staged_sha256", "cpu_sha256", "physical_sha256",
+                                             "physical_page", "mmu_task")}
+
+
+def stage_enemy_lane_snapshot(cpu_records: bytes, physical_records: bytes,
+                              lifecycle: dict[str, int], origin: tuple[int, int],
+                              target: tuple[int, int]) -> dict[str, Any]:
+    """Validate the four source-defined enemy records against one legal lane edge."""
+    errors: list[str] = []
+    if len(cpu_records) != ENEMY_RECORD_SIZE * ENEMY_RECORDS or \
+            len(physical_records) != ENEMY_RECORD_SIZE * ENEMY_RECORDS:
+        return {"pass": False, "errors": ["enemy table must contain exactly four 8-byte records"]}
+    active_records = []
+    invalid_positions = []
+    nearby = []
+    for index in range(ENEMY_RECORDS):
+        record = cpu_records[index * ENEMY_RECORD_SIZE:(index + 1) * ENEMY_RECORD_SIZE]
+        if record[0] == 0:
+            continue
+        cell = [record[4], record[5]]
+        item = {"index": index, "state": record[0],
+                "framebuffer": hex(int.from_bytes(record[1:3], "big")),
+                "pixel_step": record[3], "cell": cell,
+                "background_valid": record[6], "direction": record[7]}
+        active_records.append(item)
+        x, y = cell
+        if not (0 <= x < 24 and 0 <= y < 24):
+            invalid_positions.append(index)
+        elif any(max(abs(x - hx), abs(y - hy)) <= 1 for hx, hy in (origin, target)):
+            nearby.append(index)
+    if cpu_records != physical_records:
+        errors.append("enemy CPU/physical records differ")
+    if len(active_records) != lifecycle.get("enemy_active"):
+        errors.append("active enemy records differ from ENEMY_ACTIVE")
+    if nearby:
+        errors.append("active enemy is within the source collision neighborhood of the approved edge")
+    if invalid_positions:
+        errors.append("active enemy record has out-of-map cell coordinates")
+    if not 0 <= lifecycle.get("enemy_active", -1) <= ENEMY_RECORDS:
+        errors.append("ENEMY_ACTIVE exceeds the four authoritative record slots")
+    if not 0 <= lifecycle.get("enemy_released", -1) <= ENEMY_RECORDS:
+        errors.append("ENEMY_RELEASED exceeds the stage release limit")
+    if not 0 <= lifecycle.get("box_index", -1) < 92 or not 1 <= lifecycle.get("box_timer", -1) <= 6:
+        errors.append("box timer/index is outside the stage-2 release cycle")
+    if lifecycle.get("death_state") != 0 or lifecycle.get("pickup_timer") != 0:
+        errors.append("death or pickup transient interrupts the approved movement edge")
+    return {"pass": not errors, "errors": errors,
+            "enemy_records_cpu_sha256": sha(cpu_records),
+            "enemy_records_physical_sha256": sha(physical_records),
+            "enemy_records_match": cpu_records == physical_records,
+            "active_enemy_records": active_records,
+            "active_enemy_count_matches": len(active_records) == lifecycle.get("enemy_active"),
+            "collision_neighborhood_cells": [list(origin), list(target)],
+            "nearby_active_enemy_indexes": nearby,
+            "invalid_active_enemy_indexes": invalid_positions}
+
+
+def stage_enemy_mapping_check(mmu_task: Any, task0: list[Any]) -> dict[str, Any]:
+    pars = [_number(value) for value in task0] if len(task0) == 8 else []
+    valid = (mmu_task == 0 and len(pars) == 8 and
+             (pars[0], pars[5], pars[6], pars[7]) == (0x38, 0x34, 0x3E, 0x3F))
+    return {"pass": valid, "mmu_task": mmu_task, "task0_pars": task0,
+            "enemy_page_selected": bool(pars and pars[5] == 0x34),
+            "state_page_selected": bool(pars and pars[0] == 0x38),
+            "errors": [] if valid else ["enemy-state CPU/PAR mapping mismatch"]}
+
+
+def stage_live_table_preflight(client: DeadlineClient, build: Path,
+                               symbols: dict[str, int]) -> dict[str, Any]:
+    """Prove live route tables equal the receipt-pinned candidate and physical pages."""
+    result: dict[str, Any] = {"errors": []}
+    try:
+        before = client.raw.call("read_gime_state", timeout=3.0)
+        task0 = before["pars"]["task0"]
+        if (before["mmu_task"] != 0 or len(task0) != 8 or
+                (_number(task0[0]), _number(task0[6]), _number(task0[7])) !=
+                (0x38, 0x3E, 0x3F)):
+            result["errors"].append("PAR0/PAR6/PAR7 or MMU mapping mismatch")
+        runtime = (build / "ladybug-runtime.rom").read_bytes()
+        table_hashes = {}
+        for name, length in (("maze_nav", 576), ("maze_gate_owner", 576)):
+            address = marker_addr(symbols, name)
+            expected = runtime[address - 0xC000:address - 0xC000 + length]
+            cpu = read_bytes(client, address, length)
+            physical = read_main_physical(client, address, length)
+            table_hashes[name] = {"address": hex(address), "expected_sha256": sha(expected),
+                                  "cpu_sha256": sha(cpu), "physical_sha256": sha(physical),
+                                  "matches": expected == cpu == physical}
+            if expected != cpu or expected != physical:
+                result["errors"].append(name + " differs from candidate staged bytes")
+        after = client.raw.call("read_gime_state", timeout=3.0)
+        if (before["pars"] != after["pars"] or before["registers"] != after["registers"] or
+                before["mmu_task"] != after["mmu_task"]):
+            result["errors"].append("GIME mapping changed during route-table reads")
+        result.update({"task0_pars": task0, "par5_observed_unconstrained": task0[5],
+                       "tables": table_hashes,
+                       "mapping_stable": not any("GIME mapping" in e for e in result["errors"])})
+    except Exception as exc:
+        result["errors"].append("route-table read: %s: %s" % (type(exc).__name__, exc))
+    result["pass"] = not result["errors"]
+    return result
+
+
+def stage_enemy_preflight(client: DeadlineClient, origin: tuple[int, int],
+                          target: tuple[int, int], direction_bit: int,
+                          reciprocal_bit: int, nav: bytes, gates: bytes) -> dict[str, Any]:
+    """Recheck one edge against authoritative roaming-enemy and spawner state."""
+    result: dict[str, Any] = {"origin": list(origin), "target": list(target), "errors": [],
+        "safety_source": "ENEMY_TABLE at $A470; ENTITY_TABLE at $A380 is collectible state"}
+    try:
+        before = client.raw.call("read_gime_state", timeout=3.0)
+        task0 = before["pars"]["task0"]
+        mapping = stage_enemy_mapping_check(before.get("mmu_task"), task0)
+        result["mapping_before_guard"] = mapping
+        result["errors"].extend(mapping["errors"])
+        direct = read_bytes(client, 0, 0xA8)
+        lifecycle = {"enemy_active": direct[ENEMY_ACTIVE],
+                     "enemy_released": direct[ENEMY_RELEASED],
+                     "enemy_roaming": direct[ENEMY_ROAMING],
+                     "box_index": direct[BOX_INDEX], "box_timer": direct[BOX_TIMER],
+                     "death_state": direct[DEATH_STATE],
+                     "pickup_timer": direct[PICKUP_TIMER]}
+        cpu_records = read_bytes(client, ENEMY_TABLE, ENEMY_RECORD_SIZE * ENEMY_RECORDS)
+        physical_records = read_bytes(client,
+            0x34 * 0x2000 + (ENEMY_TABLE - 0xA000),
+            ENEMY_RECORD_SIZE * ENEMY_RECORDS, "physical")
+        tx, ty = target
+        ox, oy = origin
+        offset = ty * 24 + tx
+        origin_nav, target_nav, gate = nav[oy * 24 + ox], nav[offset], gates[offset]
+        after = client.raw.call("read_gime_state", timeout=3.0)
+        if (before["pars"] != after["pars"] or before["registers"] != after["registers"] or
+                before["mmu_task"] != after["mmu_task"]):
+            result["errors"].append("GIME mapping changed during enemy preflight")
+        enemy_check = stage_enemy_lane_snapshot(cpu_records, physical_records, lifecycle,
+                                                origin, target)
+        result.update({"lifecycle_before_guard": lifecycle,
+                       "enemy_lane_check": enemy_check,
+                       "origin_nav": origin_nav, "target_nav": target_nav,
+                       "target_gate_owner": gate,
+                       "source_legal": bool(origin_nav & (1 << direction_bit)) and
+                                       bool(target_nav & reciprocal_bit) and gate == 0,
+                       "lane_enemy_safe": enemy_check["pass"],
+                       "task0_pars_after": after["pars"]["task0"]})
+        result["errors"].extend(enemy_check["errors"])
+        if not result["source_legal"]:
+            result["errors"].append("runtime nav/gate no longer admits the approved edge")
+    except Exception as exc:
+        result["errors"].append("enemy preflight read: %s: %s" % (type(exc).__name__, exc))
+    result["pass"] = not result["errors"]
+    return result
+
+
+def stage_stack_return(client: DeadlineClient, site_images: SiteQualifier,
+                       call_site: int, expected_return: int, label: str) -> dict[str, Any]:
+    """Return source/caller/mapping evidence without asserting before it is recorded."""
+    proof = site_images.qualify(client, call_site, "active")
+    registers = client.raw.call("read_registers", timeout=3.0)
+    stack_value = registers.get("s")
+    stack = _number(stack_value)
+    observed_return = read_word(client, stack)
+    return {"label": label, "call_site": hex(call_site),
+            "expected_return": hex(expected_return), "observed_return": hex(observed_return),
+            "matches": observed_return == expected_return, "active_site": _brief_site(proof)}
+
+
+def stage_stream_event(client: DeadlineClient, phase: PhaseBudget,
+                       sites: dict[int, tuple[str, str]],
+                       site_images: SiteQualifier) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Wait for one of the approved BUG-117 full-walk source boundaries."""
+    timeout = phase.stop("stage-entry source event")
+    client.raw.call("run", timeout=min(2.0, timeout))
+    result = client.raw.call("wait_for_stop", {"timeout_ms": int(timeout * 1000)}, timeout=timeout)
+    if result.get("reason") == "timeout":
+        raise PhaseDeadline("stage-entry source event stop expired")
+    pc = _number(result.get("pc", -1))
+    if pc not in sites:
+        raise ProbeError("unexpected stage-entry stop at %04x" % pc)
+    event, kind = sites[pc]
+    observation = stage_brief_snapshot(client, pc, event)
+    try:
+        proof = site_images.qualify(client, pc, kind)
+        observation["site_proof"] = _brief_site(proof)
+    except Exception as exc:
+        observation["site_proof_error"] = "%s: %s" % (type(exc).__name__, exc)
+        return event, result, observation
+    client.last_qualified_marker = {"label": event, "pc": hex(pc),
+                                    "proof": observation["site_proof"]}
+    return event, result, observation
+
+
+def run_stage_entry_case(args: argparse.Namespace) -> dict[str, Any]:
+    """Run the approved natural full-walk observer; caller requires parent runtime lease."""
+    if not args.run_live:
+        raise ProbeError("stage-entry runtime requires --run-live and a separate parent runtime lease")
+    output = Path(args.output).resolve()
+    if not inside(output, STAGE_ENTRY_OWNED) or output.exists():
+        raise ProbeError("stage-entry output must be a fresh path inside the owned observer directory")
+    build = Path(args.build).resolve()
+    if build != STAGE_ENTRY_BUILD.resolve():
+        raise ProbeError("stage-entry runtime is pinned to the approved combined candidate capsule")
+    if args.case == "held" and args.paired_neutral is None:
+        raise ProbeError("held stage-entry case requires its completed neutral predecessor evidence")
+    if args.case == "neutral" and args.paired_neutral is not None:
+        raise ProbeError("neutral stage-entry case must not name another predecessor")
+    cases: dict[str, Any] = {
+        "scenario": "stage-entry", "case": args.case, "phases": [],
+        "observations": [], "input_samples": [], "product_findings": [],
+        "known_bug046_findings": [], "fixture_contract": [[hex(a), v] for a, v in FIXTURE],
+        "scope": "one natural stage-2 full-walk run; no hydration; no random route search",
+        "runtime_authorized_by_this_artifact": False,
+        "phase_contract": {"whole_phase_seconds_max": PHASE_SECONDS,
+                           "stop_seconds_max": STOP_SECONDS,
+                           "stops_per_phase_max": MAX_STOPS,
+                           "phases_per_run": 3, "max_runs": 2,
+                           "total_seconds_per_run_max": 135,
+                           "combined_runs_max_seconds": 270, "retries": 0},
+    }
+    process = None
+    client = None
+    phase: PhaseBudget | None = None
+    try:
+        cases["pins"] = artifact_check(build)
+        cases["offline_qualification"] = offline_stage_entry_check(build)
+        monitor = _monitor_module()
+        pres_syms = symbols_for(build, "ladybug-presentation-runtime.map")
+        main_syms = symbols_for(build, "ladybug.map")
+        active_syms = symbols_for(build, "ladybug-adaptive-active.map")
+        site_images = SiteQualifier(build)
+        xroar = Path(args.xroar) if args.xroar else ROOT / "docs" / "reference" / "xroar" / "src" / "xroar"
+
+        def boundary(label: str, pc: int, kind: str) -> None:
+            if client is None:
+                return
+            snap = stage_brief_snapshot(client, pc, label)
+            try:
+                proof = site_images.qualify(client, pc, kind)
+                snap["site_proof"] = _brief_site(proof)
+            except Exception as exc:
+                snap["site_proof_error"] = "%s: %s" % (type(exc).__name__, exc)
+            cases.setdefault("boundary_snapshots", {})[label] = snap
+
+        def reach(symbols: dict[str, int], name: str, tag: str) -> dict[str, Any]:
+            address = marker_addr(symbols, name)
+            kind = "presentation" if symbols is pres_syms else "main"
+            return run_to_condition(client, phase, address, tag, lambda: True,
+                                    lambda pc: site_images.qualify(client, pc, kind),
+                                    lambda: boundary(tag, address, kind))
+
+        # Phase 1: cold natural first-life route to the authored final flower.
+        phase = PhaseBudget()
+        process, client = launch_owned(xroar, build / "ladybug.rom", phase, monitor)
+        cases["xroar_binary"] = str(xroar.resolve())
+        reach(pres_syms, "presentation_flow_tick", "initial published preview path")
+        cases["live_images"] = live_image_check(client, build)
+        reach(pres_syms, "demo_run", "attract exit")
+        client.raw.call("inject_key", {"key": KEY_COIN, "action": "press"}, timeout=2.0)
+        reach(pres_syms, "credit_tick", "credit")
+        client.raw.call("inject_key", {"key": KEY_COIN, "action": "release"}, timeout=2.0)
+        client.raw.call("inject_key", {"key": KEY_ENTER, "action": "press"}, timeout=2.0)
+        reach(pres_syms, "normal_game", "credited game start")
+        client.raw.call("inject_key", {"key": KEY_ENTER, "action": "release"}, timeout=2.0)
+        mainloop = marker_addr(main_syms, "mainloop")
+        ready_stop = run_to_condition(client, phase, mainloop, "first-life ready",
+            lambda: read_byte(client, INITIAL_ENTRY) == 0 and read_word(client, PLAYER_FB) == 0x75EC,
+            lambda pc: site_images.qualify(client, pc, "main"),
+            lambda: boundary("first-life ready probe", mainloop, "main"))
+        start_snap = cases["boundary_snapshots"]["first-life ready probe"]
+        start_cell = start_snap.get("pose", {}).get("cell")
+        if start_cell != [12, 18]:
+            raise MissingCoverage("first-life automatic entry did not reach authored cell (12,18)")
+        boundary("first-life route predecessor", mainloop, "main")
+        entry_edge = source_neighbor_gate(client, main_syms, build, (12, 18), (12, 17),
+                                          require_flower=False)
+        client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
+        target_snap: dict[str, Any] = {}
+        def reached_first_flower() -> bool:
+            snap = stage_brief_snapshot(client, mainloop, "first-life one-cell approach")
+            target_snap.clear()
+            target_snap.update(snap)
+            cases.setdefault("boundary_snapshots", {})["first-life one-cell approach"] = snap
+            return snap.get("pose", {}).get("cell") == [12, 17]
+        approach_stop = run_to_condition(client, phase, mainloop, "one-cell legal approach",
+            reached_first_flower, lambda pc: site_images.qualify(client, pc, "main"))
+        client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
+        flower_edge = source_neighbor_gate(client, main_syms, build, (12, 17), (12, 16),
+                                           require_flower=True)
+        predecessor = state_snapshot(client)
+        cases["paired_predecessor"] = {"state": predecessor,
+                                       "sha256": canonical_hash(predecessor),
+                                       "entry_edge": entry_edge, "flower_edge": flower_edge,
+                                       "source_qualified_ready": start_snap,
+                                       "source_qualified_approach": target_snap,
+                                       "approach_stop": approach_stop.get("site_proof")}
+        cases["phases"].append({"name": "cold-legal-predecessor",
+                                "elapsed_seconds": round(PHASE_SECONDS - phase.remaining(), 3),
+                                "stops": phase.stops})
+        prior = None
+        if args.case == "held":
+            neutral_path = Path(args.paired_neutral).resolve()
+            if not inside(neutral_path, STAGE_ENTRY_OWNED) or not neutral_path.is_file():
+                raise ProbeError("paired neutral evidence must be an existing observer-owned file")
+            prior = json.loads(neutral_path.read_text(encoding="utf-8"))
+            if (prior.get("scenario") != "stage-entry" or prior.get("case") != "neutral" or
+                    prior.get("paired_predecessor", {}).get("sha256") != cases["paired_predecessor"]["sha256"]):
+                raise ProbeError("neutral/held cold predecessor identity mismatch; no retry permitted")
+
+        # Phase 2: exactly four fixture writes, final flower, normal published preview.
+        phase = PhaseBudget()
+        client.budget = phase
+        fixture = apply_fixture(client)
+        client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
+        level_tick = marker_addr(pres_syms, "level_tick")
+        preview_stop = run_to_condition(client, phase, level_tick, "final flower to stage-2 preview",
+            lambda: read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 6 and
+                    read_byte(client, PRES_SCREEN) == 2 and read_byte(client, PRES_CONTEXT) == 2,
+            lambda pc: site_images.qualify(client, pc, "presentation"),
+            lambda: boundary("published stage-2 preview probe", level_tick, "presentation"))
+        client.raw.call("inject_key", {"key": KEY_UP, "action": "release"}, timeout=2.0)
+        owner = read_byte(client, FRONT)
+        preview = stage_preview_oracle(client, owner, build)
+        cases["fixture"] = fixture
+        cases["preview_publication"] = preview
+        if preview["stored_masks"]["classification"] != "match":
+            cases["known_bug046_findings"].append({"phase": "stage2-preview",
+                "kind": "stored-mask-mismatch", "detail": preview["stored_masks"]})
+        if preview["word_oracle"]["classification"] != "pixel_match":
+            cases["known_bug046_findings"].append({"phase": "stage2-preview",
+                "kind": "word-pixel-mismatch", "detail": preview["word_oracle"]})
+        cases["phases"].append({"name": "final-flower-to-first-stage2-preview",
+                                "elapsed_seconds": round(PHASE_SECONDS - phase.remaining(), 3),
+                                "stops": phase.stops,
+                                "preview_release_marker": preview_stop.get("site_proof")})
+
+        # Phase 3: fresh natural release, all 16 north advances, existing center stop,
+        # then the actual held Down sample or a post-stop neutral-run Up control.
+        phase = PhaseBudget()
+        client.budget = phase
+        if args.case == "held":
+            client.raw.call("inject_key", {"key": KEY_DOWN, "action": "press"}, timeout=2.0)
+            cases["held_input_setup"] = {"key": KEY_DOWN,
+                                         "queued_while": "published stage-2 preview",
+                                         "additional_guest_writes": 0}
+        release_pc = stage2_release_pc(build)
+        release_stop = run_to_condition(client, phase, release_pc, "stage-2 context-2 release",
+            lambda: read_byte(client, STAGE) == 2 and read_byte(client, PRES_MODE) == 6 and
+                    read_byte(client, PRES_SCREEN) == 2 and read_byte(client, PRES_CONTEXT) == 0 and
+                    (read_byte(client, PLAYER_X), read_byte(client, PLAYER_Y)) == (12, 22) and
+                    read_word(client, PLAYER_FB) == 0x89EC and read_byte(client, PLAYER_STEP) == 0,
+            lambda pc: site_images.qualify(client, pc, "presentation"),
+            lambda: boundary("stage-2 release predecessor", release_pc, "presentation"))
+        release_snapshot = cases["boundary_snapshots"]["stage-2 release predecessor"]
+        release_pose = release_snapshot.get("pose")
+        release_input = release_snapshot.get("input", {})
+        release_good = (release_pose == stage_walk_pose(0) and
+                        release_snapshot.get("flags", {}).get("stage") == 2 and
+                        release_snapshot.get("flags", {}).get("presentation_context") == 0 and
+                        release_input.get("player_dir") == DIR_NORTH and
+                        release_input.get("player_manual") == 0 and
+                        release_input.get("player_want") == DIR_NONE and
+                        release_input.get("joy_dir") == DIR_NONE)
+        if not release_good:
+            raise MissingCoverage("stage-2 release snapshot does not match the approved north/manual0 predecessor")
+        cases["stage2_release"] = {"pose": release_pose, "input": release_input,
+                                   "site_proof": release_snapshot.get("site_proof"),
+                                   "stop": release_stop}
+        tables = stage_live_table_preflight(client, build, main_syms)
+        cases["stage_map_preflight"] = tables
+        if not tables["pass"]:
+            raise MissingCoverage("candidate route tables or live MMU mapping failed preflight")
+        nav = (build / "ladybug-runtime.rom").read_bytes()[
+            marker_addr(main_syms, "maze_nav") - 0xC000:
+            marker_addr(main_syms, "maze_nav") - 0xC000 + 576]
+        gates = (build / "ladybug-runtime.rom").read_bytes()[
+            marker_addr(main_syms, "maze_gate_owner") - 0xC000:
+            marker_addr(main_syms, "maze_gate_owner") - 0xC000 + 576]
+        release_obs = stage_brief_snapshot(client, release_pc, "stage-2 release qualified")
+        release_obs["site_proof"] = release_snapshot.get("site_proof")
+        cases["observations"].append(release_obs)
+
+        read_call = next(iter(calls_to(listing_byte_map(build / "ladybug-adaptive-active.lst"),
+                                       marker_addr(main_syms, "read_joystick"), ACTIVE_ORIGIN,
+                                       ACTIVE_ORIGIN + len((build / "ladybug-adaptive-active.bin").read_bytes()))))
+        tick_call = next(iter(calls_to(listing_byte_map(build / "ladybug-adaptive-active.lst"),
+                                       marker_addr(main_syms, "player_tick"), ACTIVE_ORIGIN,
+                                       ACTIVE_ORIGIN + len((build / "ladybug-adaptive-active.bin").read_bytes()))))
+        read_done = marker_addr(main_syms, "rj_done")
+        tick_pc = marker_addr(main_syms, "player_tick")
+        center_pc = marker_addr(main_syms, "pt_at_center")
+        draw_pc = marker_addr(main_syms, "pt_draw")
+        watch = {read_done: ("input-return", "main"), tick_pc: ("player-tick-entry", "main"),
+                 center_pc: ("center-stop-branch", "main"), draw_pc: ("player-draw", "main")}
+        breakpoint_ids = []
+        for address in watch:
+            ident = client.raw.call("set_breakpoint", {"addr": address, "kind": "exec"},
+                                    timeout=3.0)["id"]
+            breakpoint_ids.append(ident)
+        advance = 0
+        center_stop_seen = False
+        center_candidate_seen = False
+        post_ready_input = False
+        final_draws = 0
+        tick_pending: dict[str, Any] | None = None
+        stop_record = None
+        input_direction = DIR_SOUTH if args.case == "held" else DIR_NORTH
+        direction_bit = 2 if args.case == "held" else 0
+        reciprocal_bit = 0x01 if args.case == "held" else 0x04
+        edge_target_y = 19 if args.case == "held" else 17
+        try:
+            while not (center_stop_seen and post_ready_input and final_draws == 4):
+                event, stop, record = stage_stream_event(client, phase, watch, site_images)
+                cases["last_observation"] = record
+                if event != "input-return":
+                    cases["observations"].append(record)
+                if record.get("site_proof_error"):
+                    raise ProbeError("candidate source/live site qualification failed at " + event)
+                snap_input = record.get("input", {})
+                snap_pose = record.get("pose")
+                if event == "input-return":
+                    caller: dict[str, Any]
+                    caller_error = None
+                    try:
+                        caller = stage_stack_return(client, site_images, read_call, read_call + 3,
+                                                    "read_joystick return")
+                    except Exception as exc:
+                        caller = {"matches": False, "error": "%s: %s" % (type(exc).__name__, exc)}
+                        caller_error = exc
+                    record["active_caller_proof"] = caller
+                    if caller_error is not None or not caller.get("matches"):
+                        raise ProbeError("read_joystick did not return through the candidate adaptive caller")
+                    if not center_stop_seen:
+                        expected_axes = (32, 64) if args.case == "held" else (32, 32)
+                        if (snap_input.get("joy_x"), snap_input.get("joy_y")) != expected_axes:
+                            raise MissingCoverage("automatic-entry sample lacks approved raw axis observation")
+                        if (snap_input.get("player_manual"), snap_input.get("player_dir"),
+                                snap_input.get("joy_dir"), snap_input.get("player_want")) != \
+                                (0, DIR_NORTH, DIR_NONE, DIR_NONE):
+                            raise ProductReproduction("input state published manual direction before center stop")
+                        if advance == 0:
+                            cases["input_samples"].append(record)
+                    else:
+                        if not post_ready_input:
+                            if args.case == "neutral":
+                                latched = (snap_input.get("joy_dir") == DIR_NORTH and
+                                           snap_input.get("player_manual") == 1 and
+                                           snap_input.get("player_want") == DIR_NORTH and
+                                           snap_input.get("player_face") == DIR_NORTH)
+                                if not latched:
+                                    raise MissingCoverage("post-stop Up positive-control input was not sampled")
+                            else:
+                                if (snap_input.get("joy_x"), snap_input.get("joy_y")) != (32, 64):
+                                    raise MissingCoverage("held Down raw axes were not present at first post-stop sample")
+                                if (snap_input.get("joy_dir"), snap_input.get("player_manual"),
+                                        snap_input.get("player_want"), snap_input.get("player_face")) != \
+                                        (DIR_SOUTH, 1, DIR_SOUTH, DIR_SOUTH):
+                                    raise ProductReproduction("held Down was not admitted at the first sample after center stop")
+                            post_ready_input = True
+                            cases["input_samples"].append(record)
+                elif event == "player-tick-entry":
+                    caller = {}
+                    caller_error = None
+                    try:
+                        caller = stage_stack_return(client, site_images, tick_call, tick_call + 3,
+                                                    "adaptive player_tick call")
+                    except Exception as exc:
+                        caller = {"matches": False, "error": "%s: %s" % (type(exc).__name__, exc)}
+                        caller_error = exc
+                    record["active_caller_proof"] = caller
+                    if caller_error is not None or not caller.get("matches"):
+                        raise ProbeError("player_tick entry did not return to its candidate adaptive caller")
+                    if tick_pending is not None:
+                        raise ProbeError("a prior player_tick did not reach its draw before another call")
+                    if not center_stop_seen:
+                        if advance < 16:
+                            discrepancies = validate_stage_walk_entry(record, advance, args.case)
+                            preflight = stage_enemy_preflight(client,
+                                (12, 22 - advance // 4), (12, 21 - advance // 4),
+                                0, 0x04, nav, gates)
+                            record["enemy_safe_preflight"] = preflight
+                            if discrepancies:
+                                raise ProductReproduction("automatic entry invariant failed at ordinal %d: %s" %
+                                                          (advance, "; ".join(discrepancies)))
+                            if not preflight["pass"]:
+                                raise MissingCoverage("automatic north lane failed live enemy preflight")
+                            if record.get("flags", {}).get("player_tick_pending") != 0:
+                                raise ProbeError("adaptive pending tick was not consumed before player_tick")
+                            tick_pending = {"kind": "automatic", "advance": advance,
+                                            "pre_pose": snap_pose, "pre_input": snap_input,
+                                            "preflight": preflight}
+                        else:
+                            expected = stage_walk_pose(16)
+                            center_candidate_seen = (snap_pose == expected and
+                                snap_input.get("player_manual") == 0 and
+                                snap_input.get("player_dir") == DIR_NORTH)
+                            record["center_candidate"] = center_candidate_seen
+                            if (not center_candidate_seen or snap_input.get("player_want") != DIR_NONE):
+                                raise MissingCoverage("automatic route did not reach the approved center-stop predecessor")
+                            tick_pending = {"kind": "center-stop", "advance": 16,
+                                            "pre_pose": snap_pose, "pre_input": snap_input}
+                    else:
+                        edge = stage_enemy_preflight(client, (12, 18), (12, edge_target_y),
+                                                     direction_bit, reciprocal_bit, nav, gates)
+                        record["enemy_safe_preflight"] = edge
+                        if not edge["pass"]:
+                            raise MissingCoverage("post-ready direction lane failed live enemy preflight")
+                        if not post_ready_input:
+                            raise MissingCoverage("player movement began before the post-stop input sample was recorded")
+                        discrepancies = validate_post_ready_predecessor(record, final_draws,
+                                                                        input_direction)
+                        if discrepancies:
+                            raise ProductReproduction("post-ready player-tick predecessor failed at draw ordinal %d: %s" %
+                                                      (final_draws, "; ".join(discrepancies)))
+                        tick_pending = {"kind": "post-ready", "draw_ordinal": final_draws + 1,
+                                        "pre_pose": snap_pose, "pre_input": snap_input,
+                                        "preflight": edge}
+                elif event == "center-stop-branch":
+                    if center_stop_seen:
+                        record["post_ready_center_choice"] = (final_draws == 0 and
+                            snap_pose == stage_post_ready_pose(0, input_direction) and
+                            snap_input.get("player_manual") == 1 and
+                            snap_input.get("player_dir") == DIR_NONE and
+                            snap_input.get("player_want") == input_direction)
+                        if not record["post_ready_center_choice"]:
+                            raise ProductReproduction("post-ready input did not reach the source center direction choice")
+                    elif advance == 16:
+                        record["center_candidate"] = (snap_pose == stage_walk_pose(16) and
+                            snap_input.get("player_manual") == 0 and
+                            snap_input.get("player_dir") == DIR_NORTH and
+                            snap_input.get("player_want") == DIR_NONE)
+                        if not record["center_candidate"]:
+                            raise MissingCoverage("pt_at_center was not reached in the automatic stop state")
+                        center_candidate_seen = True
+                    elif snap_pose != stage_walk_pose(advance):
+                        raise ProbeError("intermediate center branch pose differs from the captured walk ordinal")
+                elif event == "player-draw":
+                    if tick_pending is None:
+                        raise ProbeError("player draw was observed without a qualified candidate player_tick entry")
+                    kind = tick_pending["kind"]
+                    if kind == "automatic":
+                        expected = stage_walk_pose(tick_pending["advance"] + 1)
+                        record["movement_ordinal_after_draw"] = tick_pending["advance"] + 1
+                        if snap_pose != expected:
+                            cases["product_findings"].append({"kind": "automatic-north-position-miss",
+                                "expected": expected, "actual": snap_pose,
+                                "preflight": tick_pending["preflight"]})
+                            raise ProductReproduction("source-legal automatic north pixel did not advance as expected")
+                        advance += 1
+                    elif kind == "center-stop":
+                        stopped = (snap_pose == stage_walk_pose(16) and
+                                   (snap_input.get("player_dir"), snap_input.get("player_want"),
+                                    snap_input.get("player_manual"), snap_input.get("joy_dir")) ==
+                                   (DIR_NONE, DIR_NONE, 0, DIR_NONE))
+                        record["center_stop_no_move"] = stopped
+                        if not center_candidate_seen or not stopped:
+                            raise ProductReproduction("automatic center stop moved or failed to clear direction/request")
+                        center_stop_seen = True
+                        cases["center_stop"] = {"pre_pose": tick_pending["pre_pose"],
+                                                 "post_pose": snap_pose,
+                                                 "pre_input": tick_pending["pre_input"],
+                                                 "post_input": snap_input,
+                                                 "no_movement": True,
+                                                 "center_source_pc": hex(center_pc),
+                                                 "site_proof": record.get("site_proof")}
+                        if args.case == "neutral":
+                            client.raw.call("inject_key", {"key": KEY_UP, "action": "press"}, timeout=2.0)
+                            cases["post_stop_control_setup"] = {"key": KEY_UP,
+                                                               "queued_after_center_stop": True,
+                                                               "additional_guest_writes": 0}
+                    else:
+                        final_draws += 1
+                        expected_fb = 0x75EC + ((320 if args.case == "held" else -320) * final_draws)
+                        expected_cell_y = (19 if args.case == "held" else 17) if final_draws == 4 else 18
+                        expected = {"cell": [12, expected_cell_y], "fb": hex(expected_fb),
+                                    "step": final_draws % 4}
+                        record["post_ready_draw_ordinal"] = final_draws
+                        if snap_pose != expected:
+                            cases["product_findings"].append({"kind": "post-ready-position-miss",
+                                "expected": expected, "actual": snap_pose,
+                                "preflight": tick_pending.get("preflight")})
+                            raise ProductReproduction("admitted post-ready direction failed the approved one-cell movement")
+                        if (snap_input.get("joy_dir"), snap_input.get("player_dir"),
+                                snap_input.get("player_face"), snap_input.get("player_want"),
+                                snap_input.get("player_manual")) != \
+                                (input_direction, input_direction, input_direction, input_direction, 1):
+                            raise ProductReproduction("post-ready held direction was lost before one-cell movement completed")
+                    tick_pending = None
+                if event == "input-return" and record not in cases["input_samples"]:
+                    cases["last_input_sample"] = record
+                # The exact PC whitelist is the stop discriminator. Monitor reason
+                # labels have changed across XRoar revisions and are not evidence.
+        finally:
+            for ident in breakpoint_ids:
+                if phase.remaining() > READ_RESERVE:
+                    try:
+                        client.raw.call("clear_breakpoint", {"id": ident}, timeout=2.0)
+                    except Exception:
+                        pass
+        if tick_pending is not None:
+            raise MissingCoverage("stage-entry run ended before the observed player tick reached draw")
+        cases["full_walk"] = {"advances": advance, "expected_advances": 16,
+                              "center_stop_seen": center_stop_seen,
+                              "post_ready_input_sampled": post_ready_input,
+                              "post_ready_draws": final_draws,
+                              "required_post_ready_draws": 4,
+                              "movement_path": [stage_walk_pose(n) for n in range(17)]}
+        if advance != 16 or not center_stop_seen or not post_ready_input or final_draws != 4:
+            raise MissingCoverage("full approved stage-entry sequence did not complete")
+        cases["phases"].append({"name": "stage2-release-through-full-walk-and-next-move",
+                                "elapsed_seconds": round(PHASE_SECONDS - phase.remaining(), 3),
+                                "stops": phase.stops, "release_marker": release_stop.get("site_proof")})
+        cases["result"] = "stage_entry_full_walk_pass"
+        output.parent.mkdir(parents=True, exist_ok=True)
+        output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return cases
+    except ProductReproduction as exc:
+        cases["result"] = "product_reproduced"
+        cases["failure"] = {"type": "product_reproduction", "message": str(exc)}
+        if client is not None:
+            cases["last_qualified_marker"] = client.last_qualified_marker
+            cases["fixture_write_trace"] = [[hex(a), value] for a, value in client.fixture_seen]
+        if phase is not None:
+            cases["last_phase"] = {"elapsed_seconds": round(phase.clock() - phase.started, 3),
+                                   "remaining_seconds": round(phase.remaining(), 3),
+                                   "stops": phase.stops}
+        if not output.exists():
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return cases
+    except MissingCoverage as exc:
+        cases["result"] = "missing_coverage"
+        cases["failure"] = {"type": "missing_coverage", "message": str(exc)}
+        if client is not None:
+            cases["last_qualified_marker"] = client.last_qualified_marker
+            cases["fixture_write_trace"] = [[hex(a), value] for a, value in client.fixture_seen]
+        if phase is not None:
+            cases["last_phase"] = {"elapsed_seconds": round(phase.clock() - phase.started, 3),
+                                   "remaining_seconds": round(phase.remaining(), 3),
+                                   "stops": phase.stops}
+        if not output.exists():
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        return cases
+    except Exception as exc:
+        cases["result"] = "setup_or_observer_failure"
+        cases["failure"] = {"type": type(exc).__name__, "message": str(exc)}
+        if client is not None:
+            cases["last_qualified_marker"] = client.last_qualified_marker
+            cases["fixture_write_trace"] = [[hex(a), value] for a, value in client.fixture_seen]
+        if phase is not None:
+            cases["last_phase"] = {"elapsed_seconds": round(phase.clock() - phase.started, 3),
+                                   "remaining_seconds": round(phase.remaining(), 3),
+                                   "stops": phase.stops}
+        if not output.exists():
+            output.parent.mkdir(parents=True, exist_ok=True)
+            output.write_text(json.dumps(cases, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        raise
+    finally:
+        if client is not None:
+            try:
+                if not client.restored:
+                    client.close()
+                client.raw.close()
+            except Exception:
+                pass
+        if process is not None:
+            if process.poll() is None:
+                process.kill()
+            try:
+                process.wait(timeout=2)
+            except Exception:
+                pass
+
+
 def run_case(args: argparse.Namespace) -> dict[str, Any]:
     if not args.run_live:
         raise ProbeError("live adapter requires explicit --run-live; this invocation is not authorized by offline checks")
@@ -2545,9 +3770,9 @@ def run_case(args: argparse.Namespace) -> dict[str, Any]:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build", type=Path, default=BUILD_DEFAULT)
-    parser.add_argument("--scenario", choices=("scheduled-step", "hidden-owner"),
+    parser.add_argument("--scenario", choices=("scheduled-step", "hidden-owner", "stage-entry"),
                         default="scheduled-step",
-                        help="preserve the default BUG-117 path or select the approved BUG-046 hidden-owner path")
+                        help="select the legacy scheduled-step, BUG-046 hidden-owner, or BUG-117 full-walk path")
     parser.add_argument("--case", choices=("neutral", "held"))
     parser.add_argument("--paired-neutral", type=Path)
     parser.add_argument("--xroar", type=Path)
@@ -2565,7 +3790,30 @@ def main(argv: list[str] | None = None) -> int:
             print(json.dumps(self_test(), indent=2, sort_keys=True))
             return 0
         if args.artifact_check:
-            if args.scenario == "hidden-owner":
+            if args.scenario == "stage-entry":
+                pins = artifact_check(args.build)
+                qualification = offline_stage_entry_check(args.build)
+                result = {"scenario": "stage-entry", "pins": pins,
+                          "offline_qualification": qualification,
+                          "source_site_check": offline_source_site_check(args.build),
+                          "offline_self_test": self_test(),
+                          "probe_sha256": file_sha(Path(__file__)),
+                          "helper_sha256": {"monitor": file_sha(ROOT / "scripts" / "verify_bug009_monitor_input.py"),
+                                            "runtime": file_sha(ROOT / "scripts" / "verify_bug011_runtime.py")},
+                          "runtime_authorized": False, "capsule_only": True,
+                          "phase_contract": {"phase_seconds_max": PHASE_SECONDS,
+                                             "stop_seconds_max": STOP_SECONDS,
+                                             "stops_per_phase_max": MAX_STOPS,
+                                             "phases_per_run": 3, "runs_max": 2,
+                                             "max_seconds_per_run": 135,
+                                             "max_seconds_total": 270,
+                                             "retry_policy": "none"},
+                          "proposed_runtime_commands": [
+                              "python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --case neutral --run-live --build repro/bug117-stage-repair-20261015/capsule/build --output repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json",
+                              "python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --case held --run-live --build repro/bug117-stage-repair-20261015/capsule/build --paired-neutral repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json --output repro/bug117-stage-repair-20261015/observer/stage-entry-held.json"],
+                          "commands_are_proposals_only": True,
+                          "runtime_readiness": "offline preparation only; parent source review and exclusive runtime lease required"}
+            elif args.scenario == "hidden-owner":
                 pins = artifact_check(args.build)
                 result = {"scenario": "hidden-owner", "pins": pins,
                           "offline_qualification": hidden_offline_qualification(),
@@ -2624,8 +3872,11 @@ def main(argv: list[str] | None = None) -> int:
                               "python repro/stage-preview-diagnosis-20261014/probe.py --case held --run-live --paired-neutral repro/bug117-scheduled-step-20261015/scheduled-neutral.json --output repro/bug117-scheduled-step-20261015/scheduled-held.json"],
                           "commands_are_proposals_only": True}
             if args.write_preparation:
-                preparation_root = HIDDEN_OWNED if args.scenario == "hidden-owner" else SCHEDULED_OWNED
-                default_name = "offline-preparation.json" if args.scenario == "hidden-owner" else "preparation-final.json"
+                preparation_root = (STAGE_ENTRY_OWNED if args.scenario == "stage-entry" else
+                                    HIDDEN_OWNED if args.scenario == "hidden-owner" else SCHEDULED_OWNED)
+                default_name = ("preparation.json" if args.scenario == "stage-entry" else
+                                "offline-preparation.json" if args.scenario == "hidden-owner" else
+                                "preparation-final.json")
                 manifest_path = (args.preparation_output or (preparation_root / default_name)).resolve()
                 if not inside(manifest_path, preparation_root) or manifest_path.exists():
                     raise ProbeError("preparation manifest path already exists or leaves owned directory")
@@ -2639,6 +3890,16 @@ def main(argv: list[str] | None = None) -> int:
             parser.error("--write-preparation requires --artifact-check")
         if args.preparation_output is not None:
             parser.error("--preparation-output requires --artifact-check --write-preparation")
+        if args.scenario == "stage-entry":
+            if args.case is None or args.output is None:
+                parser.error("stage-entry runtime requires --case neutral|held and a fresh --output path")
+            if not args.run_live:
+                parser.error("stage-entry runtime requires --run-live and separate parent runtime authorization")
+            result = run_stage_entry_case(args)
+            print(json.dumps({"result": result.get("result"), "output": str(args.output),
+                              "sha256": file_sha(Path(args.output)) if Path(args.output).is_file() else None},
+                             indent=2, sort_keys=True))
+            return 0
         if args.scenario == "hidden-owner":
             if args.case is not None or args.paired_neutral is not None:
                 parser.error("hidden-owner scenario has no --case or --paired-neutral mode")

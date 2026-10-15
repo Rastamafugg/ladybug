@@ -1,0 +1,607 @@
+{
+  "capsule_only": true,
+  "commands_are_proposals_only": true,
+  "helper_sha256": {
+    "monitor": "e852eec0a6d20cdd13d8c05ae10c2a136d5cab3cb17243e552e85b31da158c70",
+    "runtime": "a12b6569112f4393c304b0fb976d9f88d92eea8c923ff5679e155b01773a9b92"
+  },
+  "offline_qualification": {
+    "adaptive_callers": {
+      "input_call": "0x3ab",
+      "input_return": "0x3ae",
+      "input_sample_order": "adaptive input call runs before pending-gated player_tick",
+      "pending_clear_before_player_tick": true,
+      "player_call": "0x4df",
+      "player_return": "0x4e2"
+    },
+    "authored_input_deltas_vs_broken": [
+      {
+        "broken_sha256": "c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226",
+        "candidate_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+        "path": "src/main.s"
+      },
+      {
+        "broken_sha256": "012db9eaf68912ccc010fe89170ea6bfe255334ad09c952b88d4d151d5190ef6",
+        "candidate_sha256": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50",
+        "path": "src/shared_text_stage.inc"
+      }
+    ],
+    "authored_maze_sha256": "76361237a90a555f2b78731c3975a209f569a53cb04705eb90d0aad427856048",
+    "candidate_staged_gate_sha256": "c10d1eab83366fff0cc94d163468cbb00e74143dee0fea8ab0b6583349e76069",
+    "candidate_staged_nav_sha256": "51feb77d3c2bba3ad984d0da10aa91d912bf190f48cd52de02d560123539b8f3",
+    "center_stop_source_hex": "961826159609810c260f960a8112260986ff9706970f1600c4",
+    "enemy_reset_and_release_source": {
+      "collision_source_staged_sha256": "e2f0651cc2ea2bfc8b9a50bcb422658d96428539340940f9289c4b959d1cdea5",
+      "enemy_init_symbol": "0x827",
+      "enemy_reset_call": "0x827",
+      "init_dispatch_source_staged_hex": "7ea469",
+      "record_count": 4,
+      "record_size": 8,
+      "record_table": "0xa470",
+      "release_source_staged_sha256": "927ab3136b674ac2903c849c7648a1b00607a3409a53986794bd683c07fd1e3f",
+      "reset_loop_source_staged_hex": "c6206f805a26fb39",
+      "result": "pass",
+      "source_interpretation": {
+        "active_record": "record byte 0 is nonzero; cell x/y are offsets 4/5",
+        "collectibles_excluded": "ENTITY_TABLE at $A380 is not roaming ENEMY_TABLE at $A470",
+        "collision_neighborhood": "enemy_player_contact compares each cell-axis distance to 1",
+        "release_cadence": "92 perimeter cells; stage 2 reloads a six-tick box interval",
+        "released_counter": "monotonic per-stage release count at $0059"
+      },
+      "stage_init_call": "0xc2bb",
+      "timer_release_call": "0xc9e8",
+      "timer_source_staged_sha256": "88c993cae7bf8ee56c31ac4c6770c1df85975d3c08ea6c7760df97845a18243c"
+    },
+    "frozen_broken": {
+      "artifacts_checked": 87,
+      "authored_inputs_checked": 266,
+      "build": "E:\\projects\\ladybug\\repro\\bug122-integration-20261014\\capsule\\build",
+      "generated_inputs_checked": 4,
+      "identity": "known-broken",
+      "profile": "complete",
+      "receipt_sha256": "5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc",
+      "revision": "3926a4ad73bae3665e619cf9c3154cb8d3d2ed60",
+      "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+      "state": "complete"
+    },
+    "guard": {
+      "automatic_manual0_dir_north_suppressed": true,
+      "branch_target": "0xcb5e",
+      "done_pc": "0xcb5e",
+      "frozen_broken_window_hex": "9705970f9707",
+      "guard_pc": "0xcb4e",
+      "initial_entry_barrier_hex": "0da02610",
+      "initial_entry_still_suppressed": true,
+      "name_manual0_dir_none_admitted": true,
+      "ordinary_manual_north_admitted": true,
+      "request_pc": "0xcb4a",
+      "semantics_method": "specification truth table; no CPU interpreter",
+      "source_hex": "d618da06270a",
+      "staged_hex": "d618da06270a"
+    },
+    "movement_source_points": {
+      "can_move": {
+        "address": "0xcd1a",
+        "length": 16,
+        "sha256": "5a8697085e2750e2087b33b1a68d91447684ed34fe272bf9ac867e160fd69071"
+      },
+      "cm_entry_masks": {
+        "address": "0xce28",
+        "length": 4,
+        "sha256": "05eaa13080d6add0ca488274bd90fce3b2b651997c4385b36412500daecf8a79"
+      },
+      "player_tick": {
+        "address": "0xcb71",
+        "length": 16,
+        "sha256": "5a7f583d33a55c0d4d7191dc153fad1162605bb9a59654b2a5e48f1bea1fd22b"
+      },
+      "pt_advance": {
+        "address": "0xccaa",
+        "length": 16,
+        "sha256": "9b802430d8b3aee8f5a567b89c9eaa1bbe161cf4fd81ea76437efed2e5f0f989"
+      },
+      "pt_at_center": {
+        "address": "0xcc1d",
+        "length": 16,
+        "sha256": "c53fc55bc937b8caba6ee86d18f6898099454d0ec03fbcca9efaf2615e7fd519"
+      },
+      "pt_cell_north": {
+        "address": "0xcce6",
+        "length": 16,
+        "sha256": "e4977b433f177f82891b44381c441318fb820af474c89a24c7eca7155408a52d"
+      },
+      "pt_choose_direction": {
+        "address": "0xcc36",
+        "length": 16,
+        "sha256": "87fba61904778085ee71139265bbf5d83ed8d79d53d9fd0051c58e36faab25ef"
+      },
+      "pt_draw": {
+        "address": "0xccfa",
+        "length": 16,
+        "sha256": "98004d8a3da1e28c893f10348df426e8a054f0a216a7d0c5d0ccecdf5b23dbea"
+      },
+      "pt_north": {
+        "address": "0xccbc",
+        "length": 16,
+        "sha256": "ef923db9b3d4cced87d234580640094d8dc8ca5dc701fbb9addc3a3e85aa032b"
+      },
+      "pt_store_fb": {
+        "address": "0xccca",
+        "length": 16,
+        "sha256": "eee6b0c1f95fea024118c14cab206c5eb4287bc800b54443800b1626e2186ed6"
+      }
+    },
+    "pins": {
+      "artifacts_checked": 87,
+      "authored_inputs_checked": 266,
+      "build": "E:\\projects\\ladybug\\repro\\bug117-stage-repair-20261015\\capsule\\build",
+      "generated_inputs_checked": 4,
+      "identity": "stage-entry-repair-candidate",
+      "profile": "complete",
+      "receipt_sha256": "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a",
+      "revision": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+      "rom_sha256": "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29",
+      "state": "complete"
+    },
+    "reciprocal_entry_masks_hex": "04080102",
+    "result": "pass",
+    "route_edges": [
+      {
+        "label": "automatic-north",
+        "origin": [
+          12,
+          22
+        ],
+        "origin_nav": 11,
+        "source_legal": true,
+        "target": [
+          12,
+          21
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 5
+      },
+      {
+        "label": "automatic-north",
+        "origin": [
+          12,
+          21
+        ],
+        "origin_nav": 5,
+        "source_legal": true,
+        "target": [
+          12,
+          20
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 5
+      },
+      {
+        "label": "automatic-north",
+        "origin": [
+          12,
+          20
+        ],
+        "origin_nav": 5,
+        "source_legal": true,
+        "target": [
+          12,
+          19
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 5
+      },
+      {
+        "label": "automatic-north",
+        "origin": [
+          12,
+          19
+        ],
+        "origin_nav": 5,
+        "source_legal": true,
+        "target": [
+          12,
+          18
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 15
+      },
+      {
+        "label": "post-ready-up",
+        "origin": [
+          12,
+          18
+        ],
+        "origin_nav": 15,
+        "source_legal": true,
+        "target": [
+          12,
+          17
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 5
+      },
+      {
+        "label": "held-down",
+        "origin": [
+          12,
+          18
+        ],
+        "origin_nav": 15,
+        "source_legal": true,
+        "target": [
+          12,
+          19
+        ],
+        "target_gate_owner": 0,
+        "target_nav": 5
+      }
+    ],
+    "runtime_and_manual_claims": {
+      "adaptive_input_order": "source/staged only",
+      "live_runtime_observed": false,
+      "manual_name_replacement": "pending",
+      "nonadaptive_profile": "not covered by this keyboard/adaptive scenario"
+    },
+    "runtime_enemy_safety": "dynamic authoritative ENEMY_TABLE and release-state preflight at every observed player_tick; unsafe lane occupancy is missing coverage, no route search",
+    "walk_model": [
+      {
+        "advance": 0,
+        "cell": [
+          12,
+          22
+        ],
+        "fb": "0x89ec",
+        "step": 0
+      },
+      {
+        "advance": 1,
+        "cell": [
+          12,
+          22
+        ],
+        "fb": "0x88ac",
+        "step": 1
+      },
+      {
+        "advance": 2,
+        "cell": [
+          12,
+          22
+        ],
+        "fb": "0x876c",
+        "step": 2
+      },
+      {
+        "advance": 3,
+        "cell": [
+          12,
+          22
+        ],
+        "fb": "0x862c",
+        "step": 3
+      },
+      {
+        "advance": 4,
+        "cell": [
+          12,
+          21
+        ],
+        "fb": "0x84ec",
+        "step": 0
+      },
+      {
+        "advance": 5,
+        "cell": [
+          12,
+          21
+        ],
+        "fb": "0x83ac",
+        "step": 1
+      },
+      {
+        "advance": 6,
+        "cell": [
+          12,
+          21
+        ],
+        "fb": "0x826c",
+        "step": 2
+      },
+      {
+        "advance": 7,
+        "cell": [
+          12,
+          21
+        ],
+        "fb": "0x812c",
+        "step": 3
+      },
+      {
+        "advance": 8,
+        "cell": [
+          12,
+          20
+        ],
+        "fb": "0x7fec",
+        "step": 0
+      },
+      {
+        "advance": 9,
+        "cell": [
+          12,
+          20
+        ],
+        "fb": "0x7eac",
+        "step": 1
+      },
+      {
+        "advance": 10,
+        "cell": [
+          12,
+          20
+        ],
+        "fb": "0x7d6c",
+        "step": 2
+      },
+      {
+        "advance": 11,
+        "cell": [
+          12,
+          20
+        ],
+        "fb": "0x7c2c",
+        "step": 3
+      },
+      {
+        "advance": 12,
+        "cell": [
+          12,
+          19
+        ],
+        "fb": "0x7aec",
+        "step": 0
+      },
+      {
+        "advance": 13,
+        "cell": [
+          12,
+          19
+        ],
+        "fb": "0x79ac",
+        "step": 1
+      },
+      {
+        "advance": 14,
+        "cell": [
+          12,
+          19
+        ],
+        "fb": "0x786c",
+        "step": 2
+      },
+      {
+        "advance": 15,
+        "cell": [
+          12,
+          19
+        ],
+        "fb": "0x772c",
+        "step": 3
+      },
+      {
+        "advance": 16,
+        "cell": [
+          12,
+          18
+        ],
+        "fb": "0x75ec",
+        "step": 0
+      }
+    ]
+  },
+  "offline_self_test": {
+    "all_gray_rejected": true,
+    "banked_helper_physical_mismatch_rejected": true,
+    "banked_helper_source_staged_cpu_physical_positive": true,
+    "banked_helper_wrong_PAR5_rejected_before_read": true,
+    "changed_masks_rejected": true,
+    "changed_random_letter_identity_is_missing_coverage": true,
+    "checks": 46,
+    "checks_scope": "pre-existing pixel/BUG-046 oracle checks only",
+    "deadline_floor_rejected": true,
+    "good_fixture": "8688c0219b5a7192baed27d5f5fcab3887614ea854b9a6bbce6125cf4ddc6b87",
+    "hidden_oracle": {
+      "absolute_letter_and_heart_oracle": "qualified for current candidate inputs",
+      "baseline_retention_sha256": "6718bf020e4d867f973b6aca49230bb8c554b403957fbe13e2c4b440dc5c7a90",
+      "baseline_rom_sha256": "85e2d503756eec66d70eb5c2180fd7e8ddfca7e12004c3a7d432e8132268b300",
+      "baseline_sprite_blue_pairs_sha256": "cb85c439bfb999efd1183f9bc4c98b0069594ff2fed905c94229ca18ba22530a",
+      "candidate_chars_sha256": "eba245a632ad24b1b836bc7d480ddf1b4d5393062851969cf811bf16c13bb7a7",
+      "candidate_compiler_inputs": {
+        "build_presentation.py": {
+          "path": "E:\\projects\\ladybug\\repro\\bug046-display-repair-20261015\\capsule\\scripts\\build_presentation.py",
+          "sha256": "167f9abdcaaa65540cb208d7f68d52d1f9cd98dc44b69f11ab97a3cd62097fd6"
+        },
+        "build_screen.py": {
+          "path": "E:\\projects\\ladybug\\repro\\bug046-display-repair-20261015\\capsule\\scripts\\build_screen.py",
+          "sha256": "6d7b045523c772d16e4b856d961fdb25f73c73299b0830dd77aedfac0afe13a0"
+        }
+      },
+      "candidate_map_sha256": "fdc8db8aecf3fabcd4799b66b680809da48d96d18606fdb9d542c08905c821fc",
+      "candidate_object_masks_sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+      "compiled_object_masks_sha256": "9b147236c14f4c7b483ffa016139bfc44fe3c133db5f76b1e9b5f44ff42b0519",
+      "historical_clean_underlay_status": "unusable: old BUG-122 baseline retention.json is absent; this path does not synthesize or bypass it",
+      "map_atlas_tiles": 87,
+      "map_role": "level-start",
+      "oracle_path": "E:\\projects\\ladybug\\repro\\bug122-heart-verification-20261014\\pixel_oracle.py",
+      "oracle_sha256": "14b765a97f265d2053fe9e0fb67c32190265e14c9c1cf792966b8ebd4c417009",
+      "underlay_bytes": 30720,
+      "underlay_sha256": "ab1e0e381b75fbdb43304350a13a49007103bc87f3f8414636206f59460bd3c2"
+    },
+    "hidden_word_pixel_failure_rejected": true,
+    "import_socket_process_denied": true,
+    "method_restoration": true,
+    "missing_crop_rejected": true,
+    "missing_duplicate_ordinal_rejected": true,
+    "missing_hidden_owner_is_missing_coverage": true,
+    "modified_word_glyph_rejected": true,
+    "physical_site_mismatch_rejected": true,
+    "result": "pass",
+    "same_phase_read_wait_clamp": true,
+    "scheduled_cell_step_framebuffer_negatives_rejected": true,
+    "scheduled_facing_only_difference_ignored": true,
+    "scheduled_semantic_boundary_clocks_ignored": true,
+    "shifted_heart_rejected": true,
+    "shifted_random_letter_rejected": true,
+    "source_staged_cpu_physical_site_positive": true,
+    "stage_entry_checks": {
+      "count": 7,
+      "groups": [
+        "candidate/frozen-broken guard and source/staged bytes",
+        "candidate caller and CPU/physical mapping positives plus mapping negatives",
+        "sixteen-step ordinal/input fixtures and position/input negatives",
+        "post-ready predecessor ordinals 0..3 including initial PLAYER_DIR=DIR_NONE",
+        "authoritative enemy-table safe/unsafe/invalid/mismatch fixtures",
+        "enemy page mapping good/PAR5/PAR6 negatives",
+        "stage enemy-reset/release source and staged-byte proof"
+      ],
+      "result": "pass"
+    },
+    "stale_preview_publication_is_missing_coverage": true,
+    "synthetic_broken_all_gray_words_rejected": true,
+    "synthetic_known_good_words_letters_hearts_match": true,
+    "unauthorized_guest_write_input_rejected": true,
+    "unsampled_held_input_is_missing_coverage": true,
+    "word_tiles": 12,
+    "wrong_actual_GIME_owner_is_missing_coverage": true,
+    "wrong_par_mapping_rejected_before_read": true,
+    "wrong_selected_BACK_mapping_rejected": true,
+    "wrong_selected_mask_mapping_rejected": true,
+    "zero_budget_no_rpc": true
+  },
+  "phase_contract": {
+    "max_seconds_per_run": 135,
+    "max_seconds_total": 270,
+    "phase_seconds_max": 45.0,
+    "phases_per_run": 3,
+    "retry_policy": "none",
+    "runs_max": 2,
+    "stop_seconds_max": 10.0,
+    "stops_per_phase_max": 1000
+  },
+  "pins": {
+    "artifacts_checked": 87,
+    "authored_inputs_checked": 266,
+    "build": "E:\\projects\\ladybug\\repro\\bug117-stage-repair-20261015\\capsule\\build",
+    "generated_inputs_checked": 4,
+    "identity": "stage-entry-repair-candidate",
+    "profile": "complete",
+    "receipt_sha256": "8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a",
+    "revision": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+    "rom_sha256": "8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29",
+    "state": "complete"
+  },
+  "preparation_path": "E:\\projects\\ladybug\\repro\\bug117-stage-repair-20261015\\observer\\preparation-qualified-20261015.json",
+  "probe_sha256": "642c007290aa3ccf8b3d6eefda1e823dc86dcb8dfb56fb34380e189934edcc9c",
+  "proposed_runtime_commands": [
+    "python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --case neutral --run-live --build repro/bug117-stage-repair-20261015/capsule/build --output repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json",
+    "python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --case held --run-live --build repro/bug117-stage-repair-20261015/capsule/build --paired-neutral repro/bug117-stage-repair-20261015/observer/stage-entry-neutral.json --output repro/bug117-stage-repair-20261015/observer/stage-entry-held.json"
+  ],
+  "runtime_authorized": false,
+  "runtime_readiness": "offline preparation only; parent source review and exclusive runtime lease required",
+  "scenario": "stage-entry",
+  "source_site_check": {
+    "checks": [
+      {
+        "address": "0xc116",
+        "kind": "main",
+        "length": 16,
+        "name": "mainloop",
+        "source_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae",
+        "staged_sha256": "685d7b5368046d3c8165cc3370aa2fad49569be153476a7fb26c94b6e47e42ae"
+      },
+      {
+        "address": "0xc41b",
+        "kind": "main",
+        "length": 16,
+        "name": "draw_word_progress_hud",
+        "source_sha256": "df28603d6ebc7418a3842b2f53dc377db89011c13f9c2571d0a54699d8aca276",
+        "staged_sha256": "df28603d6ebc7418a3842b2f53dc377db89011c13f9c2571d0a54699d8aca276"
+      },
+      {
+        "address": "0xcb71",
+        "kind": "main",
+        "length": 16,
+        "name": "player_tick",
+        "source_sha256": "5a7f583d33a55c0d4d7191dc153fad1162605bb9a59654b2a5e48f1bea1fd22b",
+        "staged_sha256": "5a7f583d33a55c0d4d7191dc153fad1162605bb9a59654b2a5e48f1bea1fd22b"
+      },
+      {
+        "address": "0xccfa",
+        "kind": "main",
+        "length": 16,
+        "name": "pt_draw",
+        "source_sha256": "98004d8a3da1e28c893f10348df426e8a054f0a216a7d0c5d0ccecdf5b23dbea",
+        "staged_sha256": "98004d8a3da1e28c893f10348df426e8a054f0a216a7d0c5d0ccecdf5b23dbea"
+      },
+      {
+        "address": "0xc21",
+        "kind": "enemy",
+        "length": 16,
+        "name": "fri_stage_background",
+        "source_sha256": "4083dd75e98b680c7489981b4b392231bbf05389d9e00e638f0e549fe57c3849",
+        "staged_sha256": "4083dd75e98b680c7489981b4b392231bbf05389d9e00e638f0e549fe57c3849"
+      },
+      {
+        "address": "0x1900",
+        "kind": "presentation",
+        "length": 16,
+        "name": "presentation_flow_tick",
+        "source_sha256": "44ecdf0dba3c223d77eaa9da78c2a45e18ff6781913c4add05cf9d2a03483281",
+        "staged_sha256": "44ecdf0dba3c223d77eaa9da78c2a45e18ff6781913c4add05cf9d2a03483281"
+      },
+      {
+        "address": "0x1d47",
+        "kind": "presentation",
+        "length": 16,
+        "name": "demo_run",
+        "source_sha256": "f930e5ed2309a23f8a26f8b057b19b53db5c59ff7257cce5d8a9888d098f8daf",
+        "staged_sha256": "f930e5ed2309a23f8a26f8b057b19b53db5c59ff7257cce5d8a9888d098f8daf"
+      },
+      {
+        "address": "0x1ca9",
+        "kind": "presentation",
+        "length": 16,
+        "name": "credit_tick",
+        "source_sha256": "8240e59df9ae705f262e28a85e325ab4dfc78eddbd40dc69ce0f2171ec0d3f28",
+        "staged_sha256": "8240e59df9ae705f262e28a85e325ab4dfc78eddbd40dc69ce0f2171ec0d3f28"
+      },
+      {
+        "address": "0x1a32",
+        "kind": "presentation",
+        "length": 16,
+        "name": "normal_game",
+        "source_sha256": "ec359d55f65d84240f68b97f518e2eb6e09747c2ef8b5f5f0844b7d9fb967675",
+        "staged_sha256": "ec359d55f65d84240f68b97f518e2eb6e09747c2ef8b5f5f0844b7d9fb967675"
+      },
+      {
+        "address": "0x1cac",
+        "kind": "presentation",
+        "length": 16,
+        "name": "level_tick",
+        "source_sha256": "066e239be46086d5b2d44052b0fb546b4048218a9a1b826b6fafbbfb40cdb0dd",
+        "staged_sha256": "066e239be46086d5b2d44052b0fb546b4048218a9a1b826b6fafbbfb40cdb0dd"
+      },
+      {
+        "address": "0x1cbf",
+        "kind": "presentation",
+        "length": 16,
+        "name": "stage2_release_clr_mode",
+        "source_sha256": "06be946837e4ba461f3d9eb7f1eb4da8bdadee638407c65ec6e12a6e83ee9b95",
+        "staged_sha256": "06be946837e4ba461f3d9eb7f1eb4da8bdadee638407c65ec6e12a6e83ee9b95"
+      }
+    ],
+    "count": 11,
+    "result": "pass"
+  }
+}

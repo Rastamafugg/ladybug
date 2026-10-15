@@ -1,0 +1,61 @@
+{
+  "date": "2026-10-15",
+  "ticket": "BUG-117",
+  "role": "parent qa-reviewer",
+  "verdict": "not_ready",
+  "scope": "offline observer review only; no runtime/build/production edit",
+  "observer_sha256": "642c007290aa3ccf8b3d6eefda1e823dc86dcb8dfb56fb34380e189934edcc9c",
+  "manifest_sha256": "2b2d0de2f75f055f776fd591775b789f477abd71f13ee33aa8065f9a353ad091",
+  "checks": {
+    "wsl_self_test": "pass: existing46checks plus7named117groups",
+    "wsl_candidate_artifact_check": "pass:266authored/4generated/87artifacts;11sitewindows",
+    "hash_matches_frozen": true,
+    "approved_card": "stage-control-repair-proposed-20261015",
+    "production_capacity_unchanged": true
+  },
+  "findings": [
+    {
+      "id": "R1",
+      "file": "repro\\stage-preview-diagnosis-20261014\\probe.py",
+      "lines": [
+        2808,
+        2841,
+        3264,
+        3330
+      ],
+      "risk": "observer/setup failure can be falsely reported as product_reproduced",
+      "observed": "stage_brief_snapshot records errors and CPU/physical comparison; event dispatch checks only site_proof_error before product assertions",
+      "controlled_negative": {
+        "errors": [
+          "direct-page snapshot: OSError: controlled read failure"
+        ],
+        "state_mapping_expected": true,
+        "site_proof": {
+          "kind": "main"
+        }
+      },
+      "current_product_validator_discrepancies": [
+        "position/step does not match the source-derived movement ordinal",
+        "sampled raw axes do not match neutral/held fixture",
+        "automatic entry input publication invariant changed before center stop"
+      ],
+      "required_correction": "Before interpreting pose/input as product behavior, reject missing/failed state reads or failed CPU/physical/mapping qualification as setup/observer failure, retaining raw record. Preserve approved phase limits and writes; add focused negative qualification."
+    },
+    {
+      "id": "R2",
+      "file": "repro\\stage-preview-diagnosis-20261014\\probe.py",
+      "line": 1932,
+      "risk": "contradictory candidate revision metadata",
+      "observed_candidate_expected_revision": "4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3",
+      "current_live_images_source_revision": "3926a4ad73bae3665e619cf9c3154cb8d3d2ed60",
+      "required_correction": "Select live-image source_revision from the same pinned build identity used by artifact_check; qualify candidate and legacy identities."
+    }
+  ],
+  "remaining_before_runtime": [
+    "Correct R1/R2 without changing approved contract",
+    "Parent review and qualification of new frozen hash",
+    "Scoped source/evidence commit and canonical Ready runtime assignment"
+  ],
+  "manual_and_integration": "remain pending; this review is not product acceptance",
+  "runtime_runs_performed": 0
+}

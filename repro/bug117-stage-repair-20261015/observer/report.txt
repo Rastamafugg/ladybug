@@ -1,0 +1,32 @@
+BUG-117 stage-entry observer preparation
+Date: 2026-10-15
+Status: offline preparation passed; no runtime result
+
+Frozen candidate
+
+- Candidate: `repro/bug117-stage-repair-20261015/capsule/build`, complete keyboard/adaptive ROM `8d24086dab88be68178831927af85c7592f5c8c2932c8a6be2cf6551516a8a29`, receipt `8e40c2fe5221d9194c40014a93264291a3805eacd02d3ed4e7674fcf789e264a`, revision `4ca288268620f67ee2c4bf3e706c4fd5ba81ffd3`.
+- Frozen broken control: `repro/bug122-integration-20261014/capsule/build`, ROM `4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5`, receipt `5a2601d51a7a526bd228db7f46e0fa872a6e53e2c0197297038078f3694237fc`, revision `3926a4ad73bae3665e619cf9c3154cb8d3d2ed60`.
+- Both receipts qualify 266 authored inputs, four generated inputs, and 87 artifacts. Candidate-to-control source differences remain limited to approved `src/main.s` and the separate BUG-046 `src/shared_text_stage.inc` change.
+- Frozen shared observer `repro/stage-preview-diagnosis-20261014/probe.py`: SHA-256 `642c007290aa3ccf8b3d6eefda1e823dc86dcb8dfb56fb34380e189934edcc9c`.
+- Root `src/main.s` remains SHA-256 `c88a1150e68ac575a4be0282a958a59b152e2e51f8150f747719570d3e6bf226`; capsule `src/main.s` remains `88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4`.
+
+Offline qualification
+
+The candidate guard is exactly `D6 18 DA 06 27 0A` immediately after the initial-entry barrier; its branch resolves to `rj_done`. The frozen broken window is `97 05 97 0F 97 07`. The guarded truth table admits ordinary manual North and a later manual-zero/name `DIR_NONE` sample while suppressing automatic manual-zero North. This is source/encoding reasoning; no 6809 interpreter or live name-input result is claimed.
+
+Source/listing/staged checks bind the adaptive joystick caller at `$03AB` / `$03AE`, player caller at `$04DF` / `$04E2`, center-stop routine, movement bytes, and reciprocal masks to the candidate. The fixed map route at x=12 is legal and gate-free: North from y22 through y18, then Up to y17 for neutral or Down to y19 for held input. The expected 16 pixel advances are `FB=$89EC-320*n`, cell `(12,22-floor(n/4))`, step `n mod 4`. Center stop remains at `$75EC`, clears direction/request without movement, and the first following input sample is checked before the next movement. Post-ready predecessor checks cover draws 0–3; at draw 0 `PLAYER_DIR` is still `$FF` until `pt_choose_direction`.
+
+Dynamic safety reads the authoritative four 8-byte roaming-enemy records at `$A470`, plus `ENEMY_ACTIVE`, monotonic `ENEMY_RELEASED`, box timer/index, death, and pickup state. It checks live CPU/PAR/physical mapping, record/count agreement, and only the approved edge’s source collision neighborhood. `$A380` is collectible state and is not used as enemy evidence. Candidate source/staged proof confirms `next_stage` calls `init_enemy`, its reset clears the 32-byte enemy table, and the timer/release and collision source windows match staged bytes. Actual live occupancy and safety remain unobserved.
+
+The proposed runner records entry/input/pose/caller/mapping/enemy state before its scenario assertions. It retains the approved four fixture writes once, uses the normal published preview without hydration, and keeps three 45-second phases per fresh run, 10-second stop limits, 1,000 callbacks per phase, two runs maximum, and no retries or route search.
+
+Commands and outcomes
+
+- `python -B -c "from pathlib import Path; compile(Path('repro/stage-preview-diagnosis-20261014/probe.py').read_text(encoding='utf-8'), 'probe.py', 'exec')"` — pass.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --help` — pass; additive `stage-entry` CLI is available and legacy scenarios remain listed.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --self-test` — pass. The output keeps the pre-existing 46 pixel/BUG-046 checks separate from seven named BUG-117 assertion groups covering source/site mappings, guard/position/input negatives, post-ready ordinals, enemy safety, and reset/release source proof.
+- `python -B repro/stage-preview-diagnosis-20261014/probe.py --scenario stage-entry --artifact-check --build repro/bug117-stage-repair-20261015/capsule/build --write-preparation --preparation-output repro/bug117-stage-repair-20261015/observer/preparation-qualified-20261015.json` — pass. Manifest SHA-256: `2b2d0de2f75f055f776fd591775b789f477abd71f13ee33aa8065f9a353ad091`.
+
+Use `preparation-qualified-20261015.json` as the final manifest. The earlier `preparation.json` was emitted before the final mapping, enemy-record, and post-ready ordinal corrections and is superseded.
+
+The manifest’s proposed commands are the neutral run followed by its paired held run, each using the pinned candidate and fresh outputs under `repro/bug117-stage-repair-20261015/observer/`. They are proposals only. No build, emulator, live probe, root-source edit, wiki edit, or Git operation was performed. Parent review and the separate runtime lease remain prerequisites. Live manual-zero name sampling, ordinary manual input, actual enemy/spawner state, and runtime full-walk/next-input evidence remain pending.
