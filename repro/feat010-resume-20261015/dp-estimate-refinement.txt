@@ -1,0 +1,17 @@
+# FEAT010 direct-page estimate refinement
+
+This bounded read-only refinement adds generated adaptive code to the prior estimate. The earlier 16–32 hands-on person-hour range treated the 34 authored `.s`/`.inc` files as the approximate source population. The normal assembly closure also contains generated assembly, so the earlier range omitted some source ownership and proof work. Revised planning range: **18–36 hands-on person-hours (about 2–4 person-days)**. These are conservative assumptions, not measured executor time, a fixed commitment, or a guaranteed elapsed-time forecast. Unknown eligible operand count keeps confidence low.
+
+`repro/feat010-recovery-20261015/capsule/scripts/build_adaptive_runtime.py` generates adaptive mapped and banked assembly from `src/adaptive_runtime.s` and separately assembles each output with source-reference provenance. The capsule's source-preparation report says it pins 266 approved `source_inputs` paths against current-root and freeze hashes. Therefore a broader census must inspect the authored template and generator transformations, then prove each candidate in the emitted listing and binary for every affected generated variant. Editing only a generated `.s` output would miss the durable source owner; editing the shared template can affect distinct emitted layouts.
+
+The capsule keyboard/adaptive build log records an adaptive-core stage with mapped output **198/220 bytes (22 free)** and banked output **696/698 bytes (2 free)**. The mapped and banked caps are separate regions; spare bytes in one do not satisfy the other's cap. The banked region has the tighter current headroom and is the first region to inspect for overflow pressure, followed by mapped. These are observed stage measurements from the isolated FEAT010 recovery capsule, not a parent-approved final complete-build baseline. Although the log advances through profile generation, wait for the parent's final build-status review before treating this as a complete baseline. The 32-site FEAT010 projection remains unassembled and must not be applied to these numbers as measured savings.
+
+Planning ranges by work stage:
+
+- Inventory the complete emitted module closure, including generator/template ownership and separate mapped/banked outputs: **3–5h**.
+- Prove candidates from template/source through generated listing and binary, including each affected profile/variant and bounded allowlist: **5–10h**.
+- Apply operand-only changes and run ordered fits for affected supported profiles/regions: **3–7h**.
+- QA only the already-approved scenarios for changed subsystems: **5–10h**, not a blanket full-suite rerun. Actual effort depends on the modules and behaviors changed.
+- Parent integration and combined artifact review: **2–4h**, after the current build input issue is resolved.
+
+The revised 18–36h range includes the generator ownership and dual-region proof cost. It does not claim that eligible direct-page operands exist in either generated region, and it establishes no byte savings or cycle/frame benefit. Keep the exact approved 32-site presentation recovery first. For a later proposal, census the banked region before mapped because of its 2-byte observed headroom, then consider only additional sites whose emitted-byte recovery is proved against the region cap. Keep timing-sensitive audio spacing out of this pass.

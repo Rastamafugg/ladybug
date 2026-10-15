@@ -1,0 +1,236 @@
+{
+  "ticket": "FEAT-010",
+  "profile": "complete keyboard 6809 adaptive",
+  "result": "FAIL: shared-stage fixed helper boundary",
+  "build_attempts_used": 1,
+  "remaining_profile_attempts_not_dispatched": 2,
+  "further_builds_stopped": true,
+  "runtime_runs": 0,
+  "approved_scope": "32direct-page operands plus retained feature rebase",
+  "presentation": {
+    "bytes": 1271,
+    "limit": 1280,
+    "free": 9,
+    "baseline_bytes": 1303,
+    "measured_saving": 32,
+    "all32emitted_operands_checked": true,
+    "binary_sha256": "e26d7d113ba919bb311cf835f14984aa47a8eab383607c57811c26fb2a36425a",
+    "listing_sha256": "72cc537304e5b1b0cb88739dba77d7379c11557580b64b25146b346e3a6f3e60"
+  },
+  "partial_capacity_not_final_acceptance": {
+    "resident_bytes": 8088,
+    "resident_limit": 8192,
+    "resident_free": 104,
+    "assets_bytes": 7667,
+    "assets_limit": 7680,
+    "assets_free": 13,
+    "highscore_runtime_bytes": 917,
+    "highscore_runtime_limit": 938,
+    "demo_bytes": 143,
+    "demo_limit": 938,
+    "enemy_helper_bytes": 87,
+    "enemy_helper_limit": 93,
+    "audio_engine_bytes": 727,
+    "audio_engine_limit": 920,
+    "audio_payload_bytes": 6034,
+    "audio_payload_limit": 8192,
+    "adaptive_mapped_bytes": 198,
+    "adaptive_mapped_limit": 220,
+    "adaptive_banked_bytes": 696,
+    "adaptive_banked_limit": 698
+  },
+  "passed_checks": [
+    "9presentation screens pixel exact; zero differences",
+    "BUG016role/layer guards",
+    "32instruction encoding audit",
+    "provisional presentation cap"
+  ],
+  "failure": {
+    "file": "src/shared_text_stage.inc",
+    "lines": [
+      232,
+      559
+    ],
+    "messages": [
+      "rmb HIGHSCORE_PHASE_HELPER_RESUME-* negative11",
+      "rmb $B080-* negative11"
+    ],
+    "do_not_sum": "These diagnostics do not establish two independent11byte deficits. First boundary overflow can propagate to the second.",
+    "source_localization": "First overflow occurs in highscore helper pre-resume region before BUG046 hunks; FEAT010 changes helper dispatch there. No corrupting-write/runtime diagnosis claimed."
+  },
+  "incomplete": [
+    "final presentation link",
+    "other profile builds",
+    "source-documentation and full feature source-flow gates",
+    "final ROM and completed receipt",
+    "feature runtime acceptance",
+    "production integration"
+  ],
+  "receipt_state": "building",
+  "delivered_root_rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "root_source_unchanged": true,
+  "log_sha256": "975404db1b94b5516bb8070b315071af77149de27e57860ad94124771cd72dd4",
+  "review_patch_format": "LF normalized; git apply --cached --check passed; no patch applied",
+  "checked_sites": [
+    {
+      "site": 1,
+      "address": "1AA6",
+      "bytes": "0FBB"
+    },
+    {
+      "site": 2,
+      "address": "1AAE",
+      "bytes": "DDAA"
+    },
+    {
+      "site": 3,
+      "address": "1AB0",
+      "bytes": "DDAC"
+    },
+    {
+      "site": 4,
+      "address": "1AB5",
+      "bytes": "DDAE"
+    },
+    {
+      "site": 5,
+      "address": "1AE2",
+      "bytes": "96D4"
+    },
+    {
+      "site": 6,
+      "address": "1AEB",
+      "bytes": "97C6"
+    },
+    {
+      "site": 7,
+      "address": "1AED",
+      "bytes": "DCAA"
+    },
+    {
+      "site": 8,
+      "address": "1AF5",
+      "bytes": "0DBB"
+    },
+    {
+      "site": 9,
+      "address": "1AFC",
+      "bytes": "97BB"
+    },
+    {
+      "site": 10,
+      "address": "1B01",
+      "bytes": "97BC"
+    },
+    {
+      "site": 11,
+      "address": "1B0C",
+      "bytes": "D6BC"
+    },
+    {
+      "site": 12,
+      "address": "1B11",
+      "bytes": "0ABB"
+    },
+    {
+      "site": 13,
+      "address": "1B13",
+      "bytes": "0CAB"
+    },
+    {
+      "site": 14,
+      "address": "1B17",
+      "bytes": "0CAA"
+    },
+    {
+      "site": 15,
+      "address": "1B19",
+      "bytes": "0CAC"
+    },
+    {
+      "site": 16,
+      "address": "1B1B",
+      "bytes": "96AC"
+    },
+    {
+      "site": 17,
+      "address": "1B21",
+      "bytes": "0FAC"
+    },
+    {
+      "site": 18,
+      "address": "1B23",
+      "bytes": "0CAD"
+    },
+    {
+      "site": 19,
+      "address": "1B25",
+      "bytes": "DCAE"
+    },
+    {
+      "site": 20,
+      "address": "1B2A",
+      "bytes": "DDAE"
+    },
+    {
+      "site": 21,
+      "address": "1B2C",
+      "bytes": "0AC6"
+    },
+    {
+      "site": 22,
+      "address": "1B6F",
+      "bytes": "96D4"
+    },
+    {
+      "site": 23,
+      "address": "1B77",
+      "bytes": "96A6"
+    },
+    {
+      "site": 24,
+      "address": "1BA6",
+      "bytes": "96A6"
+    },
+    {
+      "site": 25,
+      "address": "1BBF",
+      "bytes": "97D4"
+    },
+    {
+      "site": 26,
+      "address": "1BD1",
+      "bytes": "D6A6"
+    },
+    {
+      "site": 27,
+      "address": "1BD9",
+      "bytes": "97CA"
+    },
+    {
+      "site": 28,
+      "address": "1BE2",
+      "bytes": "0FB0"
+    },
+    {
+      "site": 29,
+      "address": "1BE4",
+      "bytes": "0FB1"
+    },
+    {
+      "site": 30,
+      "address": "1BF0",
+      "bytes": "109EAE"
+    },
+    {
+      "site": 31,
+      "address": "1BF6",
+      "bytes": "9EAE"
+    },
+    {
+      "site": 32,
+      "address": "1BFA",
+      "bytes": "9FAE"
+    }
+  ]
+}

@@ -1,0 +1,132 @@
+FEAT-010 recovery source preparation
+
+Classification: FEAT-010 remains High-risk. This source-preparation step creates no runtime ownership, protocol, loader/MMU behavior, or capacity-limit change.
+
+The capsule contains the 266 exact source_inputs paths from the approved freeze, copied from current ROOT bytes first. The source manifest records every current-root hash against its original freeze hash. No .git directory is copied. Current-root wiki HTML (379 files, including controlled terms, glossary, routine catalog, and 6809 instruction pages) is also copied byte-for-byte under capsule/wiki for the source-documentation gate; these are auxiliary verification inputs outside the 266-key source_inputs list.
+
+Rebase result:
+- Retained the approved feature changes in the ten allowlisted paths. src/main.s comes from current ROOT and preserves BUG-117 executable source; it has one approved joy_read_axis source-contract comment mirror only.
+- src/shared_text_stage.inc was merged from immutable FEAT-010 base, retained feature source, and current ROOT. The 45 feature hunks and 3 root hunks are disjoint. Current BUG-046 changes remain: mul/addd/tfr address formation for vegetable_sprites and object_masks, plus the draw_word_progress_hud tail.
+- scripts/build.sh contains the retained conditional INPUT_JOYSTICK callback export addition; current pass labels remain present.
+- key_init, key_scan, joy_read_axis and keybindings profile source comments match the retained source_reference.json contracts. These are comment-only source updates.
+- Current authored Tiled maps were copied byte-for-byte: tiled/coco-attract-screen.tmx SHA-256 137e6818a974888f3e5d894b075d24553e665332b517fc3b66132dcf9b0adb76, tiled/coco-high-score-screen.tmx SHA-256 98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425.
+
+Exact 32-site recovery:
+Each approved site was applied at its retained feature source line before any later source shift. Every selected existing extended state operand gained the direct-page prefix. No branch, logic, call, register, stack, callback, owner, or state-transition edit was added. Each site retains the proposal target and projected one-byte saving. No after-recovery assembler measurement exists.
+
+Context proof (line numbers are from retained fit-keyboard-adaptive source before these edits):
+01. line 532 / proposal PC 0x1AA6 / <PRES_RUN / target 0x00BB / bytes 7F00BB -> 0FBB
+   old:         std     PRES_IN |         clr     PRES_RUN |         lda     #MODE_LOAD
+   new:         std     PRES_IN |         clr     <PRES_RUN |         lda     #MODE_LOAD
+02. line 537 / proposal PC 0x1AAF / <PRES_CELL / target 0x00AA / bytes FD00AA -> DDAA
+   old:         clrb |         std     PRES_CELL |         std     PRES_X
+   new:         clrb |         std     <PRES_CELL |         std     <PRES_X
+03. line 538 / proposal PC 0x1AB2 / <PRES_X / target 0x00AC / bytes FD00AC -> DDAC
+   old:         std     PRES_CELL |         std     PRES_X | start_screen_map
+   new:         std     <PRES_CELL |         std     <PRES_X | start_screen_map
+04. line 541 / proposal PC 0x1AB8 / <PRES_DST / target 0x00AE / bytes FD00AE -> DDAE
+   old:         ldd     #$2000 |         std     PRES_DST |         lbsr    map_back
+   new:         ldd     #$2000 |         std     <PRES_DST |         lbsr    map_back
+05. line 570 / proposal PC 0x1AE6 / <PRES_HOLD_STATE / target 0x00D4 / bytes B600D4 -> 96D4
+   old:         endc |         lda     PRES_HOLD_STATE |         bpl     load_tick_normal
+   new:         endc |         lda     <PRES_HOLD_STATE |         bpl     load_tick_normal
+06. line 575 / proposal PC 0x1AF0 / <PRES_ROWS / target 0x00C6 / bytes B700C6 -> 97C6
+   old:         lda     #32 |         sta     PRES_ROWS | load_cells
+   new:         lda     #32 |         sta     <PRES_ROWS | load_cells
+07. line 577 / proposal PC 0x1AF3 / <PRES_CELL / target 0x00AA / bytes FC00AA -> DCAA
+   old: load_cells |         ldd     PRES_CELL |         cmpd    #PRESENTATION_MAP_BYTES
+   new: load_cells |         ldd     <PRES_CELL |         cmpd    #PRESENTATION_MAP_BYTES
+08. line 580 / proposal PC 0x1AFC / <PRES_RUN / target 0x00BB / bytes 7D00BB -> 0DBB
+   old:         bhs     load_done |         tst     PRES_RUN |         bne     load_value_ready
+   new:         bhs     load_done |         tst     <PRES_RUN |         bne     load_value_ready
+09. line 583 / proposal PC 0x1B04 / <PRES_RUN / target 0x00BB / bytes B700BB -> 97BB
+   old:         lbsr    cold_read_byte |         sta     PRES_RUN |         lbsr    cold_read_byte
+   new:         lbsr    cold_read_byte |         sta     <PRES_RUN |         lbsr    cold_read_byte
+10. line 585 / proposal PC 0x1B0A / <PRES_VALUE / target 0x00BC / bytes B700BC -> 97BC
+   old:         lbsr    cold_read_byte |         sta     PRES_VALUE |         cmpa    #174
+   new:         lbsr    cold_read_byte |         sta     <PRES_VALUE |         cmpa    #174
+11. line 591 / proposal PC 0x1B16 / <PRES_VALUE / target 0x00BC / bytes F600BC -> D6BC
+   old: load_value_ready |         ldb     PRES_VALUE |         lbsr    draw_cell
+   new: load_value_ready |         ldb     <PRES_VALUE |         lbsr    draw_cell
+12. line 593 / proposal PC 0x1B1C / <PRES_RUN / target 0x00BB / bytes 7A00BB -> 0ABB
+   old:         lbsr    draw_cell |         dec     PRES_RUN |         inc     PRES_CELL+1
+   new:         lbsr    draw_cell |         dec     <PRES_RUN |         inc     <PRES_CELL+1
+13. line 594 / proposal PC 0x1B1F / <PRES_CELL+1 / target 0x00AB / bytes 7C00AB -> 0CAB
+   old:         dec     PRES_RUN |         inc     PRES_CELL+1 |         bne     load_advance
+   new:         dec     <PRES_RUN |         inc     <PRES_CELL+1 |         bne     load_advance
+14. line 596 / proposal PC 0x1B24 / <PRES_CELL / target 0x00AA / bytes 7C00AA -> 0CAA
+   old:         bne     load_advance |         inc     PRES_CELL | load_advance
+   new:         bne     load_advance |         inc     <PRES_CELL | load_advance
+15. line 598 / proposal PC 0x1B27 / <PRES_X / target 0x00AC / bytes 7C00AC -> 0CAC
+   old: load_advance |         inc     PRES_X |         lda     PRES_X
+   new: load_advance |         inc     <PRES_X |         lda     <PRES_X
+16. line 599 / proposal PC 0x1B2A / <PRES_X / target 0x00AC / bytes B600AC -> 96AC
+   old:         inc     PRES_X |         lda     PRES_X |         cmpa    #40
+   new:         inc     <PRES_X |         lda     <PRES_X |         cmpa    #40
+17. line 602 / proposal PC 0x1B31 / <PRES_X / target 0x00AC / bytes 7F00AC -> 0FAC
+   old:         blo     load_next |         clr     PRES_X |         inc     PRES_Y
+   new:         blo     load_next |         clr     <PRES_X |         inc     <PRES_Y
+18. line 603 / proposal PC 0x1B34 / <PRES_Y / target 0x00AD / bytes 7C00AD -> 0CAD
+   old:         clr     PRES_X |         inc     PRES_Y |         ldd     PRES_DST
+   new:         clr     <PRES_X |         inc     <PRES_Y |         ldd     <PRES_DST
+19. line 604 / proposal PC 0x1B37 / <PRES_DST / target 0x00AE / bytes FC00AE -> DCAE
+   old:         inc     PRES_Y |         ldd     PRES_DST |         addd    #1120
+   new:         inc     <PRES_Y |         ldd     <PRES_DST |         addd    #1120
+20. line 606 / proposal PC 0x1B3D / <PRES_DST / target 0x00AE / bytes FD00AE -> DDAE
+   old:         addd    #1120 |         std     PRES_DST | load_next
+   new:         addd    #1120 |         std     <PRES_DST | load_next
+21. line 608 / proposal PC 0x1B40 / <PRES_ROWS / target 0x00C6 / bytes 7A00C6 -> 0AC6
+   old: load_next |         dec     PRES_ROWS |         bne     load_cells
+   new: load_next |         dec     <PRES_ROWS |         bne     load_cells
+22. line 661 / proposal PC 0x1B84 / <PRES_HOLD_STATE / target 0x00D4 / bytes B600D4 -> 96D4
+   old:         endc |         lda     PRES_HOLD_STATE |         beq     load_done_publish
+   new:         endc |         lda     <PRES_HOLD_STATE |         beq     load_done_publish
+23. line 665 / proposal PC 0x1B8D / <PRES_SCREEN / target 0x00A6 / bytes B600A6 -> 96A6
+   old:         bne     load_done_publish |         lda     PRES_SCREEN |         cmpa    #PRESENTATION_MAP_ATTRACT
+   new:         bne     load_done_publish |         lda     <PRES_SCREEN |         cmpa    #PRESENTATION_MAP_ATTRACT
+24. line 690 / proposal PC 0x1BBD / <PRES_SCREEN / target 0x00A6 / bytes B600A6 -> 96A6
+   old:         std     FB_FRONT_ID |         lda     PRES_SCREEN |         ifne    COMPLETE_PROFILE
+   new:         std     FB_FRONT_ID |         lda     <PRES_SCREEN |         ifne    COMPLETE_PROFILE
+25. line 706 / proposal PC 0x1BD7 / <PRES_HOLD_STATE / target 0x00D4 / bytes B700D4 -> 97D4
+   old:         lda     #PRES_HOLD_FINAL |         sta     PRES_HOLD_STATE | load_done_publish
+   new:         lda     #PRES_HOLD_FINAL |         sta     <PRES_HOLD_STATE | load_done_publish
+26. line 719 / proposal PC 0x1BEA / <PRES_SCREEN / target 0x00A6 / bytes F600A6 -> D6A6
+   old:         endc |         ldb     PRES_SCREEN |         lda     b,x
+   new:         endc |         ldb     <PRES_SCREEN |         lda     b,x
+27. line 724 / proposal PC 0x1BF3 / <PRES_PHASE / target 0x00CA / bytes B700CA -> 97CA
+   old:         lda     #$FF |         sta     PRES_PHASE |         ldd     #PLAYER_BG
+   new:         lda     #$FF |         sta     <PRES_PHASE |         ldd     #PLAYER_BG
+28. line 729 / proposal PC 0x1BFD / <PRES_TIMER / target 0x00B0 / bytes 7F00B0 -> 0FB0
+   old: load_timer_reset |         clr     PRES_TIMER |         clr     PRES_TIMER+1
+   new: load_timer_reset |         clr     <PRES_TIMER |         clr     <PRES_TIMER+1
+29. line 730 / proposal PC 0x1C00 / <PRES_TIMER+1 / target 0x00B1 / bytes 7F00B1 -> 0FB1
+   old:         clr     PRES_TIMER |         clr     PRES_TIMER+1 |         ifne    ATTRACT_OVERLAY_ENABLED
+   new:         clr     <PRES_TIMER |         clr     <PRES_TIMER+1 |         ifne    ATTRACT_OVERLAY_ENABLED
+30. line 746 / proposal PC 0x1C0D / <PRES_DST / target 0x00AE / bytes 10BE00AE -> 109EAE
+   old:         beq     draw_cell_advance |         ldy     PRES_DST |         jsr    draw_tile_id
+   new:         beq     draw_cell_advance |         ldy     <PRES_DST |         jsr    draw_tile_id
+31. line 749 / proposal PC 0x1C14 / <PRES_DST / target 0x00AE / bytes BE00AE -> 9EAE
+   old: draw_cell_advance |         ldx     PRES_DST |         leax    4,x
+   new: draw_cell_advance |         ldx     <PRES_DST |         leax    4,x
+32. line 751 / proposal PC 0x1C19 / <PRES_DST / target 0x00AE / bytes BF00AE -> 9FAE
+   old:         leax    4,x |         stx     PRES_DST |         rts
+   new:         leax    4,x |         stx     <PRES_DST |         rts
+
+Source-only checks:
+- Copied and inventoried 266/266 input paths. Parsed 41 JSON inputs and Python AST for 5 changed scripts.
+- All 32 proposal source contexts matched exactly once; the projected total remains 32 bytes, not measured.
+- Current-root src/main.s before the comment mirror has SHA-256 88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4, matching the proposal current-main identity. Capsule src/main.s after the approved comment-only joy_read_axis mirror has SHA-256 0a8d620cea3202d225579c2879b6ed79d14704c97fbcb7cda6d10e4e76d6e72d. Its assembler-code source lines match current ROOT exactly.
+- Shared-stage merge has no overlapping edits and retains all three current-root source deltas.
+- Both authored TMX hashes match current ROOT exactly.
+- Unified patch is against current-root bytes and owns only the ten approved feature source paths plus the main.s comment mirror.
+
+Capacity and gate status:
+- The recovery proposal projects 1271 presentation bytes and 9 bytes remaining from the retained 1303-byte defective keyboard/adaptive measurement. This remains projection only.
+- Target remains presentation <=1280 bytes, resident >=32 free bytes and every existing cap unchanged. No post-recovery capacity result exists.
+- The first retained keyboard/adaptive attempt measured 1303 bytes against the 1280-byte cap, a 23-byte miss. It is baseline evidence, not a pass for this capsule.
+- The existing compiler layer/pixel guards passed the retained defective baseline. The complete feature source-flow guard remains unqualified until an executable candidate reaches it.
+- No assembly, build, emulator, runtime, or GDB was run. Parent owns review, the first serialized ordinary build, and the first-failure stop boundary.
+- The routine-catalog wiki page was not changed; its exact mirror and root/wiki workflow updates remain parent integration work.
+
+Patch: repro/feat010-recovery-20261015/source-preparation.patch
+Manifest: repro/feat010-recovery-20261015/source-manifest.json
