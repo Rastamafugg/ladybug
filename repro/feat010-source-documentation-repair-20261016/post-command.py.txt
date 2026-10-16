@@ -1,0 +1,78 @@
+from pathlib import Path
+import hashlib, json, re, sys, time, subprocess
+start = time.monotonic()
+root = Path.cwd()
+evidence = root.parent
+baseline = root.parents[1] / 'feat010-source-reference-repair-20261015/capsule'
+build = root / 'build'
+result = {'phase': 'approved post-build flow/raw/source acceptance', 'deadline_seconds': 60}
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def require(value, message):
+    if not value: raise AssertionError(message)
+try:
+    proc = subprocess.run([sys.executable, 'scripts/verify_presentation_flow.py'], capture_output=True,
+                          text=True, timeout=max(1, 58-(time.monotonic()-start)))
+    (evidence/'post-flow.log').write_text(proc.stdout+proc.stderr, encoding='utf-8')
+    require(proc.returncode == 0, 'presentation flow command failed')
+    symbols = {k:int(v,16) for k,v in re.findall(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$',
+               (build/'ladybug-highscore-helper.map').read_text(), re.M)}
+    fixed = {'highscore_phase_tick':0xAC40, 'logo_vbord_clock':0xACAF,
+             'highscore_phase_helper_gap':0xACFF, 'highscore_after_tile':0xAD00,
+             'stage_panel_read_letters':0xB062, 'stage_panel_draw':0xB080,
+             'stage_panel_slice_entry':0xB083, 'menu_scan_entry':0xB086, 'menu_tick_entry':0xB089,
+             'highscore_attract_tick':0xB830, 'highscore_phase_helper_end':0xB83E}
+    for key,value in fixed.items(): require(symbols[key] == value, 'fixed entry: '+key)
+    raw = (build/'ladybug-highscore-helper.bin').read_bytes()
+    require(len(raw) == 3070 == symbols['highscore_phase_helper_end']-symbols['highscore_phase_tick'], 'helper length')
+    at = lambda address,n: raw[address-0xAC40:address-0xAC40+n]
+    require(at(0xACFF,1) == b'\0', 'gap byte')
+    require(hashlib.sha256(at(0xACAF,80)).hexdigest() == 'b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45e', 'clock bytes')
+    word = lambda number: (number & 65535).to_bytes(2,'big')
+    wrapper = symbols['highscore_attract_tick']
+    expected = (b'\x17'+word(symbols['highscore_logo_tick']-(wrapper+3))+
+                b'\x96\xa5\x81\x02\x10\x26'+word(symbols['highscore_phase_hold']-(wrapper+11))+
+                b'\x16'+word(symbols['menu_tick']-(wrapper+14)))
+    require(at(wrapper,14) == expected, 'wrapper instruction bytes and targets')
+    expected_prefix = b'\x96\xa6\x81'+bytes([symbols['PRESENTATION_MAP_ATTRACT']])+b'\x10\x27'+word(wrapper-0xAC48)
+    require(at(0xAC40,8) == expected_prefix, 'dispatch prefix')
+    sites = json.loads((root.parents[1]/'feat010-resume-20261015/recovery-proposal.json').read_text())['sites']
+    listing = (build/'ladybug-presentation-runtime.lst').read_text()
+    presentation = (build/'ladybug-presentation-runtime.bin').read_bytes()
+    for site in sites:
+        rows = [m for m in re.finditer(r'^([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]{2,16})\s+\(([^)]+)\):(\d{5})', listing, re.M)
+                if int(m[4]) == site['source_line'] and m[3].endswith('ntation_runtime.s')]
+        require(len(rows) == 1, 'DP listing row: '+str(site['n']))
+        row = rows[0]; wanted = bytes.fromhex(site['after'])
+        require(bytes.fromhex(row[2]) == wanted, 'direct operand encoding')
+        offset = int(row[1],16)-0x1900
+        require(presentation[offset:offset+len(wanted)] == wanted, 'direct operand raw bytes')
+    historical = json.loads((baseline/'build/source-build-receipt.json').read_text())
+    receipt = json.loads((build/'source-build-receipt.json').read_text())
+    require(receipt['state'] == 'complete', 'receipt complete')
+    payloads = {n:h for n,h in historical['artifacts'].items() if Path(n).suffix in ('.bin','.rom')}
+    require(len(payloads) == 30, 'payload inventory')
+    for name,digest in payloads.items(): require(sha(build/name) == digest, 'payload byte change: '+name)
+    allowed = {'scripts/source_reference.json', 'src/demo_runtime.s'}
+    require(set(receipt['inputs']) == set(historical['inputs']), 'source inventory')
+    for name,digest in historical['inputs'].items():
+        if name not in allowed: require(sha(root/name) == digest, 'unlisted input change: '+name)
+    preflight = json.loads((evidence/'parent-preflight.json').read_text())
+    for name,digest in preflight['candidate_hashes'].items(): require(sha(root/name) == digest, 'candidate source identity: '+name)
+    require(sha(build/'ladybug.rom') == '274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53', 'final ROM identity')
+    coverage = json.loads((build/'source-reference/manifest.json').read_text())['coverage']
+    require(coverage['passed'] and (coverage['documented_routines'],coverage['required_routines'],coverage['classified_labels'],coverage['global_labels']) == (319,319,4851,4851), 'fresh coverage counts')
+    require(len(presentation) == 1271, 'presentation size')
+    require((build/'ladybug-highscore-runtime.bin').stat().st_size <= 920, 'complete high-score cap')
+    matches = re.findall(r'resident (\d+)/8192 bytes; assets (\d+)/7680 bytes', (evidence/'build-keyboard-adaptive.log').read_text())
+    require(matches and matches[-1] == ('8088','7667'), 'resident/assets measured sizes')
+    result.update(result='PASS', payloads_identical=30, direct_operand_sites_checked=len(sites),
+                  helper_bytes=3070, helper_free=66, presentation_bytes=1271, resident_free=104,
+                  asset_free=13, fresh_coverage=coverage, rom_sha256=sha(build/'ladybug.rom'),
+                  flow_output=(proc.stdout+proc.stderr).strip())
+except Exception as exc:
+    result.update(result='FAIL', error=repr(exc))
+result['elapsed_seconds'] = time.monotonic()-start
+if result['elapsed_seconds'] > 60: result.update(result='FAIL', error='entire postphase exceeded60seconds')
+(evidence/'post-result.json').write_text(json.dumps(result,indent=2)+'\n', encoding='utf-8')
+print(json.dumps(result,indent=2))
+sys.exit(0 if result['result'] == 'PASS' else 1)

@@ -1,0 +1,41 @@
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -2401,6 +2401,11 @@
+           "purpose": "Named internal control point within the enclosing routine"
+         },
+         {
++          "name": "menu_load_event",
++          "routine": null,
++          "purpose": "Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading."
++        },
++        {
+           "name": "draw_raw_tile",
+           "routine": null,
+           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+@@ -3778,6 +3783,15 @@
+             "called"
+           ],
+           "semantic_id": "routines.html#routine-highscore-helper-logo-vbord-clock"
++        },
++        {
++          "name": "highscore_logo_tick",
++          "profile": "presentation",
++          "purpose": "Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.",
++          "reasons": [
++            "called"
++          ],
++          "semantic_id": "routines.html#routine-highscore-helper-highscore-logo-tick"
+         }
+       ],
+       "label_classifications": [
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -61,7 +61,7 @@
+         setdp   $00
+         include "ladybug_presentation.inc"
+         include "ladybug_presentation_symbols.inc"
+-
++; DOC-002 source-contract mirror contract highscore_logo_tick profile=presentation: Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.
+ PAR5    equ $FFA5
+ PLAYER_DIR equ $0006
+ PLAYER_FACE equ $0007

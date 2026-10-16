@@ -1,0 +1,72 @@
+{
+  "ticket": "FEAT-010",
+  "status": "Approved; preparation Ready; isolated candidate only",
+  "baseline_capsule": "repro/feat010-source-reference-repair-20261015/capsule",
+  "baseline_receipt": {
+    "path": "build/source-build-receipt.json",
+    "sha256": "4b0f76e63383838cfdbc904ae544e8177ba5ed3fcb6ced6bf27d29f5315c9d0b",
+    "receipted_source_inputs": 266,
+    "generated_inputs_copied": 0,
+    "receipt_copied": false,
+    "build_artifacts_copied": 0
+  },
+  "copied_closure": {
+    "source_inputs": 266,
+    "source_inputs_sha256": "315e9bb836f0159aec91464357c30c335c83e3d7b46462b7527ecb36d071e104",
+    "wiki_html_files": 379,
+    "wiki_html_sha256": "05ee3b381c4c71987de756a96cf8fe9f9b38ead8ac7830c2b2b2db2da43962f0",
+    "total_files": 645
+  },
+  "candidate_changes": [
+    {
+      "path": "scripts/source_reference.json",
+      "baseline_sha256": "676241075bc5249528c142cc25837121c86bffa802085ada893a7ca22473d86f",
+      "candidate_sha256": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "delta": "one highscore_logo_tick routine record and one menu_load_event basic_blocks record",
+      "routine": {
+        "module": "highscore-helper",
+        "name": "highscore_logo_tick",
+        "profile": "presentation",
+        "reasons": [
+          "called"
+        ],
+        "semantic_id": "routines.html#routine-highscore-helper-highscore-logo-tick",
+        "purpose": "Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update."
+      },
+      "basic_block": {
+        "module": "presentation-runtime",
+        "name": "menu_load_event",
+        "routine": null,
+        "purpose": "Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading."
+      }
+    },
+    {
+      "path": "src/demo_runtime.s",
+      "baseline_sha256": "35614479667e8ce8d2e2bcac4ab5bc24c54fa92d70eac2b83aec5a14bbe62a18",
+      "candidate_sha256": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "delta": "line 64 blank line replaced by the approved DOC-002 mirror comment",
+      "line_count_baseline": 1217,
+      "line_count_candidate": 1217,
+      "executable_source_bytes_unchanged": true,
+      "new_comment_bytes": "LF"
+    }
+  ],
+  "patch": {
+    "path": "candidate.patch",
+    "sha256": "c7e76cb1c3becf78bde87bd731cb58f5935f47ca2975cd94dc03f0f8d938a36f",
+    "line_ending": "LF",
+    "changed_file_count": 2,
+    "added_lines": 15,
+    "removed_lines": 1
+  },
+  "qualification_execution": {
+    "tests": 0,
+    "models": 0,
+    "verifiers": 0,
+    "generators": 0,
+    "builds": 0,
+    "assemblers": 0,
+    "runtime_probes": 0,
+    "git_commands": 0
+  }
+}
