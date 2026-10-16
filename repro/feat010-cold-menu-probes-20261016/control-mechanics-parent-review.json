@@ -1,0 +1,40 @@
+{
+  "ticket": "FEAT-010",
+  "review": "Parent inspected installed gdb.py/server.py source at audited lines. Existing server stops running GDB via SIGINT outside per-session lock.",
+  "classification": "execution mechanics within approved cards, not new guest transport or gate",
+  "selected_mechanism": "Existing continue_exec(timeout5), concurrent3second hostSIGINT to exact validated owned GDBPID; normal stop required. Do not intentionally timeout.",
+  "identity": {
+    "session_id": "70f64613",
+    "gdb_pid": 1256,
+    "gdb_exe": "/usr/local/bin/m6809-gdb",
+    "gdb_arguments": [
+      "gdb",
+      "--interpreter=mi2",
+      "--quiet"
+    ],
+    "parent_pid": "13",
+    "parent_exe": "/home/rastamafugg/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+    "parent_matching_args": [
+      "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
+      "/home/rastamafugg/.local/bin/gdb-mcp"
+    ],
+    "gdb_start_ticks": "2671363",
+    "port65522_unused": true,
+    "emulator_launched": false
+  },
+  "constraints": [
+    "Same45second whole phase",
+    "At most12stop/continue observations",
+    "Timeout/recovery remains incomplete; no reinterpretation as pass",
+    "Only exact owned debugger may receive SIGINT",
+    "No guest input injection or state writes, no server or transport edit",
+    "Cleanup owned emulator and debugger within shared deadline"
+  ],
+  "status": "fixed runtime command preparation pending; no emulator launched",
+  "audited_files": {
+    "control-capability-audit.txt": "b1c5897da5ac230b24d5f73ac40fe8cbc56cce8e1e3134048d6c7a2b1a00612c",
+    "control-sequence.txt": "3348b8fc2add4c097cec2f55d926027dae8fe9114327c78141ef8a8421eb46f4",
+    "packaged-source-facts.json": "69ef73f2a37218a53880e46fcba147be670e11608a6f3bf0bf9d1ca7da9139e1",
+    "gdb-preparation.json": "d65356461cebe8b9eb9bb345006e228880801202dc2f06510a8fbe285841335b"
+  }
+}
