@@ -1,0 +1,14 @@
+FEAT-010 helper source-guard preparation
+State: bounded guard and metadata edits prepared; parent qualification pending.
+Frozen failed helper source SHA-256: c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93
+Positive full-source fixture SHA-256: 60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7
+Approved helper-hunks patch SHA-256: ec4edc0d81e4b158c06704521e9cbec0b2dc846a88c6ae7c312d8ea1426df079
+Capsule guard patch SHA-256: a388ae8b0588d1c89b7ae1d9f06cfc73c3c2e6668d8fe080b5a3b585d0d41d58
+Verifier SHA-256: 498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2
+Source-reference SHA-256: 6a6aef95d95114677e35742e7503be7d77ce3eea326fb0bb4ee6c73cb9d1eab7
+Capsule: 266 frozen source-input paths plus the 379-file wiki HTML closure; 645 files total; no build tree.
+Capsule edits are limited to scripts/verify_presentation_flow.py and scripts/source_reference.json. The helper source remains byte-identical to c136. The source-reference change adds only the 34 preflight labels plus highscore_attract_tick; key_joy_last is data, the remaining labels are basic blocks with nonempty purposes.
+Hunk 1 restores the full dispatch prefix from 28 to 16 bytes. Its Attract branch is exactly three instructions and 8 bytes; the existing following non-Attract LDA/CMP/LBEQ remain unchanged. Hunk 2 appends the exact five-instruction, 14-byte wrapper immediately after the menu-record include and before highscore_phase_helper_end.
+The callable verifier accepts page23 source text only. It checks exactly three normalized, comment-stripped prefix instructions; exactly five wrapper instructions; and wrapper placement immediately after ladybug_menu_records.inc and before highscore_phase_helper_end. Main delegates the former inline assertion to this function. No other main assertions were changed.
+Source-only checks passed: verifier AST parse, source_reference JSON parse, unchanged hashes for all other frozen source inputs, unchanged helper-source hash, registry semantic equality after removing exactly the 35 approved additions, and capsule count/no-build-tree checks.
+Parent qualification remains pending for the positive fixture, frozen inline-only negative, wrong-tail and missing-mode-reload negatives, and metadata-omission control. No full presentation-flow verifier, build, assembler, emulator, or runtime was run.

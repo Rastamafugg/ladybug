@@ -1,0 +1,311 @@
+--- a/capsule/scripts/verify_presentation_flow.py
++++ b/capsule/scripts/verify_presentation_flow.py
+@@ -37,6 +37,88 @@
+             r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$", text, re.MULTILINE
+         )
+     }
++
++
++def verify_helper_attract_dispatch(page23_source: str) -> None:
++    """Check the FEAT-010 attract path stays in its approved helper regions."""
++
++    lines = page23_source.splitlines()
++
++    def label_index(label: str) -> int:
++        label_pattern = re.compile(r"^\s*" + re.escape(label) + r"\s*:?\s*$")
++        matches = [
++            index for index, line in enumerate(lines)
++            if label_pattern.fullmatch(line.split(";", 1)[0])
++        ]
++        if len(matches) != 1:
++            raise SystemExit(
++                "presentation flow proof: FEAT-010 helper dispatch requires one "
++                + label
++                + " label"
++            )
++        return matches[0]
++
++    def code_lines(start: int, end: int) -> list[str]:
++        result = []
++        for line in lines[start + 1:end]:
++            code = " ".join(line.split(";", 1)[0].split())
++            if code:
++                result.append(code)
++        return result
++
++    phase_tick = label_index("highscore_phase_tick")
++    non_attract = label_index("highscore_phase_not_attract")
++    if phase_tick >= non_attract:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 helper dispatch phase labels are reversed"
++        )
++    expected_prefix = [
++        "lda PRES_SCREEN",
++        "cmpa #PRESENTATION_MAP_ATTRACT",
++        "lbeq highscore_attract_tick",
++    ]
++    if code_lines(phase_tick, non_attract) != expected_prefix:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract prefix is not the exact three-instruction dispatch"
++        )
++
++    record_includes = [
++        index for index, line in enumerate(lines)
++        if re.fullmatch(
++            r'\s*include\s+"ladybug_menu_records\.inc"\s*',
++            line.split(";", 1)[0],
++        )
++    ]
++    if len(record_includes) != 1:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 helper dispatch requires one menu-record include"
++        )
++    wrapper = label_index("highscore_attract_tick")
++    helper_end = label_index("highscore_phase_helper_end")
++    if not record_includes[0] < wrapper < helper_end:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper is outside the post-record helper tail"
++        )
++    next_code = next(
++        (index for index in range(record_includes[0] + 1, len(lines))
++         if lines[index].split(";", 1)[0].strip()),
++        None,
++    )
++    if next_code != wrapper:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper does not immediately follow menu records"
++        )
++    expected_wrapper = [
++        "lbsr highscore_logo_tick",
++        "lda PRES_MODE",
++        "cmpa #MODE_ATTRACT",
++        "lbne highscore_phase_hold",
++        "lbra menu_tick",
++    ]
++    if code_lines(wrapper, helper_end) != expected_wrapper:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper is not the exact five-instruction tail"
++        )
+ 
+ 
+ def main() -> None:
+@@ -225,13 +307,7 @@
+         ):
+             if fragment not in menu_painter:
+                 raise SystemExit("presentation flow proof: cold title painter omits " + fragment)
+-        attract_phase = page23_source[
+-            page23_source.index("\nhighscore_phase_tick\n"):
+-            page23_source.index("\nhighscore_phase_not_attract\n")
+-        ]
+-        attract_phase_flat = " ".join(attract_phase.split())
+-        if "lbsr highscore_logo_tick" not in attract_phase_flat or "lbra menu_tick" not in attract_phase_flat:
+-            raise SystemExit("presentation flow proof: title menu does not follow the existing animation owner")
++        verify_helper_attract_dispatch(page23_source)
+ 
+         key_scan = keybinding_source[
+             keybinding_source.index("\nkey_scan\n"):
+--- a/capsule/scripts/source_reference.json
++++ b/capsule/scripts/source_reference.json
+@@ -2418,6 +2418,41 @@
+           "name": "menu_load_continue",
+           "routine": "load_tick",
+           "purpose": "Continue loading when there is no fresh local menu command."
++        },
++        {
++          "name": "attract_menu_transition",
++          "routine": null,
++          "purpose": "Branch to the attract-owned title menu transition."
++        },
++        {
++          "name": "pft_coin_suppress",
++          "routine": null,
++          "purpose": "Suppress coin preemption for the attract-owned frontend."
++        },
++        {
++          "name": "pft_loop_wake",
++          "routine": null,
++          "purpose": "Route fresh automatic-loop input toward the title menu."
++        },
++        {
++          "name": "pft_loop_wake_event",
++          "routine": null,
++          "purpose": "Dispatch the captured wake event after leaving the automatic loop."
++        },
++        {
++          "name": "pft_loop_wake_mode_load",
++          "routine": null,
++          "purpose": "Handle wake input while the presentation mode is loading."
++        },
++        {
++          "name": "pft_loop_wake_rank",
++          "routine": null,
++          "purpose": "Handle automatic-loop wake input on the ranking screen."
++        },
++        {
++          "name": "pft_no_credit",
++          "routine": null,
++          "purpose": "Skip credit admission for the free-start title path."
+         }
+       ]
+     },
+@@ -4100,6 +4135,51 @@
+           "name": "name_rank_format",
+           "routine": "stage_panel_text",
+           "purpose": "Select existing red1 mask colour and the current three-byte raw ordinal record; tail-call existing stage_panel_text."
++        },
++        {
++          "name": "highscore_phase_not_attract",
++          "routine": null,
++          "purpose": "Continue the existing helper dispatch for non-Attract screens."
++        },
++        {
++          "name": "menu_attract_options",
++          "routine": null,
++          "purpose": "Open local Options from the attract-owned title menu."
++        },
++        {
++          "name": "menu_event_ready",
++          "routine": null,
++          "purpose": "Continue menu command handling after event recognition."
++        },
++        {
++          "name": "menu_idle_active",
++          "routine": null,
++          "purpose": "Advance attract-menu idle tracking."
++        },
++        {
++          "name": "menu_non_attract_event",
++          "routine": null,
++          "purpose": "Route menu controls for non-Attract screens."
++        },
++        {
++          "name": "menu_paint_attract",
++          "routine": null,
++          "purpose": "Paint the attract-owned title menu."
++        },
++        {
++          "name": "menu_start_free",
++          "routine": null,
++          "purpose": "Start a game without coin admission or debit."
++        },
++        {
++          "name": "menu_tick_not_keybinding",
++          "routine": null,
++          "purpose": "Continue menu dispatch outside keybinding ownership."
++        },
++        {
++          "name": "highscore_attract_tick",
++          "routine": null,
++          "purpose": "Run the Attract-only logo update, mode check, and menu tail."
+         }
+       ],
+       "defines": {
+@@ -4608,6 +4688,11 @@
+           "name": "INPUT_JOYSTICK",
+           "kind": "constant",
+           "reason": "Build-time input compatibility flag."
++        },
++        {
++          "name": "key_joy_last",
++          "kind": "data",
++          "reason": "FEAT-010 uses this existing joystick history datum; its keybinding ownership is unchanged."
+         }
+       ],
+       "basic_blocks": [
+@@ -4615,6 +4700,96 @@
+           "name": "kc_unique",
+           "routine": "key_capture",
+           "purpose": "Continue the candidate-key uniqueness scan after fixed coin-key rejection."
++        },
++        {
++          "name": "ki_rows",
++          "routine": null,
++          "purpose": "Continue scanning key rows for fresh keyboard input."
++        },
++        {
++          "name": "ks_joy_begin",
++          "routine": null,
++          "purpose": "Begin joystick sampler routing."
++        },
++        {
++          "name": "ks_joy_center",
++          "routine": null,
++          "purpose": "Classify centered joystick input."
++        },
++        {
++          "name": "ks_joy_credit_screen",
++          "routine": null,
++          "purpose": "Select joystick edge behavior on the credit screen."
++        },
++        {
++          "name": "ks_joy_direction",
++          "routine": null,
++          "purpose": "Publish the selected joystick direction edge."
++        },
++        {
++          "name": "ks_joy_done",
++          "routine": null,
++          "purpose": "Return after the joystick history update."
++        },
++        {
++          "name": "ks_joy_emit",
++          "routine": null,
++          "purpose": "Emit a fresh joystick edge."
++        },
++        {
++          "name": "ks_joy_horizontal",
++          "routine": null,
++          "purpose": "Classify horizontal joystick movement."
++        },
++        {
++          "name": "ks_joy_north",
++          "routine": null,
++          "purpose": "Select the north joystick direction."
++        },
++        {
++          "name": "ks_joy_rank_mode",
++          "routine": null,
++          "purpose": "Apply mode-specific joystick routing on the ranking screen."
++        },
++        {
++          "name": "ks_joy_sample",
++          "routine": null,
++          "purpose": "Sample joystick axes for automatic-loop wake handling."
++        },
++        {
++          "name": "ks_joy_screen",
++          "routine": null,
++          "purpose": "Select joystick edge policy for the current presentation screen."
++        },
++        {
++          "name": "ks_joy_silent",
++          "routine": null,
++          "purpose": "Refresh joystick history without emitting a local event."
++        },
++        {
++          "name": "ks_joy_store",
++          "routine": null,
++          "purpose": "Store the sampled joystick direction and history."
++        },
++        {
++          "name": "ks_joy_west",
++          "routine": null,
++          "purpose": "Select the west joystick direction."
++        },
++        {
++          "name": "ks_joy_x_abs",
++          "routine": null,
++          "purpose": "Normalize the absolute horizontal axis."
++        },
++        {
++          "name": "ks_joy_y_abs",
++          "routine": null,
++          "purpose": "Normalize the absolute vertical axis."
++        },
++        {
++          "name": "ks_no_raw_edge",
++          "routine": null,
++          "purpose": "Continue a keyboard scan without a fresh raw edge."
+         }
+       ],
+       "external_symbols": [

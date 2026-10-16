@@ -1,0 +1,30 @@
+{
+  "kind": "non-production positive source fixture",
+  "baseline_path": "repro/feat010-recovery-20261015/capsule/src/shared_text_stage.inc",
+  "baseline_sha256": "c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93",
+  "fixture_path": "repro/feat010-helper-recovery-20261015/fixtures/shared_text_stage-proposed-helper.txt",
+  "fixture_sha256": "60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7",
+  "patch_path": "repro/feat010-helper-recovery-20261015/approved-helper-hunks.patch",
+  "patch_sha256": "ec4edc0d81e4b158c06704521e9cbec0b2dc846a88c6ae7c312d8ea1426df079",
+  "approved_hunks": 2,
+  "prefix_instructions": [
+    "lda PRES_SCREEN",
+    "cmpa #PRESENTATION_MAP_ATTRACT",
+    "lbeq highscore_attract_tick"
+  ],
+  "wrapper_instructions": [
+    "lbsr highscore_logo_tick",
+    "lda PRES_MODE",
+    "cmpa #MODE_ATTRACT",
+    "lbne highscore_phase_hold",
+    "lbra menu_tick"
+  ],
+  "actual_capsule_helper_edited": false,
+  "capsule_guard_patch_path": "repro/feat010-helper-recovery-20261015/capsule-guard.patch",
+  "capsule_guard_patch_sha256": "a388ae8b0588d1c89b7ae1d9f06cfc73c3c2e6668d8fe080b5a3b585d0d41d58",
+  "verifier_sha256": "498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2",
+  "source_reference_sha256": "6a6aef95d95114677e35742e7503be7d77ce3eea326fb0bb4ee6c73cb9d1eab7",
+  "previous_full_prefix_bytes": 28,
+  "restored_full_prefix_bytes": 16,
+  "attract_branch_instruction_bytes": 8
+}

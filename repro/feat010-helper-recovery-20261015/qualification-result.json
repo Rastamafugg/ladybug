@@ -1,0 +1,44 @@
+{
+  "phase": "approved source-only qualification",
+  "result": "PASS",
+  "elapsed_seconds": 0.10988000000361353,
+  "deadline_seconds": 60,
+  "fixture_sha256": "60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7",
+  "baseline_source_sha256": "c136719612029e7a74a0fd55ca2a44bc2937a75e6e4a63a84250f9810f87bc93",
+  "verifier_sha256": "498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2",
+  "registry_sha256": "6a6aef95d95114677e35742e7503be7d77ce3eea326fb0bb4ee6c73cb9d1eab7",
+  "positive_guard": "PASS",
+  "positive_metadata": "PASS",
+  "negative_controls": [
+    {
+      "name": "frozen inline-only source",
+      "result": "rejected",
+      "message": "presentation flow proof: FEAT-010 attract prefix is not the exact three-instruction dispatch"
+    },
+    {
+      "name": "wrong tail",
+      "result": "rejected",
+      "message": "presentation flow proof: FEAT-010 attract wrapper is not the exact five-instruction tail"
+    },
+    {
+      "name": "omitted mode reload",
+      "result": "rejected",
+      "message": "presentation flow proof: FEAT-010 attract wrapper is not the exact five-instruction tail"
+    },
+    {
+      "name": "omitted metadata label",
+      "result": "rejected",
+      "message": "missing highscore_attract_tick"
+    }
+  ],
+  "other_verifier_ast_unchanged": true,
+  "other_registry_semantics_unchanged": true,
+  "changed_source_inputs": [
+    "scripts/source_reference.json",
+    "scripts/verify_presentation_flow.py"
+  ],
+  "explicit_label_additions": 35,
+  "helper_source_unchanged": true,
+  "build_attempts": 0,
+  "runtime_probes": 0
+}
