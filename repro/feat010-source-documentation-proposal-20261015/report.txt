@@ -1,0 +1,55 @@
+FEAT-010 source-documentation repair proposal audit
+Date: 2026-10-15
+Scope: read-only audit of the retained keyboard/adaptive failure from candidate 3b9970a (build failure d0f6ea4). This report proposes metadata/comment changes only; it does not implement them.
+
+Observed result
+
+The candidate build generated source-reference coverage for 16 modules and 36,568 lines, then failed the stock source-documentation gate with exactly these three errors:
+
+1. source documentation: FAIL: missing routine contract: highscore-helper:highscore_logo_tick
+2. source documentation: FAIL: missing source contract mirror: highscore-helper:highscore_logo_tick
+3. source documentation: FAIL: unclassified global label: presentation-runtime:menu_load_event
+
+The retained manifest reports 318/319 documented routines and 4850/4851 classified labels, with missing_evidence=[] and duplicate_semantic_ids=[]. Its only missing routine is highscore-helper:highscore_logo_tick; its only unclassified label is presentation-runtime:menu_load_event. This is a documentation coverage failure after the prior conditional-external blocker cleared. The build exited 1 after 361.217 seconds (upper bound); the FEAT-010 postphase and all-payload comparison did not run. The reported resident/presentation/assets measurements are failure-run observations, not acceptance evidence.
+
+Cause and smallest proposed repair
+
+highscore_logo_tick is an existing routine in src/shared_text_stage.inc. It advances the attract/high-score logo phase, increments PRES_TIMER outside attract, respects the BACK-pending state and owner-local phase cache, then redraws the twelve authored logo tiles through the existing page-$23 callbacks. The highscore-helper module's declared primary source is src/demo_runtime.s. The policy checker accepts a source-contract mirror only in that primary source, so a comment in shared_text_stage.inc would not satisfy the mirror check. src/demo_runtime.s has an existing blank line 64 after the symbol includes and before the PAR5 definitions; replacing that blank line with the mirror preserves all following source line numbers.
+
+Proposed file 1: scripts/source_reference.json. Add one routine contract under highscore-helper.routines, using the already-existing presentation profile, no reasons, and the generated-routines anchor semantic ID routines.html#routine-highscore-helper-highscore-logo-tick. Exact purpose:
+
+Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.
+
+Also add one presentation-runtime.basic_blocks entry for menu_load_event, with routine:null and purpose "Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading." The label is an internal fallthrough point within load_tick, not a callable routine or public API. Do not create a load_tick routine contract solely to own it and do not classify it as a routine boundary.
+
+Proposed file 2: src/demo_runtime.s. Replace only blank line 64 with this exact primary-source mirror:
+
+; DOC-002 source-contract mirror contract highscore_logo_tick profile=presentation: Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.
+
+No executable source change is proposed. Do not edit src/shared_text_stage.inc, src/presentation_runtime.s, verifier/normalizer code, tests, build scripts, receipts, generated artifacts, or canonical wiki pages. The generated semantic ID matches the existing routines.html#routine-<module>-<routine> convention and does not require wiki catalog expansion.
+
+Qualification and bounded follow-up
+
+Before implementation, use the existing maintained coverage and policy APIs against the frozen, unmodified capsule and current receipt as an in-memory model only. First reproduce the baseline's three named errors and 318/319, 4850/4851 counts. Then model the two proposed metadata records and exact source mirror in memory: expected result is zero policy errors and projected 319/319 routines plus 4851/4851 labels. Independently remove only the logo routine semantic ID, only the new primary-source mirror, and only the menu_load_event basic-block record; each negative control must restore only its corresponding baseline error. Do not alter or rehash a real receipt, write a new verifier/test framework, or treat this projection as a fresh build. The parent owns the approved fixture commands and timeout.
+
+If source-only qualification passes and the implementation is approved, run one fresh keyboard/adaptive build, bounded to 600 seconds for the entire build phase, followed only on success by the existing FEAT-010 postphase bounded to 60 seconds. Do not retry, run a per-error sequence of builds, or add profiles. Acceptance then depends on the stock documentation/capacity guards, the existing postphase, and equality of all 30 existing payload hashes against the retained failure artifacts; no runtime probe is proposed. Any new documentation finding, changed executable payload/capacity, extra file/hunk, provenance/setup failure, or timeout stops the step for reassessment. The build-failure capacity observations are not pass targets.
+
+Evidence identity
+
+- Retained capsule: repro/feat010-source-reference-repair-20261015/capsule, candidate commit 3b9970a.
+- Retained build result: repro/feat010-source-reference-repair-20261015/build-result.json; SHA-256 c9e206cecd1e2e347ac0919daeb44e06fe17dc2174809e82768bbdd13263bed7.
+- Retained generated manifest: capsule/build/source-reference/manifest.json; SHA-256 ca651438a5e1d93735d5947d4f79b219cb49281d658f738e7d4c10e3c164624e.
+- Retained build log: SHA-256 51e80055278af452ba7a9b759519650e7791a501fe73aa0e6525aef1117e70dc.
+- Adaptive registry: SHA-256 280807bd9afd487f78dc1bd216aeb3becfbd458f2008418d2a9bf549637cfa93.
+- Source-build receipt: SHA-256 4b0f76e63383838cfdbc904ae544e8177ba5ed3fcb6ced6bf27d29f5315c9d0b.
+- Source registry: SHA-256 676241075bc5249528c142cc25837121c86bffa802085ada893a7ca22473d86f.
+- Normalizer: SHA-256 2e58b771e0c71665b16d5a6bb93ce6541052db0e8d3bd2a7c288e4b726212bdd.
+- Verifier: SHA-256 a47e259d8e05c6595bc513d4893b5825542ea8d22ef2c8f06dfb069f05f14b8d.
+- Source-documentation gate: SHA-256 bbe516f393a772e6a7fef43e26692e9c8b2a4759fc6a83f33cadaf34e00e4430.
+- src/demo_runtime.s: SHA-256 35614479667e8ce8d2e2bcac4ab5bc24c54fa92d70eac2b83aec5a14bbe62a18.
+- src/shared_text_stage.inc: SHA-256 60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7.
+- src/presentation_runtime.s: SHA-256 23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0.
+
+Audit outcome
+
+No source/configuration/wiki files were changed. No generator, verifier, test, assembler, build, runtime, or Git command was run. The proposed corrected coverage totals and negative-control results are projections pending parent qualification; they are not current-revision test results.

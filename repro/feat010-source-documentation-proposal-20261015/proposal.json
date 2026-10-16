@@ -1,0 +1,125 @@
+{
+  "ticket": "FEAT-010",
+  "status": "read-only proposal audit",
+  "evidence": {
+    "candidate_commit": "3b9970a",
+    "failed_build": "d0f6ea4",
+    "build_result": "repro/feat010-source-reference-repair-20261015/build-result.json",
+    "build_result_sha256": "c9e206cecd1e2e347ac0919daeb44e06fe17dc2174809e82768bbdd13263bed7",
+    "manifest": "repro/feat010-source-reference-repair-20261015/capsule/build/source-reference/manifest.json",
+    "manifest_sha256": "ca651438a5e1d93735d5947d4f79b219cb49281d658f738e7d4c10e3c164624e",
+    "observed_errors": [
+      "missing routine contract: highscore-helper:highscore_logo_tick",
+      "missing source contract mirror: highscore-helper:highscore_logo_tick",
+      "unclassified global label: presentation-runtime:menu_load_event"
+    ],
+    "coverage": {
+      "routines": "318/319",
+      "labels": "4850/4851",
+      "missing_evidence": [],
+      "duplicate_semantic_ids": []
+    },
+    "build_phase": {
+      "exit_code": 1,
+      "elapsed_seconds_upper_bound": 361.217,
+      "postphase_ran": false,
+      "payload_comparison_ran": false
+    }
+  },
+  "diagnosis": {
+    "highscore_logo_tick": "Existing highscore-helper routine in src/shared_text_stage.inc; its highscore-helper module declares src/demo_runtime.s as primary source, and source mirrors are validated against that primary source.",
+    "menu_load_event": "Internal fallthrough label within load_tick's COMPLETE_PROFILE handling in src/presentation_runtime.s, not a callable routine or public boundary.",
+    "conditional_external_repair": "Retained candidate's prior conditional external blocker is cleared; preserve that repair and do not weaken or alter its policy in this proposal."
+  },
+  "proposed_changes": [
+    {
+      "file": "scripts/source_reference.json",
+      "hunks": [
+        {
+          "location": "highscore-helper.routines",
+          "operation": "add one routine contract",
+          "record": {
+            "name": "highscore_logo_tick",
+            "profile": "presentation",
+            "purpose": "Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.",
+            "reasons": [],
+            "semantic_id": "routines.html#routine-highscore-helper-highscore-logo-tick"
+          }
+        },
+        {
+          "location": "presentation-runtime.basic_blocks",
+          "operation": "add one fallthrough label classification",
+          "record": {
+            "name": "menu_load_event",
+            "routine": null,
+            "purpose": "Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading."
+          }
+        }
+      ]
+    },
+    {
+      "file": "src/demo_runtime.s",
+      "hunks": [
+        {
+          "location": "existing blank line 64 after symbol includes and before PAR5 definitions",
+          "operation": "replace blank line with exact primary-source contract mirror",
+          "line": "; DOC-002 source-contract mirror contract highscore_logo_tick profile=presentation: Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update."
+        }
+      ]
+    }
+  ],
+  "qualification_proposal": {
+    "deadline_seconds": 60,
+    "method": "Use existing maintained coverage/policy APIs against the frozen unmodified capsule and current receipt as an in-memory model. Reproduce baseline errors/counts, then project the two metadata additions and exact mirror without modifying or rehashing the receipt.",
+    "positive_expected": {
+      "policy_errors": 0,
+      "routines": "319/319",
+      "labels": "4851/4851"
+    },
+    "negative_controls": [
+      {
+        "mutation": "Remove only highscore_logo_tick semantic_id from the modeled routine contract.",
+        "expected_only_error": "missing routine contract: highscore-helper:highscore_logo_tick"
+      },
+      {
+        "mutation": "Remove only the modeled exact source mirror from src/demo_runtime.s.",
+        "expected_only_error": "missing source contract mirror: highscore-helper:highscore_logo_tick"
+      },
+      {
+        "mutation": "Remove only the modeled menu_load_event basic-block record.",
+        "expected_only_error": "unclassified global label: presentation-runtime:menu_load_event"
+      }
+    ],
+    "projection_only": true,
+    "constraints": [
+      "Do not run or modify the generator/verifier as part of this audit.",
+      "Do not write or rehash a real receipt.",
+      "Do not add a permanent test or verifier framework.",
+      "Do not treat modeled coverage as a fresh build result."
+    ]
+  },
+  "post_approval_verification_proposal": {
+    "build_attempts": 1,
+    "build_deadline_seconds": 600,
+    "build_command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "postphase": "Only after build success, run the existing FEAT-010 postphase once with a 60-second entire-phase deadline, including existing presentation/helper flow and all 30 payload hash checks.",
+    "runtime_probe": false,
+    "retry_or_profile_expansion": false,
+    "stop_conditions": [
+      "Any new documentation finding.",
+      "Any executable payload or capacity change relative to the approved target.",
+      "Any additional file/hunk or provenance/setup issue.",
+      "Build or postphase deadline exceeded."
+    ]
+  },
+  "scope_exclusions": [
+    "No edits to src/shared_text_stage.inc or src/presentation_runtime.s.",
+    "No verifier, normalizer, test, build script, receipt, generated artifact, or canonical wiki edits.",
+    "No assembler, build, runtime, Git, or test execution during this proposal audit."
+  ],
+  "audit_actions": {
+    "source_config_wiki_modified": false,
+    "generator_verifier_test_build_runtime_git_executed": false,
+    "corrected_counts_are_projection": true
+  }
+}
