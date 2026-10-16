@@ -1,0 +1,41 @@
+FEAT-010 fit/integration assignment audit
+Date: 2026-10-16
+Baseline: HEAD 87bf02c
+
+Scope and disposition
+This is a read-only assignment audit. No build, verifier, emulator, runtime, Git mutation, or capsule/source edit was performed. FEAT-010 remains High-risk and in Verification, not Done. The already-approved three-profile fit requirement covers joystick/adaptive and keyboard/nonadaptive; no new outcome approval is needed for those two fits. Their execution setup is not Ready until the parent freezes fresh source-only profile roots and qualifies the source/observer binding. The parent integration step is also not Ready: the root-relative combined patch and fresh-root static post-driver are not yet prepared and qualified.
+
+Current root and accepted evidence
+Root is HEAD 87bf02c. The working tree has no current src/ or scripts/ diffs; it has existing documentation and authored-TMX edits. The accepted capsule contains the approved Attract and High Score TMXs unchanged at SHA-256 137e6818a974888f3e5d894b075d24553e665332b517fc3b66132dcf9b0adb76 and 98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425. Exclude the untracked dinosaur TMX; it is outside the 266-input closure.
+
+The accepted complete/keyboard/6809/adaptive build and external static card identify ROM SHA-256 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53. The card passed 32 direct-page operand checks, fixed helper entries and 80-byte clock checks, 30 same-profile payload identity checks, and 319/319 routine plus 4851/4851 label coverage. Measured byte headroom is resident 104, presentation 9, assets 13, and helper 66; the complete high-score owner cap is 920 bytes. Presentation is 1271/1280, helper is 3070/3136 ending at B83E before the B880 boundary, and the resident requirement remains at least 32 bytes free. These are accepted keyboard/adaptive measurements only. Historical pre-feature resident free space was 74 bytes for joystick/adaptive and 42 for keyboard/nonadaptive; those historical values do not establish current candidate margins. The two remaining profiles have no current fit result.
+
+The direct-page static card accepted only the external observer against the frozen keyboard/adaptive artifact. The maintained flow verifier in the accepted capsule is still frozen. Its cumulative approved two-predicate patch covers the conditional joystick dependency and optional direct-page spelling for the memory-backed PRES_ROWS budget. The external card's old driver and receipt are pinned to the old capsule and metadata-only exception set; do not reuse them for new roots or treat the first-profile result as root integration.
+
+Candidate source allowlist and preservation
+Comparison of the accepted capsule to current root across the 266 source-input paths finds exactly 14 differing inputs: scripts/build.sh, scripts/build_presentation.py, scripts/shared_text.py, scripts/source_reference.json, scripts/source_reference/normalize.py, scripts/test_source_audit.py, scripts/verify_presentation.py, scripts/verify_presentation_flow.py, scripts/verify_shared_text.py, src/demo_runtime.s, src/keybinding_runtime.s, src/main.s, src/presentation_runtime.s, and src/shared_text_stage.inc. The output candidate already contains the approved feature, conditional-external, helper, source-documentation, and 32-site recovery changes. `verify_presentation_flow.py` additionally needs the approved cumulative two-predicate patch on each fresh clone.
+
+Preserve BUG-046's shared-stage vegetable/object address formation and word-progress-HUD tail. The retained rebase report says its 45 feature hunks and three current-root hunks are disjoint. Preserve BUG-117's executable `main.s` entry guard: the accepted candidate changes `main.s` only with a source-contract comment mirror, while executable lines match root. Preserve BUG-122's staged/heart repair exactly once from the frozen candidate; do not reapply its patch. The candidate's `build.sh` conditionally exports the existing `joy_read_axis` symbol only for joystick input. Its source-reference declaration must remain conditional: the keyboard profile omits the generated alias, while the joystick profile requires the active import. The 266 source inputs plus the 379-file wiki HTML closure are the source-only fixture; do not copy the old build directory or receipt.
+
+`wiki/internal/implementation/routine-catalog.html` is outside the 266 source inputs. The retained source-preparation report says its update remains parent integration work; the initial candidate patch includes a catalog hunk, but no catalog update was verified here. Parent owns that canonical update. Do not expand the 14-input production allowlist to include it as a build input.
+
+Fit command plan
+For each profile, create a fresh source-only clone from the accepted 266-input and 379-HTML closure, verify source equivalence before counting the profile result, apply the reviewed candidate and approved flow-verifier patch, and generate a normal fresh build receipt. Keep outputs separate. The first keyboard/adaptive isolated build is already accepted and must not be repeated.
+
+Run the two missing existing complete-profile build commands, each once with a whole-build deadline of 600 seconds:
+
+- `LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build`
+- `LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=0 bash scripts/build.sh build`
+
+The parent then applies the reviewed combined source patch to a fresh root-derived integration copy and runs one combined keyboard/adaptive build, also capped at 600 seconds:
+
+- `LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build`
+
+The normal build regenerates outputs and receipts, runs profile-specific shared-text oracles, authored-layer/sparse/capacity guards, and complete-profile source-reference/documentation checks. Complete profile uses `verify_shared_text.py`; `verify_presentation.py` is not an additional complete-build gate. After each build, the existing maintained command is `python3 scripts/verify_presentation_flow.py`, followed by the approved fixed-entry, clock, 32-site and same-profile payload checks. Record actual margins and fresh receipt/source hashes. Compare payload identity only with the accepted keyboard/adaptive artifact for the matching keyboard/adaptive profile; do not compare payload hashes across profiles.
+
+Do not substitute `bash scripts/build.sh verify-gmc`: for complete profile it runs a new build, audio runtime checks, and FEAT-007 checkpoint/static/runtime refresh. That broad command is not the FEAT-010 natural acceptance sequence and would repeat the build. Runtime commands and manual split remain with the separate runtime-card audit.
+
+Readiness gap and approval boundary
+Before dispatch, parent must freeze the two source-only profile roots and hashes, confirm the 266-input/379-HTML closure, verify the accepted 14-file diff and BUG-046/117/122 preservation, and qualify the fresh-root binding/source allowlist within a 60-second setup phase. Then use the two 600-second missing-profile builds, each followed by one 60-second static postphase; integration uses one 600-second combined keyboard build plus one 60-second postphase. No old capsule receipt or old pinned ROOT may be reused. The fresh static driver/post-command has not been prepared; the existing direct-page driver cannot be reused unchanged because its root pin and metadata-only input exception no longer describe these inputs.
+
+The known inactive-legacy-branch start/coin assertion and unreachable loop-wake guard remain documented coverage gaps. Repairing either verifier path or changing the automated/manual split requires a separate approved test card and qualification. The approved two-predicate flow patch is within its existing card; it does not authorize those additional repairs. Stop on the first unexpected source, setup, capacity, or verifier failure; do not retry or relax caps. Current-profile passes, remaining profile passes, runtime/manual behavior, and root integration are separate results.

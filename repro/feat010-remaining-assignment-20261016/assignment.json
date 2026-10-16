@@ -1,0 +1,189 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "source_checkpoint": "87bf02c",
+  "task": "Prepare assignment only; no implementation/build/runtime executed",
+  "parent_class": "High-risk",
+  "disposition": "Verification; retained feature outcome Approved, remaining card/bindings Proposed",
+  "accepted_static_evidence": "repro/feat010-direct-page-verification-20261016/acceptance-summary.json",
+  "source_roots": {
+    "immutable_accepted": "repro/feat010-source-documentation-repair-20261016/capsule",
+    "new_profiles": [
+      "repro/feat010-remaining-verification-20261016/joystick-adaptive",
+      "repro/feat010-remaining-verification-20261016/keyboard-nonadaptive"
+    ],
+    "parent_combined": "E:/projects/ladybug"
+  },
+  "candidate_input_count": 266,
+  "current_root_deltas": {
+    "scripts/build.sh": {
+      "root_sha256": "395fbbaf65e64df44f527ec8200664dcba31c9ba6656741befc977cb32a90cee",
+      "accepted_candidate_sha256": "c3beb3400479144c5ed639f8f60aca8f7f1ddaac76d4d296c9a1d2ce19d85fa3"
+    },
+    "scripts/build_presentation.py": {
+      "root_sha256": "167f9abdcaaa65540cb208d7f68d52d1f9cd98dc44b69f11ab97a3cd62097fd6",
+      "accepted_candidate_sha256": "af86dfe977a6c518e209b3c6865845eed6cd8dad259b7fcb42891123106f63b8"
+    },
+    "scripts/shared_text.py": {
+      "root_sha256": "bd7370f551139880af592d5537c60ae75f4977b954f96a99a4fbcf1886c62e37",
+      "accepted_candidate_sha256": "ccdd88dc30a9f1e7e3d28fd5db371750e205d8b634be4f8c5ab084addf08b96c"
+    },
+    "scripts/source_reference.json": {
+      "root_sha256": "b378ca69ab5c769b9783d3bb815ba15dcd4ceb644b3128f54ff9a14074547857",
+      "accepted_candidate_sha256": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b"
+    },
+    "scripts/source_reference/normalize.py": {
+      "root_sha256": "2e9df41e32e9046fa6af1bf55367d5744887fec381a27449fc919d6ce0ffc7be",
+      "accepted_candidate_sha256": "2e58b771e0c71665b16d5a6bb93ce6541052db0e8d3bd2a7c288e4b726212bdd"
+    },
+    "scripts/test_source_audit.py": {
+      "root_sha256": "107e75c727a23b92cb90c58abea1d18e15c8d47b849c731a0263113543d84fe8",
+      "accepted_candidate_sha256": "1340ab9cdddc7edd9624c41bdad6aaa8c0c3b517dd20671f5152731885e81f1f"
+    },
+    "scripts/verify_presentation.py": {
+      "root_sha256": "4e7aebc612ad247efd517d9953fefeaf90cb48f8b26cf148f9ac8849ed9058a4",
+      "accepted_candidate_sha256": "45f1614b9897802472d48daef9fdc0fcce264ba850e51fc96407a11e86389505"
+    },
+    "scripts/verify_presentation_flow.py": {
+      "root_sha256": "71947384283b7869dfaf936d3b18b90d9dcea46484b8f620dcc8b0cbe2591d73",
+      "accepted_candidate_sha256": "498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2"
+    },
+    "scripts/verify_shared_text.py": {
+      "root_sha256": "85bb1ccbca6dde24344aef0f52895aeec0b2cf9e04261c033e4db13a346c24a0",
+      "accepted_candidate_sha256": "a4b51a25a0ffe763442d72b6914dc5efb8543b65051ada0214f2bb2e3b40fbe6"
+    },
+    "src/demo_runtime.s": {
+      "root_sha256": "35614479667e8ce8d2e2bcac4ab5bc24c54fa92d70eac2b83aec5a14bbe62a18",
+      "accepted_candidate_sha256": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a"
+    },
+    "src/keybinding_runtime.s": {
+      "root_sha256": "0a20ed070f3ca33f101ac3c9d9f31a76ff5ed81a329e094f784dbfbec928555e",
+      "accepted_candidate_sha256": "ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be"
+    },
+    "src/main.s": {
+      "root_sha256": "88d9ef86a470488f81eeca51255b0ddb752e1d29f18685425ebb28b4868407a4",
+      "accepted_candidate_sha256": "0a8d620cea3202d225579c2879b6ed79d14704c97fbcb7cda6d10e4e76d6e72d"
+    },
+    "src/presentation_runtime.s": {
+      "root_sha256": "5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c",
+      "accepted_candidate_sha256": "23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0"
+    },
+    "src/shared_text_stage.inc": {
+      "root_sha256": "392c0b2b2abc97f00c3fdabcd85439a685d9fbbe5c4f783eda1a76b672294d50",
+      "accepted_candidate_sha256": "60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7"
+    }
+  },
+  "retained_maintained_patch": "repro/feat010-direct-page-verification-20261016/maintained-flow-assertions.patch",
+  "builds_in_order": [
+    {
+      "owner": "Luna single serialized build lease",
+      "root": "joystick-adaptive",
+      "command": "env LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "max_seconds": 600
+    },
+    {
+      "owner": "Luna same build lease, after prior PASS",
+      "root": "keyboard-nonadaptive",
+      "command": "env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=0 bash scripts/build.sh build",
+      "max_seconds": 600
+    },
+    {
+      "owner": "Parent after source integration review",
+      "root": "E:/projects/ladybug",
+      "command": "env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+      "max_seconds": 600
+    }
+  ],
+  "source_setup_qualification": {
+    "max_seconds": 60,
+    "attempts": 1,
+    "exact_command_status": "Freeze reviewed fixture before Ready; none claimed available yet"
+  },
+  "post_per_build": {
+    "max_seconds": 60,
+    "attempts": 1,
+    "flow_command": "env PYTHONDONTWRITEBYTECODE=1 python3 scripts/verify_presentation_flow.py",
+    "remaining_command_status": "Adapt existing focused driver for each fresh manifest/ordinary receipt, qualify/freeze before Ready; no old ROOT/receipt pin reuse"
+  },
+  "minimum_resident_free_bytes": 32,
+  "known_keyboard_sizes": {
+    "resident": 8088,
+    "presentation": 1271,
+    "assets": 7667,
+    "highscore_helper": 3070
+  },
+  "other_profile_sizes": "unmeasured, no projected pass",
+  "static_command_time_max_seconds": 2040,
+  "static_cost_basis": "3*600 build +3*60 post +60 setup; previous matching keyboard build observed348.139s, other profile durations unknown",
+  "runtime": {
+    "status": "Not Ready; approved original behavior, proposed current observer/card/manual split",
+    "transport": "existing GDB-MCP roundtrip only",
+    "private_monitor": "deferred; no extension/reactivation",
+    "guest_state_writes": false,
+    "phase_max_seconds": 45,
+    "stop_read_max_seconds": 10,
+    "stop_queries_cap_per_phase": 12,
+    "callbacks": "No callback/run loop without shared remaining deadline",
+    "negative_controls": [
+      "wrong artifact or staged/live byte identity must reject before symbol interpretation",
+      "one wrong authored glyph/highlight/owner fixture rejected by pixel oracle",
+      "missing required natural phase classified missing coverage"
+    ],
+    "manual_split_proposed": [
+      "supported joystick direction via user controls with read-only GDB witness",
+      "user natural gameplay reaches nonqualifying game-over or qualifying name-entry; timed witness only after declared observable predecessor, natural history retained; no hidden automated wait",
+      "user enters keyboard controls in visible XRoar while parent records GDB state/pixels; no undocumented GDB input injector"
+    ],
+    "all_deaths_automation": false,
+    "exact_runtime_command_status": "No qualified FEAT-010 observer command yet. Freeze command/tool call list, artifacts and pixel readback before dispatch.",
+    "qualification_max_seconds": 60,
+    "cap_status": "Proposed maximum stop/continue observations; all nested work still bounded by45s. If insufficient, stop and reassess, do not add a loop.",
+    "qualification_cost_basis": "Unmeasured;60s maximum. No live scenario released by offline qualification alone; source/staged/live binding and actual FRONT readback mandatory before Ready.",
+    "phase_inventory": [
+      "R1 cold/free-start/entry",
+      "R2a cold idle558/persistent title",
+      "R2b navigation reset then idle558/persistent title",
+      "R3a Instructions wake/held consumption",
+      "R3b demo wake",
+      "R3c natural automatic-load wake",
+      "R4 local menus/key capture",
+      "R5a natural nonqualifying game-over ranking return",
+      "R5b natural name-entry/commit/ranking return",
+      "R6 supported joystick direction after natural demo"
+    ],
+    "phase_count_max": 10,
+    "runtime_command_time_max_seconds": 510,
+    "runtime_cost_basis": "60s offline setup/oracle qualification +10*45s named witness phases; unmeasured maxima. User-paced manual gameplay preparation excluded from command time, explicitly unbounded manual availability and never automated search."
+  },
+  "integration_rules": [
+    "Retain BUG046/117/122 and all unrelated root changes",
+    "Apply only reviewed source deltas and routine-catalog hunks plus approved maintained patch",
+    "Fresh ordinary receipt after source changes; never modify old certificate",
+    "Matching keyboard payloads compare to accepted30, different profiles have independent receipts and no cross-profile hash-equality requirement",
+    "Missing coverage or manual reports prevent Done"
+  ],
+  "excluded": [
+    "BUG120 candidate",
+    "BUG058 optimization",
+    "HUD credit relabeling",
+    "SPECIAL reward changes",
+    "new input hardware/button/calibration",
+    "monitor bridge",
+    "new module/MMU/loader/protocol",
+    "memory caps or recovery expansion",
+    "unapproved verifier gap refactor"
+  ],
+  "stop": "First product/setup assertion failure, target miss, timeout, unlisted delta or missing required fixture stops the ordered work. No retries or autonomous repairs.",
+  "root_delivered_rom_before_assignment_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "parent_refinements": [
+    "Root integration is parent-owned current checkout after two isolated fits, then one normal combined keyboard build; no additional integration-copy rebuild. Preserve unrelated dirty files.",
+    "Do not apply candidate feature patch twice to accepted clones. Those clones already contain product changes; only add the approved two-predicate maintained-flow patch.",
+    "Do not copy whole frozen wiki over current root. Apply reviewed routine-catalog hunks only, preserve current ticket/log/user changes.",
+    "Retained two weak static checks are not repaired here; required natural runtime evidence must cover their behavior independently.",
+    "No independent RNG/placement counting gate added: preserve unchanged relevant code/data statically; visible start regressions checked in existing natural entry scenario."
+  ],
+  "audit_sha256": {
+    "fit-integration-audit.txt": "d6a292911ec71214b37501cf4f230ddfc0dee0e76be94f40d196357397bdd16e",
+    "runtime-audit.txt": "cf2fd08d03facec48c2913b301abc4537784456d87586fea83e93251d26f03fe"
+  }
+}
