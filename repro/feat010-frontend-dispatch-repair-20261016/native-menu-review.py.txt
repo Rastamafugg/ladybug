@@ -1,0 +1,493 @@
+#!/usr/bin/env python3
+import argparse
+import datetime
+import hashlib
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+REPRO_REL = "repro/feat010-frontend-dispatch-repair-20261016"
+SCRIPT_REL = REPRO_REL + "/native-menu-review.py.txt"
+MANIFEST_REL = "repro/feat010-cold-menu-probes-20261016/manifest.json"
+READY_REL = REPRO_REL + "/manual-ready.json"
+ROM_REL = REPRO_REL + "/candidate/build/ladybug.rom"
+RECEIPT_REL = REPRO_REL + "/candidate/build/source-build-receipt.json"
+OBSERVATION_SECONDS = 45.0
+PHASE_LIMIT_SECONDS = 60.0
+WINDOWS_BRIDGE_SECONDS = 58.0
+IDENTITY_WAIT_SECONDS = 2.0
+
+CASE_INSTRUCTIONS = {
+    "options": [
+        "Start with the authored Attract/menu visible.",
+        "Press and release Down, then press and release Return.",
+        "Confirm Options and observe for at least 5 seconds without collectible or Attract overlays.",
+        "Press and release Down once; verify the selection visibly advances.",
+        "Press and release Down two more separate times; verify Back (index 3).",
+        "Press and release Return; verify Attract returns with Start selected.",
+    ],
+    "credits": [
+        "Start with the authored Attract/menu visible.",
+        "Press and release Down twice as separate key presses, then press and release Return.",
+        "Confirm Credits and observe for at least 5 seconds without collectible or Attract overlays, garbage, or a crash.",
+        "Press and release Return; verify Attract returns with Start selected.",
+    ],
+}
+
+def fail(message, code=2):
+    print("BLOCKED: " + message, file=sys.stderr, flush=True)
+    return code
+
+def utc_now():
+    return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="milliseconds").replace("+00:00", "Z")
+
+def sha256_file(path):
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    return digest.hexdigest()
+
+def write_json_exclusive(path, value):
+    with path.open("x", encoding="utf-8", newline="\n") as stream:
+        json.dump(value, stream, indent=2, sort_keys=True)
+        stream.write("\n")
+
+def parse_args():
+    parser = argparse.ArgumentParser(description="One user-operated native FEAT-010 menu case.")
+    parser.add_argument("--case", required=True, choices=("options", "credits"))
+    parser.add_argument("--root", help=argparse.SUPPRESS)
+    return parser.parse_args()
+
+def wsl_root_from_windows(root):
+    try:
+        completed = subprocess.run(
+            ["wsl", "-d", "Ubuntu", "--exec", "wslpath", "-a", str(root)],
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            timeout=3.0,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as error:
+        raise RuntimeError("bounded WSL path conversion failed: " + str(error))
+    if completed.returncode != 0:
+        raise RuntimeError("wslpath failed: " + completed.stderr.strip())
+    value = completed.stdout.strip()
+    if not value.startswith("/"):
+        raise RuntimeError("wslpath did not return an absolute WSL path")
+    return value
+
+def bridge_from_windows(case):
+    launcher = Path(__file__).resolve()
+    root = launcher.parents[2]
+    if Path.cwd().resolve() != root:
+        return fail("run the command from the repository root")
+    try:
+        wsl_root = wsl_root_from_windows(root)
+        completed = subprocess.run(
+            [
+                "wsl", "-d", "Ubuntu", "--exec", "python3", "-",
+                "--case", case, "--root", wsl_root,
+            ],
+            input=launcher.read_bytes(),
+            timeout=WINDOWS_BRIDGE_SECONDS,
+            check=False,
+        )
+    except subprocess.TimeoutExpired:
+        print(
+            "BLOCKED: the 58-second WSL bridge limit expired. No manual result is recorded; "
+            "native-process cleanup status is unknown. Do not relaunch this case.",
+            file=sys.stderr,
+            flush=True,
+        )
+        return 124
+    except (OSError, RuntimeError) as error:
+        return fail(str(error))
+    return completed.returncode
+
+def repository_root(args):
+    if args.root:
+        root = Path(args.root).resolve()
+        if not root.is_dir():
+            raise RuntimeError("the supplied repository root is unavailable")
+        os.chdir(str(root))
+        return root
+    if str(__file__) == "<stdin>":
+        raise RuntimeError("WSL bridge did not supply the repository root")
+    script = Path(__file__).resolve()
+    root = script.parents[2]
+    if Path.cwd().resolve() != root:
+        raise RuntimeError("run the command from the repository root")
+    return root
+
+def require_file_hash_pin(value, field):
+    if not isinstance(value, str) or len(value) != 64:
+        raise RuntimeError("manual-ready.json has no valid " + field)
+    try:
+        int(value, 16)
+    except ValueError:
+        raise RuntimeError("manual-ready.json has no valid " + field)
+    return value.lower()
+
+def preflight(root):
+    launcher_path = root / SCRIPT_REL
+    manifest_path = root / MANIFEST_REL
+    ready_path = root / READY_REL
+    rom_path = root / ROM_REL
+    receipt_path = root / RECEIPT_REL
+
+    if not launcher_path.is_file():
+        raise RuntimeError("launcher source is missing")
+    if not ready_path.is_file():
+        raise RuntimeError("parent manual-ready.json is missing")
+    if not rom_path.is_file() or not receipt_path.is_file():
+        raise RuntimeError("candidate ROM or source-build receipt is missing; no build is treated as a pass")
+    if not manifest_path.is_file():
+        raise RuntimeError("retained native launch manifest is missing")
+
+    try:
+        ready = json.loads(ready_path.read_text(encoding="utf-8"))
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+        receipt = json.loads(receipt_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeError, json.JSONDecodeError) as error:
+        raise RuntimeError("readiness, manifest, or receipt JSON is invalid: " + str(error))
+
+    if not isinstance(ready, dict) or not isinstance(manifest, dict) or not isinstance(receipt, dict):
+        raise RuntimeError("readiness, manifest, or receipt JSON has the wrong top-level type")
+    expected_rom_path = ROM_REL
+    expected_receipt_path = RECEIPT_REL
+    if ready.get("schema") != 1 or ready.get("status") != "ready":
+        raise RuntimeError("parent manual-ready.json is not marked schema 1 / ready")
+    if ready.get("candidate_rom_path") != expected_rom_path:
+        raise RuntimeError("manual-ready.json candidate ROM path does not match this candidate")
+    if ready.get("candidate_receipt_path") != expected_receipt_path:
+        raise RuntimeError("manual-ready.json candidate receipt path does not match this candidate")
+
+    pinned_launcher = require_file_hash_pin(ready.get("launcher_sha256"), "launcher_sha256")
+    pinned_rom = require_file_hash_pin(ready.get("candidate_rom_sha256"), "candidate_rom_sha256")
+    pinned_receipt = require_file_hash_pin(ready.get("candidate_receipt_sha256"), "candidate_receipt_sha256")
+    actual_launcher = sha256_file(launcher_path)
+    actual_rom = sha256_file(rom_path)
+    actual_receipt = sha256_file(receipt_path)
+    if actual_launcher != pinned_launcher:
+        raise RuntimeError("launcher SHA-256 differs from parent manual-ready.json")
+    if actual_rom != pinned_rom:
+        raise RuntimeError("candidate ROM SHA-256 differs from parent manual-ready.json")
+    if actual_receipt != pinned_receipt:
+        raise RuntimeError("candidate receipt SHA-256 differs from parent manual-ready.json")
+    if receipt.get("state") != "complete" or receipt.get("profile") != "complete":
+        raise RuntimeError("candidate receipt is not a completed complete-profile build")
+    artifacts = receipt.get("artifacts")
+    if not isinstance(artifacts, dict) or artifacts.get("ladybug.rom") != actual_rom:
+        raise RuntimeError("candidate receipt does not pin the candidate ROM artifact")
+
+    launch = manifest.get("launch")
+    if not isinstance(launch, dict):
+        raise RuntimeError("retained manifest has no native launch settings")
+    executable = launch.get("executable")
+    original_args = launch.get("arguments")
+    if not isinstance(executable, str) or not isinstance(original_args, list) or not all(
+        isinstance(item, str) for item in original_args
+    ):
+        raise RuntimeError("retained launch executable or arguments are malformed")
+    executable_path = Path(executable)
+    if not executable_path.is_file() or not os.access(str(executable_path), os.X_OK):
+        raise RuntimeError("retained native XRoar executable is unavailable or not executable")
+
+    args = []
+    index = 0
+    while index < len(original_args):
+        token = original_args[index]
+        lowered = token.lower()
+        if lowered == "-gdb":
+            index += 1
+            continue
+        if lowered in ("-gdb-ip", "-gdb-port"):
+            if index + 1 >= len(original_args):
+                raise RuntimeError("retained manifest has a truncated GDB option")
+            index += 2
+            continue
+        if lowered.startswith("-gdb"):
+            raise RuntimeError("unreviewed GDB option in retained manifest")
+        args.append(token)
+        index += 1
+
+    if any("gdb" in item.lower() or "monitor" in item.lower() for item in args):
+        raise RuntimeError("debugger or monitor argument remains after GDB-option removal")
+
+    required_pairs = {
+        "-ui": "gtk3",
+        "-ao": "pulse",
+        "-machine": "coco3",
+        "-machine-cpu": "6809",
+        "-ram": "512",
+        "-ram-init": "random",
+        "-cart-type": "gmc",
+        "-tv-input": "rgb",
+        "-joy-right": "",
+        "-joy-left": "",
+    }
+    for option, expected in required_pairs.items():
+        positions = [i for i, item in enumerate(args) if item == option]
+        if len(positions) != 1 or positions[0] + 1 >= len(args) or args[positions[0] + 1] != expected:
+            raise RuntimeError("retained launch setting changed or is ambiguous: " + option)
+    if args.count("-cart-autorun") != 1:
+        raise RuntimeError("retained autorun setting is missing or ambiguous")
+    rom_positions = [i for i, item in enumerate(args) if item == "-cart-rom"]
+    if len(rom_positions) != 1 or rom_positions[0] + 1 >= len(args):
+        raise RuntimeError("retained cart ROM argument is missing or ambiguous")
+    args[rom_positions[0] + 1] = str(rom_path)
+
+    argv = [str(executable_path)] + args
+    if any("gdb" in item.lower() or "monitor" in item.lower() for item in argv):
+        raise RuntimeError("final native argv contains a prohibited debugger or monitor argument")
+    return {
+        "argv": argv,
+        "launcher_sha256": actual_launcher,
+        "candidate_rom_sha256": actual_rom,
+        "candidate_receipt_sha256": actual_receipt,
+        "executable": os.path.realpath(str(executable_path)),
+    }
+
+def proc_identity(pid):
+    stat_path = Path("/proc") / str(pid) / "stat"
+    stat_text = stat_path.read_text(encoding="ascii")
+    close = stat_text.rfind(")")
+    if close < 0:
+        raise RuntimeError("cannot parse owned process stat")
+    fields_from_state = stat_text[close + 2:].split()
+    if len(fields_from_state) <= 19:
+        raise RuntimeError("owned process stat has no start-time field")
+    executable = os.path.realpath(str(Path("/proc") / str(pid) / "exe"))
+    return (pid, executable, fields_from_state[19])
+
+def wait_for_identity(process, expected_executable):
+    deadline = time.monotonic() + IDENTITY_WAIT_SECONDS
+    last_error = ""
+    while time.monotonic() < deadline:
+        if process.poll() is not None:
+            return None, "process exited before identity was verified"
+        try:
+            identity = proc_identity(process.pid)
+            if identity[1] == expected_executable:
+                return identity, "verified"
+            return None, "PID executable did not match the launched XRoar executable"
+        except (OSError, RuntimeError) as error:
+            last_error = str(error)
+        time.sleep(0.05)
+    return None, "could not verify PID/executable/starttime: " + last_error
+
+def terminate_owned(process, identity, phase_deadline):
+    actions = []
+    if process.poll() is not None:
+        return actions, "already exited"
+    if identity is None:
+        return actions, "identity unavailable; no signal sent"
+    try:
+        current = proc_identity(process.pid)
+    except (OSError, RuntimeError) as error:
+        return actions, "identity recheck failed; no signal sent: " + str(error)
+    if current != identity:
+        return actions, "PID/executable/starttime changed; no signal sent"
+
+    remaining = phase_deadline - time.monotonic()
+    if remaining <= 0:
+        return actions, "phase deadline reached before TERM"
+    try:
+        os.kill(process.pid, signal.SIGTERM)
+        actions.append({"signal": "TERM", "utc": utc_now()})
+    except OSError as error:
+        return actions, "TERM failed: " + str(error)
+
+    try:
+        process.wait(timeout=min(5.0, max(0.0, phase_deadline - time.monotonic())))
+        return actions, "exited after TERM"
+    except subprocess.TimeoutExpired:
+        pass
+
+    if process.poll() is not None:
+        return actions, "exited after TERM"
+    if time.monotonic() >= phase_deadline:
+        return actions, "phase deadline reached after TERM"
+    try:
+        current = proc_identity(process.pid)
+    except (OSError, RuntimeError) as error:
+        return actions, "identity recheck failed before KILL; no KILL sent: " + str(error)
+    if current != identity:
+        return actions, "PID/executable/starttime changed before KILL; no KILL sent"
+    try:
+        os.kill(process.pid, signal.SIGKILL)
+        actions.append({"signal": "KILL", "utc": utc_now()})
+    except OSError as error:
+        return actions, "KILL failed: " + str(error)
+    try:
+        process.wait(timeout=min(1.0, max(0.0, phase_deadline - time.monotonic())))
+        return actions, "exited after bounded KILL"
+    except subprocess.TimeoutExpired:
+        return actions, "process remains after bounded KILL"
+
+def run_case(root, case):
+    pinned = preflight(root)
+    output_dir = root / REPRO_REL / (case + "-manual")
+    try:
+        output_dir.mkdir(mode=0o700)
+    except FileExistsError:
+        raise RuntimeError("case output already exists; no overwrite or retry is allowed")
+    except OSError as error:
+        raise RuntimeError("cannot create exclusive case output directory: " + str(error))
+
+    launch_record = {
+        "case": case,
+        "status": "launch_pending",
+        "launcher_sha256": pinned["launcher_sha256"],
+        "candidate_rom_sha256": pinned["candidate_rom_sha256"],
+        "candidate_receipt_sha256": pinned["candidate_receipt_sha256"],
+        "argv": pinned["argv"],
+        "observation_seconds": OBSERVATION_SECONDS,
+        "phase_limit_seconds": PHASE_LIMIT_SECONDS,
+        "native_input": CASE_INSTRUCTIONS[case],
+        "manual_result": "pending_separate_user_report",
+        "automated_visual_pass": False,
+    }
+    write_json_exclusive(output_dir / "launch.json", launch_record)
+
+    print("Case: " + case, flush=True)
+    print("Native user input only; no key injection or guest-state access.", flush=True)
+    for instruction in CASE_INSTRUCTIONS[case]:
+        print("- " + instruction, flush=True)
+
+    phase_start_utc = utc_now()
+    phase_start = time.monotonic()
+    phase_deadline = phase_start + PHASE_LIMIT_SECONDS
+    print("Phase start immediately before native XRoar launch: " + phase_start_utc, flush=True)
+
+    process = None
+    identity = None
+    identity_note = "launch not attempted"
+    observation_start_utc = None
+    observation_stop_utc = None
+    observation_completed = False
+    early_exit_code = None
+    launch_error = None
+    interrupted = False
+    cleanup_actions = []
+    cleanup_note = "not started"
+    log_stream = None
+
+    try:
+        log_stream = (output_dir / "xroar.log").open("xb")
+        process = subprocess.Popen(
+            pinned["argv"],
+            cwd=str(root),
+            stdin=subprocess.DEVNULL,
+            stdout=log_stream,
+            stderr=subprocess.STDOUT,
+            close_fds=True,
+        )
+        identity, identity_note = wait_for_identity(process, pinned["executable"])
+        if identity is not None:
+            observation_start = time.monotonic()
+            observation_start_utc = utc_now()
+            observation_deadline = min(
+                observation_start + OBSERVATION_SECONDS,
+                phase_deadline - 7.0,
+            )
+            print("Native window observation starts: " + observation_start_utc, flush=True)
+            while time.monotonic() < observation_deadline:
+                return_code = process.poll()
+                if return_code is not None:
+                    early_exit_code = return_code
+                    break
+                time.sleep(min(0.1, max(0.0, observation_deadline - time.monotonic())))
+            observation_stop_utc = utc_now()
+            observation_completed = (
+                early_exit_code is None
+                and time.monotonic() >= observation_deadline
+            )
+    except KeyboardInterrupt:
+        interrupted = True
+        observation_stop_utc = utc_now()
+        print("User interrupted the phase; bounded owned-process cleanup follows.", flush=True)
+    except (OSError, subprocess.SubprocessError) as error:
+        launch_error = str(error)
+        print("Native launch error: " + launch_error, file=sys.stderr, flush=True)
+    finally:
+        if process is not None:
+            cleanup_actions, cleanup_note = terminate_owned(process, identity, phase_deadline)
+        if log_stream is not None:
+            log_stream.close()
+
+    return_code = process.poll() if process is not None else None
+    if process is not None and return_code is None:
+        process_state = "still_running_after_cleanup"
+    elif process is None:
+        process_state = "not_started"
+    else:
+        process_state = "exited"
+    total_seconds = time.monotonic() - phase_start
+    if total_seconds > PHASE_LIMIT_SECONDS:
+        launcher_status = "phase_deadline_exceeded"
+    elif launch_error is not None:
+        launcher_status = "launch_failed"
+    elif interrupted:
+        launcher_status = "interrupted"
+    elif identity is None:
+        launcher_status = "identity_unverified"
+    elif not observation_completed:
+        launcher_status = "observation_incomplete"
+    elif process_state != "exited":
+        launcher_status = "cleanup_incomplete"
+    else:
+        launcher_status = "launcher_phase_finished_manual_result_pending"
+
+    result_record = {
+        "case": case,
+        "launcher_status": launcher_status,
+        "manual_result": "pending_separate_user_report",
+        "automated_visual_pass": False,
+        "phase_start_utc": phase_start_utc,
+        "observation_start_utc": observation_start_utc,
+        "observation_stop_utc": observation_stop_utc,
+        "observation_requested_seconds": OBSERVATION_SECONDS,
+        "total_phase_seconds": round(total_seconds, 3),
+        "phase_limit_seconds": PHASE_LIMIT_SECONDS,
+        "pid_executable_start_ticks": (
+            {"pid": identity[0], "executable": identity[1], "start_ticks": identity[2]}
+            if identity is not None else None
+        ),
+        "identity_note": identity_note,
+        "early_exit_code": early_exit_code,
+        "launch_error": launch_error,
+        "cleanup_actions": cleanup_actions,
+        "cleanup_note": cleanup_note,
+        "final_process_state": process_state,
+        "candidate_rom_sha256": pinned["candidate_rom_sha256"],
+        "candidate_receipt_sha256": pinned["candidate_receipt_sha256"],
+        "launcher_sha256": pinned["launcher_sha256"],
+    }
+    write_json_exclusive(output_dir / "result.json", result_record)
+    print("Phase ended: " + launcher_status, flush=True)
+    print("No visual PASS is inferred. Record the user-observed result separately.", flush=True)
+    if launcher_status != "launcher_phase_finished_manual_result_pending":
+        return 1
+    return 0
+
+def main():
+    args = parse_args()
+    if sys.platform == "win32":
+        return bridge_from_windows(args.case)
+    if not sys.platform.startswith("linux"):
+        return fail("run from Windows Python or Linux/WSL Python")
+    try:
+        root = repository_root(args)
+        return run_case(root, args.case)
+    except (OSError, RuntimeError) as error:
+        return fail(str(error))
+
+if __name__ == "__main__":
+    sys.exit(main())

@@ -1,0 +1,40 @@
+{
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug/repro/feat010-frontend-dispatch-repair-20261016/candidate",
+    "--exec",
+    "timeout",
+    "--kill-after=2s",
+    "590s",
+    "env",
+    "LADYBUG_PROFILE=complete",
+    "LADYBUG_INPUT=keyboard",
+    "LADYBUG_CPU=6809",
+    "LADYBUG_ADAPTIVE=1",
+    "bash",
+    "scripts/build.sh",
+    "build"
+  ],
+  "limit_seconds": 600,
+  "deadline_terminates_build_seconds": 590,
+  "kill_grace_seconds": 2,
+  "outcome": "BUILD RETURNED ZERO; PARENT ACCEPTANCE PENDING",
+  "returncode": 0,
+  "elapsed_seconds": 318.0738749000011,
+  "log_sha256": "f3aa1ab8cf43cf843a59b1dde8ecbcd3761a40e0e6664b195992e43e6cf01186",
+  "ladybug.rom": {
+    "sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+    "bytes": 65536
+  },
+  "source-build-receipt.json": {
+    "sha256": "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0",
+    "bytes": 56626
+  },
+  "ladybug-presentation-runtime.bin": {
+    "sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "bytes": 1280
+  }
+}

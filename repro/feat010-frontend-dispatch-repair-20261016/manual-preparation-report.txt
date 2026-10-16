@@ -1,0 +1,23 @@
+FEAT-010 native manual launcher preparation
+
+Status: prepared for parent review only. The launcher was not executed, syntax-checked, tested, or used to start XRoar.
+
+Owned files:
+- repro/feat010-frontend-dispatch-repair-20261016/native-menu-review.py.txt
+- repro/feat010-frontend-dispatch-repair-20261016/manual-preparation-report.txt
+
+Commands:
+- python3 repro/feat010-frontend-dispatch-repair-20261016/native-menu-review.py.txt --case options
+- python3 repro/feat010-frontend-dispatch-repair-20261016/native-menu-review.py.txt --case credits
+
+The command must run from the repository root. Linux/WSL Python runs the phase directly. Windows Python converts the root with a bounded, shell-free wslpath call, then passes this same launcher source on stdin to one wsl -d Ubuntu --exec python3 - process; the bridge timeout is 58 seconds. It does not construct a shell command.
+
+Launch argv is copied from repro/feat010-cold-menu-probes-20261016/manifest.json. Executable: /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar. Exact final argument order: -ui gtk3 -ao pulse -machine coco3 -machine-cpu 6809 -ram 512 -ram-init random -cart-type gmc -cart-rom /mnt/e/projects/ladybug/repro/feat010-frontend-dispatch-repair-20261016/candidate/build/ladybug.rom -cart-autorun -tv-input rgb -joy-right "" -joy-left "". The only launch edits are removal of -gdb, -gdb-ip 127.0.0.1, and -gdb-port 65522, and substitution of the candidate ROM path. There is no keyboard injection, guest-memory/register access, debugger, monitor, or added transport.
+
+Before creating case evidence or launching, the script requires sibling manual-ready.json with schema 1 and status ready. It pins the full repo-relative paths repro/feat010-frontend-dispatch-repair-20261016/candidate/build/ladybug.rom and repro/feat010-frontend-dispatch-repair-20261016/candidate/build/source-build-receipt.json, their SHA-256 values, and launcher_sha256. The candidate receipt must report state complete, profile complete, and artifacts.ladybug.rom matching the ROM hash. The launcher file SHA must match the parent pin. The parent readiness file is an attestation that source qualification and the approved primary build passed; the launcher does not infer readiness from a missing build.
+
+Each invocation atomically reserves only its own fresh options-manual or credits-manual directory. Existing output blocks the case without overwrite or retry. Evidence names are launch.json, xroar.log, and result.json. Each case launches one native process. On Linux/WSL, cleanup records PID, /proc executable path, and /proc start ticks, rechecks that exact identity before SIGTERM and again before bounded SIGKILL, and never targets another process. The fixed observation interval is 45 seconds; total native phase limit is 60 seconds from immediately before launch through cleanup. An early exit, identity mismatch, failed launch, interruption, cleanup failure, or bridge timeout is incomplete and does not authorize a relaunch.
+
+The printed Options sequence is Down/release, Return/release; confirm Options and observe at least 5 seconds without collectibles or Attract overlay; Down/release must advance selection, two separate further Down/release presses reach Back (index 3), then Return/release must restore Attract with Start selected. Credits uses two separate Down/release presses and Return/release; confirm Credits and observe at least 5 seconds without collectible/Attract overlays, garbage, or crash; Return/release must restore Attract with Start selected. Input remains manual. Visual results are not inferred or stored as PASS by the launcher; the user report is entered separately after the phase.
+
+Current readiness: candidate/build/ladybug.rom and parent manual-ready.json were absent during preparation. Parent must complete source qualification and the single approved build, write manual-ready.json using the schema above, review/freeze this exact launcher SHA, and separately coordinate user availability before either command is released. No runtime, syntax, test, GDB, emulator, build, candidate, Git, wiki, or canonical-ticket action was performed.
