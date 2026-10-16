@@ -1,0 +1,47 @@
+{
+  "ticket": "FEAT-010",
+  "purpose": "isolated keyboard/adaptive manual-review build",
+  "date": "2026-10-16",
+  "status": "ordinary keyboard/adaptive review build passed; parent ROM/receipt identity checked",
+  "review_root": "repro/feat010-manual-review-20261016",
+  "capsule": "repro/feat010-manual-review-20261016/capsule",
+  "source_template": "repro/feat010-remaining-verification-20261016/keyboard-nonadaptive",
+  "source_manifest": {
+    "path": "repro/feat010-remaining-verification-20261016/source-manifest.json",
+    "sha256": "147418c9f5bcd1873441ef2241b2ba9ed198ff8461f9dcea95d874c484bee19d",
+    "profile_hash_binding": "keyboard-adaptive_proposed_sha256"
+  },
+  "prebuild_copy": {
+    "method": "single batched native PowerShell Copy-Item",
+    "elapsed_seconds": 7.963,
+    "source_inputs": 266,
+    "wiki_html": 379,
+    "copied_files": 645,
+    "extra_files": 0,
+    "missing_files": 0,
+    "source_hash_mismatches": 0,
+    "wiki_hash_mismatches": 0,
+    "build_directory_copied": false,
+    "git_directory_copied": false,
+    "receipt_copied": false
+  },
+  "build": {
+    "command": "timeout --signal=TERM --kill-after=2s 595s env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "timeout_seconds": 595,
+    "outer_phase_limit_seconds": 600,
+    "attempts": 1,
+    "expected_review_rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53"
+  },
+  "evidence_paths": {
+    "build_log": "repro/feat010-manual-review-20261016/build.log",
+    "build_result": "repro/feat010-manual-review-20261016/result.json"
+  },
+  "scope": {
+    "build_root": "capsule/build",
+    "root_build_modified": false,
+    "runtime_or_gdb_run": false,
+    "postdriver_or_new_test_run": false,
+    "source_modified_before_build": false
+  },
+  "result_summary": "parent-review.json"
+}
