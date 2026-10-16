@@ -1,0 +1,42 @@
+FEAT-010 direct-page guard proposal audit
+Date: 2026-10-16
+
+Read-only boundary
+
+This audit reads the supplied project instructions, project-management and debugger skills, wiki catalog, FEAT-010 ticket, frozen source capsule, observer, post-command, and retained post-stop summary. It executed no Git commands, observer or guard code, tests, provenance validator, build, or runtime probe. This file is the only authorized write. No product defect is established by the retained result.
+
+Project-management classification
+
+Objective: prepare the bounded correction proposal for the load-budget observer failure and specify the remaining postchecks against the unchanged FEAT-010 candidate.
+Scope: one existing observer assertion plus its qualification and the already-approved postcheck phase. No production behavior, capsule, receipt, build, or runtime change. Canonical ticket proposal and commit remain parent-owned.
+Affected evidence: repro/feat010-stale-flow-verification-20261016/flow-observer.py; repro/feat010-stale-flow-verification-20261016/remaining-post-command.py.txt; repro/feat010-stale-flow-verification-20261016/post-stop-summary.json; frozen capsule src/presentation_runtime.s and scripts/verify_presentation_flow.py.
+Ticket/status/class: FEAT-010 remains High-risk and blocked at verification. This report routes the symptom through debugger review; the parent owns the QA card and execution decision. Its High-risk classification belongs to the approved feature and frozen candidate, not to a newly identified runtime defect.
+
+Confirmed blocker and bounded correction
+
+The retained post-stop summary records one postphase invocation, 4.275245 seconds elapsed against a 60-second phase limit, no build/runtime, and unchanged before/after provenance. The summary identifies source checkpoint bd841c7. The task supplies aef6d7d as the retained commit reference; this audit did not verify Git ancestry.
+
+The external observer at lines 588-592 slices load_tick through load_done, then line 589 searches for the exact substrings "sta     PRES_ROWS" and "dec     PRES_ROWS". The frozen complete-profile source uses "sta     <PRES_ROWS" at capsule src/presentation_runtime.s:575 and "dec     <PRES_ROWS" at :608. The resulting diagnostic is therefore an observer text mismatch. The source load budget is visibly stored and decremented in memory; the retained failure is not a product verdict.
+
+Replace only the line-589 condition with anchored, multiline opcode/operand searches for both operations. A suitable form is to require a match for each of:
+
+  ^[ \t]*sta[ \t]+<?PRES_ROWS[ \t]*(?:;[^\r\n]*)?$
+  ^[ \t]*dec[ \t]+<?PRES_ROWS[ \t]*(?:;[^\r\n]*)?$
+
+Use re.MULTILINE and horizontal-space classes. Keep the operand exact and allow only the optional direct-page marker before it. A comment-only occurrence or a token inside another instruction cannot match; a trailing semicolon comment after a valid instruction can. Python read_text normalizes source line endings before the check. Keep the adjacent line-591 decb guard and its diagnostic unchanged. Apply the same two-assertion correction to the future maintained verifier while preserving the already-approved conditional-joystick assertion correction. The external snapshot retains the fixed capsule ROOT binding and prior conditional metadata correction; update the postdriver’s observer path/hash pin for that snapshot. Do not change capsule inputs or receipt.
+
+Qualification proposal
+
+Qualify the exact extracted load-budget If and adjacent unchanged decb If from the observer AST using controlled load_source fixtures, without running the full observer. In one phase capped at 60 seconds, require both legacy spellings (sta/dec PRES_ROWS) and the current direct-page spellings (sta/dec <PRES_ROWS) to pass. Require rejection for each missing instruction, each wrong operand, and comment-only lookalikes; permit an inline comment only after a valid exact instruction. Retain an executable decb negative control against the unchanged following guard. Check the exact existing diagnostics, corrected observer ROOT, frozen capsule identity, and that no unrelated observer AST/source bytes changed beyond ROOT and the two approved If predicates. Preserve positive and negative qualification of the earlier conditional-only metadata correction. No guard, observer, or validator execution occurred in this audit.
+
+If qualification passes, the existing postdriver is proposed for one remaining postphase capped at 60 seconds, with one observer invocation and the already-frozen provenance checks before and after. Retain its existing assertions for fixed helper entries/raw bytes, the 80-byte clock hash, all 32 approved direct-operand sites, all 30 payload comparisons, ROM identity, source/input identity, 319/319 documented routines, 4851/4851 classified labels, and recorded capacity limits. Stop on the first unexpected failure or timeout; do not retry or extend the deadline. No build, runtime, or additional profile is proposed. The post-stop summary says all these checks remain untested after the first observer failure.
+
+Separate source/observer findings
+
+1. The generic start/coin check at observer lines 614-622 reads from the first pft_mode to the first pft_dispatch. In frozen source lines 321-343, the complete-profile arm of pft_mode is lbra pft_dispatch; the expected bita #1, tst/dec <PRES_CREDITS, and start-screen text is inside the conditional else legacy arm. Thus this generic string check can pass on inactive legacy text and does not establish the complete-profile path. The complete-only credit guard has separate source assertions at verifier lines 230-249. This is not the current postphase blocker; record it as a distinct coverage weakness and do not add it to the direct-page repair.
+2. The actor-phase assertion at verifier line 638 searches helper_source for sta PRES_ACTOR_PHASE. helper_source is src/perimeter_reset_helper.s (verifier line 15); the frozen helper has that legacy spelling at line 200. This assertion matches the present source and is not another direct-page mismatch. No edit is proposed.
+3. The loop-wake assertions at verifier lines 625-637 are indented inside the preceding actor-frame failure branch, after its unconditional raise at line 624. They are unreachable. The source label/body exists at src/presentation_runtime.s:264-317, but this observer block provides no coverage. Treat this as missing coverage, not a product failure, and exclude any indentation/control-flow repair from the bounded proposal.
+
+Unknowns and status
+
+This audit did not run the corrected qualification or the remaining postphase, so no pass is claimed for the flow observer or downstream assertions. The prior frozen source/receipt/ROM identities are taken from the retained ticket and artifact records; no independent Git/commit check was made. The generic start/coin proof’s adequacy and the unreachable loop-wake check require a separately scoped decision if their coverage is to be repaired. The candidate remains unaccepted for this postcheck card; natural/manual feature behavior and other profiles remain pending under the ticket.

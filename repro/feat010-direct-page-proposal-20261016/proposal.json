@@ -1,0 +1,91 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "status": "Proposed; approval pending",
+  "baseline_commit": "aef6d7d",
+  "classification": "Compact observer-only repair within High-risk FEAT-010; no new runtime ownership or memory change",
+  "blocker": {
+    "diagnostic": "presentation flow proof: load budget is not memory-backed",
+    "phase_seconds": 4.275245510999412,
+    "phase_maximum_seconds": 60,
+    "observer_lines": [
+      589,
+      590
+    ],
+    "source_lines": [
+      575,
+      608
+    ],
+    "actual_operands": [
+      "sta <PRES_ROWS",
+      "dec <PRES_ROWS"
+    ],
+    "legacy_expected": [
+      "sta PRES_ROWS",
+      "dec PRES_ROWS"
+    ],
+    "product_defect_proven": false
+  },
+  "change": "One load-budget If predicate in a new external snapshot: require anchored indented sta and dec instruction lines, each naming exactly PRES_ROWS with optional <; horizontal whitespace and trailing semicolon comment allowed. Existing exception body and following decb rejection unchanged. No global normalization.",
+  "predicate_proposal": "if any(re.search(r\"^[ \\t]+\" + opcode + r\"[ \\t]+<?PRES_ROWS[ \\t]*(?:;[^\\r\\n]*)?\\r?$\", load_source, re.M) is None for opcode in (\"sta\", \"dec\")):",
+  "targets": {
+    "full_flow": "PASS all reachable unchanged flow assertions; exactly one invocation. Known unreachable loop-wake coverage is explicitly missing and excluded; no overall FEAT-010 acceptance.",
+    "postdriver_product_assertions_preserved": 21,
+    "direct_operand_sites": 32,
+    "identical_payloads": 30,
+    "rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+    "source_coverage": [
+      319,
+      319,
+      4851,
+      4851
+    ],
+    "payload_delta_bytes": 0,
+    "capsule_input_changes": 0,
+    "capacity_change_bytes": 0
+  },
+  "limits": {
+    "qualification_phases": 1,
+    "qualification_max_seconds": 60,
+    "post_phases": 1,
+    "post_max_seconds": 60,
+    "command_total_max_seconds": 120,
+    "builds": 0,
+    "runtime_runs": 0,
+    "other_profiles": 0,
+    "integration": false,
+    "attempts_per_phase": 1
+  },
+  "qualification": {
+    "positive": [
+      "Frozen current direct operands",
+      "Legacy operands",
+      "Mixed direct/legacy operands with horizontal whitespace and trailing comments"
+    ],
+    "negative": [
+      "Missing store",
+      "Missing decrement",
+      "Store to PRES_ROWS_OTHER",
+      "Decrement to PRES_ROWS_OTHER",
+      "Store only in semicolon comment",
+      "Decrement only in semicolon comment",
+      "Indexed PRES_ROWS,x operand",
+      "Immediate #PRES_ROWS operand",
+      "Existing decb clobbered-B rejection"
+    ],
+    "retained_controls": "Conditional-only positive; missing/legacy-only/both metadata rejection; wrong ROOT rejection. Reuse prior exact AST statements and frozen qualification harness."
+  },
+  "stop": "First unexpected result, timeout, changed capsule identity/provenance, extra edit, unqualified control or newly uncovered mismatch. Stop and retain evidence; no retries or autonomous expansion.",
+  "remaining": "Other profile fit, natural/manual feature acceptance and production integration remain outside this card. Full-flow pass does not prove all game behavior.",
+  "audit_findings": [
+    "Generic coin/start text check inspects inactive legacy else arm; not evidence of complete-profile behavior.",
+    "loop_wake assertion block is unreachable after actor-frame raise; missing feature coverage, not a product defect.",
+    "Actor phase helper spelling matches current source; no further direct-page mismatch there."
+  ],
+  "parent_review": {
+    "audit_sha256": "83529fa55af4ccfb0b8402ac9f438a8bc98ee32a3175caf15ea52caf707c95c3",
+    "baseline_commit_confirmed": "aef6d7d",
+    "retained_execution_checkpoint": "bd841c7",
+    "binding_refinement": "Require indented instruction lines (+ horizontal whitespace), no optional zero indentation; no new helper. All new snapshot bytes except single budget If remain identical to qualified external baseline."
+  }
+}
