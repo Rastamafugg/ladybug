@@ -1,0 +1,322 @@
+#!/usr/bin/env python3
+"""Source-only FEAT-010 dispatch check. No subprocesses or guest access."""
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import sys
+import time
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[2]
+CASE = ROOT / "repro/feat010-frontend-dispatch-repair-20261016"
+BASE = ROOT / "repro/feat010-manual-review-20261016/capsule"
+CANDIDATE = CASE / "candidate"
+OUTPUT = CASE / "resultqualification-summary.json"
+BASE_SOURCE = BASE / "src/presentation_runtime.s"
+BASE_RECEIPT = BASE / "build/source-build-receipt.json"
+BASE_MAP = BASE / "build/ladybug-presentation-runtime.map"
+BASE_SOURCE_SHA = "23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0"
+BASE_RECEIPT_SHA = "4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f"
+BASE_MAP_SHA = "7ae4647a67ba81251201e32a67ae69f558d08e2945a7ca2f4634544ca6473343"
+BASE_ROM_SHA = "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53"
+LIMIT_SECONDS = 60
+DEADLINE = time.monotonic() + LIMIT_SECONDS
+
+
+class CheckError(Exception):
+    pass
+
+
+class Incomplete(Exception):
+    pass
+
+
+def budget() -> None:
+    if time.monotonic() > DEADLINE:
+        raise Incomplete("source qualification exceeded its 60-second whole-phase limit")
+
+
+def sha(path: Path) -> str:
+    budget()
+    digest = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            budget()
+            digest.update(chunk)
+    return digest.hexdigest()
+
+
+def source_lines(text: str) -> list[str]:
+    """Canonicalize assembly instructions/directives while ignoring comments and spacing."""
+    result = []
+    for line in text.splitlines():
+        line = line.split(";", 1)[0].strip()
+        if line:
+            result.append(re.sub(r"\s+", " ", line).upper())
+    return result
+
+
+def sequence_at(rows: list[str], old: list[str], start: int = 0,
+                end: int | None = None) -> int:
+    stop = len(rows) if end is None else end
+    hits = [i for i in range(start, stop - len(old) + 1)
+            if rows[i:i + len(old)] == old]
+    if len(hits) != 1:
+        raise CheckError(f"approved source fragment matched {len(hits)} times")
+    return hits[0]
+
+
+def replace_once(rows: list[str], old: list[str], new: list[str], start: int = 0,
+                 end: int | None = None) -> int:
+    at = sequence_at(rows, old, start, end)
+    rows[at:at + len(old)] = new
+    return at
+
+
+def bounded_replace(rows: list[str], first_label: str, end_label: str,
+                    old: list[str], new: list[str]) -> int:
+    starts = [i for i, row in enumerate(rows) if row == first_label]
+    if not starts:
+        raise CheckError(f"{first_label} boundary is missing")
+    start = starts[0]
+    ends = [i for i in range(start + 1, len(rows)) if rows[i] == end_label]
+    if not ends:
+        raise CheckError(f"{end_label} boundary after {first_label} is missing")
+    return replace_once(rows, old, new, start, ends[0])
+
+
+def in_complete_profile_arm(rows: list[str], index: int) -> bool:
+    """Require an explicit active COMPLETE_PROFILE conditional at an approved edit."""
+    stack: list[list[bool]] = []
+    for row in rows[:index]:
+        match = re.match(r"^(IFNE|IFEQ|IFDEF|IFNDEF|IFD|IFND)\s+(.+)$", row)
+        if match:
+            kind, expression = match.group(1), match.group(2).strip()
+            exact_profile = expression == "COMPLETE_PROFILE"
+            true_in_complete = kind in ("IFNE", "IFDEF", "IFD")
+            stack.append([exact_profile, true_in_complete if exact_profile else False])
+        elif row == "ELSE" and stack and stack[-1][0]:
+            stack[-1][1] = not stack[-1][1]
+        elif row == "ENDC" and stack:
+            stack.pop()
+    return any(is_profile and active for is_profile, active in stack)
+
+
+def require_complete_profile(rows: list[str], index: int, name: str) -> None:
+    if not in_complete_profile_arm(rows, index):
+        raise CheckError(name + " edit is outside the COMPLETE_PROFILE arm")
+
+
+def map_values(path: Path) -> dict[str, int]:
+    if sha(path) != BASE_MAP_SHA:
+        raise CheckError("frozen presentation map hash changed")
+    text = path.read_text(encoding="utf-8")
+    names = ("MODE_CREDIT", "PRESENTATION_MAP_HIGH_SCORE",
+             "PRESENTATION_MAP_OPTIONS", "PRESENTATION_MAP_CREDITS")
+    values: dict[str, int] = {}
+    for name in names:
+        match = re.search(r"^Symbol: " + name + r" .* = ([0-9A-Fa-f]+)\s*$", text, re.M)
+        if not match:
+            raise CheckError("baseline map is missing " + name)
+        values[name] = int(match.group(1), 16)
+    if values != {"MODE_CREDIT": 5, "PRESENTATION_MAP_HIGH_SCORE": 3,
+                  "PRESENTATION_MAP_OPTIONS": 6, "PRESENTATION_MAP_CREDITS": 7}:
+        raise CheckError("baseline screen/mode constants differ from the approved route")
+    return values
+
+
+def apply_approved_patch(rows: list[str]) -> None:
+    load_dispatch = ["MENU_LOAD_EVENT", "TST <$D0", "BEQ MENU_LOAD_CONTINUE", "LDA #$23"]
+    require_complete_profile(rows, sequence_at(rows, load_dispatch), "load_tick dispatch")
+    replace_once(rows, load_dispatch,
+        ["MENU_LOAD_EVENT", "TST <$D0", "BEQ MENU_LOAD_CONTINUE",
+         "MENU_RUNTIME_DISPATCH", "LDA #$23"])
+
+    load_guard = ["LDB PRES_SCREEN", "CMPB #PRESENTATION_MAP_HIGH_SCORE",
+                  "BLO LOAD_DONE_DYNAMIC_READY", "JSR DEMO_RUNTIME_TICK"]
+    start = next(i for i, row in enumerate(rows) if row == "LOAD_DONE_NO_CUCUMBER")
+    end = next(i for i in range(start + 1, len(rows)) if rows[i] == "LOAD_DONE_HOLD_PLAIN")
+    require_complete_profile(rows, sequence_at(rows, load_guard, start, end), "load_done guard")
+    bounded_replace(rows, "LOAD_DONE_NO_CUCUMBER", "LOAD_DONE_HOLD_PLAIN", load_guard,
+        ["LDB <PRES_SCREEN", "CMPB #PRESENTATION_MAP_HIGH_SCORE",
+         "BLO LOAD_DONE_DYNAMIC_READY", "CMPB #PRESENTATION_MAP_OPTIONS",
+         "BHS LOAD_DONE_DYNAMIC_READY", "JSR DEMO_RUNTIME_TICK"])
+
+    hold_start = next(i for i, row in enumerate(rows) if row == "LOAD_DONE_HOLD_OWNER")
+    hold_end = next(i for i in range(hold_start + 1, len(rows)) if rows[i] == "LOAD_DONE_HOLD_SECOND")
+    hold_test = ["TST PRES_HOLD_OWNER"]
+    require_complete_profile(rows, sequence_at(rows, hold_test, hold_start, hold_end), "hold-owner test")
+    bounded_replace(rows, "LOAD_DONE_HOLD_OWNER", "LOAD_DONE_HOLD_SECOND",
+                    hold_test, ["TST <PRES_HOLD_OWNER"])
+    hold_start = next(i for i, row in enumerate(rows) if row == "LOAD_DONE_HOLD_OWNER")
+    hold_end = next(i for i in range(hold_start + 1, len(rows)) if rows[i] == "LOAD_DONE_HOLD_SECOND")
+    hold_store = ["STA PRES_HOLD_OWNER"]
+    require_complete_profile(rows, sequence_at(rows, hold_store, hold_start, hold_end), "hold-owner store")
+    bounded_replace(rows, "LOAD_DONE_HOLD_OWNER", "LOAD_DONE_HOLD_SECOND",
+                    hold_store, ["STA <PRES_HOLD_OWNER"])
+
+    credit_start = next(i for i, row in enumerate(rows) if row == "CREDIT_TICK")
+    credit_end = next(i for i in range(credit_start + 1, len(rows)) if rows[i] == "LEVEL_TICK")
+    credit = ["CREDIT_TICK", "JMP DEMO_RUNTIME_TICK"]
+    require_complete_profile(rows, sequence_at(rows, credit, credit_start, credit_end), "credit_tick dispatch")
+    bounded_replace(rows, "CREDIT_TICK", "LEVEL_TICK", credit,
+        ["CREDIT_TICK", "LDB <PRES_SCREEN", "CMPB #PRESENTATION_MAP_OPTIONS",
+         "LBHS MENU_RUNTIME_DISPATCH", "JMP DEMO_RUNTIME_TICK"])
+
+
+def check_reference(base_root: Path, candidate_root: Path) -> None:
+    relative = Path("scripts/source_reference.json")
+    candidate_path = candidate_root / relative
+    if not candidate_path.exists():
+        return
+    if candidate_path.read_bytes() == (base_root / relative).read_bytes():
+        return
+    baseline = json.loads((base_root / relative).read_text(encoding="utf-8"))
+    candidate = json.loads(candidate_path.read_text(encoding="utf-8"))
+
+    def runtime_module(document: dict) -> dict:
+        modules = document.get("modules")
+        if not isinstance(modules, list):
+            raise CheckError("source_reference modules are malformed")
+        matches = [module for module in modules if module.get("id") == "presentation-runtime"]
+        if len(matches) != 1:
+            raise CheckError("presentation-runtime source_reference module is ambiguous")
+        return matches[0]
+
+    old_module, new_module = runtime_module(baseline), runtime_module(candidate)
+    old_blocks, new_blocks = old_module.get("basic_blocks"), new_module.get("basic_blocks")
+    if not isinstance(old_blocks, list) or not isinstance(new_blocks, list):
+        raise CheckError("source_reference basic_blocks are malformed")
+    additions = [row for row in new_blocks if row not in old_blocks]
+    if len(additions) > 1:
+        raise CheckError("source_reference may add only menu_runtime_dispatch ownership")
+    if additions:
+        row = additions[0]
+        if (set(row) != {"name", "routine", "purpose"}
+                or row.get("name") != "menu_runtime_dispatch"
+                or row.get("routine") != "load_tick"
+                or not isinstance(row.get("purpose"), str) or not row["purpose"].strip()):
+            raise CheckError("new source_reference row is not narrow local ownership metadata")
+        new_blocks.remove(row)
+    if candidate != baseline:
+        new_module["basic_blocks"] = new_blocks
+        if candidate != baseline:
+            raise CheckError("source_reference changes exceed the optional local ownership row")
+
+
+def route_tables(values: dict[str, int]) -> dict[str, dict[str, str]]:
+    high = values["PRESENTATION_MAP_HIGH_SCORE"]
+    options = values["PRESENTATION_MAP_OPTIONS"]
+    # These classifiers apply only after the exact candidate instruction fragments match.
+    load_tick = {f"{n}/d0={d0}":
+                 ("skip" if n == high or n < options or not d0 else "menu")
+                 for n in range(9) for d0 in (0, 1)}
+    load_done = {str(n): ("legacy" if high <= n < options else "skip") for n in range(9)}
+    credit_tick = {str(n): ("menu" if n >= options else "legacy") for n in range(3, 9)}
+    return {"load_tick": load_tick, "load_done": load_done, "credit_tick": credit_tick}
+
+
+def main() -> int:
+    result: dict[str, object] = {
+        "ticket": "FEAT-010", "status": "INCOMPLETE", "checks": [],
+        "baseline_source_sha256": None, "baseline_receipt_sha256": None,
+        "candidate_source_sha256": None,
+        "limits": {"whole_phase_seconds": LIMIT_SECONDS, "subprocesses": 0, "guest_access": False},
+    }
+    try:
+        if sha(BASE_SOURCE) != BASE_SOURCE_SHA:
+            raise CheckError("frozen review source identity mismatch")
+        receipt_hash = sha(BASE_RECEIPT)
+        if receipt_hash != BASE_RECEIPT_SHA:
+            raise CheckError("frozen review receipt identity mismatch")
+        receipt = json.loads(BASE_RECEIPT.read_text(encoding="utf-8"))
+        if (receipt.get("state") != "complete" or receipt.get("profile") != "complete"
+                or receipt.get("artifacts", {}).get("ladybug.rom") != BASE_ROM_SHA):
+            raise CheckError("frozen receipt does not identify the approved complete review ROM")
+        values = map_values(BASE_MAP)
+        baseline = source_lines(BASE_SOURCE.read_text(encoding="utf-8"))
+        result["baseline_source_sha256"] = BASE_SOURCE_SHA
+        result["baseline_receipt_sha256"] = receipt_hash
+        result["checks"].append("frozen source, receipt, complete ROM, and map identities pinned")
+
+        if not CANDIDATE.is_dir() or not (CANDIDATE / "src/presentation_runtime.s").is_file():
+            raise Incomplete("candidate source is absent; no candidate pass inferred")
+        allowed = {"src/presentation_runtime.s", "scripts/source_reference.json"}
+        if len(receipt.get("inputs", {})) != 266:
+            raise CheckError("frozen receipt input count changed")
+        if sha(BASE / "build/ladybug.rom") != BASE_ROM_SHA:
+            raise CheckError("frozen review ROM bytes changed")
+        changed = []
+        for relative, expected_hash in receipt["inputs"].items():
+            if sha(BASE / relative) != expected_hash:
+                raise CheckError("frozen input identity changed: " + relative)
+            if not (CANDIDATE / relative).is_file():
+                raise Incomplete("candidate input missing: " + relative)
+            if sha(CANDIDATE / relative) != expected_hash:
+                changed.append(relative)
+        if not set(changed) <= allowed or "src/presentation_runtime.s" not in changed:
+            raise CheckError("candidate changed-input allowlist mismatch")
+        for path in CANDIDATE.rglob("*"):
+            budget()
+            if path.is_file() and not (BASE / path.relative_to(CANDIDATE)).is_file():
+                raise CheckError("unexpected candidate file: " + str(path.relative_to(CANDIDATE)))
+        result["checks"].append({"receipt_inputs_verified": 266, "changed_inputs": changed})
+
+        expected = list(baseline)
+        apply_approved_patch(expected)
+        if expected.count("MENU_RUNTIME_DISPATCH") != baseline.count("MENU_RUNTIME_DISPATCH") + 1:
+            raise CheckError("approved local menu_runtime_dispatch label is not unique")
+        candidate_path = CANDIDATE / "src/presentation_runtime.s"
+        candidate_hash = sha(candidate_path)
+        candidate = source_lines(candidate_path.read_text(encoding="utf-8"))
+        def source_contract(actual):
+            if actual != expected:
+                raise CheckError("source differs from exact approved dispatch/owner contract")
+        source_contract(candidate)
+        try:
+            source_contract(baseline)
+        except CheckError as negative:
+            result["checks"].append({"original_source_negative_control": str(negative)})
+        else:
+            raise CheckError("original broad-guard/shared-jump source unexpectedly accepted")
+        check_reference(BASE, CANDIDATE)
+        result["candidate_source_sha256"] = candidate_hash
+        result["checks"].append("exact source patch allowlist and COMPLETE-scoped target fragments")
+
+        routes = route_tables(values)
+        expected_load_done = {str(n): ("legacy" if 3 <= n <= 5 else "skip") for n in range(9)}
+        expected_credit = {str(n): ("legacy" if n in (3, 4, 5) else "menu") for n in range(3, 9)}
+        expected_load_tick = {f"{n}/d0={d0}": ("menu" if n >= 6 and d0 else "skip")
+                              for n in range(9) for d0 in (0, 1)}
+        if (routes["load_done"] != expected_load_done or routes["credit_tick"] != expected_credit
+                or routes["load_tick"] != expected_load_tick):
+            raise CheckError("candidate source instruction contract yields an unexpected route table")
+
+        baseline_routes = {
+            "load_done": {str(n): ("legacy" if n >= values["PRESENTATION_MAP_HIGH_SCORE"] else "skip")
+                          for n in range(9)},
+            "credit_tick": {str(n): "legacy" for n in range(3, 9)},
+        }
+        if (baseline_routes["load_done"] == expected_load_done
+                or baseline_routes["credit_tick"] == expected_credit):
+            raise CheckError("frozen broad-guard/shared-jump negative control unexpectedly passes")
+        result["checks"].append({"candidate_routes": routes,
+                                 "negative_control_routes": baseline_routes})
+        result["status"] = "PASS_STATIC_SOURCE_CONTRACT"
+    except Incomplete as exc:
+        result["status"], result["reason"] = "INCOMPLETE", str(exc)
+    except Exception as exc:
+        result["status"], result["reason"] = "FAIL", f"{type(exc).__name__}: {exc}"
+
+    result["elapsed_seconds"] = time.monotonic() - (DEADLINE - LIMIT_SECONDS)
+    result["checker_sha256"] = hashlib.sha256(Path(__file__).read_bytes()).hexdigest()
+    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    OUTPUT.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if result["status"] == "PASS_STATIC_SOURCE_CONTRACT" else 1
+
+
+if __name__ == "__main__":
+    sys.exit(main())

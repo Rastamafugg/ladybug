@@ -1,0 +1,91 @@
+{
+  "baseline_receipt_sha256": "4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f",
+  "baseline_source_sha256": "23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0",
+  "candidate_source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+  "checker_sha256": "fbebd89841b503e4adca5ec487f6f01fe3c029307db5f0324d5810078da40cfa",
+  "checks": [
+    "frozen source, receipt, complete ROM, and map identities pinned",
+    {
+      "changed_inputs": [
+        "src/presentation_runtime.s"
+      ],
+      "receipt_inputs_verified": 266
+    },
+    {
+      "original_source_negative_control": "source differs from exact approved dispatch/owner contract"
+    },
+    "exact source patch allowlist and COMPLETE-scoped target fragments",
+    {
+      "candidate_routes": {
+        "credit_tick": {
+          "3": "legacy",
+          "4": "legacy",
+          "5": "legacy",
+          "6": "menu",
+          "7": "menu",
+          "8": "menu"
+        },
+        "load_done": {
+          "0": "skip",
+          "1": "skip",
+          "2": "skip",
+          "3": "legacy",
+          "4": "legacy",
+          "5": "legacy",
+          "6": "skip",
+          "7": "skip",
+          "8": "skip"
+        },
+        "load_tick": {
+          "0/d0=0": "skip",
+          "0/d0=1": "skip",
+          "1/d0=0": "skip",
+          "1/d0=1": "skip",
+          "2/d0=0": "skip",
+          "2/d0=1": "skip",
+          "3/d0=0": "skip",
+          "3/d0=1": "skip",
+          "4/d0=0": "skip",
+          "4/d0=1": "skip",
+          "5/d0=0": "skip",
+          "5/d0=1": "skip",
+          "6/d0=0": "skip",
+          "6/d0=1": "menu",
+          "7/d0=0": "skip",
+          "7/d0=1": "menu",
+          "8/d0=0": "skip",
+          "8/d0=1": "menu"
+        }
+      },
+      "negative_control_routes": {
+        "credit_tick": {
+          "3": "legacy",
+          "4": "legacy",
+          "5": "legacy",
+          "6": "legacy",
+          "7": "legacy",
+          "8": "legacy"
+        },
+        "load_done": {
+          "0": "skip",
+          "1": "skip",
+          "2": "skip",
+          "3": "legacy",
+          "4": "legacy",
+          "5": "legacy",
+          "6": "legacy",
+          "7": "legacy",
+          "8": "legacy"
+        }
+      }
+    }
+  ],
+  "elapsed_seconds": 0.435274000003119,
+  "limits": {
+    "guest_access": false,
+    "subprocesses": 0,
+    "whole_phase_seconds": 60
+  },
+  "status": "PASS_STATIC_SOURCE_CONTRACT",
+  "ticket": "FEAT-010"
+}

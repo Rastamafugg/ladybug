@@ -1,0 +1,44 @@
+FEAT-010 source-contract checker preparation
+
+Prepared `source-contract-check.py.txt` for the parent-owned, root-directory command:
+`python3 repro/feat010-frontend-dispatch-repair-20261016/source-contract-check.py.txt`
+
+The checker is source-only. It pins the frozen capsule's presentation source
+(`23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0`), receipt
+(`4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f`), map
+(`7ae4647a67ba81251201e32a67ae69f558d08e2945a7ca2f4634544ca6473343`), and the
+complete ROM identity recorded in that receipt. The candidate is treated as a
+two-file overlay: `src/presentation_runtime.s` and optional
+`scripts/source_reference.json`. Source edits must stay in the named COMPLETE
+dispatch/owner blocks; normalized code outside the COMPLETE arm and the legacy
+profile arm must remain unchanged.
+
+The checker applies five exact, bounded source transformations to the pinned
+baseline in memory, requires each edit site to be inside an explicit
+`COMPLETE_PROFILE` arm, and compares the entire normalized candidate source to
+that expected result. This rejects unrelated source changes and validates the
+local dispatch label, retained MENU_TICK/PAR5/return sequence, map-3 fallback,
+guard thresholds, and exactly three reviewed extended-to-direct-page operand
+changes. Only after that match does it derive route tables for load_done
+screens 0-8, credit_tick screens 3-8, and load_tick screens 0-8 with D0 both
+clear and set. The expected split is load_done legacy screens 3-5 only,
+credit_tick legacy screens 3-5 and menu screens 6-8, and load_tick menu only
+for screens 6-8 when D0 is set. The pinned baseline's broad guard and shared
+jump reconstruct a failing negative control against those same route tables.
+
+The script has a 60-second whole-phase deadline, performs no subprocess or
+guest access, and writes `resultqualification-summary.json` in this case
+directory when the parent executes it. Missing candidate source yields
+`INCOMPLETE`; a detected contract mismatch yields `FAIL`; only all checks
+passing yields `PASS_STATIC_SOURCE_CONTRACT`. This result is not build,
+capacity, runtime, or manual acceptance.
+
+Read for preparation: the pinned frozen capsule source, receipt, and map; the
+completed candidate source for a read-only assertion spot-check after the
+parent reported it complete; and the approved checker/card facts. The current
+candidate source SHA reported by the parent is
+`6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123`. The
+checker was not executed, syntax-checked, or used to qualify the candidate.
+Parent review and the approved one-time qualification remain required.
+
+Parent pre-execution integration corrections: candidate is the full source clone, not a two-file overlay. Validate all266 frozen/candidate receipt inputs and restrict differences to the approved allowlist; reject newly introduced files. Accept identical source-reference metadata before optional-row parsing. Hash actual frozen ROM as well as receipt. Apply the same exact-source contract classifier to the candidate and original-source negative control, retain explicit rejection and elapsed/checker identity. Source-route-table proof and manual ABI/DP review remain separate from build/runtime evidence. No checker execution before these corrections.
