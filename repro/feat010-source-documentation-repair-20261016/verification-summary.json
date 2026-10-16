@@ -1,0 +1,72 @@
+{
+  "result": "BUILD PASS; POST-VERIFICATION BLOCKED",
+  "candidate_checkpoint": "edceb73",
+  "qualified_observer_commit": "19070b0",
+  "qualification": {
+    "result": "PASS",
+    "elapsed_seconds": 40.73619674600013,
+    "controls_expected_rejections": 3,
+    "historical_errors_reproduced": 3
+  },
+  "build": {
+    "attempts_used": 1,
+    "exit_code": 0,
+    "exit_observed_elapsed_seconds_upper_bound": 348.139,
+    "deadline_seconds": 600,
+    "coverage": {
+      "classified_labels": 4851,
+      "documented_routines": 319,
+      "duplicate_semantic_ids": [],
+      "global_labels": 4851,
+      "missing_evidence": [],
+      "missing_routines": [],
+      "passed": true,
+      "required_routines": 319,
+      "unclassified_labels": []
+    },
+    "source_reference_modules": 16,
+    "resident_bytes": 8088,
+    "resident_free": 104,
+    "presentation_bytes": 1271,
+    "presentation_cap": 1280,
+    "assets_bytes": 7667,
+    "asset_cap": 7680
+  },
+  "postphase": {
+    "phase": "approved post-build flow/raw/source acceptance",
+    "deadline_seconds": 60,
+    "result": "FAIL",
+    "error": "AssertionError('presentation flow command failed')",
+    "elapsed_seconds": 0.4213945000001331
+  },
+  "failure_class": "stale source-flow observer assertion; no runtime product defect established",
+  "failure_localization": {
+    "guard": "verify_presentation_flow.py:332 checks key_module.external_symbols for PRES_MAIN_JOY_AXIS",
+    "actual_approved_metadata": {
+      "external_symbols": [
+        "PRES_MAIN_SHARED_MASK"
+      ],
+      "conditional_external_symbols": [
+        "PRES_MAIN_JOY_AXIS"
+      ]
+    },
+    "read_only": true
+  },
+  "missing_acceptance": [
+    "Successful maintained flow check",
+    "Fixed entry/clock/raw/32operand postchecks",
+    "All30payload equality gate"
+  ],
+  "build_retries": 0,
+  "runtime_probes": 0,
+  "production_integration": false,
+  "retained_artifact_hashes": {
+    "build-keyboard-adaptive.log": "421831775e1cd7f3d9357d4f9b49eb8e0f96b3d9c520d61519ecba13ea51e831",
+    "post-command.py.txt": "198bb8d6aa609ef3791169f0e0717122f749b5bd4529955d0a1c687521fe2a70",
+    "post-flow.log": "7898538ec820332b7853e7dee7865184b59010c37d19ea89f1015385e3e1cf20",
+    "source-build-receipt.json": "6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445",
+    "ladybug.rom": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+    "manifest.json": "730f4e2d5044ed9420f48ea6b4ffff438da45cad50b22079c9b486ac8d998b78"
+  },
+  "next_step": "Bounded stale-flow-assertion maintenance proposal and qualification; keep successful candidate/receipt unchanged and do not rerun the build without a justified new contract."
+}
