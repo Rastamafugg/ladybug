@@ -1,0 +1,61 @@
+FEAT010 source-reference proposal audit
+Date: 2026-10-15
+Frozen candidate: f36b2e43c265033eb850822e4f8baf75a6f770e1 (capsule from repro/feat010-helper-recovery-20261015)
+Failed build evidence: repro/feat010-helper-recovery-20261015/build-result.json and build-keyboard-adaptive.log (build attempt 3af2e1a)
+Scope: read-only diagnosis and repair proposal. No code, config, verifier, build, assembler, runtime, Git, or canonical wiki action was performed.
+
+Finding
+The build was a complete keyboard/adaptive profile; source qualification passed, then source-reference generation stopped with `external call targets lack project-authored/imported labels: keybinding-runtime:PRES_MAIN_JOY_AXIS`. This is a source-versus-assembled-profile classification defect, not evidence of a missing keyboard symbol or runtime product failure. The build stopped before post-build acceptance; runtime probes were zero.
+
+Evidence and mechanism
+- `src/keybinding_runtime.s:194,198` has two `jsr PRES_MAIN_JOY_AXIS` calls inside `ifne INPUT_JOYSTICK` (default 0 at lines 25-26); its contract comment at line 18 says keyboard builds have no joystick callback reference.
+- `scripts/build.sh:708-756` emits `PRES_MAIN_JOY_AXIS` into `build/ladybug_presentation_symbols.inc` only when `INPUT_JOYSTICK` is true, by mapping main-map `joy_read_axis` to that alias. The failed keyboard artifact's generated include has `PRES_MAIN_SHARED_MASK` but no `PRES_MAIN_JOY_AXIS`. `src/main.s:2772+` similarly guards `joy_read_axis` with `ifne INPUT_JOYSTICK`.
+- `source_parser.read_source_tree()` reads source/include text, not assembler conditional execution, so the conditional calls are present in the lexical source for either profile. `normalize.py:283-284` already filters call edges against listing-backed emitted spans in ownership-audit mode; the keyboard listing shows no emitted address for the two calls.
+- `normalize.py:286-290` treats `external_symbols` as allowed call targets. At lines 412-420 it then validates every configured external unconditionally against all authored/imported source labels, independent of the listing-backed active call set. `scripts/source_reference.json` has both `PRES_MAIN_SHARED_MASK` and `PRES_MAIN_JOY_AXIS` in the keybinding-runtime `external_symbols` list. This unconditional check causes the reported keyboard failure.
+- The generated alias is profile-specific; it exists for joystick builds and is omitted for keyboard builds. A source-only conditional line is not an assembled call. `wiki/internal/implementation/source-guide.html` defines source-only relative to a particular assembled module and says a complete-build receipt records the actual profile/assembler arguments; this supports the listing-backed distinction.
+
+Smallest semantically sound proposal
+Add one explicit `conditional_external_symbols` entry for `PRES_MAIN_JOY_AXIS` under `keybinding-runtime`, leaving `PRES_MAIN_SHARED_MASK` in the existing unconditional `external_symbols` list. Keep the conditional target in the module's recognized external-target set for classifying source call edges. In `normalize.py`, require each conditional target to occur in that module's unfiltered authored call set (reject stale/unused exemption declarations), then apply the existing authored/imported-label check whenever a filtered, listing-active call references it. If active, a missing generated/imported alias must fail with the existing unknown-target error. If inactive, no label is required. When there is no receipt/listing-backed active-span evidence, fail closed by treating the source call as active (or reject conditional metadata in that mode); do not infer inactivity from absent/stale build artifacts. Preserve all unconditional external checks unchanged.
+
+This uses the existing source parse plus current listing spans, rather than inventing a second parser for assembler `ifne` expressions. It distinguishes source-level presence from assembled-profile activity without weakening the unknown-target guard for any emitted call. It does not claim that any gameplay or runtime acceptance has passed.
+
+Alternatives rejected
+- Remove `PRES_MAIN_JOY_AXIS` from external metadata: a joystick build's active callback would cease to be classified as an imported call target and would be treated as an internal required label/routine. This loses the intended interface declaration.
+- Add an unconditional source alias or fabricated label: this would claim the keyboard profile imports an alias that its generated include does not emit.
+- Ignore every configured external absent from source labels, or validate only externals that happen to be called without explicit conditional metadata: both broaden the exemption and weaken detection of stale or misspelled unconditional imports.
+- Implement general assembler-conditional evaluation: materially broader parser semantics than this one profile-specific external requires.
+
+Proposed file/hunk boundary, pending approval
+1. `scripts/source_reference.json`: only the `keybinding-runtime` external-symbol metadata; move exactly `PRES_MAIN_JOY_AXIS` from unconditional to one explicit conditional list.
+2. `scripts/source_reference/normalize.py`: external declaration validation/classification and the final unknown-external check only; retain the existing error behavior for unconditional and active conditional targets.
+3. `scripts/test_source_audit.py`: extend the existing DOC-010/source-reference unit tests only if the approval card requires focused conditional-external controls. No new harness, build protocol, source alias, wiki edit, or production assembly edit.
+
+Qualification plan to place on the proposal card
+- Baseline/fixture phase, entire phase <=60 s, no assembler/runtime: run `python3 scripts/test_source_audit.py` with focused cases in the existing test file. Positive controls: active joystick callback with the authored/generated alias; keyboard profile with the conditional source calls inactive and alias absent. Negative controls: active callback with alias absent; unknown unconditional external; conditional metadata naming no authored call; conditional mode without listing-backed evidence must fail closed. Record test outputs and distinguish the expected negative-control assertion from tool/setup failure.
+- Build phase: one complete keyboard/adaptive `scripts/build.sh build` attempt matching the failed profile, entire phase <=600 s, with a fresh build receipt generated normally. Existing source qualification, source-reference generation, source-documentation verification, and fixed capacity checks remain required. No receipt rehash/reuse workaround, no retry, no second profile, no runtime probe in this source-reference repair step. On another source-reference or capacity failure, retain the exact first result and stop for parent reassessment.
+- Post-build phase: <=60 s, verify current receipt/source/artifact identity and `scripts/verify_source_documentation.py --all` using the fresh generated output. Report source-reference assertion, setup/staleness failure, and missing coverage separately. This does not replace FEAT010's separately owned product/runtime gates.
+
+Existing tools and coverage limits
+The capsule has `scripts/test_source_audit.py`, which already exercises provenance-profile mismatch and other DOC-010 ownership failures, and `scripts/verify_source_documentation.py`, the complete-receipt documentation verifier. The unit file currently has no external-symbol conditional/unknown-target regression case; that specific positive/negative coverage must be added to the existing test file under an approved card. `verify_source_documentation.py` is a downstream verifier, not by itself a targeted negative-control harness. The first failed build is the observed defective profile result; no successful equivalent source-reference output exists in this frozen failure record.
+
+Exact evidence hashes (SHA-256)
+- `build-result.json`: BCA0FAAFDEC1647AB3FC7121452774D16A6B2819DCCFDDF0534403F3DB7DE71E
+- `build-keyboard-adaptive.log`: A1960C6697960201C28374875000DD32192DFEA15DCB4EDE4DD3DD9B488AA7E9
+- `build/source-build-receipt.json`: BFA7FE1CE930E460669BE9D6D195ACA2336F84515D70F841C570186E790798DC
+- `build/ladybug-keybinding-runtime.lst`: 95C56E80ABDE8DEFA0CE99F988CA8978F59DC74DB9CE2A04F3432AC3787C6F2E
+- `build/ladybug-keybinding-runtime.map`: 671C9ACBE4B151B21DB24EFC44A9303A8620D8EF10E2A924C7E8F09049F0E1AF
+- `build/ladybug-keybinding-runtime.bin`: 5FBC04B26A052497799E9A8ABD599D3EB5B74F0E8E8BE789F0D6F13FEE4431F3
+- `build/ladybug_presentation_symbols.inc`: DD66D1926DC52A9BBCC4CD8788FA6E0080A2D4AAAC90B7EC01FD873E15B78A97
+- `scripts/source_reference.json`: 6A6AEF95D95114677E35742E7503BE7D77CE3EEA326FB0BB4EE6C73CB9D1EAB7
+- `scripts/source_reference/normalize.py`: 2E9DF41E32E9046FA6AF1BF55367D5744887FEC381A27449FC919D6CE0FFC7BE
+- `scripts/source_reference/source_parser.py`: 5370C89CA5AB5DCC60DB9963293CED7131384BCDBFB0646AE2CBF219849B2206
+- `scripts/build_source_reference.py`: BD161A1EB9B6A557433F38184AFF6E3A5432E9137F070115ABF5C561DE234B45
+- `scripts/verify_source_documentation.py`: BBE516F393A772E6A7FEF43E26692E9C8B2A4759FC6A83F33CADAF34E00E4430
+- `scripts/build.sh`: C3BEB3400479144C5ED639F8F60ACA8F7F1DDAAC76D4D296C9A1D2CE19D85FA3
+- `scripts/build_adaptive_runtime.py`: 5F8C039E63C2CAC8A0081185B6BDB2B716CB89AC4A6B53308E78F87D6E4F1674
+- `src/keybinding_runtime.s`: CE9CBEEEEF52DB30F8444F3779042DFC24F38FC44F7BDFB219DEB45248E649BE
+- `src/main.s`: 0A8D620CEA3202D225579C2879B6ED79D14704C97FBCB7CDA6D10E4E76D6E72D
+- `wiki/internal/implementation/source-guide.html`: 649D8BD8D6A34710561F505FD2A2496DA2A689735E687DE508745285541B7024
+- `wiki/internal/tickets/feat-010-attract-menu-free-start.html`: 02B420313170FD0233B3BA5017828B680D47C4DE01446516266CCA19E07D3A04
+
+No tests, build, assembler, runtime, Git operation, source/config edit, or canonical wiki write was performed in this audit.

@@ -1,0 +1,32 @@
+{
+  "verdict": "Proposed; not Approved or Ready for implementation",
+  "parent_review": "Luna read-only diagnosis confirmed against source, receipt INPUT_JOYSTICK=0, inactive listing call rows and generated include. No verifier/build/runtime executed.",
+  "selected_contract": {
+    "conditional_field": "conditional_external_symbols",
+    "only_entry": "keybinding-runtime:PRES_MAIN_JOY_AXIS",
+    "fail_closed": "Reject conditional metadata unless ownership audit has validated current receipt and an existing nonempty parsed listing. No source-only inference of inactivity.",
+    "strict_guards": "Unconditional externals unchanged. Conditional must occur in raw authored calls; whenever active it must pass existing imported/authored-label check. Reject duplicate/unconditional+conditional overlap.",
+    "allowed_files": [
+      "scripts/source_reference.json",
+      "scripts/source_reference/normalize.py",
+      "scripts/test_source_audit.py"
+    ],
+    "zero_byte_change_target": "All receipted .bin/.rom payload hashes and final ROM identical to failed candidate; final ROM 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+    "phase_limits_seconds": [
+      60,
+      600,
+      60
+    ],
+    "attempts": "One normal build; no retry, other profile or runtime"
+  },
+  "refinements_to_luna_draft": [
+    "Choose reject-without-validated-listing over ambiguous fallback.",
+    "Focused unit controls are mandatory, not optional. Extend existing test file; no new framework.",
+    "Postphase runs pending presentation flow/map/listing/clock/hash checks, not a duplicate source-documentation run already gated by normal build.",
+    "Retain current source build receipt as historical evidence; regenerate normally, never rewrite hashes to bless prior binaries."
+  ],
+  "missing_coverage": [
+    "No full joystick assembly/runtime acceptance from synthetic conditional-call fixtures.",
+    "Other FEAT010 profiles/natural runtime/integration pending."
+  ]
+}

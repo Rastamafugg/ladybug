@@ -1,0 +1,105 @@
+{
+  "audit": "FEAT010 source-reference proposal audit",
+  "date": "2026-10-15",
+  "candidate_revision": "f36b2e43c265033eb850822e4f8baf75a6f770e1",
+  "failed_build": {
+    "attempt": "3af2e1a",
+    "profile": "complete keyboard/adaptive",
+    "result": "BLOCKED",
+    "source_qualification": "PASS",
+    "post_build_acceptance": "NOT RUN",
+    "runtime_probes": 0,
+    "error": "external call targets lack project-authored/imported labels: keybinding-runtime:PRES_MAIN_JOY_AXIS",
+    "evidence": "repro/feat010-helper-recovery-20261015/build-result.json"
+  },
+  "diagnosis": {
+    "source_conditional": "src/keybinding_runtime.s:194,198 contains callback calls under ifne INPUT_JOYSTICK; default is 0 at lines 25-26.",
+    "alias_generation": "scripts/build.sh:755-756 exports PRES_MAIN_JOY_AXIS as an alias of main-map joy_read_axis only when INPUT_JOYSTICK is 1.",
+    "normalizer": "source_parser reads lexical source/includes. normalize.py filters calls to listing-backed emitted spans at lines 283-284, but unconditionally validates every external_symbols declaration at lines 412-420.",
+    "observed_profile": "Keyboard receipt has -DINPUT_JOYSTICK=0; its generated presentation symbols include lacks PRES_MAIN_JOY_AXIS and its listing has no emitted address for the guarded calls.",
+    "wiki_contract": "source-guide.html says source-only is relative to the particular assembled module and receipts record actual profile/arguments."
+  },
+  "recommendation": {
+    "summary": "Add one explicitly scoped conditional external declaration for PRES_MAIN_JOY_AXIS and retain strict imported-label validation for every active call.",
+    "config_change": {
+      "file": "scripts/source_reference.json",
+      "module": "keybinding-runtime",
+      "keep_unconditional": ["PRES_MAIN_SHARED_MASK"],
+      "move_to_conditional_external_symbols": ["PRES_MAIN_JOY_AXIS"]
+    },
+    "normalizer_change": {
+      "file": "scripts/source_reference/normalize.py",
+      "requirements": [
+        "Keep conditional targets in the recognized external-call classification set.",
+        "Reject a conditional target absent from that module's unfiltered authored call targets; this prevents stale or arbitrary exemptions.",
+        "Use listing-filtered calls to determine activity. Every active conditional external call must still resolve through the existing authored/imported-label check and existing unknown-target error.",
+        "Do not exempt unrelated or unconditional external symbols.",
+        "Without listing-backed assembled-profile evidence, fail closed: consider source calls active or reject use of conditional metadata."
+      ]
+    },
+    "tests": {
+      "existing_file": "scripts/test_source_audit.py",
+      "coverage_gap": "It has provenance conditional-profile checks but no external-symbol conditional/unknown-target controls.",
+      "proposed_cases": [
+        "Positive: active joystick external call plus imported/generated alias passes.",
+        "Positive: keyboard conditional call absent from listing passes without the omitted alias.",
+        "Negative: active call with missing imported alias fails with the existing unknown-target error.",
+        "Negative: unconditional unknown external still fails.",
+        "Negative: conditional external with no authored source call is rejected.",
+        "Negative: conditional handling without assembled-span evidence fails closed."
+      ]
+    }
+  },
+  "alternatives_rejected": [
+    "Delete the external declaration entirely: joystick active calls would lose their explicit imported-target classification.",
+    "Fabricate an unconditional source alias: it would falsely claim keyboard-profile availability.",
+    "Ignore absent or unused external declarations generally: this weakens unknown-target detection beyond the one conditional callback.",
+    "Add generic assembler conditional evaluation: broader parsing semantics than this case requires."
+  ],
+  "proposed_file_boundary_pending_approval": [
+    "scripts/source_reference.json: keybinding-runtime external-symbol metadata only.",
+    "scripts/source_reference/normalize.py: external classification and unknown-target validation only.",
+    "scripts/test_source_audit.py: focused unit controls only, if approved by the test card."
+  ],
+  "qualification_card_proposal": {
+    "fixture_phase": {
+      "deadline_seconds": 60,
+      "command": "python3 scripts/test_source_audit.py",
+      "requires": "Run the new targeted positive/negative external-symbol controls in the existing test file; no assembler or runtime.",
+      "pass_rule": "All positives pass; each negative control is rejected by the expected assertion; setup/tool errors reported separately."
+    },
+    "build_phase": {
+      "attempts": 1,
+      "deadline_seconds": 600,
+      "command": "scripts/build.sh build, matching the failed complete keyboard/adaptive profile",
+      "requires": "Fresh build receipt and all existing source qualification, source-reference generation, source documentation, and capacity checks.",
+      "pass_rule": "Build and existing source-reference/documentation gates complete without unknown-target suppression; no receipt rehash/reuse workaround.",
+      "stop_rule": "No retry, second profile, or runtime after a source-reference/capacity failure; retain first result and reassess."
+    },
+    "post_build_phase": {
+      "deadline_seconds": 60,
+      "command": "scripts/verify_source_documentation.py --all against fresh generated output and receipt",
+      "pass_rule": "Freshness, documentation, and coverage checks pass; separate assertion, stale/setup failure, and missing coverage.",
+      "scope_limit": "Does not replace FEAT010 product/runtime gates, which remain parent-owned."
+    }
+  },
+  "audit_execution": {
+    "tests_run": 0,
+    "builds_run": 0,
+    "assembler_runs": 0,
+    "runtime_probes": 0,
+    "git_operations": 0,
+    "canonical_wiki_writes": 0,
+    "implementation_edits": 0
+  },
+  "key_evidence_sha256": {
+    "build-result.json": "BCA0FAAFDEC1647AB3FC7121452774D16A6B2819DCCFDDF0534403F3DB7DE71E",
+    "build-keyboard-adaptive.log": "A1960C6697960201C28374875000DD32192DFEA15DCB4EDE4DD3DD9B488AA7E9",
+    "build/source-build-receipt.json": "BFA7FE1CE930E460669BE9D6D195ACA2336F84515D70F841C570186E790798DC",
+    "scripts/source_reference.json": "6A6AEF95D95114677E35742E7503BE7D77CE3EEA326FB0BB4EE6C73CB9D1EAB7",
+    "scripts/source_reference/normalize.py": "2E9DF41E32E9046FA6AF1BF55367D5744887FEC381A27449FC919D6CE0FFC7BE",
+    "src/keybinding_runtime.s": "CE9CBEEEEF52DB30F8444F3779042DFC24F38FC44F7BDFB219DEB45248E649BE",
+    "src/main.s": "0A8D620CEA3202D225579C2879B6ED79D14704C97FBCB7CDA6D10E4E76D6E72D",
+    "wiki/internal/implementation/source-guide.html": "649D8BD8D6A34710561F505FD2A2496DA2A689735E687DE508745285541B7024"
+  }
+}
