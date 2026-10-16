@@ -1,0 +1,7 @@
+Focused re-review of prior findings: no remaining material blocker among the three reviewed items.
+
+- Stop classification now fails closed. Expected markers require a breakpoint stop with the expected PC; timer stops at an expected-marker phase retain the unexpected snapshot and stop. The final witness interval requires the timer signal. The stop-sync echo precedes PC reads.
+- The timer cannot cancel a host SIGINT call after that call starts, so a natural-stop race can still deliver SIGINT to GDB. The patched code detects that race from the stop reason, aborts before further GDB reads, and cleanup failures force an incomplete result. This is contained as an incomplete case, not accepted evidence.
+- Deadline guards now cover non-cleanup host calls for 10 seconds plus the 8-second reserve. Continue reserves 14 seconds plus cleanup; bounded host and GDB cleanup failures are reported as incomplete. `binding()`'s local 3-second check is followed by the host wrapper's 10-second check, so it no longer bypasses the reserve.
+
+No runtime or qualification was executed for this review.
