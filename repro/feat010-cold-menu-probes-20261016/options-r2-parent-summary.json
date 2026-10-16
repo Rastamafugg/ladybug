@@ -1,0 +1,23 @@
+{
+  "ticket": "FEAT-010",
+  "result": "Visual flicker reproduced; bounded state capture complete; cause unconfirmed",
+  "elapsed_ms": 17212,
+  "limit_ms": 45000,
+  "observations": 4,
+  "maximum_observations": 12,
+  "tool_timeouts": 0,
+  "user_witness": "Yes, the flickering persisted until the window closed",
+  "freeze_or_input_unresponsiveness": "not separately tested",
+  "byte_facts": [
+    "Final PC C117 eight bytes match authored runtime offset117 and packaged bank1 offset4117",
+    "Presentation1271 bytes match initial/selected/final",
+    "Instruction helper938 bytes match selected/final, authored and packaged ROM"
+  ],
+  "audit_refinement": "Matching instruction payload means no byte mismatch against that authored module; it does not establish that it is the correct execution owner for Options. Physical source page is hex23 (decimal35).",
+  "counter_limitation": "FB_COMMIT_SEQ is u16 at0092; only high0092 captured, low0093 missing. No full sequence/progress/zero-commit inference. Missed count34to35 is diagnostic only.",
+  "final_state": "Single pending-check PC sample and pending1 do not prove permanent wait/freeze",
+  "owned_processes_remaining": [],
+  "prior_failed_observer_evidence_preserved": true,
+  "Credits": "unlaunched; no release",
+  "next_step": "Prepare one bounded source-specific callback trace proposal; no further runtime without approved card"
+}
