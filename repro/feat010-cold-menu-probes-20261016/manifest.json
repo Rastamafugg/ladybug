@@ -1,0 +1,155 @@
+{
+  "schema": 1,
+  "status": "offline-binding-ready; runtime-command-plan-not-ready",
+  "ticket": "FEAT-010",
+  "purpose": "Two independent, user-operated cold menu diagnostic phases; no visual acceptance claim.",
+  "offline_qualification_command": "python qualification.py (from this directory; parent-owned, not executed during preparation)",
+  "capsule": {
+    "root": "repro/feat010-manual-review-20261016/capsule",
+    "rom": "build/ladybug.rom",
+    "rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+    "receipt": "build/source-build-receipt.json",
+    "receipt_sha256": "4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f",
+    "sparse_layout": "build/ladybug-sparse-layout.json",
+    "sparse_layout_sha256": "bbd53806b0ee6691ce7b1939f53d5ae59272b1f8f8c9e96ddd4a1111db31dc96",
+    "main_map": "build/ladybug.map",
+    "main_map_sha256": "76261d865956422562f7bb6972593638f0b8370cadd727164e165a2212df6d9a",
+    "presentation_map": "build/ladybug-presentation-runtime.map",
+    "presentation_map_sha256": "7ae4647a67ba81251201e32a67ae69f558d08e2945a7ca2f4634544ca6473343"
+  },
+  "bindings": {
+    "resident_bank1": {
+      "region": "cpu-bank1-live",
+      "address": "0xc000",
+      "length": 15872,
+      "artifact_offset": 16384,
+      "artifact_sha256": "cb747c46e0aafb6aa7d70fdbd769998cdddc0e026c9bdab73fa64bd6470a615b",
+      "startup_pc": "0xc116",
+      "interpret_pc_only_after_full_live_match": true,
+      "staged_ram_capture": "Authored runtime ROM slice -> packaged GMC ROM slice -> live destination binding. Transient PAR21 RAM not sampled; no boot-copy diagnosis."
+    },
+    "presentation": {
+      "region": "presentation-live",
+      "address": "0x1900",
+      "length": 1271,
+      "artifact": "build/ladybug-presentation-runtime.bin",
+      "sha256": "bbd98060a2e099acff75140746505dff25bc156fb15fcee9094baaaf7e5cf5c4",
+      "first_pc": "0x1900",
+      "map_symbols": [
+        "presentation_flow_tick",
+        "start_screen",
+        "load_tick",
+        "menu_load_event",
+        "load_done",
+        "load_done_publish",
+        "install_aux_runtime_copy",
+        "install_aux_runtime_byte"
+      ]
+    },
+    "instruction_copy": {
+      "region": "page23-stage-to-0300-live",
+      "stage_address": "0xa422",
+      "destination_address": "0x0300",
+      "length": 938,
+      "artifact": "build/ladybug-instruction-runtime.bin",
+      "sha256": "32116bc664e91054a70fdb1d4763242820c281afd0ae0c2d52cffb9f8d6f0654",
+      "copy_entry_pc": "0x1a21",
+      "copy_complete_pc": "0x1a36",
+      "page_register": "PAR5 at 0xffa5; only the guest's natural instruction at 0x1a21 selects page 0x23"
+    },
+    "demo_copy": {
+      "region": "page23-stage-to-0300-live",
+      "stage_address": "0xa7cc",
+      "destination_address": "0x0300",
+      "length": 143,
+      "artifact": "build/ladybug-demo-runtime.bin",
+      "sha256": "019820f10fa4edddfd9d58ab7cfab880cf03f0353c2a2c04f1cadcb5d4110090",
+      "copy_entry_pc": "0x1a21",
+      "copy_complete_pc": "0x1a36"
+    }
+  },
+  "read_set": {
+    "presentation_state": [
+      "0x00a5..0x00a6"
+    ],
+    "framebuffer_diagnostic": [
+      "0x008f..0x0092",
+      "0x0096..0x0099"
+    ],
+    "required_runtime_progress": [
+      "actual unpaused PC progression",
+      "native input response",
+      "frame/commit progress"
+    ]
+  },
+  "cases": {
+    "options": {
+      "cold_process": true,
+      "native_input": [
+        "Down press",
+        "release",
+        "Return press",
+        "release"
+      ],
+      "expected_screen_id": 6,
+      "user_visual_witness": "reported Options overlay/freeze"
+    },
+    "credits": {
+      "cold_process": true,
+      "native_input": [
+        "Down press",
+        "release",
+        "Down press",
+        "release",
+        "Return press",
+        "release"
+      ],
+      "expected_screen_id": 7,
+      "user_visual_witness": "reported Credits garbage/crash"
+    }
+  },
+  "limits": {
+    "whole_phase_seconds": 45,
+    "per_stop_or_continue_seconds": 10,
+    "maximum_stop_continue_observations": 12,
+    "native_user_input_only": true,
+    "guest_state_writes_or_injection": false,
+    "private_monitor": false,
+    "actual_front_pixel_readback": "unqualified; not an acceptance oracle",
+    "missed_commit": "record baseline and delta only; no zero-miss gate"
+  },
+  "launch": {
+    "executable": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "arguments": [
+      "-ui",
+      "gtk3",
+      "-ao",
+      "pulse",
+      "-machine",
+      "coco3",
+      "-machine-cpu",
+      "6809",
+      "-ram",
+      "512",
+      "-ram-init",
+      "random",
+      "-cart-type",
+      "gmc",
+      "-cart-rom",
+      "/mnt/e/projects/ladybug/repro/feat010-manual-review-20261016/capsule/build/ladybug.rom",
+      "-cart-autorun",
+      "-tv-input",
+      "rgb",
+      "-joy-right",
+      "",
+      "-joy-left",
+      "",
+      "-gdb",
+      "-gdb-ip",
+      "127.0.0.1",
+      "-gdb-port",
+      "65522"
+    ],
+    "port_policy": "Use 65522 unless parent observes it occupied; then document that 65520 is unused before substituting it. No port scan during this preparation."
+  }
+}
