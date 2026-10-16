@@ -1,0 +1,29 @@
+--- a/capsule/src/shared_text_stage.inc (c136 baseline)
++++ b/capsule/src/shared_text_stage.inc (approved fixture bytes)
+@@ -116,12 +116,7 @@
+ highscore_phase_tick
+         lda     PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_ATTRACT
+-        bne     highscore_phase_not_attract
+-        lbsr    highscore_logo_tick
+-        lda     PRES_MODE
+-        cmpa    #MODE_ATTRACT
+-        lbne    highscore_phase_hold
+-        lbra    menu_tick
++        lbeq    highscore_attract_tick
+ highscore_phase_not_attract
+         lda     PRES_MODE
+         cmpa    #MODE_CREDIT
+@@ -1308,6 +1303,12 @@
+         blo     menu_value_row
+         rts
+         include "ladybug_menu_records.inc"
++highscore_attract_tick
++        lbsr    highscore_logo_tick
++        lda     PRES_MODE
++        cmpa    #MODE_ATTRACT
++        lbne    highscore_phase_hold
++        lbra    menu_tick
+ highscore_phase_helper_end
+ 
+         else
