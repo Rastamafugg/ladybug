@@ -1,0 +1,53 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "verdict": "Blocked; approved execution stopped at first build failure and independent runtime preparation boundary",
+  "source_preparation_commit": "1f450ae",
+  "qualification_commit": "d880fb9",
+  "qualification": {
+    "result": "PASS",
+    "seconds": 12.40858665199994,
+    "maximum_seconds": 60
+  },
+  "joystick_build": {
+    "result": "FAIL",
+    "seconds": 200.22,
+    "maximum_seconds": 600,
+    "exit": 1,
+    "diagnostics": 7,
+    "distinct_undefined_symbols": [
+      "PRESENTATION_MAP_INSTRUCTIONS",
+      "PRESENTATION_MAP_HIGH_SCORE",
+      "PRESENTATION_MAP_LEVEL_START",
+      "MODE_LEVEL"
+    ],
+    "cause": "Joystick-only keybinding references have no definitions in the module or included symbol headers. Map IDs are present in generated ladybug_presentation.inc, which is not included by this module. Keyboard build excluded the joystick branch."
+  },
+  "postcheck": "Not run; build failed",
+  "nonadaptive_build": "Not run; ordered stop",
+  "root_integration": "Not performed",
+  "runtime": "Preparation stopped at unqualified independently displayed-FRONT readback; no live probe",
+  "product_fit_accepted": false,
+  "partial_resident_free_bytes": 68,
+  "minimum_resident_free_bytes": 32,
+  "partial_margin_bytes": 36,
+  "capacity_note": "Partial/unaccepted observations, not final fit",
+  "source_inputs_after_build": {
+    "checked": 266,
+    "mismatches": 0
+  },
+  "root_src_scripts_changed": false,
+  "root_rom_sha256": "df260e603af760a902eda37102457017c4aab4733a12853c1c43934366aaa726",
+  "rejected_experiments": [],
+  "next_boundaries": [
+    "Bounded source-symbol visibility repair proposal/card; no unapproved fix or retry",
+    "Existing read-only displayed-frame capture feasibility or revised manual-pixel card; no private-monitor extension authorized"
+  ],
+  "evidence_sha256": {
+    "build-joystick-adaptive-result.json": "9f457524e23d4ca8507a113f77e36eb18851374506e407bbb53739a3e65a69bc",
+    "build-joystick-adaptive.log": "d2d7f9340a925dfa173ae96cd45d433aeb518ee8e0bf87793ab0899f17b0b0ee",
+    "joystick-incomplete-receipt.json": "d245beed321c48b6ffa08528155e3219c3c78284902f57f21ed3895e83e88edf",
+    "qualification-result.json": "2311a95728aa1ac5118d6de78cc222255d9ca4a744299f4adf0a3db973239c73",
+    "runtime/parent-readiness-review.json": "61d14ded4ed9e5b6bb83a92bcf47e5d5331a0e1268c5f3b91c221d58b83f6322"
+  }
+}

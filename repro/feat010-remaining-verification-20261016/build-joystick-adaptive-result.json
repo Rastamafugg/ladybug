@@ -1,0 +1,159 @@
+{
+  "ticket": "FEAT-010",
+  "phase": "joystick-adaptive serialized build",
+  "command": "timeout --signal=TERM --kill-after=2s 595s env LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+  "root": "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/joystick-adaptive",
+  "result": "FAIL",
+  "exit_code": 1,
+  "elapsed_seconds": 200.22,
+  "timeout_seconds": 595,
+  "outer_phase_limit_seconds": 600,
+  "postcheck_run": false,
+  "retry_or_repair": false,
+  "failure_class": "assembler failure",
+  "diagnostics": [
+    {
+      "symbol": "PRESENTATION_MAP_INSTRUCTIONS",
+      "source": "src/keybinding_runtime.s",
+      "lines": [
+        141,
+        155
+      ],
+      "occurrences": 2
+    },
+    {
+      "symbol": "PRESENTATION_MAP_HIGH_SCORE",
+      "source": "src/keybinding_runtime.s",
+      "lines": [
+        143,
+        175
+      ],
+      "occurrences": 2
+    },
+    {
+      "symbol": "PRESENTATION_MAP_LEVEL_START",
+      "source": "src/keybinding_runtime.s",
+      "lines": [
+        145,
+        157
+      ],
+      "occurrences": 2
+    },
+    {
+      "symbol": "MODE_LEVEL",
+      "source": "src/keybinding_runtime.s",
+      "lines": [
+        152
+      ],
+      "occurrences": 1
+    }
+  ],
+  "diagnostic_count": 7,
+  "fresh_receipt": {
+    "path": "repro/feat010-remaining-verification-20261016/joystick-adaptive/build/source-build-receipt.json",
+    "sha256": "d245beed321c48b6ffa08528155e3219c3c78284902f57f21ed3895e83e88edf",
+    "state": "building",
+    "profile": "complete",
+    "input_count": 1,
+    "artifact_count": 0,
+    "status": "incomplete; not qualified by postcheck"
+  },
+  "capacity_observations": {
+    "resident": {
+      "observed_bytes": 8124,
+      "limit_bytes": 8192,
+      "free_bytes": 68,
+      "required_free_bytes": 32,
+      "margin_over_required_free_bytes": 36
+    },
+    "assets": {
+      "observed_bytes": 7667,
+      "limit_bytes": 7680,
+      "headroom_bytes": 13
+    },
+    "presentation": {
+      "observed_bytes": 1271,
+      "limit_bytes": 1280,
+      "headroom_bytes": 9
+    },
+    "instruction": {
+      "build_log_observed_bytes": 935,
+      "limit_bytes": 938,
+      "log_headroom_bytes": 3,
+      "partial_file_bytes": 938
+    },
+    "keybinding": {
+      "observed_bytes": null,
+      "limit_bytes": 1536,
+      "status": "assembly failed before output"
+    },
+    "highscore_runtime": {
+      "build_log_observed_bytes": 917,
+      "approved_cap_bytes": 920,
+      "headroom_bytes": 3
+    },
+    "highscore_helper": {
+      "observed_bytes": 3070,
+      "partial_artifact": true
+    },
+    "audio_engine": {
+      "observed_bytes": 727,
+      "internal_build_limit_bytes": 920,
+      "headroom_bytes": 193
+    },
+    "adaptive_active_module": {
+      "observed_bytes": 622,
+      "build_limit_bytes": 777,
+      "headroom_bytes": 155
+    },
+    "linked_audio_payload": {
+      "observed_bytes": 6656,
+      "limit_bytes": 8192,
+      "headroom_bytes": 1536
+    }
+  },
+  "source_integrity": {
+    "source_manifest_inputs_checked": 266,
+    "mismatches": [],
+    "status": "all clone source input hashes unchanged after build failure"
+  },
+  "artifacts": {
+    "build_log": {
+      "path": "repro/feat010-remaining-verification-20261016/build-joystick-adaptive.log",
+      "sha256": "d2d7f9340a925dfa173ae96cd45d433aeb518ee8e0bf87793ab0899f17b0b0ee"
+    },
+    "incomplete_receipt_sha256": "d245beed321c48b6ffa08528155e3219c3c78284902f57f21ed3895e83e88edf",
+    "partial_outputs": {
+      "build/ladybug-runtime.rom": {
+        "bytes": 16384,
+        "sha256": "0bf72b6dc1093f1dbc9e36726ea42d9d7a8e13ddad066b5ff01768c480b760dc"
+      },
+      "build/ladybug-presentation-runtime.bin": {
+        "bytes": 1271,
+        "sha256": "51bb51668d99dc3d7334d401b4646a56342e9578f769944cdb8deb2126d41df2"
+      },
+      "build/ladybug-presentation-cold.bin": {
+        "bytes": 14157,
+        "sha256": "f1ed1b0604fc79ea22d097f432c3bc97ade73e6b64befb9a59491cef268d2c1f"
+      },
+      "build/ladybug-highscore-helper.bin": {
+        "bytes": 3070,
+        "sha256": "2eb23f909425ff05a05ebab9bfeb713178dc9d3c7cf29973a1a9a96e0ef8e1ae"
+      },
+      "build/ladybug-highscore-runtime.bin": {
+        "bytes": 917,
+        "sha256": "5ead1477a4a2309006d84b12e780f897ac5edcd301c74601833a9cb1b48a6b9e"
+      },
+      "build/ladybug-instruction-runtime.bin": {
+        "bytes": 938,
+        "sha256": "33b13355cec846192b01bfa90c74f11f1aaa8df855ce43aba255ba7fcd04386e"
+      },
+      "build/ladybug-audio-runtime.bin": {
+        "bytes": 6656,
+        "sha256": "90751acbd13ad22b4f47e9691d1532ed89597ad823821ec15c884657cb8b27af"
+      }
+    }
+  },
+  "stop_reason": "first build assertion failure; postcheck is gated on build exit 0",
+  "rejected_experiments": []
+}
