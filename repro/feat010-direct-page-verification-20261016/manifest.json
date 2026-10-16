@@ -1,0 +1,119 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "status": "fixture preparation complete; qualification and postphase not executed",
+  "approval_anchor": "direct-page-correction-approved-preparation-ready-20261016",
+  "classification": "Compact observer-only correction within High-risk FEAT-010",
+  "checkpoint": "aef6d7d",
+  "retained_execution_checkpoint": "bd841c7",
+  "capsule": {
+    "path": "/mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule",
+    "sha256": {
+      "scripts/verify_presentation_flow.py": "498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2",
+      "scripts/source_reference.json": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "src/demo_runtime.s": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "src/presentation_runtime.s": "23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0",
+      "build/source-build-receipt.json": "6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445",
+      "build/source-reference-adaptive.json": "35e4ae54114f85bcbb108efc8398b23c71531efb70f4eeae076ba0685e56ecf3",
+      "scripts/source_reference/provenance.py": "743959e185b2089709796467aaa55603a2b96962a95e346d8ea3dd5c2d02e472",
+      "build/ladybug.rom": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53"
+    },
+    "receipt_inputs": 266,
+    "receipt_artifacts": 87,
+    "profile": "complete/keyboard/6809/adaptive",
+    "final_rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53"
+  },
+  "old_external_baseline": {
+    "path": "repro/feat010-stale-flow-verification-20261016/flow-observer.py",
+    "sha256": "2d8dcd8a667d214b0736c9e064fea74d25cf0b3ab2305093b7e57bbd37627c3a",
+    "qualification_result": "PASS",
+    "qualified_sha256": "2d8dcd8a667d214b0736c9e064fea74d25cf0b3ab2305093b7e57bbd37627c3a",
+    "crlf_preserved": true
+  },
+  "new_external_observer": {
+    "path": "repro/feat010-direct-page-verification-20261016/flow-observer.py",
+    "sha256": "ade0bf2180afd860b6683bc783d1098298de2c23bedc2808562237f28cd25f27",
+    "delta": "single load-budget If predicate; fixed ROOT, metadata If, exception bodies, decb guard and all remaining bytes preserved"
+  },
+  "maintained_patch": {
+    "path": "repro/feat010-direct-page-verification-20261016/maintained-flow-assertions.patch",
+    "sha256": "6198238375fe2c3759a154ed52cc0e8ffba937df04f691d97cbbfc91412ff921",
+    "base": "capsule/scripts/verify_presentation_flow.py",
+    "changes": [
+      "conditional joystick metadata If",
+      "load-budget If"
+    ],
+    "root_binding_included": false
+  },
+  "postdriver": {
+    "path": "repro/feat010-direct-page-verification-20261016/remaining-post-command.py.txt",
+    "sha256": "2ebe56c408e4e14c93e8532e66af786261329fc16f0e8c827103c4d30215cbf3",
+    "prior_sha256": "2b2265cd9435fd1e2c354d0a09b4e339c62dc01d38763fe931e4dc942e0ac482",
+    "changed_references": {
+      "observer_path_occurrences": 2,
+      "observer_sha_occurrences": 1
+    },
+    "product_require_assertions_preserved": 21,
+    "observer_invocations": 1,
+    "provenance": "before and after"
+  },
+  "original_fixture_hashes": {
+    "flow-observer.py": "2d8dcd8a667d214b0736c9e064fea74d25cf0b3ab2305093b7e57bbd37627c3a",
+    "remaining-post-command.py.txt": "2b2265cd9435fd1e2c354d0a09b4e339c62dc01d38763fe931e4dc942e0ac482",
+    "maintained-flow-assertion.patch": "d9797b2d09c5bb54517d8660e09e69159a1ba689584f40054e0b0ea247a4ec9d",
+    "qualify-observer.py.txt": "7611eea9f400f09415a7107ba4cbfb5ce58ca35fa8de1502940e7077ef97c351"
+  },
+  "oracle": {
+    "path": "repro/feat010-resume-20261015/recovery-proposal.json",
+    "sha256": "7c1ec1f9b237ea284be8e8428eb421a5688cc51ea05db153328e6d2a703db687",
+    "direct_operand_sites": 32
+  },
+  "qualification": {
+    "script": "repro/feat010-direct-page-verification-20261016/qualify-observer.py.txt",
+    "result_path": "repro/feat010-direct-page-verification-20261016/qualification-result.json",
+    "command": "timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 - < repro/feat010-direct-page-verification-20261016/qualify-observer.py.txt",
+    "deadline_seconds": 60,
+    "attempts": 1,
+    "full_observer_executed": false,
+    "checks": [
+      "current direct-page, legacy and mixed acceptance",
+      "missing/wrong/comment/indexed/immediate budget negatives",
+      "unchanged decb rejection",
+      "conditional-only metadata positive and missing/legacy-only/both negatives",
+      "wrong ROOT rejection",
+      "capsule/oracle hashes",
+      "old/new observer masked AST and byte equality",
+      "postdriver path/hash-only delta; 21 product assertions and before/after provenance retained"
+    ]
+  },
+  "postphase": {
+    "command": "timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 - < /mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/remaining-post-command.py.txt",
+    "deadline_seconds": 60,
+    "attempts": 1,
+    "released_only_after_qualification_pass": true,
+    "builds": 0,
+    "runtime_runs": 0,
+    "additional_profiles": 0
+  },
+  "limits": {
+    "total_command_max_seconds": 120,
+    "capsule_input_changes": 0,
+    "payload_delta_bytes": 0,
+    "capacity_change_bytes": 0
+  },
+  "excluded_coverage": [
+    "inactive legacy-branch generic start/coin text check",
+    "unreachable loop-wake assertion block",
+    "other profiles",
+    "natural/manual FEAT-010 behavior",
+    "production integration"
+  ],
+  "execution": {
+    "qualification_run": false,
+    "observer_run": false,
+    "postphase_run": false,
+    "builds": 0,
+    "runtime_runs": 0,
+    "git": false
+  }
+}

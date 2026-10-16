@@ -1,0 +1,135 @@
+from pathlib import Path
+import hashlib, importlib.util, json, re, sys, time, subprocess
+start = time.monotonic()
+root = Path.cwd()
+evidence = root.parent
+baseline = root.parents[1] / 'feat010-source-reference-repair-20261015/capsule'
+build = root / 'build'
+result = {'phase': 'approved post-build flow/raw/source acceptance', 'deadline_seconds': 60}
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def require(value, message):
+    if not value: raise AssertionError(message)
+
+EXPECTED_ROOT = Path('/mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule').resolve()
+OBSERVER_PATH = Path('/mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/flow-observer.py').resolve()
+RECEIPT_PATH = build / 'source-build-receipt.json'
+CONFIG_PATH = build / 'source-reference-adaptive.json'
+REGISTRY_PATH = root / 'scripts/source_reference.json'
+DEMO_SOURCE_PATH = root / 'src/demo_runtime.s'
+FLOW_SOURCE_PATH = root / 'scripts/verify_presentation_flow.py'
+PROVENANCE_PATH = root / 'scripts/source_reference/provenance.py'
+EXPECTED_OBSERVER_SHA256 = 'ade0bf2180afd860b6683bc783d1098298de2c23bedc2808562237f28cd25f27'
+EXPECTED_RECEIPT_SHA256 = '6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445'
+EXPECTED_CONFIG_SHA256 = '35e4ae54114f85bcbb108efc8398b23c71531efb70f4eeae076ba0685e56ecf3'
+EXPECTED_REGISTRY_SHA256 = '4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b'
+EXPECTED_DEMO_SOURCE_SHA256 = '2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a'
+EXPECTED_FLOW_SOURCE_SHA256 = '498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2'
+EXPECTED_PROVENANCE_SHA256 = '743959e185b2089709796467aaa55603a2b96962a95e346d8ea3dd5c2d02e472'
+
+def identity_snapshot():
+    require(root.resolve() == EXPECTED_ROOT, 'capsule root identity')
+    require(OBSERVER_PATH.is_file(), 'external observer missing')
+    require(sha(OBSERVER_PATH) == EXPECTED_OBSERVER_SHA256, 'external observer identity')
+    require(sha(RECEIPT_PATH) == EXPECTED_RECEIPT_SHA256, 'receipt identity')
+    require(sha(CONFIG_PATH) == EXPECTED_CONFIG_SHA256, 'adaptive config identity')
+    require(sha(REGISTRY_PATH) == EXPECTED_REGISTRY_SHA256, 'source registry identity')
+    require(sha(DEMO_SOURCE_PATH) == EXPECTED_DEMO_SOURCE_SHA256, 'candidate source identity')
+    require(sha(FLOW_SOURCE_PATH) == EXPECTED_FLOW_SOURCE_SHA256, 'maintained flow verifier identity')
+    require(sha(PROVENANCE_PATH) == EXPECTED_PROVENANCE_SHA256, 'provenance validator identity')
+    sys.dont_write_bytecode = True
+    spec = importlib.util.spec_from_file_location('_feat010_frozen_provenance', PROVENANCE_PATH)
+    require(spec is not None and spec.loader is not None, 'provenance validator loader')
+    validator = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(validator)
+    receipt = validator.validate(root, build, json.loads(CONFIG_PATH.read_text(encoding='utf-8')))
+    return {
+        'root': str(root.resolve()),
+        'observer_sha256': sha(OBSERVER_PATH),
+        'receipt_sha256': sha(RECEIPT_PATH),
+        'config_sha256': sha(CONFIG_PATH),
+        'registry_sha256': sha(REGISTRY_PATH),
+        'demo_source_sha256': sha(DEMO_SOURCE_PATH),
+        'maintained_flow_verifier_sha256': sha(FLOW_SOURCE_PATH),
+        'provenance_validator_sha256': sha(PROVENANCE_PATH),
+        'receipt_input_count': len(receipt['inputs']),
+        'receipt_artifact_count': len(receipt['artifacts']),
+        'final_rom_sha256': sha(build / 'ladybug.rom')
+    }
+
+try:
+    result['provenance_before'] = identity_snapshot()
+    result['flow_observer_invocations'] = 1
+    proc = subprocess.run([sys.executable, '/mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/flow-observer.py'], capture_output=True,
+                          text=True, timeout=max(1, 58-(time.monotonic()-start)))
+    (evidence/'post-flow.log').write_text(proc.stdout+proc.stderr, encoding='utf-8')
+    require(proc.returncode == 0, 'presentation flow command failed')
+    symbols = {k:int(v,16) for k,v in re.findall(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$',
+               (build/'ladybug-highscore-helper.map').read_text(), re.M)}
+    fixed = {'highscore_phase_tick':0xAC40, 'logo_vbord_clock':0xACAF,
+             'highscore_phase_helper_gap':0xACFF, 'highscore_after_tile':0xAD00,
+             'stage_panel_read_letters':0xB062, 'stage_panel_draw':0xB080,
+             'stage_panel_slice_entry':0xB083, 'menu_scan_entry':0xB086, 'menu_tick_entry':0xB089,
+             'highscore_attract_tick':0xB830, 'highscore_phase_helper_end':0xB83E}
+    for key,value in fixed.items(): require(symbols[key] == value, 'fixed entry: '+key)
+    raw = (build/'ladybug-highscore-helper.bin').read_bytes()
+    require(len(raw) == 3070 == symbols['highscore_phase_helper_end']-symbols['highscore_phase_tick'], 'helper length')
+    at = lambda address,n: raw[address-0xAC40:address-0xAC40+n]
+    require(at(0xACFF,1) == b'\0', 'gap byte')
+    require(hashlib.sha256(at(0xACAF,80)).hexdigest() == 'b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45e', 'clock bytes')
+    word = lambda number: (number & 65535).to_bytes(2,'big')
+    wrapper = symbols['highscore_attract_tick']
+    expected = (b'\x17'+word(symbols['highscore_logo_tick']-(wrapper+3))+
+                b'\x96\xa5\x81\x02\x10\x26'+word(symbols['highscore_phase_hold']-(wrapper+11))+
+                b'\x16'+word(symbols['menu_tick']-(wrapper+14)))
+    require(at(wrapper,14) == expected, 'wrapper instruction bytes and targets')
+    expected_prefix = b'\x96\xa6\x81'+bytes([symbols['PRESENTATION_MAP_ATTRACT']])+b'\x10\x27'+word(wrapper-0xAC48)
+    require(at(0xAC40,8) == expected_prefix, 'dispatch prefix')
+    sites = json.loads((root.parents[1]/'feat010-resume-20261015/recovery-proposal.json').read_text())['sites']
+    listing = (build/'ladybug-presentation-runtime.lst').read_text()
+    presentation = (build/'ladybug-presentation-runtime.bin').read_bytes()
+    for site in sites:
+        rows = [m for m in re.finditer(r'^([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]{2,16})\s+\(([^)]+)\):(\d{5})', listing, re.M)
+                if int(m[4]) == site['source_line'] and m[3].endswith('ntation_runtime.s')]
+        require(len(rows) == 1, 'DP listing row: '+str(site['n']))
+        row = rows[0]; wanted = bytes.fromhex(site['after'])
+        require(bytes.fromhex(row[2]) == wanted, 'direct operand encoding')
+        offset = int(row[1],16)-0x1900
+        require(presentation[offset:offset+len(wanted)] == wanted, 'direct operand raw bytes')
+    historical = json.loads((baseline/'build/source-build-receipt.json').read_text())
+    receipt = json.loads((build/'source-build-receipt.json').read_text())
+    require(receipt['state'] == 'complete', 'receipt complete')
+    payloads = {n:h for n,h in historical['artifacts'].items() if Path(n).suffix in ('.bin','.rom')}
+    require(len(payloads) == 30, 'payload inventory')
+    for name,digest in payloads.items(): require(sha(build/name) == digest, 'payload byte change: '+name)
+    allowed = {'scripts/source_reference.json', 'src/demo_runtime.s'}
+    require(set(receipt['inputs']) == set(historical['inputs']), 'source inventory')
+    for name,digest in historical['inputs'].items():
+        if name not in allowed: require(sha(root/name) == digest, 'unlisted input change: '+name)
+    preflight = json.loads((evidence/'parent-preflight.json').read_text())
+    for name,digest in preflight['candidate_hashes'].items(): require(sha(root/name) == digest, 'candidate source identity: '+name)
+    require(sha(build/'ladybug.rom') == '274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53', 'final ROM identity')
+    coverage = json.loads((build/'source-reference/manifest.json').read_text())['coverage']
+    require(coverage['passed'] and (coverage['documented_routines'],coverage['required_routines'],coverage['classified_labels'],coverage['global_labels']) == (319,319,4851,4851), 'fresh coverage counts')
+    require(len(presentation) == 1271, 'presentation size')
+    require((build/'ladybug-highscore-runtime.bin').stat().st_size <= 920, 'complete high-score cap')
+    matches = re.findall(r'resident (\d+)/8192 bytes; assets (\d+)/7680 bytes', (evidence/'build-keyboard-adaptive.log').read_text())
+    require(matches and matches[-1] == ('8088','7667'), 'resident/assets measured sizes')
+    result.update(result='PASS', payloads_identical=30, direct_operand_sites_checked=len(sites),
+                  helper_bytes=3070, helper_free=66, presentation_bytes=1271, resident_free=104,
+                  asset_free=13, fresh_coverage=coverage, rom_sha256=sha(build/'ladybug.rom'),
+                  flow_output=(proc.stdout+proc.stderr).strip())
+except Exception as exc:
+    result.update(result='FAIL', error=repr(exc))
+if 'provenance_before' in result and result.get('flow_observer_invocations') == 1:
+    try:
+        result['provenance_after'] = identity_snapshot()
+        require(result.get('provenance_before') == result['provenance_after'], 'postphase identity/provenance changed')
+    except Exception as exc:
+        result['provenance_after_error'] = repr(exc)
+        if result.get('result') != 'FAIL':
+            result.update(result='FAIL', error='postphase provenance revalidation failed: '+repr(exc))
+result['elapsed_seconds'] = time.monotonic()-start
+if result['elapsed_seconds'] > 60: result.update(result='FAIL', error='entire postphase exceeded60seconds')
+(evidence/'post-result.json').write_text(json.dumps(result,indent=2)+'\n', encoding='utf-8')
+print(json.dumps(result,indent=2))
+sys.exit(0 if result['result'] == 'PASS' else 1)

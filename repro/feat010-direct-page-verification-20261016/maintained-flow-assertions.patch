@@ -1,0 +1,20 @@
+--- a/scripts/verify_presentation_flow.py
++++ b/scripts/verify_presentation_flow.py
+@@ -329,7 +329,7 @@
+             raise SystemExit("presentation flow proof: joystick callback is not conditionally exported")
+         key_module = next(item for item in source_reference["modules"]
+                           if item["id"] == "keybinding-runtime")
+-        if "PRES_MAIN_JOY_AXIS" not in key_module.get("external_symbols", []):
++        if ("PRES_MAIN_JOY_AXIS" not in key_module.get("conditional_external_symbols", []) or "PRES_MAIN_JOY_AXIS" in key_module.get("external_symbols", [])):
+             raise SystemExit("presentation flow proof: conditional joystick dependency is undocumented")
+         key_init = keybinding_source[
+             keybinding_source.index("\nkey_init\n"):
+@@ -586,7 +586,7 @@
+                 "presentation flow proof: boot atlas expansion is incomplete"
+             )
+     load_source = source[source.index("\nload_tick\n"):source.index("\nload_done\n")]
+-    if "sta     PRES_ROWS" not in load_source or "dec     PRES_ROWS" not in load_source:
++    if any(re.search(r"^[ \t]+" + opcode + r"[ \t]+<?PRES_ROWS[ \t]*(?:;[^\r\n]*)?\r?$", load_source, re.M) is None for opcode in ("sta", "dec")):
+         raise SystemExit("presentation flow proof: load budget is not memory-backed")
+     if "decb" in load_source:
+         raise SystemExit("presentation flow proof: load budget still uses clobbered B")

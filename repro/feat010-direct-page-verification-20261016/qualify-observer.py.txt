@@ -1,0 +1,140 @@
+from pathlib import Path
+import ast, copy, difflib, hashlib, json, re, sys, time
+start=time.monotonic()
+repo=Path.cwd()
+evidence=repo/'repro/feat010-direct-page-verification-20261016'
+old_evidence=repo/'repro/feat010-stale-flow-verification-20261016'
+root=repo/'repro/feat010-source-documentation-repair-20261016/capsule'
+bound_root='/mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule'
+manifest_path=evidence/'manifest.json'
+manifest_sha='d7948e1f83ef74fa203cdd6aa5dff0dff9ed9b0c3ac16d47992ead9731107887'
+D_META='presentation flow proof: conditional joystick dependency is undocumented'
+D_BUDGET='presentation flow proof: load budget is not memory-backed'
+D_DECB='presentation flow proof: load budget still uses clobbered B'
+result={'phase':'approved external observer qualification','deadline_seconds':60,'builds':0,'runtime_probes':0,'controls':[]}
+def require(ok,message):
+    if not ok: raise AssertionError(message)
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def guarded(tree,diagnostic):
+    hits=[n for n in ast.walk(tree) if isinstance(n,ast.If) and len(n.body)==1
+          and isinstance(n.body[0],ast.Raise) and any(isinstance(a,ast.Constant) and a.value==diagnostic for a in ast.walk(n.body[0]))]
+    require(len(hits)==1,'unique assertion: '+diagnostic)
+    return hits[0]
+def root_node(tree):
+    nodes=[n for n in tree.body if isinstance(n,ast.Assign) and any(isinstance(t,ast.Name) and t.id=='ROOT' for t in n.targets)]
+    require(len(nodes)==1,'unique ROOT assignment')
+    return nodes[0]
+def check_root(node):
+    expected=ast.parse('Path('+repr(bound_root)+')',mode='eval').body
+    require(ast.dump(node.value)==ast.dump(expected),'external ROOT binding')
+def rejects(node,namespace,diagnostic):
+    module=ast.fix_missing_locations(ast.Module(body=[copy.deepcopy(node)],type_ignores=[]))
+    try: exec(compile(module,'scoped-observer-assertion','exec'),namespace.copy())
+    except SystemExit as exc:
+        require(str(exc)==diagnostic,'unexpected diagnostic: '+str(exc))
+        return True
+    return False
+def accepts(node,namespace,diagnostic):
+    require(not rejects(node,namespace,diagnostic),'unexpected rejection: '+diagnostic)
+def mask_test(tree,node):
+    clone=copy.deepcopy(tree)
+    target=next(n for n in ast.walk(clone) if isinstance(n,ast.If) and n.lineno==node.lineno and n.col_offset==node.col_offset)
+    target.test=ast.Constant(value='APPROVED_PREDICATE_MASK')
+    return ast.dump(clone)
+def mask_line(raw,node):
+    rows=raw.splitlines(keepends=True); i=node.lineno-1
+    ending=b'\r\n' if rows[i].endswith(b'\r\n') else b'\n'
+    rows[i]=b'<BUDGET_PREDICATE>'+ending
+    return b''.join(rows)
+try:
+    require(sha(manifest_path)==manifest_sha,'new fixture manifest identity')
+    mf=json.loads(manifest_path.read_text(encoding='utf-8'))
+    for name,digest in mf['capsule']['sha256'].items(): require(sha(root/name)==digest,'capsule identity: '+name)
+    old_pre=json.loads((old_evidence/'parent-preflight.json').read_text())
+    require(old_pre['review']=='PASS' and old_pre['original_product_assertions_preserved']==21,'prior qualification baseline')
+    for name,digest in mf['original_fixture_hashes'].items():
+        if name=='qualify-observer.py.txt':
+            require(old_pre['qualification_command_sha256']==digest and sha(old_evidence/name)==digest,'prior qualifier identity')
+        else:
+            require(old_pre['fixture_hashes'].get(name)==digest and sha(old_evidence/name)==digest,'prior fixture identity: '+name)
+    prior=json.loads((old_evidence/'qualification-result.json').read_text())
+    require(prior['result']=='PASS' and prior['observer_sha256']==mf['old_external_baseline']['sha256'],'prior AST qualification')
+    for name,digest in [('flow-observer.py',mf['new_external_observer']['sha256']),('maintained-flow-assertions.patch',mf['maintained_patch']['sha256']),('remaining-post-command.py.txt',mf['postdriver']['sha256'])]:
+        require(sha(evidence/name)==digest,'new fixture identity: '+name)
+    oracle=repo/'repro/feat010-resume-20261015/recovery-proposal.json'
+    require(sha(oracle)==mf['oracle']['sha256'] and len(json.loads(oracle.read_text())['sites'])==32,'32-site direct operand oracle')
+    old_bytes=(old_evidence/'flow-observer.py').read_bytes(); new_bytes=(evidence/'flow-observer.py').read_bytes()
+    old_tree=ast.parse(old_bytes); new_tree=ast.parse(new_bytes)
+    old_meta=guarded(old_tree,D_META); new_meta=guarded(new_tree,D_META)
+    original_tree=ast.parse((root/'scripts/verify_presentation_flow.py').read_bytes())
+    original_meta=guarded(original_tree,D_META)
+    old_budget=guarded(old_tree,D_BUDGET); new_budget=guarded(new_tree,D_BUDGET)
+    old_decb=guarded(old_tree,D_DECB); new_decb=guarded(new_tree,D_DECB)
+    check_root(root_node(new_tree))
+    require(ast.dump(root_node(old_tree))==ast.dump(root_node(new_tree)),'ROOT changed from qualified external baseline')
+    require(ast.dump(old_meta)==ast.dump(new_meta),'metadata If changed')
+    require(ast.dump(ast.Module(body=old_budget.body,type_ignores=[]))==ast.dump(ast.Module(body=new_budget.body,type_ignores=[])),'budget exception body changed')
+    require(ast.dump(old_decb)==ast.dump(new_decb),'decb guard changed')
+    require(mask_test(old_tree,old_budget)==mask_test(new_tree,new_budget),'unrelated observer AST changed')
+    require(mask_line(old_bytes,old_budget)==mask_line(new_bytes,new_budget),'unrelated observer bytes changed')
+    require(old_bytes.count(b'\r\n')==new_bytes.count(b'\r\n') and b'\n' not in new_bytes.replace(b'\r\n',b''),'CRLF bytes not preserved')
+    expected=ast.parse('if any(re.search(r"^[ \\t]+" + opcode + r"[ \\t]+<?PRES_ROWS[ \\t]*(?:;[^\\r\\n]*)?\\r?$", load_source, re.M) is None for opcode in ("sta", "dec")):\n    pass').body[0].test
+    require(ast.dump(new_budget.test)==ast.dump(expected),'budget predicate differs from approved exact If')
+    source=(root/'src/presentation_runtime.s').read_text(encoding='utf-8')
+    actual=source[source.index('\nload_tick\n'):source.index('\nload_done\n')]
+    accepts(new_budget,{'load_source':actual,'re':re},D_BUDGET)
+    require(rejects(old_budget,{'load_source':actual,'re':re},D_BUDGET),'old guard accepted current source')
+    legacy='\nload_tick\n        sta     PRES_ROWS\n        dec     PRES_ROWS\n\n'
+    mixed='\nload_tick\n\tsta \t<PRES_ROWS ; store\n        dec\tPRES_ROWS ; decrement\n\n'
+    for name,fixture in [('legacy',legacy),('mixed',mixed)]:
+        accepts(new_budget,{'load_source':fixture,'re':re},D_BUDGET)
+        result['controls'].append({'name':name,'result':'accepted'})
+    negatives={'missing-store':'        dec     PRES_ROWS\n','missing-decrement':'        sta     PRES_ROWS\n',
+      'wrong-store':'        sta     PRES_ROWS_OTHER\n        dec     PRES_ROWS\n','wrong-decrement':'        sta     PRES_ROWS\n        dec     PRES_ROWS_OTHER\n',
+      'comment-only-store':'        ; sta     PRES_ROWS\n        dec     PRES_ROWS\n','comment-only-decrement':'        sta     PRES_ROWS\n        ; dec     PRES_ROWS\n',
+      'indexed':'        sta     PRES_ROWS,x\n        dec     PRES_ROWS\n','immediate':'        sta     #PRES_ROWS\n        dec     PRES_ROWS\n'}
+    for name,fixture in negatives.items():
+        require(rejects(new_budget,{'load_source':fixture,'re':re},D_BUDGET),'negative accepted: '+name)
+        result['controls'].append({'name':name,'result':'expected rejection','diagnostic':D_BUDGET})
+    with_decb=actual+'\n        decb\n'
+    accepts(new_budget,{'load_source':with_decb,'re':re},D_BUDGET)
+    require(rejects(new_decb,{'load_source':with_decb},D_DECB),'decb diagnostic changed')
+    result['controls'].append({'name':'decb','result':'expected rejection','diagnostic':D_DECB})
+    current=next(m for m in json.loads((root/'scripts/source_reference.json').read_text())['modules'] if m['id']=='keybinding-runtime')
+    accepts(new_meta,{'key_module':current},D_META)
+    require(rejects(original_meta,{'key_module':current},D_META),'original metadata guard accepted current source')
+    missing=copy.deepcopy(current); missing['conditional_external_symbols']=[]; missing['external_symbols']=[]
+    legacy_meta=copy.deepcopy(current); legacy_meta['conditional_external_symbols']=[]; legacy_meta['external_symbols']=['PRES_MAIN_JOY_AXIS']
+    both=copy.deepcopy(current); both['conditional_external_symbols']=['PRES_MAIN_JOY_AXIS']; both['external_symbols']=['PRES_MAIN_JOY_AXIS']
+    require(not rejects(original_meta,{'key_module':legacy_meta},D_META),'original metadata legacy control changed')
+    for name,fixture in [('missing-metadata',missing),('legacy-only-metadata',legacy_meta),('both-metadata',both)]:
+        require(rejects(new_meta,{'key_module':fixture},D_META),'metadata negative accepted: '+name)
+        result['controls'].append({'name':name,'result':'expected rejection','diagnostic':D_META})
+    bad=copy.deepcopy(root_node(new_tree)); bad.value=ast.parse('Path("/wrong-observed-capsule")',mode='eval').body
+    try: check_root(bad)
+    except AssertionError: result['controls'].append({'name':'wrong-ROOT','result':'expected rejection'})
+    else: raise AssertionError('wrong ROOT accepted')
+    old_driver=(old_evidence/'remaining-post-command.py.txt').read_bytes(); new_driver=(evidence/'remaining-post-command.py.txt').read_bytes()
+    old_path=b'/mnt/e/projects/ladybug/repro/feat010-stale-flow-verification-20261016/flow-observer.py'
+    new_path=b'/mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/flow-observer.py'
+    old_sha=mf['old_external_baseline']['sha256'].encode(); new_sha=mf['new_external_observer']['sha256'].encode()
+    require(old_driver.count(old_path)==2 and new_driver.count(new_path)==2 and old_driver.count(old_sha)==1 and new_driver.count(new_sha)==1,'postdriver observer reference counts')
+    require(old_driver.replace(old_path,b'<OBSERVER_PATH>').replace(old_sha,b'<OBSERVER_SHA>')==new_driver.replace(new_path,b'<OBSERVER_PATH>').replace(new_sha,b'<OBSERVER_SHA>'),'postdriver has changes beyond path/SHA references')
+    driver_tree=ast.parse(new_driver); calls=[n for n in ast.walk(driver_tree) if isinstance(n,ast.Call) and isinstance(n.func,ast.Name) and n.func.id=='identity_snapshot']
+    require(len(calls)==2 and old_pre['single_flow_subprocess'],'before/after provenance and one flow invocation changed')
+    base=(root/'scripts/verify_presentation_flow.py').read_text(encoding='utf-8')
+    a='        if "PRES_MAIN_JOY_AXIS" not in key_module.get("external_symbols", []):'; b='        if ("PRES_MAIN_JOY_AXIS" not in key_module.get("conditional_external_symbols", []) or "PRES_MAIN_JOY_AXIS" in key_module.get("external_symbols", [])):'
+    c='    if "sta     PRES_ROWS" not in load_source or "dec     PRES_ROWS" not in load_source:'; d='    if any(re.search(r"^[ \\t]+" + opcode + r"[ \\t]+<?PRES_ROWS[ \\t]*(?:;[^\\r\\n]*)?\\r?$", load_source, re.M) is None for opcode in ("sta", "dec")):'
+    require(base.count(a)==1 and base.count(c)==1,'maintained patch base predicates changed')
+    patched=base.replace(a,b,1).replace(c,d,1)
+    generated=''.join(line if line.endswith('\n') else line+'\n' for line in difflib.unified_diff(base.splitlines(),patched.splitlines(),fromfile='a/scripts/verify_presentation_flow.py',tofile='b/scripts/verify_presentation_flow.py',n=3))
+    require((evidence/'maintained-flow-assertions.patch').read_text(encoding='utf-8')==generated,'maintained patch includes unrelated changes or lacks a predicate')
+    ast.parse(patched)
+    result.update(result='PASS',positive='current direct, legacy and mixed accepted',old_guard='rejects current source',old_external_delta='only budget predicate; ROOT/metadata/body/decb and CRLF retained',product_assertions_preserved=21,driver_provenance_calls=2,capsule_identities=mf['capsule']['sha256'],direct_operand_oracle_sha256=sha(oracle),full_observer_executed=False)
+except Exception as exc:
+    result.update(result='FAIL',error=repr(exc))
+result['elapsed_seconds']=time.monotonic()-start
+if result['elapsed_seconds']>60: result.update(result='FAIL',error='entire qualification exceeded 60 seconds')
+(evidence/'qualification-result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(result,indent=2))
+sys.exit(0 if result['result']=='PASS' else 1)

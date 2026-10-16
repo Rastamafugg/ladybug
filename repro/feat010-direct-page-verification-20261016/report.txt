@@ -1,0 +1,15 @@
+FEAT-010 direct-page observer fixture preparation
+Date: 2026-10-16
+
+Status: prepared under the user-approved Ready scope. FEAT-010 remains High-risk overall; this bounded observer-only step is classified Compact. No observer, qualifier, product guard, provenance validator, build, runtime probe, or Git command was executed. No product acceptance is claimed.
+
+Prepared files:
+- flow-observer.py: CRLF-preserving copy of the qualified external baseline, with only the load-budget If predicate changed. SHA-256 ade0bf2180afd860b6683bc783d1098298de2c23bedc2808562237f28cd25f27.
+- maintained-flow-assertions.patch: valid unified diff against the frozen capsule verifier containing only the approved metadata If and load-budget If. It contains no ROOT binding. SHA-256 6198238375fe2c3759a154ed52cc0e8ffba937df04f691d97cbbfc91412ff921.
+- remaining-post-command.py.txt: derived from the qualified prior driver; only the two observer path references and one observer SHA pin changed. The prior 21 product assertions and before/after provenance code remain byte-identical. SHA-256 2ebe56c408e4e14c93e8532e66af786261329fc16f0e8c827103c4d30215cbf3.
+- qualify-observer.py.txt: reuses the prior AST fixture harness. It scopes execution to the exact budget, decb, and metadata If nodes; checks current, legacy, mixed, all named budget negatives, metadata controls, wrong ROOT, capsule/oracle identities, old/new observer masks, and driver path/SHA-only differences. It contains 140 nonblank lines. SHA-256 202d3798010aea8eb10141f20a054c736dd09e262144b0410fbee2962f9da8e5.
+- manifest.json: pins the new observer, patch, driver, capsule identities, old qualified fixtures, 32-site oracle, one 60-second qualification phase, and one conditional 60-second postphase. SHA-256 d7948e1f83ef74fa203cdd6aa5dff0dff9ed9b0c3ac16d47992ead9731107887.
+
+Preparation checks were limited to exact file generation, hash collection, and Python AST syntax parsing. The external observer retained 700 CRLF line endings. The qualification script pins the manifest hash and will write qualification-result.json only when the parent runs the approved qualification command. The postdriver preserves the existing provenance checks and 21 assertions according to the prior qualified preflight; it invokes the new observer once.
+
+Next: parent reviews and freezes the six owned files. Then run the single approved qualification phase. Only a qualification pass releases the single approved postphase. The inactive legacy-branch start/coin check, unreachable loop-wake check, other profiles, natural/manual feature behavior, and production integration remain excluded or pending.

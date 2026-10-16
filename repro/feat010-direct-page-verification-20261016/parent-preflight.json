@@ -1,0 +1,24 @@
+{
+  "result": "PASS readiness review; no gates executed",
+  "observer_delta": "exact single approved If predicate",
+  "driver_delta": "two observer paths plus one hash only",
+  "original_product_assertions_preserved": 21,
+  "fixtures": {
+    "flow-observer.py": "ade0bf2180afd860b6683bc783d1098298de2c23bedc2808562237f28cd25f27",
+    "maintained-flow-assertions.patch": "6198238375fe2c3759a154ed52cc0e8ffba937df04f691d97cbbfc91412ff921",
+    "qualify-observer.py.txt": "202d3798010aea8eb10141f20a054c736dd09e262144b0410fbee2962f9da8e5",
+    "remaining-post-command.py.txt": "2ebe56c408e4e14c93e8532e66af786261329fc16f0e8c827103c4d30215cbf3",
+    "manifest.json": "d7948e1f83ef74fa203cdd6aa5dff0dff9ed9b0c3ac16d47992ead9731107887",
+    "report.txt": "68b10159d653d037afdb15e5e765a7a52e4bc7da4b88e7ea5875e14e2512fc7c"
+  },
+  "mechanics_corrected_before_gate": [
+    "patch LF lines",
+    "namespace shallow copy for re module",
+    "AST body Module wrapper",
+    "original maintained metadata guard for stale control"
+  ],
+  "commands": {
+    "qualification": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug bash -lc 'timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 - < repro/feat010-direct-page-verification-20261016/qualify-observer.py.txt > repro/feat010-direct-page-verification-20261016/qualification.log 2>&1'",
+    "post": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule bash -lc 'timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 - < /mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/remaining-post-command.py.txt > /mnt/e/projects/ladybug/repro/feat010-direct-page-verification-20261016/post-execution.log 2>&1'"
+  }
+}
