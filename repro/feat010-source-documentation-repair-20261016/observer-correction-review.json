@@ -1,0 +1,50 @@
+{
+  "ticket": "FEAT-010",
+  "scope": "observer newline correction only; no candidate or gate edits",
+  "original_command": {
+    "path": "qualification-command.py.txt",
+    "sha256": "d8a41d7e44e4c3b901b1a876b69fb1348a922fc7f4c91c452bf92b116ce89545",
+    "preserved": true
+  },
+  "corrected_command": {
+    "path": "qualification-command-corrected.py.txt",
+    "sha256": "f7a77b83f2e5830694b780e8afce817cef213bc0b4c806a12c6e430360ce7c47",
+    "line_count_unchanged": true
+  },
+  "one_line_change": {
+    "line_number": 47,
+    "old": "ending = b'\\r\\n' if lines[63].endswith(b'\\r\\n') else b'\\n'",
+    "new": "ending = b'\\n'",
+    "changed_line_count": 1,
+    "all_other_bytes_identical": true,
+    "reason": "Reconstruct approved candidate source line64 with LF, matching the frozen candidate comment bytes."
+  },
+  "candidate_hashes": {
+    "scripts/source_reference.json": {
+      "expected": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "parent_preflight": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "actual": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "matches": true
+    },
+    "src/demo_runtime.s": {
+      "expected": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "parent_preflight": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "actual": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "matches": true
+    }
+  },
+  "first_failure_evidence": {
+    "path": "qualification-first-failure.json",
+    "sha256": "f1e365cda9c6f7d7ec7b4d9aa753f35427a6a2e8f12f2f6b91422b3805a9b10f",
+    "observer_review_sha256": "ae83417e2dd365833a3a05f1950185f5a6697979506cd8321d897ce173b7e8f9"
+  },
+  "execution": {
+    "tests": 0,
+    "models": 0,
+    "verifiers": 0,
+    "builds": 0,
+    "runtime_probes": 0,
+    "git_commands": 0,
+    "parent_owns_corrected_qualification": true
+  }
+}

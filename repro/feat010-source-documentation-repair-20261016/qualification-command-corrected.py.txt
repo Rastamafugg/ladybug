@@ -1,0 +1,104 @@
+from pathlib import Path
+from dataclasses import replace
+import copy, hashlib, json, sys, time
+
+start = time.monotonic()
+repo = Path.cwd()
+evidence = repo / 'repro/feat010-source-documentation-repair-20261016'
+candidate = evidence / 'capsule'
+baseline = repo / 'repro/feat010-source-reference-repair-20261015/capsule'
+sys.dont_write_bytecode = True
+sys.path.insert(0, str(baseline / 'scripts'))
+from source_reference.normalize import build_project_reference
+from source_reference.coverage import evaluate_coverage
+from source_reference.verify import _policy_errors
+from source_reference.links import routine_id
+
+def require(value, message):
+    if not value:
+        raise AssertionError(message)
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+result = {'phase': 'approved historical and synthetic metadata qualification',
+          'deadline_seconds': 60, 'builds': 0, 'runtime_probes': 0,
+          'real_receipt_writes': 0, 'controls': []}
+try:
+    preflight = json.loads((evidence / 'parent-preflight.json').read_text())
+    for name, digest in preflight['candidate_hashes'].items():
+        require(sha(candidate / name) == digest, 'candidate identity: ' + name)
+    purpose = 'Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.'
+    routine = dict(name='highscore_logo_tick', profile='presentation',
+                   reasons=['called'], purpose=purpose,
+                   semantic_id='routines.html#routine-highscore-helper-highscore-logo-tick')
+    block = dict(name='menu_load_event', routine=None,
+                 purpose='Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading.')
+    mirror = '; DOC-002 source-contract mirror contract highscore_logo_tick profile=presentation: ' + purpose
+    original = json.loads((baseline / 'scripts/source_reference.json').read_text())
+    edited = json.loads((candidate / 'scripts/source_reference.json').read_text())
+    restored = copy.deepcopy(edited)
+    next(m for m in restored['modules'] if m['id'] == 'highscore-helper')['routines'].remove(routine)
+    next(m for m in restored['modules'] if m['id'] == 'presentation-runtime')['basic_blocks'].remove(block)
+    require(restored == original, 'registry delta exceeds two approved records')
+    before = (baseline / 'src/demo_runtime.s').read_bytes()
+    lines = before.splitlines(keepends=True)
+    require(not lines[63].strip(), 'baseline line64 is not blank')
+    ending = b'\n'
+    lines[63] = mirror.encode() + ending
+    require((candidate / 'src/demo_runtime.s').read_bytes() == b''.join(lines), 'source delta exceeds line64 mirror')
+    require(routine['semantic_id'] == 'routines.html#' + routine_id('highscore-helper', routine['name']), 'semantic anchor')
+    receipt_path = baseline / 'build/source-build-receipt.json'
+    receipt_hash = sha(receipt_path)
+    historical_config = json.loads((baseline / 'build/source-reference-adaptive.json').read_text())
+    policy = historical_config['coverage']
+    historical = build_project_reference(historical_config, baseline, baseline / 'build')
+    expected = {
+        'missing routine contract: highscore-helper:highscore_logo_tick',
+        'missing source contract mirror: highscore-helper:highscore_logo_tick',
+        'unclassified global label: presentation-runtime:menu_load_event'}
+    errors = _policy_errors(historical, policy)
+    require(set(errors) == expected and len(errors) == 3, 'historical error set: ' + repr(errors))
+    coverage = evaluate_coverage(historical, policy)
+    require((coverage.documented_routines, coverage.required_routines, coverage.classified_labels, coverage.global_labels) == (318, 319, 4850, 4851), 'historical counts')
+    result['historical_errors'] = sorted(errors)
+    proposed_config = copy.deepcopy(historical_config)
+    next(m for m in proposed_config['modules'] if m['id'] == 'highscore-helper')['routines'].append(routine)
+    next(m for m in proposed_config['modules'] if m['id'] == 'presentation-runtime')['basic_blocks'].append(block)
+    modeled = build_project_reference(proposed_config, baseline, baseline / 'build')
+    def mirrored(module):
+        return replace(module, source_lines=tuple(
+            replace(line, text=mirror) if line.file == 'src/demo_runtime.s' and line.number == 64 else line
+            for line in module.source_lines))
+    positive = replace(modeled, modules=tuple(mirrored(m) for m in modeled.modules))
+    errors = _policy_errors(positive, policy)
+    require(not errors, 'corrected modeled errors: ' + repr(errors))
+    coverage = evaluate_coverage(positive, policy)
+    require(coverage.passed and (coverage.documented_routines, coverage.required_routines, coverage.classified_labels, coverage.global_labels) == (319, 319, 4851, 4851), 'corrected model counts')
+    result['positive_counts'] = dict(documented_routines=319, required_routines=319,
+                                      classified_labels=4851, global_labels=4851)
+    def mutate_module(project, module_id, mutate):
+        return replace(project, modules=tuple(mutate(m) if m.id == module_id else m for m in project.modules))
+    without_contract = mutate_module(positive, 'highscore-helper', lambda m: replace(m, routines=tuple(
+        replace(r, semantic_id=None) if r.name == 'highscore_logo_tick' else r for r in m.routines)))
+    without_mirror = mutate_module(positive, 'highscore-helper', lambda m: replace(m, source_lines=tuple(
+        replace(line, text='') if line.file == 'src/demo_runtime.s' and line.number == 64 else line for line in m.source_lines)))
+    without_block = mutate_module(positive, 'presentation-runtime', lambda m: replace(m, basic_blocks=tuple(
+        b for b in m.basic_blocks if b.name != 'menu_load_event')))
+    for label, model, error in [
+        ('missing-contract', without_contract, 'missing routine contract: highscore-helper:highscore_logo_tick'),
+        ('missing-mirror', without_mirror, 'missing source contract mirror: highscore-helper:highscore_logo_tick'),
+        ('missing-block', without_block, 'unclassified global label: presentation-runtime:menu_load_event')]:
+        errors = _policy_errors(model, policy)
+        require(errors == [error], label + ': ' + repr(errors))
+        result['controls'].append(dict(name=label, result='expected rejection', error=error))
+    require(sha(receipt_path) == receipt_hash, 'historical receipt changed')
+    result.update(result='PASS', model_only=True, product_acceptance=False)
+except Exception as exc:
+    result.update(result='FAIL', error=repr(exc))
+result['elapsed_seconds'] = time.monotonic() - start
+if result['elapsed_seconds'] > 60:
+    result.update(result='FAIL', error='entire qualification phase exceeded60seconds')
+(evidence / 'qualification-result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(result, indent=2))
+sys.exit(0 if result['result'] == 'PASS' else 1)

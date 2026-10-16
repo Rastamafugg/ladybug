@@ -4,8 +4,36 @@
   "builds": 0,
   "runtime_probes": 0,
   "real_receipt_writes": 0,
-  "controls": [],
-  "result": "FAIL",
-  "error": "AssertionError('source delta exceeds line64 mirror')",
-  "elapsed_seconds": 0.6124282589999552
+  "controls": [
+    {
+      "name": "missing-contract",
+      "result": "expected rejection",
+      "error": "missing routine contract: highscore-helper:highscore_logo_tick"
+    },
+    {
+      "name": "missing-mirror",
+      "result": "expected rejection",
+      "error": "missing source contract mirror: highscore-helper:highscore_logo_tick"
+    },
+    {
+      "name": "missing-block",
+      "result": "expected rejection",
+      "error": "unclassified global label: presentation-runtime:menu_load_event"
+    }
+  ],
+  "historical_errors": [
+    "missing routine contract: highscore-helper:highscore_logo_tick",
+    "missing source contract mirror: highscore-helper:highscore_logo_tick",
+    "unclassified global label: presentation-runtime:menu_load_event"
+  ],
+  "positive_counts": {
+    "documented_routines": 319,
+    "required_routines": 319,
+    "classified_labels": 4851,
+    "global_labels": 4851
+  },
+  "result": "PASS",
+  "model_only": true,
+  "product_acceptance": false,
+  "elapsed_seconds": 40.73619674600013
 }
