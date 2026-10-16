@@ -1,0 +1,28 @@
+FEAT-010 runtime observer preparation report
+Date: 2026-10-16
+Status: runtime observer Not Ready; preparation stopped at the readback feasibility boundary.
+
+Scope and disposition
+This preparation was limited to the new runtime subtree. No build, runtime, emulator, GDB session, verifier, monitor, test, or Git operation was performed. The approved current GDB transport can issue CPU-view GDB commands, but the maintained runbook explicitly says XRoar does not expose GIME internal state or video/palette state through that interface. Therefore no exact FEAT-010 phase commands, pixel fixture, or observer card binding was frozen.
+
+Readback finding
+The GIME reference states that $FF8x/$FF9x registers are write-only. Ladybug's source publishes a framebuffer at the Vbord IRQ by writing the display offset to GIME_VOFF1 ($FF9D), then exchanges the software FB_FRONT_ID and FB_BACK_ID bytes. The project framebuffer notes describe PAR1-PAR4 as mapping the BACK pages while render work is performed. XRoar GDB reads the 6809 CPU view; it does not expose the GIME's selected video base or a physical-RAM read interface. A GDB read of FB_FRONT_ID, PAR values, or a logical framebuffer window can report software ownership or CPU-mapped bytes, but cannot prove which physical pixels GIME is scanning. Reading $FF9D cannot supply that proof because the register is write-only.
+
+The maintained authored-text/shared-pixel oracle remains suitable for offline expected-pixel generation and static verification. It does not capture the live GIME FRONT. Reusing it with CPU-window bytes would silently substitute a BACK or other logical mapping for the approved actual-FRONT pixel comparison. This would fail the card's independent-pixel and owner-negative-control requirements.
+
+Identity and bindings
+The immutable capsule map at repro/feat010-source-documentation-repair-20261016/capsule/build/ladybug.map is a candidate-source reference only. The combined current-source artifact and receipt are not built. Its candidate addresses cannot be treated as current integrated bindings or used to interpret a live PC. Source/staged/live resident-byte comparison can be prepared after the combined artifact is available, but it does not resolve the missing physical-FRONT channel.
+
+Readiness result
+The offline 60-second observer/oracle qualification cannot pass under the approved transport: a wrong artifact identity can be rejected from byte comparisons, but the required independently expected live FRONT pixel mismatch (glyph/highlight/owner) cannot be observed through this GDB view. No unsupported read command or synthetic FRONT readback was invented. No command/oracle files were created.
+
+Next bounded option
+Parent review should decide whether to request a separate bounded feasibility review limited to an already available, read-only XRoar frame-capture interface that identifies the actual displayed frame and owner without guest writes or private-monitor use. If no such existing interface is supported, keep runtime Not Ready and return the pixel-observation method/card for explicit scope approval before considering a new transport. Do not dispatch the ten natural phases until this prerequisite is resolved and the combined artifact, receipt, and exact marker bindings are frozen.
+
+References reviewed
+- wiki/internal/tooling/xroar.html#gdb-mcp-round-trip and “Limits of the current GDB-stub workflow”
+- wiki/release/reference/coco3/gime.html#programming-notes
+- wiki/internal/implementation/ping-pong-framebuffer.html
+- repro/feat010-remaining-assignment-20261016/assignment.json
+- repro/feat010-remaining-assignment-20261016/runtime-audit.txt
+- repro/feat010-source-documentation-repair-20261016/capsule/build/ladybug.map

@@ -1,0 +1,40 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "task_class": "High-risk",
+  "assignment": "bounded runtime-observer preparation only",
+  "source_checkpoint": "87bf02c",
+  "status": "runtime_not_ready",
+  "scope": {
+    "owned_path": "repro/feat010-remaining-verification-20261016/runtime/",
+    "runtime_or_gdb_executed": false,
+    "build_or_verifier_executed": false,
+    "guest_state_written": false,
+    "private_monitor_used": false
+  },
+  "feasibility": {
+    "actual_gime_front_pixel_readback_supported_by_existing_gdb": false,
+    "reason": "XRoar GDB exposes CPU-view memory only; GIME/video state is not exposed, and $FF8x/$FF9x registers including display offset $FF9D are write-only. CPU logical reads cannot establish the physical FRONT selected by GIME.",
+    "runtime_binding": null,
+    "combined_artifact_and_receipt": "not built"
+  },
+  "candidate_map_symbols_unbound": {
+    "map": "repro/feat010-source-documentation-repair-20261016/capsule/build/ladybug.map",
+    "warning": "Candidate-source values only; do not use as combined-artifact/live-PC bindings.",
+    "FB_FRONT_ID": "008F",
+    "FB_BACK_ID": "0090",
+    "GIME_VOFF1": "FF9D"
+  },
+  "prepared_files": [
+    {
+      "path": "repro/feat010-remaining-verification-20261016/runtime/report.txt",
+      "sha256": "C1B7E84336B20254455BF5506078E5B802FDDEBA2E4BB6F3472E68C39ACA7C68"
+    }
+  ],
+  "omitted_by_feasibility_stop": [
+    "external GDB phase command lists",
+    "live FRONT pixel fixtures and expected payloads",
+    "observer/oracle qualification card bindings"
+  ],
+  "next_bounded_option": "Parent review of whether an already available read-only XRoar frame-capture interface can identify and return the actual displayed frame without guest writes or private-monitor use. If none exists, keep runtime Not Ready and seek explicit approval before changing the observation method or transport."
+}
