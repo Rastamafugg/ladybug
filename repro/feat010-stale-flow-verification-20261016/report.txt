@@ -1,0 +1,11 @@
+FEAT-010 external stale-flow verification preparation
+
+Classification: parent FEAT-010 remains High-risk. This Ready step prepares only the five approved external artifacts. The passing capsule and canonical wiki were not modified.
+
+The frozen capsule root is /mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule. Its receipt remains pinned to SHA-256 6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445. The maintained flow verifier baseline is 498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2.
+
+flow-observer.py is a byte-preserving copy of the frozen verifier with exactly two line substitutions: ROOT is bound to the fixed capsule path, and the line-332 predicate requires PRES_MAIN_JOY_AXIS in conditional_external_symbols and absent from external_symbols. The original same-error body and all other source bytes, including CRLF endings, are preserved. maintained-flow-assertion.patch contains only the future one-If production hunk and does not include the observer ROOT binding.
+
+remaining-post-command.py.txt derives from the frozen 198bb8 post-command. It routes the single flow subprocess to the external observer and adds fixed root, observer, receipt, config, candidate, maintained-verifier and provenance fingerprints plus read-only provenance.validate checks before and after. Its provenance config is the generated 16-module build/source-reference-adaptive.json (SHA-256 35e4ae54114f85bcbb108efc8398b23c71531efb70f4eeae076ba0685e56ecf3). It preserves the original elapsed timer, current-directory and evidence/baseline/build/preflight bindings, and all existing symbol, byte, clock, operand, payload, coverage and ROM assertions. The complete clock oracle is b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45e.
+
+Preparation verification was limited to source/artifact hashes, exact byte and unified diffs, JSON parsing, and Python AST parsing. The observer, verifier, provenance function, tests, model, build, runtime, and Git were not executed. Parent owns qualification (maximum 60 seconds) and, on qualification pass only, the single remaining postphase (maximum 60 seconds). Existing failed post-result and post-flow outputs must be archived before that postphase reuses their names.

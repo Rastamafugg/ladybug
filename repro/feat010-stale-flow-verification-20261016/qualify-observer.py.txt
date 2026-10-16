@@ -1,0 +1,102 @@
+from pathlib import Path
+import ast, copy, hashlib, json, sys, time
+start = time.monotonic()
+repo = Path.cwd()
+evidence = repo / 'repro/feat010-stale-flow-verification-20261016'
+root = repo / 'repro/feat010-source-documentation-repair-20261016/capsule'
+bound_root = '/mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule'
+diagnostic = 'presentation flow proof: conditional joystick dependency is undocumented'
+result = {'phase':'approved external observer qualification','deadline_seconds':60,
+          'builds':0,'runtime_probes':0,'controls':[]}
+def require(ok, message):
+    if not ok: raise AssertionError(message)
+def sha(path): return hashlib.sha256(path.read_bytes()).hexdigest()
+def target(tree):
+    matches = [n for n in ast.walk(tree) if isinstance(n,ast.If) and len(n.body)==1
+               and isinstance(n.body[0],ast.Raise)
+               and any(isinstance(a,ast.Constant) and a.value==diagnostic for a in ast.walk(n.body[0]))]
+    require(len(matches)==1,'unique dependency assertion')
+    return matches[0]
+def root_node(tree):
+    nodes=[n for n in tree.body if isinstance(n,ast.Assign)
+           and any(isinstance(t,ast.Name) and t.id=='ROOT' for t in n.targets)]
+    require(len(nodes)==1,'unique ROOT assignment')
+    return nodes[0]
+def check_binding(node):
+    require(ast.dump(node.value)==ast.dump(ast.parse('Path('+repr(bound_root)+')',mode='eval').body),
+            'external ROOT must exactly bind the passing capsule')
+def rejects(node, metadata):
+    scoped=ast.fix_missing_locations(ast.Module(body=[copy.deepcopy(node)],type_ignores=[]))
+    try:
+        exec(compile(scoped,'qualified-dependency-assertion','exec'),{'key_module':copy.deepcopy(metadata)})
+    except SystemExit as exc:
+        require(str(exc)==diagnostic,'unexpected dependency diagnostic')
+        return True
+    return False
+try:
+    pinned={
+        'scripts/verify_presentation_flow.py':'498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2',
+        'scripts/source_reference.json':'4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b',
+        'src/demo_runtime.s':'2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a',
+        'build/source-build-receipt.json':'6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445',
+        'build/source-reference-adaptive.json':'35e4ae54114f85bcbb108efc8398b23c71531efb70f4eeae076ba0685e56ecf3',
+        'build/ladybug.rom':'274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53'}
+    require(str(root.resolve())==bound_root,'workspace/capsule root mismatch')
+    for name,digest in pinned.items(): require(sha(root/name)==digest,'frozen identity: '+name)
+    site_oracle=repo/'repro/feat010-resume-20261015/recovery-proposal.json'
+    require(len(json.loads(site_oracle.read_text())['sites'])==32,'direct operand oracle inventory')
+    result['direct_operand_oracle_sha256']=sha(site_oracle)
+    pre=json.loads((evidence/'parent-preflight.json').read_text())
+    for name,digest in pre['fixture_hashes'].items(): require(sha(evidence/name)==digest,'fixture changed: '+name)
+    old_bytes=(root/'scripts/verify_presentation_flow.py').read_bytes()
+    new_bytes=(evidence/'flow-observer.py').read_bytes()
+    old=ast.parse(old_bytes); new=ast.parse(new_bytes)
+    old_if=target(old); new_if=target(new); old_root=root_node(old); new_root=root_node(new)
+    expected=ast.parse('if ("PRES_MAIN_JOY_AXIS" not in key_module.get("conditional_external_symbols", []) or "PRES_MAIN_JOY_AXIS" in key_module.get("external_symbols", [])):\n    pass').body[0].test
+    require(ast.dump(new_if.test)==ast.dump(expected),'corrected predicate differs from approved condition')
+    require(ast.dump(old_if.body[0])==ast.dump(new_if.body[0]),'failure body changed')
+    check_binding(new_root)
+    wrong=copy.deepcopy(new_root); wrong.value=ast.parse('Path("/wrong-observed-capsule")',mode='eval').body
+    try: check_binding(wrong)
+    except AssertionError: result['controls'].append({'name':'wrong-ROOT','result':'expected rejection'})
+    else: raise AssertionError('bad ROOT was accepted')
+    class Normalize(ast.NodeTransformer):
+        def visit_If(self,node):
+            if node is old_if or node is new_if: return ast.Pass()
+            return self.generic_visit(node)
+        def visit_Assign(self,node):
+            if node is old_root or node is new_root: return ast.Pass()
+            return self.generic_visit(node)
+    require(ast.dump(Normalize().visit(old))==ast.dump(Normalize().visit(new)),
+            'unrelated observer AST changed')
+    def masked(raw, rn, fn):
+        lines=raw.splitlines(keepends=True)
+        for first,last,marker in sorted([(rn.lineno,rn.end_lineno,b'<ROOT>\n'),
+                    (fn.lineno,fn.body[0].lineno-1,b'<DEPENDENCY-IF>\n')],reverse=True):
+            lines[first-1:last]=[marker]
+        return b''.join(lines)
+    require(masked(old_bytes,old_root,old_if)==masked(new_bytes,new_root,new_if),
+            'unrelated observer bytes changed')
+    cfg=json.loads((root/'scripts/source_reference.json').read_text())
+    current=next(m for m in cfg['modules'] if m['id']=='keybinding-runtime')
+    require(rejects(old_if,current),'old observer must reject current metadata')
+    legacy=copy.deepcopy(current);legacy['conditional_external_symbols']=[]
+    legacy['external_symbols'].append('PRES_MAIN_JOY_AXIS')
+    require(not rejects(old_if,legacy),'old legacy-only behavior not demonstrated')
+    require(not rejects(new_if,current),'corrected current positive rejected')
+    missing=copy.deepcopy(current);missing['conditional_external_symbols']=[]
+    both=copy.deepcopy(current);both['external_symbols'].append('PRES_MAIN_JOY_AXIS')
+    for name,fixture in [('missing',missing),('legacy-only',legacy),('both',both)]:
+        require(rejects(new_if,fixture),'negative accepted: '+name)
+        result['controls'].append({'name':name,'result':'expected rejection','diagnostic':diagnostic})
+    result.update(result='PASS',positive='conditional-only accepted',
+                  old_guard='current rejected, legacy-only accepted',root_binding=bound_root,
+                  observer_sha256=sha(evidence/'flow-observer.py'),
+                  capsule_identities=pinned,full_observer_executed=False)
+except Exception as exc:
+    result.update(result='FAIL',error=repr(exc))
+result['elapsed_seconds']=time.monotonic()-start
+if result['elapsed_seconds']>60:result.update(result='FAIL',error='entire qualification phase exceeded60seconds')
+(evidence/'qualification-result.json').write_text(json.dumps(result,indent=2)+'\n',encoding='utf-8')
+print(json.dumps(result,indent=2))
+sys.exit(0 if result['result']=='PASS' else 1)
