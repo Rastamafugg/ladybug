@@ -1,0 +1,77 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-16",
+  "artifact_rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+  "launch_receipt": "repro/feat010-manual-review-20261016/manual-launch.json",
+  "evidence_type": "user manual observations against launched review; no independent current live failure trace",
+  "manual_results": [
+    {
+      "id": "A1",
+      "area": "Attract animation",
+      "observed": "Animation appears to repeat a couple of frames for all sprites at apparently random times.",
+      "expected": "Continuous expected choreography, with no visible replay caused by owner restoration.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "A2",
+      "area": "Attract menu",
+      "observed": "Changing menu selection during the repeat briefly shows the previous selection before restoring the new option.",
+      "expected": "Selection remains current through every published frame.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "A3",
+      "area": "Options transition",
+      "observed": "Options loads, instructions collectibles flicker over its menu, then program freezes.",
+      "expected": "Options owns the screen, no instruction overlays, controls remain functional.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "A4",
+      "area": "Credits transition",
+      "observed": "Credits selection produces garbage screen and crashes.",
+      "expected": "Credits/About renders correct authored information and remains functional.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "H1",
+      "area": "Ranking fields",
+      "observed": "TOP, 2nd and 3rd names/scores missing;4th name and last score digit missing.",
+      "expected": "All approved TOP and1st–9th fields render completely at authored positions.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "H2",
+      "area": "Ranking logo animation",
+      "observed": "LadyBug two-frame animation tiles remain at old vertical positions.",
+      "expected": "Animated tiles align with relocated authored logo.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "H3",
+      "area": "Ranking collectible colour",
+      "observed": "R collectible is white.",
+      "expected": "R collectible is red.",
+      "status": "manual failure; cause unconfirmed"
+    },
+    {
+      "id": "H4",
+      "area": "Ranking logo colour",
+      "observed": "Lower parts of y and g are white.",
+      "expected": "Lower parts of y and g are light blue.",
+      "status": "manual failure; cause unconfirmed"
+    }
+  ],
+  "manual_passes": [
+    "Starting a game works"
+  ],
+  "informal_observation": "Rest of game appears to work OK, with unspecified gameplay bugs deferred until frontend conversion complete.",
+  "scope": "Attract/high-score conversion failures only; no unsolicited gameplay repairs.",
+  "diagnosis": "Not yet independently reproduced or cause-confirmed; no fix authorized from these symptoms alone.",
+  "clarifications": {
+    "options_credits": "Each tested after a fresh emulator restart; independent cold failures.",
+    "highscore_route": "Reached after beating a high score in-game. Name-entry/commit details not separately stated.",
+    "highscore_logo_animation": "Present; user withdrew the earlier statement that the screen had no animation.",
+    "highscore_defect_timing": "All reported High Score defects present immediately on screen load; not an initially-correct screen that later loses fields."
+  }
+}
