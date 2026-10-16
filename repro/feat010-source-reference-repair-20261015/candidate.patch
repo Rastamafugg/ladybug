@@ -1,0 +1,280 @@
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -4793,7 +4793,9 @@
+         }
+       ],
+       "external_symbols": [
+-        "PRES_MAIN_SHARED_MASK",
++        "PRES_MAIN_SHARED_MASK"
++      ],
++      "conditional_external_symbols": [
+         "PRES_MAIN_JOY_AXIS"
+       ]
+     },
+--- a/scripts/source_reference/normalize.py
++++ b/scripts/source_reference/normalize.py
+@@ -257,12 +257,44 @@
+     )
+     authored_label_names: set[str] = set()
+     declared_external_symbols: list[tuple[str, str]] = []
++    active_conditional_external_symbols: set[tuple[str, str]] = set()
+     for item in config["modules"]:
+         module_id = str(item["id"])
++        external_values = item.get("external_symbols", [])
++        conditional_external_values = item.get("conditional_external_symbols", [])
++        if not isinstance(external_values, list) or not isinstance(
++            conditional_external_values, list
++        ):
++            raise ValueError(f"external symbol declarations must be lists: {module_id}")
++        external_names = [str(value) for value in external_values]
++        conditional_external_names = [
++            str(value) for value in conditional_external_values
++        ]
++        if len(external_names) != len(set(external_names)) or len(
++            conditional_external_names
++        ) != len(set(conditional_external_names)):
++            raise ValueError(f"duplicate external symbol declaration: {module_id}")
++        overlap = sorted(set(external_names) & set(conditional_external_names))
++        if overlap:
++            raise ValueError(
++                "external symbol declared as both unconditional and conditional: "
++                + ", ".join(f"{module_id}:{name}" for name in overlap)
++            )
+         source = (source_root / item["source"]).resolve()
+         listing = _artifact_path(artifact_root, item.get("listing"))
+         map_file = _artifact_path(artifact_root, item.get("map"))
+         binary = _artifact_path(artifact_root, item.get("binary"))
++        if conditional_external_names:
++            if receipt is None:
++                raise ValueError(
++                    "conditional external symbols require a validated ownership-audit receipt: "
++                    + module_id
++                )
++            if listing is None or not listing.is_file():
++                raise ValueError(
++                    "conditional external symbols require an existing module listing: "
++                    + module_id
++                )
+         include_dirs = tuple(
+             (artifact_root / value).resolve() for value in item.get("artifact_include_dirs", [""])
+         ) + tuple(
+@@ -272,19 +304,47 @@
+             source, source_root, artifact_root, include_dirs
+         )
+         spans = parse_listing(listing, module_id, source_files) if listing else ()
++        if conditional_external_names and not spans:
++            raise ValueError(
++                "conditional external symbols require a nonempty parsed module listing: "
++                + module_id
++            )
+         labels = _labels(source_lines)
+         authored_label_names.update(labels)
+         symbols = tuple(
+             replace(symbol, file=labels.get(symbol.name, (None, None))[0], line=labels.get(symbol.name, (None, None))[1])
+             for symbol in (parse_map(map_file, module_id) if map_file else ())
+         )
++        if conditional_external_names:
++            authored_calls = _calls(module_id, source_lines, [])
++            authored_call_targets = {
++                edge.target
++                for edge in authored_calls
++                if edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT)
++            }
++            missing_authored_calls = sorted(
++                set(conditional_external_names) - authored_call_targets
++            )
++            if missing_authored_calls:
++                raise ValueError(
++                    "conditional external symbols lack authored call targets: "
++                    + ", ".join(
++                        f"{module_id}:{name}" for name in missing_authored_calls
++                    )
++                )
+         calls = _calls(module_id, source_lines, item.get("declared_calls", []))
+         if 'ownership_audit' in config:
+             active = {(s.file, s.line) for s in spans}
+             calls = tuple(c for c in calls if (c.source_file, c.source_line) in active or c.kind in (CallKind.FIXED_JUMP, CallKind.INDIRECT))
+         routine_config = {str(record["name"]): record for record in item.get("routines", [])}
+-        external_symbols = {str(value) for value in item.get("external_symbols", [])}
+-        declared_external_symbols.extend((module_id, name) for name in external_symbols)
++        external_symbols = set(external_names) | set(conditional_external_names)
++        declared_external_symbols.extend((module_id, name) for name in external_names)
++        active_conditional_external_symbols.update(
++            (module_id, edge.target)
++            for edge in calls
++            if edge.target in conditional_external_names
++            and edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT)
++        )
+         required: dict[str, set[str]] = {}
+         for edge in calls:
+             if edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT) and edge.target not in external_symbols:
+@@ -411,7 +471,9 @@
+         )
+     unknown_externals = sorted(
+         f"{module_id}:{name}"
+-        for module_id, name in declared_external_symbols
++        for module_id, name in (
++            declared_external_symbols + list(active_conditional_external_symbols)
++        )
+         if name not in authored_label_names
+     )
+     if unknown_externals:
+--- a/scripts/test_source_audit.py
++++ b/scripts/test_source_audit.py
+@@ -148,4 +148,156 @@
+         self.receipt['state']='building'; self.write()
+         with self.assertRaisesRegex(ValueError,'incomplete'): validate(self.root,self.build,self.config)
+ 
++class ConditionalExternalTests(unittest.TestCase):
++    symbol = 'PRES_MAIN_JOY_AXIS'
++
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++        self.root = Path(self.tmp.name)
++        for name in ('src', 'scripts', 'assets', 'tiled', 'build'):
++            (self.root / name).mkdir()
++
++    def reference(self, *, active=False, imported=False, authored_call=True,
++                  external=(), conditional=None, ownership_audit=True,
++                  listing_mode='present'):
++        conditional = [self.symbol] if conditional is None else list(conditional)
++        lines = []
++        if imported:
++            lines.append('        include "keybinding-imports.inc"')
++        lines.append('        ifne INPUT_JOYSTICK')
++        call_line = len(lines) + 1
++        if authored_call:
++            lines.append('        jsr ' + self.symbol)
++        lines.extend(('        endc', 'key_scan', '        rts'))
++        source = self.root / 'src/keybinding_runtime.s'
++        source.write_text('\n'.join(lines) + '\n', encoding='utf-8')
++        build = self.root / 'build'
++        if imported:
++            (build / 'keybinding-imports.inc').write_text(
++                self.symbol + ' equ $C100\n', encoding='utf-8'
++            )
++
++        listing = build / 'keybinding-runtime.lst'
++        return_line = len(lines)
++        emitted = []
++        address = 0xBA00
++        if active:
++            emitted.append(
++                f'BA00 BDC100 (src/keybinding_runtime.s):{call_line:05d} '
++                f'        jsr {self.symbol}'
++            )
++            address += 3
++        if listing_mode != 'missing':
++            if listing_mode == 'empty':
++                listing.write_text('', encoding='utf-8')
++            else:
++                emitted.append(
++                    f'{address:04X} 39 (src/keybinding_runtime.s):{return_line:05d} '
++                    '        rts'
++                )
++                listing.write_text('\n'.join(emitted) + '\n', encoding='utf-8')
++
++        map_file = build / 'keybinding-runtime.map'
++        map_file.write_text(
++            f'Symbol: key_scan (keybinding-runtime.bin) = {address:04X}\n', encoding='utf-8'
++        )
++        binary = build / 'keybinding-runtime.bin'
++        binary.write_bytes(b'\xBD\xC1\x00\x39' if active else b'\x39')
++        artifacts = {
++            'keybinding-runtime.bin': digest(binary),
++            'keybinding-runtime.map': digest(map_file),
++        }
++        invocation = {
++            'source': 'src/keybinding_runtime.s',
++            'output': 'keybinding-runtime.bin',
++            'listing': 'keybinding-runtime.lst',
++            'map': 'keybinding-runtime.map',
++        }
++        generated_inputs = {}
++        if listing_mode != 'missing':
++            artifacts['keybinding-runtime.lst'] = digest(listing)
++        if imported:
++            alias = build / 'keybinding-imports.inc'
++            generated_inputs['build/keybinding-imports.inc'] = digest(alias)
++            artifacts['keybinding-imports.inc'] = digest(alias)
++        receipt = {
++            'schema': 1,
++            'state': 'complete',
++            'profile': 'complete',
++            'revision': 'conditional-external-fixture',
++            'inputs': inputs(self.root),
++            'artifacts': artifacts,
++            'generated_inputs': generated_inputs,
++            'invocations': [invocation],
++        }
++        (build / 'source-build-receipt.json').write_text(
++            json.dumps(receipt), encoding='utf-8'
++        )
++
++        module = {
++            'id': 'keybinding-runtime',
++            'title': 'Keybinding fixture',
++            'source': 'src/keybinding_runtime.s',
++            'listing': 'keybinding-runtime.lst',
++            'map': 'keybinding-runtime.map',
++            'binary': 'keybinding-runtime.bin',
++            'external_symbols': list(external),
++            'conditional_external_symbols': conditional,
++        }
++        config = {
++            'title': 'Conditional external fixture',
++            'revision': 'fixture',
++            'modules': [module],
++        }
++        if ownership_audit:
++            config['ownership_audit'] = {'required': []}
++        return build_project_reference(config, self.root, build)
++
++    def test_keyboard_inactive_conditional_call_needs_no_import(self):
++        project = self.reference(active=False, imported=False)
++        self.assertFalse(any(call.target == self.symbol for call in project.modules[0].calls))
++
++    def test_joystick_active_conditional_call_requires_and_accepts_import(self):
++        project = self.reference(active=True, imported=True)
++        self.assertTrue(any(call.target == self.symbol for call in project.modules[0].calls))
++
++    def test_active_call_without_import_fails_unknown_target(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=True, imported=False)
++
++    def test_old_unconditional_declaration_rejects_inactive_call(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=False, imported=False, external=[self.symbol], conditional=[])
++
++    def test_unknown_unconditional_external_still_fails(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=False, imported=False, external=['UNKNOWN_TARGET'], conditional=[])
++
++    def test_conditional_external_must_name_an_authored_call(self):
++        with self.assertRaisesRegex(ValueError, 'lack authored call targets'):
++            self.reference(active=False, imported=False, authored_call=False)
++
++    def test_conditional_declarations_reject_duplicates_and_overlap(self):
++        with self.assertRaisesRegex(ValueError, 'duplicate external symbol declaration'):
++            self.reference(conditional=[self.symbol, self.symbol])
++        with self.assertRaisesRegex(ValueError, 'both unconditional and conditional'):
++            self.reference(external=[self.symbol])
++
++    def test_conditional_external_rejects_unvalidated_receipt(self):
++        with self.assertRaisesRegex(ValueError, 'validated ownership-audit receipt'):
++            self.reference(ownership_audit=False)
++
++    def test_conditional_external_rejects_missing_and_empty_listing(self):
++        with self.assertRaises(ValueError):
++            self.reference(listing_mode='missing')
++        with self.assertRaises(ValueError):
++            self.reference(listing_mode='empty')
++
+ if __name__=='__main__': unittest.main()

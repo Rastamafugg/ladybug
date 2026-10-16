@@ -1,0 +1,22 @@
+FEAT-010 conditional external repair candidate preparation
+
+Cause: source-reference normalization validates every declared external unconditionally, while it filters ordinary call edges by parsed listing spans. The keyboard source contains the joystick-only PRES_MAIN_JOY_AXIS call in an inactive INPUT_JOYSTICK block; the keyboard listing/generated imports omit it. The unconditional declaration therefore fails the strict authored/imported-label check even though the edge is inactive. Evidence pointers: frozen helper capsule scripts/source_reference.json and scripts/source_reference/normalize.py; retained keyboard build failure 3af2e1a, built from helper candidate f36b2e4.
+
+Candidate design: declare only PRES_MAIN_JOY_AXIS as conditional for keybinding-runtime. Keep PRES_MAIN_SHARED_MASK and all other externals unconditional. The normalizer requires the conditional target to occur in authored calls, rejects duplicate/overlapping declarations, and requires a validated ownership-audit receipt plus an existing, nonempty parsed listing. Only listing-active conditional call edges enter the unchanged strict imported/authored-label validation; an active edge without an import still fails with the existing unknown-target error. No generic unused-external waiver or generated alias is introduced.
+
+Changed candidate paths: scripts/source_reference.json (676241075bc5249528c142cc25837121c86bffa802085ada893a7ca22473d86f), scripts/source_reference/normalize.py (2e58b771e0c71665b16d5a6bb93ce6541052db0e8d3bd2a7c288e4b726212bdd), scripts/test_source_audit.py (1340ab9cdddc7edd9624c41bdad6aaa8c0c3b517dd20671f5152731885e81f1f). These are the only source differences from the failed helper capsule. The copied closure has 266 source inputs and 379 HTML files (645 total), with no build tree. The helper implementation source is preserved at its approved fixture hash 60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7.
+
+Modeled testcase inventory in the existing unittest file:
+- keyboard inactive conditional call passes without import;
+- joystick active conditional call passes with generated import;
+- active call without import fails the existing unknown-target check;
+- old unconditional declaration rejects the inactive-call fixture;
+- unknown unconditional external still fails;
+- conditional external absent from authored calls fails;
+- duplicate and overlapping declarations fail;
+- missing validated receipt fails;
+- missing and empty parsed listings fail.
+
+The active modeled listing/binary/map are internally consistent: JSR bytes BD C1 00 at BA00, RTS at BA03, key_scan at BA03. Inactive listing/binary/map contain RTS at BA00. Synthetic receipt data exists only inside the temporary test fixture.
+
+Candidate patch SHA-256: fd4301a4793db82fa3521c57070214e34f7425b0478de6fc1ad1639fb0440fc2. Manifest SHA-256: c205d251787c491b033585a99480678c59650e25796941ec22d738061b014ac9. AST and JSON parse checks passed. No project test, generator, assembler, build, runtime, Git operation, or canonical wiki write was performed. Parent owns baseline/candidate qualification and the bounded keyboard build/postphase.
