@@ -1,0 +1,172 @@
+// One renewed Options case. Parent freezes and executes; no retry.
+const sid = "cea3c44d"; // Parent must revalidate this blank session before freeze.
+const base = "/mnt/e/projects/ladybug/repro/feat010-cold-menu-probes-20261016";
+const trace = [];
+let started = 0, observations = 0, outcome = "INCOMPLETE", failure = null, cleanupFailed = false;
+function remaining() { return 45000 - (Date.now() - started); }
+function requireTime(ms) { if (remaining() < ms + 8000) throw Error("Shared deadline reserve reached"); }
+function body(r) { return r.structuredContent && r.structuredContent.result !== undefined ? r.structuredContent.result : r.content.filter(x=>x.type==="text").map(x=>x.text).join("\n"); }
+async function host(py, cleanup=false) {
+  if (started && !cleanup) requireTime(10000);
+  const r = await tools.exec_command({cmd:"@'\n"+py+"\n'@ | wsl -d Ubuntu --exec timeout --kill-after=0.1s "+(cleanup ? "1.5" : "8")+"s python3 -",yield_time_ms:10000,max_output_tokens:1800});
+  if (r.session_id || r.exit_code !== 0) throw Error("Host command incomplete: "+r.output);
+  return r.output.trim();
+}
+async function cmd(c) {
+  requireTime(7000);
+  const r = await tools.mcp__gdb_mcp__exec_command({session_id:sid,command:c,timeout:2});
+  trace.push({at_ms:Date.now()-started,command:c,response:r});
+  if (r.isError || /ERROR:|\^error|Cannot access memory/i.test(String(body(r)))) throw Error("GDB command failed: "+c);
+  return String(body(r));
+}
+const validateGdb = [
+ "from pathlib import Path","import os,signal,json",
+ "p=Path('/proc/1527'); s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+ "assert t[19]=='2904254' and t[1]=='13', 'GDB process identity changed'",
+ "assert os.readlink(p/'exe')=='/usr/local/bin/m6809-gdb'",
+ "assert (p/'cmdline').read_bytes().split(b'\\0')[:3]==[b'gdb',b'--interpreter=mi2',b'--quiet']",
+ "assert b'gdb-mcp' in Path('/proc/13/cmdline').read_bytes()"
+].join("\n");
+async function resumeExpected(expectedPC) {
+  requireTime(10000);
+  if (++observations > 12) throw Error("Observation cap");
+  let result, commandError;
+  try { result=await tools.mcp__gdb_mcp__continue_exec({session_id:sid,timeout:5}); } catch(e) { commandError=e; }
+  trace.push({at_ms:Date.now()-started,continue_result:result,expectedPC});
+  if (commandError) throw commandError;
+  if (result.isError) throw Error("Expected-breakpoint continue failed or timed out");
+  if (!/breakpoint-hit/i.test(String(body(result)))) throw Error("Expected natural breakpoint not reported");
+  const sync=await cmd("echo COLD_MENU_STOP_SYNC");
+  if (!sync.includes("COLD_MENU_STOP_SYNC")) throw Error("Observer stop response not synchronized");
+  const raw=await cmd("p/x $pc");
+  const match=raw.match(/=\s*0x([0-9a-f]+)/i);
+  if (!match) throw Error("PC response not understood: "+raw);
+  const pc=parseInt(match[1],16);
+  if (pc!==expectedPC) {
+    await snapshot("unexpected",false);
+    throw Error("First unexpected stop: "+pc.toString(16));
+  }
+  return pc;
+}
+async function resumeWitness() {
+  requireTime(14000);
+  if (++observations > 12) throw Error("Observation cap");
+  let active=true, fired=false, timerId, finishTimer;
+  const timer=new Promise(resolve=>{
+    finishTimer=resolve;
+    timerId=setTimeout(async()=>{
+      fired=true;
+      try {
+        if(active) {
+          const output=await host(validateGdb+"\nos.kill(1527,signal.SIGINT)\nprint('owned GDB signalled')");
+          trace.push({at_ms:Date.now()-started,control:output});
+        }
+        resolve(null);
+      } catch(e) { resolve(String(e)); }
+    },4000);
+  });
+  let result, commandError;
+  try { result=await tools.mcp__gdb_mcp__continue_exec({session_id:sid,timeout:5}); } catch(e) { commandError=e; }
+  finally { active=false; if(!fired) { clearTimeout(timerId); finishTimer(null); } }
+  const controlError=await timer;
+  trace.push({at_ms:Date.now()-started,continue_result:result,expectedPC:null});
+  if(commandError) throw commandError;
+  if(controlError || result.isError) throw Error(controlError || "Final witness continue failed/timeout");
+  const stopBody=String(body(result));
+  const signalStop=/signal-received|SIGINT/i.test(stopBody);
+  if(fired && !signalStop) throw Error("Timer/natural-stop race; observer state incomplete");
+  const sync=await cmd("echo COLD_MENU_STOP_SYNC");
+  if(!sync.includes("COLD_MENU_STOP_SYNC")) throw Error("Observer stop response not synchronized");
+  const raw=await cmd("p/x $pc");
+  const match=raw.match(/=\s*0x([0-9a-f]+)/i);
+  if(!match) throw Error("PC response not understood: "+raw);
+  const pc=parseInt(match[1],16);
+  if(!fired || !signalStop) {
+    await snapshot("unexpected",false);
+    throw Error("Final witness did not end at the owned timer signal: "+pc.toString(16));
+  }
+  return pc;
+}
+async function binding(name,file) {
+  requireTime(3000);
+  const py=[
+    "import sys,json,hashlib","from pathlib import Path",
+    "sys.path.insert(0,"+JSON.stringify(base)+")",
+    "from binding import expected_bindings,classify_binding",
+    "e=expected_bindings()["+JSON.stringify(name)+"]",
+    "b=Path("+JSON.stringify(base+"/"+file)+").read_bytes()",
+    "o=dict(e,length=len(b),sha256=hashlib.sha256(b).hexdigest())",
+    "r=classify_binding(e,o)","print(json.dumps(r))",
+    "assert r['accepted'], 'Live binding mismatch'"
+  ].join("\n");
+  const response=await host(py);trace.push({at_ms:Date.now()-started,binding:name,response});
+}
+async function snapshot(label,checkModule) {
+  for (const c of ["p/x $pc","p/x $a","x/2xb 0x00a5","x/4xb 0x008f","x/2xb 0x0096","x/2xb 0x0098","x/8xb 0xffa0","x/8xb $pc","x/8xb $s"])
+    await cmd(c);
+  await cmd("dump binary memory "+base+"/options-r2-"+label+"-module.bin 0x1900 0x1df7");
+  await cmd("dump binary memory "+base+"/options-r2-"+label+"-helper.bin 0x0300 0x06aa");
+  await cmd("dump binary memory "+base+"/options-r2-"+label+"-state.bin 0x00a5 0x00a7");
+  if(checkModule) await binding("presentation","options-r2-"+label+"-module.bin");
+}
+await host(validateGdb+"\nimport sys,socket\nsys.path.insert(0,"+JSON.stringify(base)+")\nfrom binding import verify_static_capsule\nassert not verify_static_capsule(), 'Capsule identity changed'\nsock=socket.socket(); sock.bind(('127.0.0.1',65522)); sock.close()\nprint('prepared GDB and capsule identity confirmed; port unused')");
+started=Date.now();
+try {
+  trace.push({phase:"launch",start_utc:new Date(started).toISOString()});
+  const launch=[
+    "from pathlib import Path","import json,subprocess,time,os",
+    "d=Path("+JSON.stringify(base)+"); m=json.loads((d/'manifest.json').read_text())",
+    "assert not (d/'options-r2-owned.json').exists(), 'No retry: owned launch already exists'",
+    "log=(d/'options-r2-xroar.log').open('wb')",
+    "p=subprocess.Popen([m['launch']['executable']]+m['launch']['arguments'],stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)",
+    "q=Path('/proc')/str(p.pid); s=(q/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+    "o={'pid':p.pid,'start_ticks':t[19],'exe':os.readlink(q/'exe')}",
+    "(d/'options-r2-owned.json').write_text(json.dumps(o))","print(json.dumps(o))"
+  ].join("\n");
+  trace.push({launch:await host(launch)});
+  await new Promise(resolve=>setTimeout(resolve,500));
+  await cmd("target remote :65522");
+  await cmd("tbreak *0xc116"); await resumeExpected(0xc116);
+  await cmd("dump binary memory "+base+"/options-r2-resident.bin 0xc000 0xfe00");
+  await binding("resident_bank1","options-r2-resident.bin");
+  await cmd("tbreak *0x1900"); await resumeExpected(0x1900);
+  await cmd("dump binary memory "+base+"/options-r2-initial-module.bin 0x1900 0x1df7");
+  await binding("presentation","options-r2-initial-module.bin");
+  await cmd("tbreak *0x1a78 if $a == 6"); await resumeExpected(0x1a78);
+  await snapshot("selected",true);
+  await cmd("delete breakpoints");
+  await resumeWitness(); await snapshot("witness-stop",true);
+  outcome="STATE CAPTURED; MANUAL WITNESS PENDING";
+} catch(e) {
+  failure=String(e); trace.push({failure,at_ms:Date.now()-started});
+} finally {
+  try {
+    trace.push({cleanup:await host([
+      "from pathlib import Path","import os,signal,json,time",
+      "d=Path("+JSON.stringify(base)+"); f=d/'options-r2-owned.json'",
+      "if f.exists():",
+      " o=json.loads(f.read_text()); p=Path('/proc')/str(o['pid'])",
+      " if p.exists():",
+      "  s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+      "  assert t[19]==o['start_ticks'] and os.readlink(p/'exe')==o['exe'], 'Owned emulator identity mismatch'",
+      "  os.kill(o['pid'],signal.SIGTERM)",
+      "  until=time.monotonic()+0.5",
+      "  while p.exists() and time.monotonic()<until: time.sleep(0.05)",
+      "  if p.exists():",
+      "   s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+      "   if t[0]!='Z':",
+      "    assert t[19]==o['start_ticks'] and os.readlink(p/'exe')==o['exe']",
+      "    os.kill(o['pid'],signal.SIGKILL)",
+      "print('Owned emulator cleanup requested')"
+    ].join("\n"),true)});
+  } catch(e) { cleanupFailed=true; trace.push({cleanup_error:String(e)}); }
+  try { const closed=await tools.mcp__gdb_mcp__stop_session({session_id:sid}); trace.push({gdb_cleanup:closed}); if(closed.isError) throw Error("GDB cleanup failed"); }
+  catch(e) { cleanupFailed=true; trace.push({gdb_cleanup_error:String(e)}); }
+  const report={outcome,failure,observations,elapsed_ms:Date.now()-started,limit_ms:45000,trace};
+  if(cleanupFailed) report.outcome="INCOMPLETE: OWNED CLEANUP FAILED";
+  if(report.elapsed_ms>45000) report.outcome="INCOMPLETE: WHOLE-PHASE DEADLINE MISSED";
+  const encoded=JSON.stringify(JSON.stringify(report));
+  await host("from pathlib import Path\nPath("+JSON.stringify(base+"/options-r2-result.json")+").write_text("+encoded+")\nprint('Options evidence retained')",true);
+  store("coldMenuOptionsR2Result",report);
+  text(report);
+}
