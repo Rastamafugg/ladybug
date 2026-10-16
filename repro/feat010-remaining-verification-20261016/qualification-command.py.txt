@@ -1,0 +1,301 @@
+from pathlib import Path
+import ast
+import copy
+import hashlib
+import json
+import re
+import sys
+import time
+
+started = time.monotonic()
+project = Path("/mnt/e/projects/ladybug")
+fixture = project / "repro/feat010-remaining-verification-20261016"
+capsule = project / "repro/feat010-source-documentation-repair-20261016/capsule"
+source_manifest_path = fixture / "source-manifest.json"
+postdriver_path = fixture / "post-command.py.txt"
+patch_path = project / "repro/feat010-direct-page-verification-20261016/maintained-flow-assertions.patch"
+accepted_receipt_path = capsule / "build/source-build-receipt.json"
+oracle_path = project / "repro/feat010-resume-20261015/recovery-proposal.json"
+expected_oracle_sha = "7c1ec1f9b237ea284be8e8428eb421a5688cc51ea05db153328e6d2a703db687"
+profiles = {
+    "joystick-adaptive": {
+        "input": "joystick",
+        "adaptive": 1,
+        "root": "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/joystick-adaptive",
+        "config": "build/source-reference-adaptive.json",
+    },
+    "keyboard-nonadaptive": {
+        "input": "keyboard",
+        "adaptive": 0,
+        "root": "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/keyboard-nonadaptive",
+        "config": "scripts/source_reference.json",
+    },
+    "keyboard-adaptive": {
+        "input": "keyboard",
+        "adaptive": 1,
+        "root": "/mnt/e/projects/ladybug",
+        "config": "build/source-reference-adaptive.json",
+    },
+}
+result = {
+    "phase": "FEAT-010 source/setup qualification",
+    "deadline_seconds": 60,
+    "builds": 0,
+    "runtime_probes": 0,
+    "controls": [],
+}
+
+
+def require(value, message):
+    if not value:
+        raise AssertionError(message)
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def expected_rejection(call, label):
+    try:
+        call()
+    except (ValueError, OSError, KeyError, AssertionError):
+        result["controls"].append({"name": label, "result": "expected rejection"})
+        return
+    raise AssertionError(label + " unexpectedly accepted")
+
+
+def guarded(tree, diagnostic):
+    hits = [
+        node for node in ast.walk(tree)
+        if isinstance(node, ast.If)
+        and len(node.body) == 1
+        and isinstance(node.body[0], ast.Raise)
+        and any(
+            isinstance(value, ast.Constant) and value.value == diagnostic
+            for value in ast.walk(node.body[0])
+        )
+    ]
+    require(len(hits) == 1, "unique maintained assertion: " + diagnostic)
+    return hits[0]
+
+
+def masked_ast(tree, nodes):
+    clone = copy.deepcopy(tree)
+    keys = {(node.lineno, node.col_offset) for node in nodes}
+    found = 0
+    for node in ast.walk(clone):
+        if isinstance(node, ast.If) and (node.lineno, node.col_offset) in keys:
+            node.test = ast.Constant(value="APPROVED_PREDICATE_MASK")
+            found += 1
+    require(found == len(keys), "AST mask node count")
+    return ast.dump(clone)
+
+
+def apply_exact_patch(original, patch_bytes):
+    patch_lines = patch_bytes.splitlines(keepends=True)
+    hunks = []
+    index = 0
+    while index < len(patch_lines):
+        if patch_lines[index].startswith(b"@@"):
+            index += 1
+            old_lines = []
+            new_lines = []
+            while index < len(patch_lines) and not patch_lines[index].startswith(
+                (b"@@", b"--- ", b"+++ ")
+            ):
+                line = patch_lines[index]
+                if line.startswith(b"-"):
+                    old_lines.append(line[1:].rstrip(b"\r\n").decode("utf-8"))
+                elif line.startswith(b"+"):
+                    new_lines.append(line[1:].rstrip(b"\r\n").decode("utf-8"))
+                index += 1
+            if old_lines or new_lines:
+                hunks.append((old_lines, new_lines))
+        else:
+            index += 1
+    require(len(hunks) == 2 and all(len(a) == len(b) == 1 for a, b in hunks),
+            "maintained patch must contain exactly two one-line predicate changes")
+    rows = original.decode("utf-8").splitlines(keepends=True)
+    for old_lines, new_lines in hunks:
+        matches = [
+            i for i, row in enumerate(rows)
+            if row.rstrip("\r\n") == old_lines[0]
+        ]
+        require(len(matches) == 1, "unique maintained patch source line")
+        i = matches[0]
+        ending = "\r\n" if rows[i].endswith("\r\n") else "\n" if rows[i].endswith("\n") else ""
+        rows[i] = new_lines[0] + ending
+    return "".join(rows).encode("utf-8")
+
+
+try:
+    source_manifest = json.loads(source_manifest_path.read_text(encoding="utf-8"))
+    require(source_manifest["ticket"] == "FEAT-010", "source manifest ticket")
+    require(source_manifest["receipt_input_count"] == 266, "receipt source count")
+    require(source_manifest["wiki_html_count"] == 379, "wiki HTML closure count")
+    require(source_manifest["copied_file_count"] == 645, "source-only copied file count")
+    require(
+        source_manifest["accepted_receipt_sha256"]
+        == sha(capsule / "build/source-build-receipt.json"),
+        "accepted capsule receipt identity",
+    )
+    require(len(source_manifest["source_inputs"]) == 266, "complete source input manifest")
+    require(len(source_manifest["wiki_html"]) == 379, "complete wiki HTML manifest")
+    require(
+        source_manifest["root_source_delta_paths"]
+        == sorted(source_manifest["root_source_delta_paths"])
+        and len(source_manifest["root_source_delta_paths"]) == 14,
+        "reviewed 14-input root delta set",
+    )
+    required_deltas = {
+        "scripts/build.sh",
+        "scripts/build_presentation.py",
+        "scripts/shared_text.py",
+        "scripts/source_reference.json",
+        "scripts/source_reference/normalize.py",
+        "scripts/test_source_audit.py",
+        "scripts/verify_presentation.py",
+        "scripts/verify_presentation_flow.py",
+        "scripts/verify_shared_text.py",
+        "src/demo_runtime.s",
+        "src/keybinding_runtime.s",
+        "src/main.s",
+        "src/presentation_runtime.s",
+        "src/shared_text_stage.inc",
+    }
+    require(set(source_manifest["root_source_delta_paths"]) == required_deltas,
+            "root delta allowlist")
+    patch_headers = [
+        line[6:].decode("utf-8")
+        for line in (fixture / "integration.patch").read_bytes().splitlines()
+        if line.startswith(b"--- a/")
+    ]
+    require(
+        set(patch_headers) == required_deltas | {"wiki/internal/implementation/routine-catalog.html"},
+        "integration patch path allowlist",
+    )
+    require(
+        sha(patch_path) == source_manifest["maintained_patch"]["sha256"],
+        "approved cumulative patch identity",
+    )
+    original_flow = (capsule / "scripts/verify_presentation_flow.py").read_bytes()
+    expected_flow = apply_exact_patch(original_flow, patch_path.read_bytes())
+    meta_diagnostic = "presentation flow proof: conditional joystick dependency is undocumented"
+    budget_diagnostic = "presentation flow proof: load budget is not memory-backed"
+    original_tree = ast.parse(original_flow)
+    expected_tree = ast.parse(expected_flow)
+    original_meta = guarded(original_tree, meta_diagnostic)
+    updated_meta = guarded(expected_tree, meta_diagnostic)
+    original_budget = guarded(original_tree, budget_diagnostic)
+    updated_budget = guarded(expected_tree, budget_diagnostic)
+    require(masked_ast(original_tree, [original_meta, original_budget])
+            == masked_ast(expected_tree, [updated_meta, updated_budget]),
+            "maintained verifier changes outside the two approved predicates")
+    expected_meta = ast.parse(
+        'if ("PRES_MAIN_JOY_AXIS" not in key_module.get("conditional_external_symbols", []) '
+        'or "PRES_MAIN_JOY_AXIS" in key_module.get("external_symbols", [])):\n    pass'
+    ).body[0]
+    expected_budget = ast.parse(
+        'if any(re.search(r"^[ \\t]+" + opcode + r"[ \\t]+<?PRES_ROWS[ \\t]*(?:;[^\\r\\n]*)?\\r?$", '
+        'load_source, re.M) is None for opcode in ("sta", "dec")):\n    pass'
+    ).body[0]
+    require(ast.dump(updated_meta.test) == ast.dump(expected_meta.test),
+            "conditional external-symbol predicate")
+    require(ast.dump(updated_budget.test) == ast.dump(expected_budget.test),
+            "direct-page/memory-backed load-budget predicate")
+
+    post_tree = ast.parse(postdriver_path.read_text(encoding="utf-8"))
+    namespace = {"__name__": "_feat010_static_qualification", "__file__": str(postdriver_path)}
+    exec(compile(post_tree, str(postdriver_path), "exec"), namespace)
+    bind_selection = namespace["bind_selection"]
+    validate_receipt_profile = namespace["validate_receipt_profile"]
+    validate_oracle_inventory = namespace["validate_oracle_inventory"]
+    for profile, spec in profiles.items():
+        binding = bind_selection(profile, spec["root"], spec["config"])
+        require(binding["input"] == spec["input"] and binding["adaptive"] == spec["adaptive"],
+                "positive root/profile/config binding: " + profile)
+        if profile != "keyboard-adaptive":
+            root_path = Path(spec["root"])
+            require(not (root_path / "build").exists(),
+                    "source-only clone has no pre-existing build directory: " + profile)
+            expected_inputs = source_manifest["source_inputs"]
+            for rel, item in expected_inputs.items():
+                require(
+                    sha(root_path / rel) == item[profile + "_proposed_sha256"],
+                    "fresh source closure identity: " + profile + ":" + rel,
+                )
+            expected_files = set(expected_inputs) | set(source_manifest["wiki_html"])
+            actual_files = {
+                path.relative_to(root_path).as_posix()
+                for path in root_path.rglob("*")
+                if path.is_file()
+            }
+            require(actual_files == expected_files, "source-only clone file inventory: " + profile)
+            for rel, item in source_manifest["wiki_html"].items():
+                require(
+                    sha(root_path / rel) == item[profile + "_proposed_sha256"],
+                    "fresh wiki HTML closure identity: " + profile + ":" + rel,
+                )
+            if spec["adaptive"]:
+                require(not (root_path / spec["config"]).exists(),
+                        "adaptive generated config is absent before build: " + profile)
+            else:
+                config = json.loads((root_path / spec["config"]).read_text(encoding="utf-8"))
+                require(len(config.get("modules", [])) == 13,
+                        "nonadaptive source-reference config has 13 modules")
+    expected_rejection(
+        lambda: bind_selection(
+            "joystick-adaptive",
+            "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/keyboard-nonadaptive",
+            "build/source-reference-adaptive.json",
+        ),
+        "wrong ROOT",
+    )
+    expected_rejection(
+        lambda: bind_selection(
+            "keyboard-adaptive-typo",
+            "/mnt/e/projects/ladybug",
+            "build/source-reference-adaptive.json",
+        ),
+        "wrong profile",
+    )
+    expected_rejection(
+        lambda: bind_selection(
+            "keyboard-nonadaptive",
+            profiles["keyboard-nonadaptive"]["root"],
+            "build/source-reference-adaptive.json",
+        ),
+        "wrong source-reference config",
+    )
+    accepted_receipt = json.loads(accepted_receipt_path.read_text(encoding="utf-8"))
+    validate_receipt_profile(accepted_receipt, profiles["keyboard-adaptive"])
+    expected_rejection(
+        lambda: validate_receipt_profile(accepted_receipt, profiles["joystick-adaptive"]),
+        "wrong fresh-receipt input/adaptive flags",
+    )
+    validate_oracle_inventory(oracle_path)
+    expected_rejection(
+        lambda: validate_oracle_inventory(fixture / "missing-32-site-oracle.json"),
+        "missing 32-site oracle",
+    )
+    result.update(
+        result="PASS",
+        full_flow_executed=False,
+        source_clones_checked=2,
+        copied_receipts=0,
+        copied_build_artifacts=0,
+        preserved_product_roots=3,
+        maintained_predicates=2,
+        integration_patch_paths=len(patch_headers),
+    )
+except Exception as exc:
+    result.update(result="FAIL", error=repr(exc))
+
+result["elapsed_seconds"] = time.monotonic() - started
+if result["elapsed_seconds"] > 60:
+    result.update(result="FAIL", error="entire qualification exceeded 60 seconds")
+(fixture / "qualification-result.json").write_text(
+    json.dumps(result, indent=2) + "\n", encoding="utf-8"
+)
+print(json.dumps(result, indent=2))
+sys.exit(0 if result["result"] == "PASS" else 1)

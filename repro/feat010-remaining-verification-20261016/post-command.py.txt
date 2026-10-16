@@ -1,0 +1,505 @@
+import argparse
+import ast
+import hashlib
+import importlib.util
+import json
+import re
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+PROJECT = Path("/mnt/e/projects/ladybug")
+FIXTURE = PROJECT / "repro/feat010-remaining-verification-20261016"
+SOURCE_MANIFEST_PATH = FIXTURE / "source-manifest.json"
+ORACLE_PATH = PROJECT / "repro/feat010-resume-20261015/recovery-proposal.json"
+ORACLE_SHA256 = "7c1ec1f9b237ea284be8e8428eb421a5688cc51ea05db153328e6d2a703db687"
+ACCEPTED_CAPSULE = PROJECT / "repro/feat010-source-documentation-repair-20261016/capsule"
+EXPECTED_CLOCK_SHA256 = "b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45e"
+EXPECTED_ROM_SHA256 = "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53"
+PROFILE_BINDINGS = {
+    "joystick-adaptive": {
+        "root": "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/joystick-adaptive",
+        "input": "joystick",
+        "adaptive": 1,
+        "config": "build/source-reference-adaptive.json",
+        "source_manifest_key": "joystick-adaptive",
+    },
+    "keyboard-nonadaptive": {
+        "root": "/mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/keyboard-nonadaptive",
+        "input": "keyboard",
+        "adaptive": 0,
+        "config": "scripts/source_reference.json",
+        "source_manifest_key": "keyboard-nonadaptive",
+    },
+    "keyboard-adaptive": {
+        "root": "/mnt/e/projects/ladybug",
+        "input": "keyboard",
+        "adaptive": 1,
+        "config": "build/source-reference-adaptive.json",
+        "source_manifest_key": "keyboard-adaptive",
+    },
+}
+ACTIVE_RESULT = None
+ACTIVE_CONTEXT = None
+
+
+class SetupFailure(Exception):
+    pass
+
+
+class ProductFailure(Exception):
+    pass
+
+
+def sha(path):
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def bind_selection(profile_id, root_text, config_rel):
+    spec = PROFILE_BINDINGS.get(profile_id)
+    if spec is None:
+        raise ValueError("profile is outside the frozen three-root binding")
+    if Path(root_text).resolve().as_posix() != Path(spec["root"]).resolve().as_posix():
+        raise ValueError("ROOT does not match the selected profile")
+    if config_rel != spec["config"]:
+        raise ValueError("source-reference config does not match the selected profile")
+    return spec
+
+
+def validate_oracle_inventory(path):
+    path = Path(path)
+    if not path.is_file():
+        raise ValueError("32-site direct operand oracle is missing")
+    if sha(path) != ORACLE_SHA256:
+        raise ValueError("32-site direct operand oracle identity changed")
+    sites = json.loads(path.read_text(encoding="utf-8"))["sites"]
+    if len(sites) != 32 or len({item["n"] for item in sites}) != 32:
+        raise ValueError("direct operand oracle does not contain exactly 32 unique sites")
+    return sites
+
+
+def validate_receipt_profile(receipt, spec):
+    if receipt.get("state") != "complete" or receipt.get("profile") != "complete":
+        raise ValueError("fresh receipt is not a complete profile")
+    relevant = {
+        "src/main.s",
+        "src/presentation_runtime.s",
+        "src/keybinding_runtime.s",
+    }
+    rows = [
+        row for row in receipt.get("invocations", [])
+        if row.get("source") in relevant
+    ]
+    if not rows:
+        raise ValueError("fresh receipt has no profile-bearing module invocations")
+    adaptive_values = set()
+    input_values = set()
+    for row in rows:
+        args = [str(value) for value in row.get("arguments", [])]
+        adaptive_values.update(
+            match.group(1) for value in args
+            if (match := re.fullmatch(r"-DADAPTIVE_RENDERING=([01])", value))
+        )
+        input_values.update(
+            match.group(1) for value in args
+            if (match := re.fullmatch(r"-DINPUT_JOYSTICK=([01])", value))
+        )
+    if adaptive_values != {str(spec["adaptive"])}:
+        raise ValueError("fresh receipt adaptive-rendering flags do not match profile")
+    expected_joystick = "1" if spec["input"] == "joystick" else "0"
+    if input_values != {expected_joystick}:
+        raise ValueError("fresh receipt joystick-input flags do not match profile")
+    return {
+        "adaptive_rendering": sorted(adaptive_values),
+        "input_joystick": sorted(input_values),
+        "profile": receipt["profile"],
+    }
+
+
+def setup_require(value, message):
+    if not value:
+        raise SetupFailure(message)
+
+
+def product_require(value, message):
+    if not value:
+        raise ProductFailure(message)
+
+
+def read_symbols(path):
+    return {
+        name: int(value, 16)
+        for name, value in re.findall(
+            r"^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$",
+            path.read_text(encoding="ascii"),
+            re.M,
+        )
+    }
+
+
+def verify_source_closure(root, source_manifest, key, receipt):
+    expected = source_manifest["source_inputs"]
+    if len(expected) != 266:
+        raise SetupFailure("frozen source manifest does not contain 266 inputs")
+    receipt_inputs = receipt.get("inputs", {})
+    if set(receipt_inputs) != set(expected):
+        raise SetupFailure("fresh receipt source inventory differs from the frozen 266 inputs")
+    for rel, item in expected.items():
+        wanted = item[key + "_proposed_sha256"]
+        if receipt_inputs[rel] != wanted:
+            raise SetupFailure("fresh receipt input hash differs from proposed source: " + rel)
+
+
+def identity_snapshot(root, spec, config_path, source_manifest):
+    build = root / "build"
+    receipt_path = build / "source-build-receipt.json"
+    config_path = Path(config_path)
+    provenance_path = root / "scripts/source_reference/provenance.py"
+    validator_spec = importlib.util.spec_from_file_location(
+        "_feat010_remaining_provenance", provenance_path
+    )
+    if validator_spec is None or validator_spec.loader is None:
+        raise SetupFailure("read-only provenance validator cannot be loaded")
+    validator = importlib.util.module_from_spec(validator_spec)
+    sys.dont_write_bytecode = True
+    validator_spec.loader.exec_module(validator)
+    receipt = validator.validate(
+        root, build, json.loads(config_path.read_text(encoding="utf-8"))
+    )
+    if not isinstance(receipt, dict):
+        raise SetupFailure("provenance validator returned no fresh receipt")
+    flags = validate_receipt_profile(receipt, spec)
+    verify_source_closure(
+        root, source_manifest, spec["source_manifest_key"], receipt
+    )
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    expected_modules = 16 if spec["adaptive"] else 13
+    if len(config.get("modules", [])) != expected_modules:
+        raise SetupFailure("selected source-reference config has the wrong module count")
+    rom_path = build / "ladybug.rom"
+    artifacts = receipt.get("artifacts", {})
+    if artifacts.get("ladybug.rom") != sha(rom_path):
+        raise SetupFailure("fresh receipt does not identify the current ROM")
+    return {
+        "root": root.resolve().as_posix(),
+        "profile": spec["source_manifest_key"],
+        "receipt_sha256": sha(receipt_path),
+        "config_sha256": sha(config_path),
+        "provenance_validator_sha256": sha(provenance_path),
+        "receipt_input_count": len(receipt["inputs"]),
+        "receipt_artifact_count": len(receipt["artifacts"]),
+        "config_module_count": len(config["modules"]),
+        "receipt_flags": flags,
+        "rom_sha256": sha(rom_path),
+    }
+
+
+def main():
+    global ACTIVE_RESULT, ACTIVE_CONTEXT
+    started = time.monotonic()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--profile", choices=sorted(PROFILE_BINDINGS), required=True)
+    parser.add_argument("--root", required=True)
+    args = parser.parse_args()
+    profile_id = args.profile
+    spec = bind_selection(profile_id, args.root, PROFILE_BINDINGS[profile_id]["config"])
+    root = Path(args.root).resolve()
+    evidence = FIXTURE
+    source_manifest = json.loads(SOURCE_MANIFEST_PATH.read_text(encoding="utf-8"))
+    setup_require(source_manifest.get("ticket") == "FEAT-010", "source manifest ticket")
+    setup_require(
+        source_manifest.get("profile_roots", {}).get(profile_id, {}).get("wsl_root")
+        == spec["root"],
+        "source-manifest root binding",
+    )
+    oracle_sites = validate_oracle_inventory(ORACLE_PATH)
+    build = root / "build"
+    config_path = root / spec["config"]
+    result = {
+        "phase": "FEAT-010 fresh-profile static postcheck",
+        "profile": profile_id,
+        "root": root.as_posix(),
+        "deadline_seconds": 60,
+        "flow_invocations": 0,
+        "oracle_sites": len(oracle_sites),
+        "product_assertions": [],
+    }
+    ACTIVE_RESULT = result
+    ACTIVE_CONTEXT = (root, spec, config_path, source_manifest)
+    provenance_before = identity_snapshot(root, spec, config_path, source_manifest)
+    result["provenance_before"] = provenance_before
+    remaining = 58 - (time.monotonic() - started)
+    if remaining <= 0:
+        raise SetupFailure("postphase deadline expired before maintained flow invocation")
+    try:
+        result["flow_invocations"] = 1
+        proc = subprocess.run(
+            [sys.executable, str(root / "scripts/verify_presentation_flow.py")],
+            cwd=root,
+            capture_output=True,
+            text=True,
+            timeout=remaining,
+            env={**__import__("os").environ, "PYTHONDONTWRITEBYTECODE": "1"},
+        )
+    except subprocess.TimeoutExpired as exc:
+        raise SetupFailure("maintained flow verifier exceeded the shared postphase deadline") from exc
+    flow_text = proc.stdout + proc.stderr
+    (evidence / ("post-" + profile_id + "-flow.log")).write_text(
+        flow_text, encoding="utf-8"
+    )
+    product_require(proc.returncode == 0, "maintained presentation flow assertion failed")
+    result["product_assertions"].append("maintained presentation flow")
+
+    symbols = read_symbols(build / "ladybug-highscore-helper.map")
+    fixed = {
+        "highscore_phase_tick": 0xAC40,
+        "logo_vbord_clock": 0xACAF,
+        "highscore_phase_helper_gap": 0xACFF,
+        "highscore_after_tile": 0xAD00,
+        "stage_panel_read_letters": 0xB062,
+        "stage_panel_draw": 0xB080,
+        "stage_panel_slice_entry": 0xB083,
+        "menu_scan_entry": 0xB086,
+        "menu_tick_entry": 0xB089,
+        "highscore_attract_tick": 0xB830,
+        "highscore_phase_helper_end": 0xB83E,
+    }
+    for name, value in fixed.items():
+        product_require(symbols.get(name) == value, "fixed helper entry: " + name)
+    helper = (build / "ladybug-highscore-helper.bin").read_bytes()
+    helper_end = symbols["highscore_phase_helper_end"]
+    product_require(
+        len(helper) == helper_end - 0xAC40 and helper_end <= 0xB880,
+        "high-score helper size or B880 boundary",
+    )
+    at = lambda address, count: helper[address - 0xAC40:address - 0xAC40 + count]
+    product_require(at(0xACFF, 1) == b"\x00", "high-score helper gap byte")
+    product_require(
+        hashlib.sha256(at(0xACAF, 80)).hexdigest() == EXPECTED_CLOCK_SHA256,
+        "80-byte logo VBlank clock",
+    )
+    word = lambda number: (number & 65535).to_bytes(2, "big")
+    wrapper = symbols["highscore_attract_tick"]
+    expected_wrapper = (
+        b"\x17"
+        + word(symbols["highscore_logo_tick"] - (wrapper + 3))
+        + b"\x96\xa5\x81\x02\x10\x26"
+        + word(symbols["highscore_phase_hold"] - (wrapper + 11))
+        + b"\x16"
+        + word(symbols["menu_tick"] - (wrapper + 14))
+    )
+    product_require(at(wrapper, 14) == expected_wrapper, "14-byte attract wrapper")
+    expected_prefix = (
+        b"\x96\xa6\x81"
+        + bytes([symbols["PRESENTATION_MAP_ATTRACT"]])
+        + b"\x10\x27"
+        + word(wrapper - 0xAC48)
+    )
+    product_require(at(0xAC40, 8) == expected_prefix, "high-score helper dispatch prefix")
+
+    sites = oracle_sites
+    listing = (build / "ladybug-presentation-runtime.lst").read_text(encoding="utf-8")
+    presentation = (build / "ladybug-presentation-runtime.bin").read_bytes()
+    for site in sites:
+        rows = [
+            match
+            for match in re.finditer(
+                r"^([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]{2,16})\s+\(([^)]+)\):(\d{5})",
+                listing,
+                re.M,
+            )
+            if int(match.group(4)) == site["source_line"]
+            and match.group(3).endswith("ntation_runtime.s")
+        ]
+        product_require(len(rows) == 1, "32-site listing row: " + str(site["n"]))
+        row = rows[0]
+        wanted = bytes.fromhex(site["after"])
+        product_require(bytes.fromhex(row.group(2)) == wanted, "32-site listing encoding: " + str(site["n"]))
+        offset = int(row.group(1), 16) - 0x1900
+        product_require(presentation[offset:offset + len(wanted)] == wanted, "32-site raw encoding: " + str(site["n"]))
+    result["product_assertions"].extend(
+        ["fixed entries", "80-byte clock", "direct-page raw/listing oracle (32 sites)"]
+    )
+
+    reference_map = read_symbols(build / "ladybug.map")
+    resident_used = reference_map["resident_end"] - 0xC000
+    resident_free = 8192 - resident_used
+    asset_used = reference_map["asset_end"] - reference_map["asset_start"]
+    product_require(resident_free >= 32, "resident minimum free bytes")
+    product_require(asset_used <= 7680, "asset owner cap")
+    presentation_bytes = len(presentation)
+    product_require(presentation_bytes <= 1280, "presentation owner cap")
+    instruction_bytes = (build / "ladybug-instruction-runtime.bin").stat().st_size
+    keybinding_bytes = (build / "ladybug-keybinding-runtime.bin").stat().st_size
+    highscore_bytes = (build / "ladybug-highscore-runtime.bin").stat().st_size
+    product_require(instruction_bytes <= 938, "instruction owner cap")
+    product_require(keybinding_bytes <= 1536, "keybinding owner cap")
+    product_require(highscore_bytes <= 920, "complete high-score owner cap")
+
+    coverage = json.loads(
+        (build / "source-reference/manifest.json").read_text(encoding="utf-8")
+    )["coverage"]
+    product_require(coverage["passed"], "fresh source-reference coverage")
+    product_require(
+        coverage["documented_routines"] == coverage["required_routines"]
+        and coverage["classified_labels"] == coverage["global_labels"]
+        and not coverage["missing_routines"]
+        and not coverage["missing_evidence"]
+        and not coverage["unclassified_labels"],
+        "fresh routine/label coverage completeness",
+    )
+    if profile_id == "keyboard-adaptive":
+        product_require(
+            (
+                coverage["documented_routines"],
+                coverage["required_routines"],
+                coverage["classified_labels"],
+                coverage["global_labels"],
+            )
+            == (319, 319, 4851, 4851),
+            "accepted keyboard/adaptive coverage counts",
+        )
+        historical = json.loads(
+            (ACCEPTED_CAPSULE / "build/source-build-receipt.json").read_text(
+                encoding="utf-8"
+            )
+        )
+        current_receipt = json.loads(
+            (build / "source-build-receipt.json").read_text(encoding="utf-8")
+        )
+        payloads = {
+            name: digest
+            for name, digest in historical["artifacts"].items()
+            if Path(name).suffix in (".bin", ".rom")
+        }
+        product_require(len(payloads) == 30, "accepted matching-profile payload inventory")
+        for name, digest in payloads.items():
+            product_require(sha(build / name) == digest, "accepted payload changed: " + name)
+        product_require(
+            sha(build / "ladybug.rom") == EXPECTED_ROM_SHA256,
+            "accepted keyboard/adaptive ROM identity",
+        )
+        product_require(
+            current_receipt["artifacts"].get("ladybug.rom") == EXPECTED_ROM_SHA256,
+            "keyboard/adaptive receipt ROM identity",
+        )
+        result["matching_profile_payloads_compared"] = 30
+        result["matching_profile_rom_sha256"] = EXPECTED_ROM_SHA256
+    else:
+        result["matching_profile_payloads_compared"] = 0
+        result["cross_profile_payload_hash_comparison"] = False
+
+    result["capacity"] = {
+        "resident_used": resident_used,
+        "resident_free": resident_free,
+        "resident_free_minimum": 32,
+        "assets_used": asset_used,
+        "assets_maximum": 7680,
+        "presentation_bytes": presentation_bytes,
+        "presentation_maximum": 1280,
+        "instruction_bytes": instruction_bytes,
+        "instruction_maximum": 938,
+        "keybinding_bytes": keybinding_bytes,
+        "keybinding_maximum": 1536,
+        "highscore_bytes": highscore_bytes,
+        "highscore_maximum": 920,
+        "highscore_helper_bytes": len(helper),
+        "highscore_helper_end": helper_end,
+        "highscore_helper_boundary": 0xB880,
+    }
+    result["fresh_coverage"] = coverage
+    result["rom_sha256"] = sha(build / "ladybug.rom")
+    result["product_assertions"].extend(
+        ["approved capacity caps", "complete fresh source-reference coverage"]
+    )
+    result["result"] = "PASS"
+    result["failure_class"] = None
+    result["provenance_after_attempted"] = True
+    result["provenance_after"] = identity_snapshot(
+        root, spec, config_path, source_manifest
+    )
+    setup_require(
+        result["provenance_before"] == result["provenance_after"],
+        "receipt/config/source provenance changed during postphase",
+    )
+    result["elapsed_seconds"] = time.monotonic() - started
+    setup_require(result["elapsed_seconds"] <= 60, "entire postphase exceeded 60 seconds")
+    return result
+
+
+if __name__ == "__main__":
+    started = time.monotonic()
+    report = {
+        "result": "FAIL",
+        "failure_class": "setup/observer failure",
+        "phase": "FEAT-010 fresh-profile static postcheck",
+        "deadline_seconds": 60,
+    }
+    try:
+        report.update(main())
+    except ProductFailure as exc:
+        if ACTIVE_RESULT is not None:
+            ACTIVE_RESULT.update(
+                result="FAIL",
+                failure_class="product assertion failure",
+                error=repr(exc),
+            )
+            report.update(ACTIVE_RESULT)
+        report.update(result="FAIL", failure_class="product assertion failure", error=repr(exc))
+    except Exception as exc:
+        if ACTIVE_RESULT is not None:
+            ACTIVE_RESULT.update(
+                result="FAIL",
+                failure_class="setup/observer failure",
+                error=repr(exc),
+            )
+            report.update(ACTIVE_RESULT)
+        report.update(result="FAIL", failure_class="setup/observer failure", error=repr(exc))
+    if ACTIVE_CONTEXT is not None and ACTIVE_RESULT is not None:
+        if (
+            ACTIVE_RESULT.get("flow_invocations") == 1
+            and not ACTIVE_RESULT.get("provenance_after_attempted")
+        ):
+            try:
+                ACTIVE_RESULT["provenance_after_attempted"] = True
+                after = identity_snapshot(*ACTIVE_CONTEXT)
+                ACTIVE_RESULT["provenance_after"] = after
+                if ACTIVE_RESULT.get("provenance_before") != after:
+                    ACTIVE_RESULT.update(
+                        result="FAIL",
+                        failure_class="setup/observer failure",
+                        error="receipt/config/source provenance changed during postphase",
+                    )
+                    report.update(
+                        result="FAIL",
+                        failure_class="setup/observer failure",
+                        error="receipt/config/source provenance changed during postphase",
+                    )
+            except Exception as exc:
+                ACTIVE_RESULT["provenance_after_error"] = repr(exc)
+                ACTIVE_RESULT.update(
+                    result="FAIL",
+                    failure_class="setup/observer failure",
+                    error="postphase provenance revalidation failed: " + repr(exc),
+                )
+                report.update(
+                    result="FAIL",
+                    failure_class="setup/observer failure",
+                    error="postphase provenance revalidation failed: " + repr(exc),
+                )
+        report.update(ACTIVE_RESULT)
+    report["elapsed_seconds"] = time.monotonic() - started
+    try:
+        profile_for_result = report.get("profile", "unbound")
+        output = FIXTURE / ("post-" + profile_for_result + "-result.json")
+        output.write_text(json.dumps(report, indent=2) + "\n", encoding="utf-8")
+    except Exception as exc:
+        report["result_write_error"] = repr(exc)
+        report.update(
+            result="FAIL",
+            failure_class="setup/observer failure",
+            error="could not write postphase result: " + repr(exc),
+        )
+    print(json.dumps(report, indent=2))
+    sys.exit(0 if report.get("result") == "PASS" else 1)

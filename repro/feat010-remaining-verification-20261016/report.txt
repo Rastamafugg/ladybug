@@ -1,0 +1,13 @@
+FEAT-010 remaining fixture preparation
+
+Status: prepared and syntax-reviewed; no qualification, build, postcheck, or runtime command was executed.
+
+Two source-only roots are frozen from the accepted capsule closure: joystick-adaptive and keyboard-nonadaptive. Each contains the receipt-listed 266 source inputs and 379 wiki HTML files (645 files total). The receipt-listed dinosaur TMX remains present as an immutable source input. Neither clone contains build output, Git metadata, or a copied receipt. Each clone received only the two approved cumulative predicate changes in scripts/verify_presentation_flow.py; BUG046/117/122 feature changes were already present in the accepted capsule and were not reapplied.
+
+source-manifest.json records original and proposed SHA-256 values for the full source and wiki closure and the three finite profile-root bindings. integration.patch contains the 14 reviewed root source deltas, the reviewed routine-catalog hunks, and the approved maintained patch. Parent reviewed the patch path set and confirmed no root write occurred.
+
+qualification-command.py.txt is frozen for one 60-second static source/setup qualification. It reuses the direct-page AST qualification pattern, checks the two clones and patch, validates all three finite profile bindings, and exercises wrong-root, wrong-profile, wrong-config, receipt-profile mismatch, and missing-oracle rejection controls. It also confirms that clone roots have no build directory, the nonadaptive source config has 13 modules, and adaptive generated config is absent before build. Qualification remains unexecuted.
+
+post-command.py.txt is frozen for one 60-second postcheck after each fresh profile build. It binds the requested profile to its finite root and config, validates actual invocation flags from the fresh receipt, checks fresh source closure and before/after provenance, invokes the maintained flow verifier once, checks fixed helper entries, the 80-byte clock, all 32 direct-page oracle sites, approved capacity caps, and complete fresh coverage. The matching keyboard/adaptive profile additionally compares the accepted 30 payloads and ROM identity; other profiles use independent fresh receipts and dynamic coverage totals without cross-profile payload hash comparisons. Postchecks remain unexecuted.
+
+The only verification performed here was Python AST syntax parsing of the qualification and postcheck command files. Both passed. No product source, canonical wiki/ticket, build output, receipt, or runtime fixture was modified by this preparation. runtime/ remains owned by the separate runtime assignment.

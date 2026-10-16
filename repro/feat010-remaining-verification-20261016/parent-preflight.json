@@ -1,0 +1,26 @@
+{
+  "verdict": "PASS preparation review; Q not executed",
+  "fixture_sha256": {
+    "qualification-command.py.txt": "df2f5d97f600006cf56d04360a757998b25d5933b09bb5c62ce51c1e26baf59b",
+    "post-command.py.txt": "e11495b800d88e23046f224302b390aca440b001819ac9c0544ec56c8f71c3e5",
+    "integration.patch": "b570ffff0c727fe15567cd365f4842f08d8cdf44638e211484598437be808993",
+    "source-manifest.json": "147418c9f5bcd1873441ef2241b2ba9ed198ff8461f9dcea95d874c484bee19d",
+    "manifest.json": "6b801a89f5103987aa94e0c8573ace7ee33a0aeed1924e17e39829bf8a5798c3",
+    "report.txt": "c174b4186c516e04ea143912cf2d9cc351f1dcaa6a82471d8f5cb42b918f0d41"
+  },
+  "source_manifest_independently_checked": 266,
+  "maintained_verifier_delta": "exact2approvedpredicates",
+  "main_executable_preserved": true,
+  "new_capsule_count": 2,
+  "qualification_command": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug bash -lc 'timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 repro/feat010-remaining-verification-20261016/qualification-command.py.txt > repro/feat010-remaining-verification-20261016/qualification.log 2>&1'",
+  "qualification_max_seconds": 60,
+  "post_command_template": "timeout --signal=TERM --kill-after=1s 55s env PYTHONDONTWRITEBYTECODE=1 python3 /mnt/e/projects/ladybug/repro/feat010-remaining-verification-20261016/post-command.py.txt --profile PROFILE --root EXACT_FROZEN_ROOT",
+  "preexecution_corrections": [
+    "adaptive16/nonadaptive13modulecount",
+    "actualinvocationprofileflags",
+    "failstatepreservation",
+    "singleafterprovenanceattempt",
+    "outputwritefailurefatal"
+  ],
+  "runtime_status": "NotReady independentFRONTreadbackprerequisite; no liveprobes"
+}

@@ -1,0 +1,2839 @@
+--- a/scripts/build.sh
++++ b/scripts/build.sh
+@@ -705,10 +705,10 @@
+         handle.write(f'{name} equ ${symbols[name]}\n')
+ PY
+ 
+-    python3 - "$MAP" "$PRESENTATION_SYMBOLS" "$HIGHSCORE_TEST_PROFILE" "$COMPLETE_PROFILE" <<'PY'
++    python3 - "$MAP" "$PRESENTATION_SYMBOLS" "$HIGHSCORE_TEST_PROFILE" "$COMPLETE_PROFILE" "$INPUT_JOYSTICK" <<'PY'
+ import re
+ import sys
+-source, output, highscore_test, complete = sys.argv[1:]
++source, output, highscore_test, complete, input_joystick = sys.argv[1:]
+ wanted = {
+     'init_game_state': 'PRES_MAIN_INIT',
+     'init_maze_state': 'PRES_MAIN_MAZE',
+@@ -752,6 +752,8 @@
+         'presentation_scan_drives': 'PRES_MAIN_SCAN_DRIVES',
+         'presentation_scan_bits': 'PRES_MAIN_SCAN_BITS',
+     })
++if int(input_joystick):
++    wanted['joy_read_axis'] = 'PRES_MAIN_JOY_AXIS'
+ symbols = {}
+ for line in open(source, encoding='utf-8'):
+     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -157,7 +157,7 @@
+ ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
+     0x2000 + 6 * 1280 + (33 + index) * 4 for index in range(6)
+ )
+-HIGH_SCORE_RECORD_ROWS = (2, 4, 5, 6, 7, 8, 9, 10, 11)
++HIGH_SCORE_RECORD_ROWS = (4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+ HIGH_SCORE_NAME_COLUMN = 16
+ HIGH_SCORE_SCORE_COLUMN = 27
+ INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
+@@ -205,7 +205,7 @@
+     },
+     "high-score": {
+         "static": ("Background", "High Score Table and Branding"),
+-        "metadata": ("Coin Positions",),
++        "metadata": (),
+         "runtime": (),
+         "deferred": ("Logo Frame 1", "Logo Frame 2"),
+     },
+@@ -235,11 +235,6 @@
+         "deferred": (),
+     },
+ }
+-HIGH_SCORE_COIN_ANCHORS = (
+-    (1, 21), (4, 21), (7, 21), (31, 21), (34, 21), (37, 21),
+-    (1, 18), (4, 18), (7, 18), (31, 18), (34, 18), (37, 18),
+-)
+-HIGH_SCORE_COIN_QUADRANT_OFFSETS = ((0, 0), (1, 0), (0, 1), (1, 1))
+ INSTRUCTION_CHARACTER_METADATA = {
+     (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
+     (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
+@@ -463,56 +458,6 @@
+     }
+ 
+ 
+-def high_score_coin_slots(root: ET.Element, path: Path) -> dict[str, object]:
+-    """Validate and return the authored, ordered 2x2 high-score coin slots."""
+-    by_name = {item.get("name", ""): item for item in root.findall("layer")}
+-    layer = by_name.get("Coin Positions")
+-    if layer is None:
+-        raise ValueError(f"{path}: high-score coin layer is missing")
+-    records = layer_records(layer)
+-    occupied: set[tuple[int, int]] = set()
+-    expected_cells: set[tuple[int, int]] = set()
+-    for x, y in HIGH_SCORE_COIN_ANCHORS:
+-        footprint = {
+-            (x + dx, y + dy) for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+-        }
+-        if any(cx < 0 or cy < 0 or cx >= SCREEN_WIDTH or cy >= SCREEN_HEIGHT
+-               for cx, cy in footprint):
+-            raise ValueError(f"{path}: high-score coin slot {(x, y)} is clipped")
+-        if occupied & footprint:
+-            raise ValueError(f"{path}: high-score coin slots overlap at {(x, y)}")
+-        occupied.update(footprint)
+-        expected_cells.update(footprint)
+-    actual_cells = set(records)
+-    if actual_cells != expected_cells:
+-        raise ValueError(
+-            f"{path}: high-score coin layer footprint mismatch; "
+-            f"missing={sorted(expected_cells - actual_cells)}, "
+-            f"extra={sorted(actual_cells - expected_cells)}"
+-        )
+-    first_x, first_y = HIGH_SCORE_COIN_ANCHORS[0]
+-    canonical = tuple(
+-        records[(first_x + dx, first_y + dy)]
+-        for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+-    )
+-    for anchor in HIGH_SCORE_COIN_ANCHORS:
+-        x, y = anchor
+-        actual = tuple(
+-            records[(x + dx, y + dy)]
+-            for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
+-        )
+-        if actual != canonical:
+-            raise ValueError(
+-                f"{path}: high-score coin slot {anchor} differs from "
+-                "the canonical four tile identities/transforms"
+-            )
+-    return {
+-        "anchors": [list(anchor) for anchor in HIGH_SCORE_COIN_ANCHORS],
+-        "quadrant_gids": list(canonical),
+-        "records": records,
+-    }
+-
+-
+ def perimeter_box_cells() -> tuple[tuple[int, int], ...]:
+     """Return screen cells for the documented 92-box clockwise circuit."""
+     cells: list[tuple[int, int]] = []
+@@ -704,11 +649,6 @@
+         validate_layer_tilesets(
+             path, root, by_name["Sprite Animations"], ("sprites_raw2bpp",)
+         )
+-    if role == "high-score":
+-        validate_layer_tilesets(
+-            path, root, by_name["Coin Positions"], ("chars_raw2bpp",)
+-        )
+-        high_score_coin_slots(root, path)
+     if role == "instructions":
+         records = layer_records(by_name[INSTRUCTION_METADATA_LAYER])
+         require_records(
+@@ -863,8 +803,6 @@
+             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+         if x == 31 and y in (13, 14):
+             return (0, 1, 2, 3)  # authored red R, as on attract
+-    if role == "high-score" and source_layer == "Coin Positions":
+-        return (BLACK, WHITE, WHITE, GREY)
+     if role == "game-over":
+         if source_layer == "Arcade Maze Border":
+             return (BLACK, PINK, PINK, PINK)
+@@ -950,94 +888,6 @@
+ def framebuffer_destination(cell: tuple[int, int]) -> int:
+     x, y = cell
+     return 0x2000 + y * 1280 + x * 4
+-
+-
+-def high_score_coin_quadrant_tiles(
+-    root: ET.Element, path: Path, chars: list[list[list[int]]],
+-    highscore_test_profile: bool,
+-) -> list[bytes]:
+-    """Compile the four canonical authored coin cells using screen palette rules."""
+-    contract = high_score_coin_slots(root, path)
+-    x0, y0 = HIGH_SCORE_COIN_ANCHORS[0]
+-    ranges = tileset_ranges(root, path)
+-    rotated = [rotate_ccw(tile) for tile in chars]
+-    result = []
+-    for (dx, dy), gid_with_flags in zip(
+-            HIGH_SCORE_COIN_QUADRANT_OFFSETS, contract["quadrant_gids"]):
+-        if gid_with_flags & FLIP_D:
+-            raise ValueError(f"{path}: coin quadrant uses an unsupported diagonal transform")
+-        gid = gid_with_flags & GID_MASK
+-        tileset = next(
+-            (item for item in ranges
+-             if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+-            None,
+-        )
+-        if tileset is None or tileset["name"] != "chars_raw2bpp":
+-            raise ValueError(f"{path}: coin quadrant GID {gid} is not raw character art")
+-        sheet_index = gid - int(tileset["firstgid"])
+-        code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+-        tile = transform(
+-            rotated[code], bool(gid_with_flags & FLIP_H),
+-            bool(gid_with_flags & FLIP_V),
+-        )
+-        result.append(pack_tile(recolor(
+-            tile,
+-            presentation_pen_map(
+-                "high-score", x0 + dx, y0 + dy, "Coin Positions",
+-                raw_char_code(root, path, gid), highscore_test_profile,
+-            ),
+-        )))
+-    return result
+-
+-
+-def compose_coin_native(quadrants: list[bytes]) -> bytes:
+-    """Join the four authored 8x8 packed tiles into one 16x16 sparse surface."""
+-    if len(quadrants) != 4 or any(len(tile) != TILE_BYTES for tile in quadrants):
+-        raise ValueError("coin glyph must contain four packed 8x8 quadrants")
+-    return b"".join(
+-        quadrants[row_group * 2][row * 4:row * 4 + 4] +
+-        quadrants[row_group * 2 + 1][row * 4:row * 4 + 4]
+-        for row_group in range(2)
+-        for row in range(8)
+-    )
+-
+-
+-def rebase_shared_coin_records(
+-    manifest: dict[str, object], cold_path: Path, include_path: Path,
+-) -> None:
+-    """Rebase BUG-013 offsets after shared text prepends cold graphics/maps."""
+-    delta = int(manifest["shared_text"]["cold_delta"])
+-    overlay = manifest["coin_overlay"]
+-    overlay["destination_table_offset"] += delta
+-    overlay["sparse_offset"] += delta
+-    table_offset = overlay["destination_table_offset"]
+-    sparse_offset = overlay["sparse_offset"]
+-    table_bytes = int(overlay["destination_table_bytes"])
+-    sparse_bytes = int(overlay["sparse_bytes"])
+-    cold = cold_path.read_bytes()
+-    table = cold[table_offset:table_offset + table_bytes]
+-    stream = cold[sparse_offset:sparse_offset + sparse_bytes]
+-    if (len(table) != table_bytes or len(stream) != sparse_bytes or
+-            hashlib.sha256(table).hexdigest() != overlay["destination_table_sha256"] or
+-            hashlib.sha256(stream).hexdigest() != overlay["sparse_sha256"]):
+-        raise ValueError("shared-text coin record rebase differs from cold payload")
+-    if (table_offset // PAGE_BYTES != sparse_offset // PAGE_BYTES or
+-            sparse_offset % PAGE_BYTES + sparse_bytes > PAGE_BYTES):
+-        raise ValueError("shared-text coin table and stream no longer share a cold page")
+-    include = include_path.read_text(encoding="ascii")
+-    values = {
+-        "PRESENTATION_COIN_SPARSE_OFFSET": sparse_offset,
+-        "PRESENTATION_COIN_SPARSE_ADDRESS": 0xA000 + sparse_offset % PAGE_BYTES,
+-        "PRESENTATION_COIN_DESTINATION_TABLE": table_offset,
+-    }
+-    for symbol, value in values.items():
+-        include, count = re.subn(
+-            rf"(?m)^({symbol} equ \$)[0-9A-Fa-f]+$",
+-            rf"\g<1>{value:04X}", include,
+-        )
+-        if count != 1:
+-            raise ValueError(f"shared-text include has {count} definitions of {symbol}")
+-    include_path.write_text(include, encoding="ascii")
+ 
+ 
+ def instruction_char_tile(
+@@ -1551,23 +1401,6 @@
+         encoded.extend((end - index, value))
+         index = end
+     return bytes(encoded)
+-
+-
+-def coin_tile() -> bytes:
+-    """Create the small native coin glyph used on the ranking screen."""
+-    pattern = (
+-        "..YYYY..",
+-        ".YWWWWY.",
+-        "YWWWWWWY",
+-        "YWWWWWWY",
+-        "YWWWWWWY",
+-        "YWWWWWWY",
+-        ".YWWWWY.",
+-        "..YYYY..",
+-    )
+-    pixels = [[BLACK if value == "." else YELLOW if value == "Y" else WHITE
+-               for value in row] for row in pattern]
+-    return pack_tile(pixels)
+ 
+ 
+ def compile_profile_maps(
+@@ -1896,25 +1729,6 @@
+         lines.append(
+             f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
+         )
+-    coin_slots = manifest["coin_slots"]
+-    coin_overlay = manifest["coin_overlay"]
+-    lines.append(
+-        f"PRESENTATION_COIN_SLOT_COUNT equ {coin_overlay['slot_count']}"
+-    )
+-    lines.append(
+-        "PRESENTATION_COIN_SPARSE_OFFSET equ "
+-        f"${coin_overlay['sparse_offset']:04X}"
+-    )
+-    lines.append(
+-        "PRESENTATION_COIN_SPARSE_ADDRESS equ "
+-        f"${0xA000 + coin_overlay['sparse_offset'] % PAGE_BYTES:04X}"
+-    )
+-    lines.append(
+-        "PRESENTATION_COIN_DESTINATION_TABLE equ "
+-        f"${coin_overlay['destination_table_offset']:04X}"
+-    )
+-    for index, tile_id in enumerate(coin_overlay["quadrant_tile_ids"]):
+-        lines.append(f"PRESENTATION_COIN_QUADRANT_{index} equ {tile_id}")
+     rotated = [rotate_ccw(tile) for tile in chars]
+     for code in range(37):
+         packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
+@@ -1923,13 +1737,6 @@
+                 raise ValueError(f"presentation glyph {code} is absent from atlas")
+             continue
+         lines.append(f"PRESENTATION_GLYPH_{code} equ {tiles.index(packed)}")
+-    lines.append("; Ordered authored 2x2 destinations live in the cold payload.")
+-    for index, slot in enumerate(coin_slots):
+-        x, y = slot["anchor"]
+-        lines.append(f"PRESENTATION_COIN_ANCHOR_{index} equ ${y * SCREEN_WIDTH + x:04X}")
+-        lines.append(
+-            f"PRESENTATION_COIN_DST_{index} equ ${slot['destination']:04X}"
+-        )
+     lines.extend((
+         "",
+         "; Nine fixed seven-character session records live in PAR5 page $34.",
+@@ -2041,17 +1848,6 @@
+         args.demo_walk, arcade_route_manifest
+     )
+ 
+-    coin_path = args.tiled_dir / MAP_FILES["high-score"]
+-    coin_root = ET.parse(coin_path).getroot()
+-    coin_contract = high_score_coin_slots(coin_root, coin_path)
+-    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
+-        coin_root, coin_path, chars, highscore_test_profile,
+-    )
+-    coin_quadrant_ids = [
+-        register_tile(tile, tiles, tile_ids) for tile in coin_quadrant_bytes
+-    ]
+-    coin_native = compose_coin_native(coin_quadrant_bytes)
+-    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
+     if len(tiles) > 256 and not complete_profile:
+         raise ValueError(
+             f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
+@@ -2089,7 +1885,6 @@
+             timer_green_tiles.append(tile)
+         timer_green_indexes.append(index)
+     live_tile_ids = set().union(*(set(data) for data in maps))
+-    live_tile_ids.update(coin_quadrant_ids)
+     if development_profile:
+         live_tile_ids.add(int(instruction["black_tile_id"]))
+         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+@@ -2188,7 +1983,6 @@
+     for info, data in zip(map_info, maps):
+         info["sha256"] = hashlib.sha256(data).hexdigest()
+     tiles = [tiles[tile_id] for tile_id in ordered_ids]
+-    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
+     if development_profile:
+         instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
+         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+@@ -2354,21 +2148,6 @@
+     )
+     name_entry_action_offset = len(cold_payload)
+     cold_payload.extend(action_table)
+-    coin_destinations = [
+-        framebuffer_destination(tuple(anchor))
+-        for anchor in coin_contract["anchors"]
+-    ]
+-    coin_destination_table_offset = len(cold_payload)
+-    coin_destination_table = b"".join(
+-        destination.to_bytes(2, "big") for destination in coin_destinations
+-    )
+-    cold_payload.extend(coin_destination_table)
+-    coin_sparse_offset = len(cold_payload)
+-    if (coin_destination_table_offset // PAGE_BYTES !=
+-            coin_sparse_offset // PAGE_BYTES or
+-            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
+-        raise ValueError("authored coin sparse stream crosses a cold-page boundary")
+-    cold_payload.extend(coin_sparse_stream)
+     name_entry["full_edge_mask_table_offset"] = name_entry_full_edge_mask_offset
+     name_entry["full_edge_mask_table_bytes"] = len(full_edge_masks)
+     name_entry["full_edge_masks"] = list(full_edge_masks)
+@@ -2402,17 +2181,6 @@
+                 frame, instruction["cucumber_destination"],
+                 instruction["cucumber_native"],
+             )
+-        if index == MAP_NAMES.index("high-score"):
+-            for destination in coin_destinations:
+-                offset = destination - 0x2000
+-                underlay = b"".join(
+-                    frame[offset + row * 160:offset + row * 160 + 8]
+-                    for row in range(16)
+-                )
+-                if underlay != bytes(16 * 8):
+-                    raise ValueError(
+-                        "authored coin sparse overlay requires a black high-score underlay"
+-                    )
+         static_frame_hashes.append(hashlib.sha256(frame).hexdigest())
+     manifest = {
+         "maps": map_info,
+@@ -2609,24 +2377,6 @@
+             "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
+         },
+         "black_tile": tiles.index(bytes(TILE_BYTES)),
+-        "coin_destinations": coin_destinations,
+-        "coin_slots": [
+-            {"anchor": anchor, "destination": destination}
+-            for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
+-        ],
+-        "coin_overlay": {
+-            "slot_count": len(coin_contract["anchors"]),
+-            "quadrant_gids": coin_contract["quadrant_gids"],
+-            "quadrant_tile_ids": coin_quadrant_ids,
+-            "sparse_offset": coin_sparse_offset,
+-            "sparse_bytes": len(coin_sparse_stream),
+-            "sparse_sha256": hashlib.sha256(coin_sparse_stream).hexdigest(),
+-            "destination_table_offset": coin_destination_table_offset,
+-            "destination_table_bytes": len(coin_destination_table),
+-            "destination_table_sha256": hashlib.sha256(
+-                coin_destination_table
+-            ).hexdigest(),
+-        },
+         "cold_page": COLD_PAGE,
+         "cold_page_count": COLD_PAGE_COUNT,
+         "cold_payload_limit": effective_cold_limit,
+@@ -2663,7 +2413,6 @@
+     emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars)
+     if shared:
+         shared.finish(manifest, tiles, cold_payload, instruction)
+-        rebase_shared_coin_records(manifest, args.output, args.include_output)
+         # BUG-052: reuse the existing authored phase-changing logo tiles.
+         _, logo_frames = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+         payload = bytearray(args.output.read_bytes())
+--- a/scripts/shared_text.py
++++ b/scripts/shared_text.py
+@@ -67,13 +67,24 @@
+         if len(self.font)>82:raise ValueError('shared font exceeds one-byte static encoding')
+         self.cells={(r['screen'],r['y']*40+r['x']):r for r in self.records}
+         self.overridden=set()
++        normalized_runs=[]
+         for run in self.colours['runs']:
+             if not (0<=run['colour']<=15 and 0<=run['x']<40 and 0<=run['y']<24 and 1<=run['width']<=40-run['x']):raise ValueError(('invalid text run',run))
++            # The frozen colour table retains the old high-score canvas rows;
++            # the authored map places its heading and table two rows lower.
++            # Its former footer row now falls past the authored map and has no
++            # corresponding text after the approved credit-menu removal.
++            normalized=dict(run)
++            if normalized['screen']=='high-score':normalized['y']+=2
++            row=normalized['y']
++            if row>=24:continue
+             for x in range(run['x'],run['x']+run['width']):
+-                key=(run['screen'],run['y']*40+x)
++                key=(normalized['screen'],row*40+x)
+                 if key not in self.cells:raise ValueError(('colour override is not a text cell',key))
+-                self.cells[key]['colour']=run['colour']
++                self.cells[key]['colour']=normalized['colour']
+                 self.overridden.add(key)
++            normalized_runs.append(normalized)
++        self.colours['runs']=normalized_runs
+         equals=self.cells.get(('gameplay',13*40+34))
+         if equals and equals['code']==42 and equals['colour']!=self.colours['fields']['bonus']:
+             raise ValueError(('gameplay equals colour override conflicts with fields.bonus',equals['colour'],self.colours['fields']['bonus']))
+@@ -255,16 +266,15 @@
+             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
+             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
+-        # Extract authored high-score menu text spans for colour-only selection.
+-        # No parenthesis or other cursor glyphs are emitted for this screen.
++        # Extract the authored attract menu rows for colour-only selection.
+         menu_lines=[]
+-        path=self.args.tiled_dir/self.p.MAP_FILES['high-score']
++        path=self.args.tiled_dir/self.p.MAP_FILES['attract']
+         root=ET.parse(path).getroot()
+-        layer=root.find("layer[@name='High Score Table and Branding']")
+-        if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
++        layer=root.find("layer[@name='Attract Title and Prompts']")
++        if layer is None:raise ValueError((path,'missing Attract Title and Prompts'))
+         cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
+-        specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
+-        high_rows=[]
++        specs=((15,15,24,'START GAME'),(17,15,21,'OPTIONS'),(19,15,21,'CREDITS'))
++        attract_rows=[]
+         for row,lo,hi,label in specs:
+             row_gids=cells[row*40:(row+1)*40]
+             raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
+@@ -272,26 +282,12 @@
+             expected=[36 if char==' ' else ord(char)-55 for char in label]
+             matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
+             if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
+-                raise ValueError((path,'authored high-score menu span mismatch',row,lo,hi,label,matches))
+-            # ADD CREDITS has 11 characters. The unused blank at x16 lets it
+-            # replace centered START GAME without synthesizing selector marks.
+-            if row==20 and (row_gids[16] not in (0,8) or any(
+-                    self.visual_tiles[self.visual_maps[self.p.MAP_NAMES.index('high-score')][row*40+16]])):
+-                raise ValueError((path,'start row lacks blank cell for ADD CREDITS',(16,row)))
+-            if row==20:
+-                lo=16
+-                row_codes=[36,*expected]
+-            else:
+-                row_codes=expected
+-            high_rows.append((row,lo,row_codes))
+-        menu_lines.append('menu_high_score_rows')
+-        for row,lo,codes in high_rows:
++                raise ValueError((path,'authored attract menu span mismatch',row,lo,hi,label,matches))
++            attract_rows.append((row,lo,expected))
++        menu_lines.append('menu_attract_rows')
++        for row,lo,codes in attract_rows:
+             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
+             menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+-        add_credits=[36 if char==' ' else ord(char)-55 for char in 'ADD CREDITS']
+-        menu_lines.append('menu_high_score_add_credits')
+-        menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((16,20)))
+-        menu_lines.append('        fcb '+','.join(str(code) for code in [len(add_credits),*add_credits]))
+         # Keep the Options screen's authored selector pairs. The no-parenthesis
+         # clarification applies only to the high-score screen.
+         path=self.args.tiled_dir/self.p.MAP_FILES['options']
+--- a/scripts/source_reference.json
++++ b/scripts/source_reference.json
+@@ -458,8 +458,11 @@
+         {
+           "name": "joy_read_axis",
+           "profile": "input",
+-          "purpose": "Sample and normalize one joystick axis through the PIA comparator.",
+-          "reasons": []
++          "purpose": "Quantize one currently selected analog joystick axis through the PIA comparator and return its raw 0..63 position.",
++          "reasons": [
++            "called",
++            "exported"
++          ]
+         },
+         {
+           "name": "mark_gate_enemy_overlap",
+@@ -2186,12 +2189,6 @@
+           "reasons": []
+         },
+         {
+-          "name": "draw_coin_slots",
+-          "profile": "render",
+-          "purpose": "Draw coin slots.",
+-          "reasons": []
+-        },
+-        {
+           "name": "draw_tile_id",
+           "profile": "render",
+           "purpose": "Draw tile id.",
+@@ -2404,6 +2401,11 @@
+           "purpose": "Named internal control point within the enclosing routine"
+         },
+         {
++          "name": "menu_load_event",
++          "routine": null,
++          "purpose": "Internal load_tick fallthrough that services a fresh local menu event during complete-profile loading."
++        },
++        {
+           "name": "draw_raw_tile",
+           "routine": null,
+           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+@@ -2421,6 +2423,41 @@
+           "name": "menu_load_continue",
+           "routine": "load_tick",
+           "purpose": "Continue loading when there is no fresh local menu command."
++        },
++        {
++          "name": "attract_menu_transition",
++          "routine": null,
++          "purpose": "Branch to the attract-owned title menu transition."
++        },
++        {
++          "name": "pft_coin_suppress",
++          "routine": null,
++          "purpose": "Suppress coin preemption for the attract-owned frontend."
++        },
++        {
++          "name": "pft_loop_wake",
++          "routine": null,
++          "purpose": "Route fresh automatic-loop input toward the title menu."
++        },
++        {
++          "name": "pft_loop_wake_event",
++          "routine": null,
++          "purpose": "Dispatch the captured wake event after leaving the automatic loop."
++        },
++        {
++          "name": "pft_loop_wake_mode_load",
++          "routine": null,
++          "purpose": "Handle wake input while the presentation mode is loading."
++        },
++        {
++          "name": "pft_loop_wake_rank",
++          "routine": null,
++          "purpose": "Handle automatic-loop wake input on the ranking screen."
++        },
++        {
++          "name": "pft_no_credit",
++          "routine": null,
++          "purpose": "Skip credit admission for the free-start title path."
+         }
+       ]
+     },
+@@ -3746,6 +3783,15 @@
+             "called"
+           ],
+           "semantic_id": "routines.html#routine-highscore-helper-logo-vbord-clock"
++        },
++        {
++          "name": "highscore_logo_tick",
++          "profile": "presentation",
++          "purpose": "Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.",
++          "reasons": [
++            "called"
++          ],
++          "semantic_id": "routines.html#routine-highscore-helper-highscore-logo-tick"
+         }
+       ],
+       "label_classifications": [
+@@ -4103,6 +4149,51 @@
+           "name": "name_rank_format",
+           "routine": "stage_panel_text",
+           "purpose": "Select existing red1 mask colour and the current three-byte raw ordinal record; tail-call existing stage_panel_text."
++        },
++        {
++          "name": "highscore_phase_not_attract",
++          "routine": null,
++          "purpose": "Continue the existing helper dispatch for non-Attract screens."
++        },
++        {
++          "name": "menu_attract_options",
++          "routine": null,
++          "purpose": "Open local Options from the attract-owned title menu."
++        },
++        {
++          "name": "menu_event_ready",
++          "routine": null,
++          "purpose": "Continue menu command handling after event recognition."
++        },
++        {
++          "name": "menu_idle_active",
++          "routine": null,
++          "purpose": "Advance attract-menu idle tracking."
++        },
++        {
++          "name": "menu_non_attract_event",
++          "routine": null,
++          "purpose": "Route menu controls for non-Attract screens."
++        },
++        {
++          "name": "menu_paint_attract",
++          "routine": null,
++          "purpose": "Paint the attract-owned title menu."
++        },
++        {
++          "name": "menu_start_free",
++          "routine": null,
++          "purpose": "Start a game without coin admission or debit."
++        },
++        {
++          "name": "menu_tick_not_keybinding",
++          "routine": null,
++          "purpose": "Continue menu dispatch outside keybinding ownership."
++        },
++        {
++          "name": "highscore_attract_tick",
++          "routine": null,
++          "purpose": "Run the Attract-only logo update, mode check, and menu tail."
+         }
+       ],
+       "defines": {
+@@ -4136,13 +4227,13 @@
+         {
+           "name": "key_init",
+           "profile": "keybindings",
+-          "purpose": "Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.",
++          "purpose": "Restore five gameplay defaults; seed impossible keyboard-column and joystick-direction histories; clear capture and repaint state.",
+           "reasons": []
+         },
+         {
+           "name": "key_scan",
+           "profile": "keybindings",
+-          "purpose": "Sample eight physical columns and produce held actions and fresh consumer edges.",
++          "purpose": "Sample eight physical columns with KB_ROWS as pre-overwrite history, retain held actions and publish fresh keyboard edges; emit joystick direction edges only for automatic-loop owners and silently refresh its baseline on all other presentation screens, including name entry.",
+           "reasons": []
+         },
+         {
+@@ -4611,6 +4702,11 @@
+           "name": "INPUT_JOYSTICK",
+           "kind": "constant",
+           "reason": "Build-time input compatibility flag."
++        },
++        {
++          "name": "key_joy_last",
++          "kind": "data",
++          "reason": "FEAT-010 uses this existing joystick history datum; its keybinding ownership is unchanged."
+         }
+       ],
+       "basic_blocks": [
+@@ -4618,10 +4714,103 @@
+           "name": "kc_unique",
+           "routine": "key_capture",
+           "purpose": "Continue the candidate-key uniqueness scan after fixed coin-key rejection."
++        },
++        {
++          "name": "ki_rows",
++          "routine": null,
++          "purpose": "Continue scanning key rows for fresh keyboard input."
++        },
++        {
++          "name": "ks_joy_begin",
++          "routine": null,
++          "purpose": "Begin joystick sampler routing."
++        },
++        {
++          "name": "ks_joy_center",
++          "routine": null,
++          "purpose": "Classify centered joystick input."
++        },
++        {
++          "name": "ks_joy_credit_screen",
++          "routine": null,
++          "purpose": "Select joystick edge behavior on the credit screen."
++        },
++        {
++          "name": "ks_joy_direction",
++          "routine": null,
++          "purpose": "Publish the selected joystick direction edge."
++        },
++        {
++          "name": "ks_joy_done",
++          "routine": null,
++          "purpose": "Return after the joystick history update."
++        },
++        {
++          "name": "ks_joy_emit",
++          "routine": null,
++          "purpose": "Emit a fresh joystick edge."
++        },
++        {
++          "name": "ks_joy_horizontal",
++          "routine": null,
++          "purpose": "Classify horizontal joystick movement."
++        },
++        {
++          "name": "ks_joy_north",
++          "routine": null,
++          "purpose": "Select the north joystick direction."
++        },
++        {
++          "name": "ks_joy_rank_mode",
++          "routine": null,
++          "purpose": "Apply mode-specific joystick routing on the ranking screen."
++        },
++        {
++          "name": "ks_joy_sample",
++          "routine": null,
++          "purpose": "Sample joystick axes for automatic-loop wake handling."
++        },
++        {
++          "name": "ks_joy_screen",
++          "routine": null,
++          "purpose": "Select joystick edge policy for the current presentation screen."
++        },
++        {
++          "name": "ks_joy_silent",
++          "routine": null,
++          "purpose": "Refresh joystick history without emitting a local event."
++        },
++        {
++          "name": "ks_joy_store",
++          "routine": null,
++          "purpose": "Store the sampled joystick direction and history."
++        },
++        {
++          "name": "ks_joy_west",
++          "routine": null,
++          "purpose": "Select the west joystick direction."
++        },
++        {
++          "name": "ks_joy_x_abs",
++          "routine": null,
++          "purpose": "Normalize the absolute horizontal axis."
++        },
++        {
++          "name": "ks_joy_y_abs",
++          "routine": null,
++          "purpose": "Normalize the absolute vertical axis."
++        },
++        {
++          "name": "ks_no_raw_edge",
++          "routine": null,
++          "purpose": "Continue a keyboard scan without a fresh raw edge."
+         }
+       ],
+       "external_symbols": [
+         "PRES_MAIN_SHARED_MASK"
++      ],
++      "conditional_external_symbols": [
++        "PRES_MAIN_JOY_AXIS"
+       ]
+     },
+     {
+@@ -5592,13 +5781,13 @@
+       "invariants": "Audio-owned scratch is not game scratch; non-audio caller returns through the guarded bank-restoring gateway"
+     },
+     "keybindings": {
+-      "inputs": "Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.",
+-      "outputs": "Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
++      "inputs": "Physical CoCo switch columns; in INPUT_JOYSTICK builds, raw 0..63 axes from conditional PRES_MAIN_JOY_AXIS on presentation screens, including name entry; session bindings, capture state and prepared menu BACK. B selects scan, paint, menu tick or reset.",
++      "outputs": "Five held gameplay actions, fresh fixed coin/menu edges, and a fresh automatic-loop wake token from keyboard or cardinal joystick direction; retained bindings or selected menu pixels. No joystick fire-button event is read.",
+       "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.",
+-      "reads": "PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
+-      "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
+-      "side_effects": "Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.",
+-      "invariants": "The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage."
++      "reads": "PIA keyboard rows and, on presentation screens in joystick builds, the existing raw joystick-axis callback; retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
++      "writes": "Unbanked low RAM $0287-$029A, profile-local joystick direction history in the page-$3D keybinding module, and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
++      "side_effects": "Capture suppresses global and local consumers through accepted-key release. Joystick sampling normalizes raw axes to one cardinal dead-zone edge without writing JOY/player/name state and restores PIA2 DAC and the established audio_select_gmc PIA selectors. All non-emitting presentation screens, including name entry, refresh direction history silently; only automatic-loop owners publish changed non-neutral directions. Painting calls the resident mask renderer without changing PAR5.",
++      "invariants": "KB_ROWS at $028E-$0295 is exclusive raw-scan history: key_init seeds impossible $FF before scanning, and key_scan accumulates current-and-not-previous bits before each column overwrite. The joystick callback exists only for INPUT_JOYSTICK=1; cold first sampling seeds direction history without a false edge. During name entry, raw-axis sampling updates only the private baseline, so a held direction through the transition to ranking loading stays suppressed while a newly changed direction wakes the eligible owner; neutral release then repress is a fresh edge. Keyboard builds have no joystick callback reference. Existing page-$3D stream owns code/data at $BA00; caller gateway restores PAR5; bindings reset at startup and never persist to storage."
+     },
+     "movement-step": {
+       "inputs": "TEST_X/Y origin coordinates and cardinal TEST_DIR",
+--- a/scripts/source_reference/normalize.py
++++ b/scripts/source_reference/normalize.py
+@@ -257,12 +257,44 @@
+     )
+     authored_label_names: set[str] = set()
+     declared_external_symbols: list[tuple[str, str]] = []
++    active_conditional_external_symbols: set[tuple[str, str]] = set()
+     for item in config["modules"]:
+         module_id = str(item["id"])
++        external_values = item.get("external_symbols", [])
++        conditional_external_values = item.get("conditional_external_symbols", [])
++        if not isinstance(external_values, list) or not isinstance(
++            conditional_external_values, list
++        ):
++            raise ValueError(f"external symbol declarations must be lists: {module_id}")
++        external_names = [str(value) for value in external_values]
++        conditional_external_names = [
++            str(value) for value in conditional_external_values
++        ]
++        if len(external_names) != len(set(external_names)) or len(
++            conditional_external_names
++        ) != len(set(conditional_external_names)):
++            raise ValueError(f"duplicate external symbol declaration: {module_id}")
++        overlap = sorted(set(external_names) & set(conditional_external_names))
++        if overlap:
++            raise ValueError(
++                "external symbol declared as both unconditional and conditional: "
++                + ", ".join(f"{module_id}:{name}" for name in overlap)
++            )
+         source = (source_root / item["source"]).resolve()
+         listing = _artifact_path(artifact_root, item.get("listing"))
+         map_file = _artifact_path(artifact_root, item.get("map"))
+         binary = _artifact_path(artifact_root, item.get("binary"))
++        if conditional_external_names:
++            if receipt is None:
++                raise ValueError(
++                    "conditional external symbols require a validated ownership-audit receipt: "
++                    + module_id
++                )
++            if listing is None or not listing.is_file():
++                raise ValueError(
++                    "conditional external symbols require an existing module listing: "
++                    + module_id
++                )
+         include_dirs = tuple(
+             (artifact_root / value).resolve() for value in item.get("artifact_include_dirs", [""])
+         ) + tuple(
+@@ -272,19 +304,47 @@
+             source, source_root, artifact_root, include_dirs
+         )
+         spans = parse_listing(listing, module_id, source_files) if listing else ()
++        if conditional_external_names and not spans:
++            raise ValueError(
++                "conditional external symbols require a nonempty parsed module listing: "
++                + module_id
++            )
+         labels = _labels(source_lines)
+         authored_label_names.update(labels)
+         symbols = tuple(
+             replace(symbol, file=labels.get(symbol.name, (None, None))[0], line=labels.get(symbol.name, (None, None))[1])
+             for symbol in (parse_map(map_file, module_id) if map_file else ())
+         )
++        if conditional_external_names:
++            authored_calls = _calls(module_id, source_lines, [])
++            authored_call_targets = {
++                edge.target
++                for edge in authored_calls
++                if edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT)
++            }
++            missing_authored_calls = sorted(
++                set(conditional_external_names) - authored_call_targets
++            )
++            if missing_authored_calls:
++                raise ValueError(
++                    "conditional external symbols lack authored call targets: "
++                    + ", ".join(
++                        f"{module_id}:{name}" for name in missing_authored_calls
++                    )
++                )
+         calls = _calls(module_id, source_lines, item.get("declared_calls", []))
+         if 'ownership_audit' in config:
+             active = {(s.file, s.line) for s in spans}
+             calls = tuple(c for c in calls if (c.source_file, c.source_line) in active or c.kind in (CallKind.FIXED_JUMP, CallKind.INDIRECT))
+         routine_config = {str(record["name"]): record for record in item.get("routines", [])}
+-        external_symbols = {str(value) for value in item.get("external_symbols", [])}
+-        declared_external_symbols.extend((module_id, name) for name in external_symbols)
++        external_symbols = set(external_names) | set(conditional_external_names)
++        declared_external_symbols.extend((module_id, name) for name in external_names)
++        active_conditional_external_symbols.update(
++            (module_id, edge.target)
++            for edge in calls
++            if edge.target in conditional_external_names
++            and edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT)
++        )
+         required: dict[str, set[str]] = {}
+         for edge in calls:
+             if edge.kind in (CallKind.DIRECT, CallKind.FIXED_JUMP, CallKind.INDIRECT) and edge.target not in external_symbols:
+@@ -411,7 +471,9 @@
+         )
+     unknown_externals = sorted(
+         f"{module_id}:{name}"
+-        for module_id, name in declared_external_symbols
++        for module_id, name in (
++            declared_external_symbols + list(active_conditional_external_symbols)
++        )
+         if name not in authored_label_names
+     )
+     if unknown_externals:
+--- a/scripts/test_source_audit.py
++++ b/scripts/test_source_audit.py
+@@ -148,4 +148,156 @@
+         self.receipt['state']='building'; self.write()
+         with self.assertRaisesRegex(ValueError,'incomplete'): validate(self.root,self.build,self.config)
+ 
++class ConditionalExternalTests(unittest.TestCase):
++    symbol = 'PRES_MAIN_JOY_AXIS'
++
++    def setUp(self):
++        self.tmp = tempfile.TemporaryDirectory()
++        self.addCleanup(self.tmp.cleanup)
++        self.root = Path(self.tmp.name)
++        for name in ('src', 'scripts', 'assets', 'tiled', 'build'):
++            (self.root / name).mkdir()
++
++    def reference(self, *, active=False, imported=False, authored_call=True,
++                  external=(), conditional=None, ownership_audit=True,
++                  listing_mode='present'):
++        conditional = [self.symbol] if conditional is None else list(conditional)
++        lines = []
++        if imported:
++            lines.append('        include "keybinding-imports.inc"')
++        lines.append('        ifne INPUT_JOYSTICK')
++        call_line = len(lines) + 1
++        if authored_call:
++            lines.append('        jsr ' + self.symbol)
++        lines.extend(('        endc', 'key_scan', '        rts'))
++        source = self.root / 'src/keybinding_runtime.s'
++        source.write_text('\n'.join(lines) + '\n', encoding='utf-8')
++        build = self.root / 'build'
++        if imported:
++            (build / 'keybinding-imports.inc').write_text(
++                self.symbol + ' equ $C100\n', encoding='utf-8'
++            )
++
++        listing = build / 'keybinding-runtime.lst'
++        return_line = len(lines)
++        emitted = []
++        address = 0xBA00
++        if active:
++            emitted.append(
++                f'BA00 BDC100 (src/keybinding_runtime.s):{call_line:05d} '
++                f'        jsr {self.symbol}'
++            )
++            address += 3
++        if listing_mode != 'missing':
++            if listing_mode == 'empty':
++                listing.write_text('', encoding='utf-8')
++            else:
++                emitted.append(
++                    f'{address:04X} 39 (src/keybinding_runtime.s):{return_line:05d} '
++                    '        rts'
++                )
++                listing.write_text('\n'.join(emitted) + '\n', encoding='utf-8')
++
++        map_file = build / 'keybinding-runtime.map'
++        map_file.write_text(
++            f'Symbol: key_scan (keybinding-runtime.bin) = {address:04X}\n', encoding='utf-8'
++        )
++        binary = build / 'keybinding-runtime.bin'
++        binary.write_bytes(b'\xBD\xC1\x00\x39' if active else b'\x39')
++        artifacts = {
++            'keybinding-runtime.bin': digest(binary),
++            'keybinding-runtime.map': digest(map_file),
++        }
++        invocation = {
++            'source': 'src/keybinding_runtime.s',
++            'output': 'keybinding-runtime.bin',
++            'listing': 'keybinding-runtime.lst',
++            'map': 'keybinding-runtime.map',
++        }
++        generated_inputs = {}
++        if listing_mode != 'missing':
++            artifacts['keybinding-runtime.lst'] = digest(listing)
++        if imported:
++            alias = build / 'keybinding-imports.inc'
++            generated_inputs['build/keybinding-imports.inc'] = digest(alias)
++            artifacts['keybinding-imports.inc'] = digest(alias)
++        receipt = {
++            'schema': 1,
++            'state': 'complete',
++            'profile': 'complete',
++            'revision': 'conditional-external-fixture',
++            'inputs': inputs(self.root),
++            'artifacts': artifacts,
++            'generated_inputs': generated_inputs,
++            'invocations': [invocation],
++        }
++        (build / 'source-build-receipt.json').write_text(
++            json.dumps(receipt), encoding='utf-8'
++        )
++
++        module = {
++            'id': 'keybinding-runtime',
++            'title': 'Keybinding fixture',
++            'source': 'src/keybinding_runtime.s',
++            'listing': 'keybinding-runtime.lst',
++            'map': 'keybinding-runtime.map',
++            'binary': 'keybinding-runtime.bin',
++            'external_symbols': list(external),
++            'conditional_external_symbols': conditional,
++        }
++        config = {
++            'title': 'Conditional external fixture',
++            'revision': 'fixture',
++            'modules': [module],
++        }
++        if ownership_audit:
++            config['ownership_audit'] = {'required': []}
++        return build_project_reference(config, self.root, build)
++
++    def test_keyboard_inactive_conditional_call_needs_no_import(self):
++        project = self.reference(active=False, imported=False)
++        self.assertFalse(any(call.target == self.symbol for call in project.modules[0].calls))
++
++    def test_joystick_active_conditional_call_requires_and_accepts_import(self):
++        project = self.reference(active=True, imported=True)
++        self.assertTrue(any(call.target == self.symbol for call in project.modules[0].calls))
++
++    def test_active_call_without_import_fails_unknown_target(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=True, imported=False)
++
++    def test_old_unconditional_declaration_rejects_inactive_call(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=False, imported=False, external=[self.symbol], conditional=[])
++
++    def test_unknown_unconditional_external_still_fails(self):
++        with self.assertRaisesRegex(
++            ValueError, 'external call targets lack project-authored/imported labels'
++        ):
++            self.reference(active=False, imported=False, external=['UNKNOWN_TARGET'], conditional=[])
++
++    def test_conditional_external_must_name_an_authored_call(self):
++        with self.assertRaisesRegex(ValueError, 'lack authored call targets'):
++            self.reference(active=False, imported=False, authored_call=False)
++
++    def test_conditional_declarations_reject_duplicates_and_overlap(self):
++        with self.assertRaisesRegex(ValueError, 'duplicate external symbol declaration'):
++            self.reference(conditional=[self.symbol, self.symbol])
++        with self.assertRaisesRegex(ValueError, 'both unconditional and conditional'):
++            self.reference(external=[self.symbol])
++
++    def test_conditional_external_rejects_unvalidated_receipt(self):
++        with self.assertRaisesRegex(ValueError, 'validated ownership-audit receipt'):
++            self.reference(ownership_audit=False)
++
++    def test_conditional_external_rejects_missing_and_empty_listing(self):
++        with self.assertRaises(ValueError):
++            self.reference(listing_mode='missing')
++        with self.assertRaises(ValueError):
++            self.reference(listing_mode='empty')
++
+ if __name__=='__main__': unittest.main()
+--- a/scripts/verify_presentation.py
++++ b/scripts/verify_presentation.py
+@@ -28,12 +28,8 @@
+     lzss_compress,
+     compile_profile_maps,
+     compile_screen,
+-    compose_coin_native,
+     encode_map,
+-    encode_sparse_native,
+     framebuffer_destination,
+-    high_score_coin_quadrant_tiles,
+-    high_score_coin_slots,
+     HIGH_SCORE_NAME_COLUMN,
+     HIGH_SCORE_RECORD_ROWS,
+     HIGH_SCORE_SCORE_COLUMN,
+@@ -75,58 +71,6 @@
+ 
+ def digest(data: bytes) -> str:
+     return hashlib.sha256(data).hexdigest()
+-
+-
+-def decode_sparse_native(stream: bytes, rows: int, width: int) -> tuple[bytes, int]:
+-    """Decode the existing framebuffer sparse ABI into a bounded black surface."""
+-    output = bytearray(rows * width)
+-    cursor = 0
+-    destination = 0
+-    while True:
+-        if cursor >= len(stream):
+-            raise ValueError("sparse coin stream has no terminator")
+-        delta = stream[cursor]
+-        cursor += 1
+-        if delta == 0xFF:
+-            if cursor + 2 > len(stream):
+-                raise ValueError("sparse coin extended delta is truncated")
+-            delta = int.from_bytes(stream[cursor:cursor + 2], "big")
+-            cursor += 2
+-            if delta == 0:
+-                return bytes(output), cursor
+-            if cursor >= len(stream):
+-                raise ValueError("sparse coin extended delta marker is truncated")
+-            if stream[cursor] != 0:
+-                raise ValueError("sparse coin extended delta marker is invalid")
+-            cursor += 1
+-        destination += delta
+-        if cursor >= len(stream):
+-            raise ValueError("sparse coin command is truncated")
+-        control = stream[cursor]
+-        cursor += 1
+-        partial = bool(control & 0x80)
+-        count = control & 0x7F
+-        if count == 0:
+-            raise ValueError("sparse coin command has zero length")
+-        row, column = divmod(destination, 160)
+-        if row >= rows or column + count > width:
+-            raise ValueError("sparse coin command leaves the 16x16 glyph")
+-        target = row * width + column
+-        if partial:
+-            end = cursor + count * 2
+-            if end > len(stream):
+-                raise ValueError("sparse coin partial command is truncated")
+-            for index in range(count):
+-                mask, pixel = stream[cursor:cursor + 2]
+-                cursor += 2
+-                output[target + index] = (output[target + index] & mask) | pixel
+-        else:
+-            end = cursor + count
+-            if end > len(stream):
+-                raise ValueError("sparse coin opaque command is truncated")
+-            output[target:target + count] = stream[cursor:end]
+-            cursor = end
+-        destination += count
+ 
+ 
+ def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
+@@ -163,6 +107,10 @@
+ 
+ def main() -> None:
+     args = parse_args()
++    if HIGH_SCORE_RECORD_ROWS != tuple(range(4, 14)):
++        raise SystemExit(
++            "presentation proof: TOP and nine stored ranking records must occupy rows 4-13"
++        )
+     development_profile = bool(args.development_profile)
+     complete_profile = bool(args.complete_profile)
+     highscore_test_profile = bool(args.highscore_test_profile)
+@@ -209,24 +157,6 @@
+             "top_right_destinations": [],
+         }
+     )
+-    coin_path = args.tiled_dir / MAP_FILES["high-score"]
+-    coin_root = ET.parse(coin_path).getroot()
+-    coin_contract = high_score_coin_slots(coin_root, coin_path)
+-    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
+-        coin_root, coin_path, chars, highscore_test_profile,
+-    )
+-    coin_quadrant_ids = []
+-    for tile in coin_quadrant_bytes:
+-        if tile not in tiles:
+-            tiles.append(tile)
+-        coin_quadrant_ids.append(tiles.index(tile))
+-    coin_native = compose_coin_native(coin_quadrant_bytes)
+-    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
+-    decoded_coin, decoded_coin_bytes = decode_sparse_native(
+-        coin_sparse_stream, 16, 8
+-    )
+-    if decoded_coin != coin_native or decoded_coin_bytes != len(coin_sparse_stream):
+-        raise SystemExit("presentation proof: sparse coin differs from authored quadrants")
+     _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
+     demo_walk, demo_walk_manifest = load_demo_walk(
+         args.demo_walk, arcade_route_manifest
+@@ -254,7 +184,6 @@
+             timer_green_tiles.append(tile)
+         timer_green_indexes.append(timer_green_tiles.index(tile))
+     live_ids = set().union(*(set(data) for data in maps))
+-    live_ids.update(coin_quadrant_ids)
+     if development_profile:
+         live_ids.add(int(instruction["black_tile_id"]))
+         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+@@ -327,7 +256,6 @@
+         old: representative_remap[overlay_replacements.get(old, old)]
+         for old in live_ids
+     }
+-    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
+     instruction_patch = b"".join(
+         tiles[instruction_id] for instruction_id, _ in overlay_pairs
+     )
+@@ -476,21 +404,6 @@
+     )
+     action_table_offset = len(expected)
+     expected.extend(action_table)
+-    coin_destinations = [
+-        framebuffer_destination(tuple(anchor))
+-        for anchor in coin_contract["anchors"]
+-    ]
+-    coin_destination_table_offset = len(expected)
+-    coin_destination_table = b"".join(
+-        destination.to_bytes(2, "big") for destination in coin_destinations
+-    )
+-    expected.extend(coin_destination_table)
+-    coin_sparse_offset = len(expected)
+-    if (coin_destination_table_offset // PAGE_BYTES !=
+-            coin_sparse_offset // PAGE_BYTES or
+-            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
+-        raise SystemExit("presentation proof: coin table and stream must share one cold page")
+-    expected.extend(coin_sparse_stream)
+     if payload != bytes(expected):
+         raise SystemExit("presentation proof: cold payload differs from independent compile")
+     if len(tiles) != manifest["tile_count"]:
+@@ -506,25 +419,6 @@
+         overlay_manifest.get("highscore_patch_sha256") != digest(highscore_patch)
+     ):
+         raise SystemExit("presentation proof: phase tile overlay manifest differs")
+-    coin_overlay = manifest.get("coin_overlay", {})
+-    expected_slots = [
+-        {"anchor": anchor, "destination": destination}
+-        for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
+-    ]
+-    if (
+-        manifest.get("coin_slots") != expected_slots or
+-        manifest.get("coin_destinations") != coin_destinations or
+-        coin_overlay.get("slot_count") != len(coin_contract["anchors"]) or
+-        coin_overlay.get("quadrant_gids") != coin_contract["quadrant_gids"] or
+-        coin_overlay.get("quadrant_tile_ids") != coin_quadrant_ids or
+-        coin_overlay.get("sparse_offset") != coin_sparse_offset or
+-        coin_overlay.get("sparse_bytes") != len(coin_sparse_stream) or
+-        coin_overlay.get("sparse_sha256") != digest(coin_sparse_stream) or
+-        coin_overlay.get("destination_table_offset") != coin_destination_table_offset or
+-        coin_overlay.get("destination_table_bytes") != len(coin_destination_table) or
+-        coin_overlay.get("destination_table_sha256") != digest(coin_destination_table)
+-    ):
+-        raise SystemExit("presentation proof: authored coin slot metadata differs")
+     if manifest["cold_payload"]["bytes"] != len(payload):
+         raise SystemExit("presentation proof: payload size differs from manifest")
+     if manifest["cold_payload"]["sha256"] != digest(payload):
+@@ -677,17 +571,6 @@
+                 frame, instruction["cucumber_destination"],
+                 instruction["cucumber_native"],
+             )
+-        if index == MAP_NAMES.index("high-score"):
+-            for destination in coin_destinations:
+-                offset = destination - 0x2000
+-                underlay = b"".join(
+-                    frame[offset + row * 160:offset + row * 160 + 8]
+-                    for row in range(16)
+-                )
+-                if underlay != bytes(16 * 8):
+-                    raise SystemExit(
+-                        "presentation proof: coin slot underlay is not black"
+-                    )
+         static_frame_hashes.append(digest(frame))
+     if manifest.get("static_frame_sha256") != static_frame_hashes:
+         raise SystemExit("presentation proof: static framebuffer hashes differ")
+--- a/scripts/verify_presentation_flow.py
++++ b/scripts/verify_presentation_flow.py
+@@ -14,6 +14,11 @@
+ DEMO_SOURCE = ROOT / "src/demo_runtime.s"
+ HELPER_SOURCE = ROOT / "src/perimeter_reset_helper.s"
+ BOOT_SOURCE = ROOT / "src/gmc_bootstrap.s"
++PAGE23_SOURCE = ROOT / "src/shared_text_stage.inc"
++KEYBINDING_SOURCE = ROOT / "src/keybinding_runtime.s"
++MAIN_SOURCE = ROOT / "src/main.s"
++BUILD_SCRIPT = ROOT / "scripts/build.sh"
++SOURCE_REFERENCE = ROOT / "scripts/source_reference.json"
+ PRESENTATION_MAP = ROOT / "build/ladybug-presentation-runtime.map"
+ MODULE = ROOT / "build/ladybug-presentation-runtime.bin"
+ LAYOUT = ROOT / "build/ladybug-sparse-layout.json"
+@@ -34,11 +39,98 @@
+     }
+ 
+ 
++def verify_helper_attract_dispatch(page23_source: str) -> None:
++    """Check the FEAT-010 attract path stays in its approved helper regions."""
++
++    lines = page23_source.splitlines()
++
++    def label_index(label: str) -> int:
++        label_pattern = re.compile(r"^\s*" + re.escape(label) + r"\s*:?\s*$")
++        matches = [
++            index for index, line in enumerate(lines)
++            if label_pattern.fullmatch(line.split(";", 1)[0])
++        ]
++        if len(matches) != 1:
++            raise SystemExit(
++                "presentation flow proof: FEAT-010 helper dispatch requires one "
++                + label
++                + " label"
++            )
++        return matches[0]
++
++    def code_lines(start: int, end: int) -> list[str]:
++        result = []
++        for line in lines[start + 1:end]:
++            code = " ".join(line.split(";", 1)[0].split())
++            if code:
++                result.append(code)
++        return result
++
++    phase_tick = label_index("highscore_phase_tick")
++    non_attract = label_index("highscore_phase_not_attract")
++    if phase_tick >= non_attract:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 helper dispatch phase labels are reversed"
++        )
++    expected_prefix = [
++        "lda PRES_SCREEN",
++        "cmpa #PRESENTATION_MAP_ATTRACT",
++        "lbeq highscore_attract_tick",
++    ]
++    if code_lines(phase_tick, non_attract) != expected_prefix:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract prefix is not the exact three-instruction dispatch"
++        )
++
++    record_includes = [
++        index for index, line in enumerate(lines)
++        if re.fullmatch(
++            r'\s*include\s+"ladybug_menu_records\.inc"\s*',
++            line.split(";", 1)[0],
++        )
++    ]
++    if len(record_includes) != 1:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 helper dispatch requires one menu-record include"
++        )
++    wrapper = label_index("highscore_attract_tick")
++    helper_end = label_index("highscore_phase_helper_end")
++    if not record_includes[0] < wrapper < helper_end:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper is outside the post-record helper tail"
++        )
++    next_code = next(
++        (index for index in range(record_includes[0] + 1, len(lines))
++         if lines[index].split(";", 1)[0].strip()),
++        None,
++    )
++    if next_code != wrapper:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper does not immediately follow menu records"
++        )
++    expected_wrapper = [
++        "lbsr highscore_logo_tick",
++        "lda PRES_MODE",
++        "cmpa #MODE_ATTRACT",
++        "lbne highscore_phase_hold",
++        "lbra menu_tick",
++    ]
++    if code_lines(wrapper, helper_end) != expected_wrapper:
++        raise SystemExit(
++            "presentation flow proof: FEAT-010 attract wrapper is not the exact five-instruction tail"
++        )
++
++
+ def main() -> None:
+     source = SOURCE.read_text(encoding="ascii")
+     demo_source = DEMO_SOURCE.read_text(encoding="ascii")
+     helper_source = HELPER_SOURCE.read_text(encoding="ascii")
+     boot_source = BOOT_SOURCE.read_text(encoding="ascii")
++    page23_source = PAGE23_SOURCE.read_text(encoding="ascii")
++    keybinding_source = KEYBINDING_SOURCE.read_text(encoding="ascii")
++    main_source = MAIN_SOURCE.read_text(encoding="utf-8")
++    build_script = BUILD_SCRIPT.read_text(encoding="ascii")
++    source_reference = json.loads(SOURCE_REFERENCE.read_text(encoding="utf-8"))
+     symbols = symbol_map(PRESENTATION_MAP.read_text(encoding="ascii"))
+     layout = json.loads(LAYOUT.read_text(encoding="ascii"))
+     presentation_layout = json.loads(PRESENTATION_LAYOUT.read_text(encoding="ascii"))
+@@ -69,12 +161,263 @@
+             raise SystemExit("presentation flow proof: auxiliary stage order is not contiguous")
+         if highscore_runtime.get("destination_address") != 0x0300 or highscore_runtime.get("destination_end", 0) > 0x0698:
+             raise SystemExit("presentation flow proof: high-score owner exceeds $0300-$0697")
++        if (instruction_runtime.get("destination_address") != 0x0300 or
++                instruction_runtime.get("destination_end", 0) > 0x06AA):
++            raise SystemExit("presentation flow proof: title instruction owner exceeds $0300-$06A9")
+         if not highscore_helper.get("bytes"):
+             raise SystemExit("presentation flow proof: page-$23 high-score helper is absent")
+         if aux.get("staged_bytes", 0) < sum(
+                 item.get("bytes", 0) for item in
+                 (instruction_runtime, demo_runtime, highscore_runtime, highscore_helper)):
+             raise SystemExit("presentation flow proof: auxiliary staged coverage is incomplete")
++
++        # FEAT-010 cold title paint must establish Start on hidden BACK before
++        # the loader can publish either hydrated owner as FRONT.
++        load_before_publish = source[
++            source.index("\nload_done\n"):
++            source.index("\nload_done_publish\n")
++        ]
++        for fragment in (
++            "jsr     $B080", "PRESENTATION_ATTRACT_OVERLAY",
++            "PRES_MAIN_FB_CAPTURE", "PRES_MAIN_FB_PUBLISH",
++        ):
++            if fragment not in load_before_publish:
++                raise SystemExit("presentation flow proof: hidden title paint path omits " + fragment)
++        if not (load_before_publish.index("jsr     $B080") <
++                load_before_publish.index("PRESENTATION_ATTRACT_OVERLAY") <
++                load_before_publish.index("PRES_MAIN_FB_CAPTURE") <
++                load_before_publish.index("PRES_MAIN_FB_PUBLISH")):
++            raise SystemExit("presentation flow proof: title paint/animation/capture/publication order changed")
++        publish_block = source[
++            source.index("\nload_done_publish\n"):
++            source.index("\nload_done_normal\n")
++        ]
++        if "sta     PENDING" not in publish_block:
++            raise SystemExit("presentation flow proof: cold title never marks the published surface pending")
++        cold_start = source[
++            source.index("\npft_helper_ready\n"):
++            source.index("\npft_ready\n")
++        ]
++        for fragment in ("lbsr    start_screen", "clr     $D0", "clr     $E0", "clr     $E1"):
++            if fragment not in cold_start:
++                raise SystemExit("presentation flow proof: cold Start selection seed omits " + fragment)
++
++        # Fixed inputs 5/6 are both coin edges.  The complete profile may
++        # count them only after the live normal-game owner is established;
++        # SPECIAL completion remains the independent stage-pending path.
++        fixed_coin_scan = keybinding_source[
++            keybinding_source.index("\nks_next\n"):
++            keybinding_source.index("\nks_edges\n")
++        ]
++        fixed_coin_events = keybinding_source[
++            keybinding_source.index("\nks_global\n"):
++            keybinding_source.index("\nks_menu\n")
++        ]
++        for fragment in (
++            "KB_FIXED_COIN_5 equ 44", "KB_FIXED_COIN_6 equ 52",
++            "#KB_FIXED_COIN_5", "#KB_FIXED_COIN_6",
++        ):
++            if fragment not in keybinding_source and fragment not in fixed_coin_scan:
++                raise SystemExit("presentation flow proof: fixed coin input omits " + fragment)
++        for fragment in ("ora #32", "ora #64"):
++            if fragment not in fixed_coin_scan:
++                raise SystemExit("presentation flow proof: fixed coin held state omits " + fragment)
++        for fragment in (
++            "bitb #32", "ora #2", "bitb #64", "ora #4", "sta $A9",
++        ):
++            if fragment not in fixed_coin_events:
++                raise SystemExit("presentation flow proof: coin event mapping omits " + fragment)
++        coin_ready = source[
++            source.index("\npft_ready\n"):
++            source.index("\npft_no_credit\n")
++        ]
++        coin_guard_end = coin_ready.index("        cmpa    #$06")
++        coin_guard = coin_ready[:coin_guard_end]
++        for fragment in (
++            "anda    #$06", "pshs    a", "lda     <PRES_MODE",
++            "cmpa    #MODE_NORMAL", "lda     <PRES_SCREEN",
++            "cmpa    #PRESENTATION_MAP_LEVEL_START",
++            "lda     <PRES_CONTEXT", "cmpa    #PRES_CONTEXT_NEXT_STAGE",
++            "pft_coin_suppress", "puls    a",
++        ):
++            if fragment not in coin_guard:
++                raise SystemExit("presentation flow proof: complete live-credit guard omits " + fragment)
++        context_guard = coin_guard[coin_guard.index("lda     <PRES_CONTEXT"):]
++        if "tst     <PRES_CONTEXT" in context_guard:
++            raise SystemExit("presentation flow proof: live credit rejects context 0 after stage preview")
++        if coin_ready.index("        puls    a") > coin_ready.index("        bsr     add_credit"):
++            raise SystemExit("presentation flow proof: complete credit count precedes its owner guard")
++        coin_suppression = source[
++            source.index("\npft_coin_suppress\n"):
++            source.index("\nadd_credit\n")
++        ]
++        for fragment in ("leas    1,s", "lbra    pft_loop_wake"):
++            if fragment not in coin_suppression:
++                raise SystemExit("presentation flow proof: suppressed coin edge bypasses " + fragment)
++        special_award = main_source[
++            main_source.index("\nalp_special\n"):
++            main_source.index("\nalp_special_draw\n")
++        ]
++        for fragment in ("cmpb    #$7F", "bsr    add_special_score", "inc     STAGE_PENDING"):
++            if fragment not in special_award:
++                raise SystemExit("presentation flow proof: SPECIAL award omits " + fragment)
++        stage_handoff = source[
++            source.index("\nnormal_stage\n"):
++            source.index("\nnormal_start\n")
++        ]
++        for fragment in (
++            "PRES_MAIN_NEXT_STAGE", "PRES_CONTEXT_NEXT_STAGE",
++            "PRESENTATION_MAP_LEVEL_START",
++        ):
++            if fragment not in stage_handoff:
++                raise SystemExit("presentation flow proof: SPECIAL stage handoff omits " + fragment)
++        stage_preview = source[
++            source.index("\nlevel_tick\n"):
++            source.index("\nlive_begin\n")
++        ]
++        for fragment in (
++            "cmpa    #PRES_CONTEXT_NEXT_STAGE", "clr     PRES_CONTEXT",
++            "clr     <PRES_MODE",
++        ):
++            if fragment not in stage_preview:
++                raise SystemExit("presentation flow proof: stage preview does not restore live context " + fragment)
++
++        # Keep menu repaints on the resident framebuffer return path while
++        # the copied $0300 owner is the larger instruction runtime.
++        menu_source = page23_source[
++            page23_source.index("\nmenu_tick\n"):
++            page23_source.index("\nmenu_load_finish\n")
++        ]
++        for forbidden in ("PRES_HIGHSCORE_FB_PREPARE", "PRES_HIGHSCORE_FB_FINISH"):
++            if forbidden in menu_source:
++                raise SystemExit("presentation flow proof: menu callback depends on copied high-score owner")
++        for fragment in (
++            "PRES_MAIN_FB_PREPARE", "PRES_MAIN_FB_FINISH",
++            "PRES_GAME_PAGE_RETURN", "PRES_MAIN_PAGE23_RESUME",
++        ):
++            if fragment not in menu_source:
++                raise SystemExit("presentation flow proof: resident menu return omits " + fragment)
++        menu_painter = page23_source[
++            page23_source.index("\nmenu_load_finish\n"):
++            page23_source.index("\nmenu_paint_options\n")
++        ]
++        for fragment in (
++            "menu_paint_attract", "menu_attract_rows", "cmpb    MENU_SELECT",
++            "lda     #10", "lda     #7",
++        ):
++            if fragment not in menu_painter:
++                raise SystemExit("presentation flow proof: cold title painter omits " + fragment)
++        verify_helper_attract_dispatch(page23_source)
++
++        key_scan = keybinding_source[
++            keybinding_source.index("\nkey_scan\n"):
++            keybinding_source.index("\nkey_bits\n")
++        ]
++        for fragment in (
++            "lda ,x", "coma", "anda ,s", "sta ,x+",
++            "ifne INPUT_JOYSTICK", "jsr PRES_MAIN_JOY_AXIS",
++            "#MODE_LEVEL", "#MODE_CREDIT", "#PRESENTATION_MAP_HIGH_SCORE",
++            "sta PIA2_DA", "sta $FF01", "sta $FF03", "sta PIA2_CRB",
++        ):
++            if fragment not in key_scan:
++                raise SystemExit("presentation flow proof: fresh-input sampler omits " + fragment)
++        if key_scan.count("jsr PRES_MAIN_JOY_AXIS") != 2:
++            raise SystemExit("presentation flow proof: joystick sampler must read exactly two axes")
++        if any(token in key_scan for token in ("JOY_DIR", "PLAYER_WANT", "PLAYER_FACE", "PLAYER_MANUAL")):
++            raise SystemExit("presentation flow proof: frontend sampler writes gameplay input state")
++        if "if int(input_joystick):\n    wanted['joy_read_axis'] = 'PRES_MAIN_JOY_AXIS'" not in build_script:
++            raise SystemExit("presentation flow proof: joystick callback is not conditionally exported")
++        key_module = next(item for item in source_reference["modules"]
++                          if item["id"] == "keybinding-runtime")
++        if ("PRES_MAIN_JOY_AXIS" not in key_module.get("conditional_external_symbols", []) or "PRES_MAIN_JOY_AXIS" in key_module.get("external_symbols", [])):
++            raise SystemExit("presentation flow proof: conditional joystick dependency is undocumented")
++        key_init = keybinding_source[
++            keybinding_source.index("\nkey_init\n"):
++            keybinding_source.index("\nkey_defaults\n")
++        ]
++        if "lda #$FF" not in key_init or "sta ,x+" not in key_init:
++            raise SystemExit("presentation flow proof: raw history is not seeded before first scan")
++        if not re.search(r"ifne\s+INPUT_JOYSTICK\s+lda\s+#\$FF\s+sta\s+key_joy_last", key_init):
++            raise SystemExit("presentation flow proof: joystick first sample can manufacture an edge")
++
++        # Name entry may keep the private direction baseline current, but only
++        # automatic-loop owners may publish a direction edge.
++        name_joy_start = key_scan.index("cmpa #MODE_NAME")
++        name_joy_branch = key_scan[
++            name_joy_start:
++            key_scan.index("ks_joy_credit_screen", name_joy_start)
++        ]
++        if "bra ks_joy_silent" not in name_joy_branch or "sta key_joy_last" in name_joy_branch:
++            raise SystemExit("presentation flow proof: name entry does not silently sample its private baseline")
++        if not re.search(r"ks_joy_silent\s+clra\s+ks_joy_begin\s+pshs a", key_scan):
++            raise SystemExit("presentation flow proof: silent presentation sample can emit a wake")
++
++        joy_sample = key_scan[
++            key_scan.index("\nks_joy_begin\n"):
++            key_scan.index("\nks_joy_done\n")
++        ]
++        joy_sample_code = "\n".join(line.split(";", 1)[0] for line in joy_sample.splitlines())
++        joy_sample_flat = " ".join(joy_sample_code.split())
++        if ("lda #$34 sta PIA2_CRB sta $FF01 sta $FF03 "
++                "jsr PRES_MAIN_JOY_AXIS pshs b lda #$3C sta $FF01 "
++                "jsr PRES_MAIN_JOY_AXIS pshs b lda ,s suba #32 "
++                "bpl ks_joy_y_abs nega ks_joy_y_abs sta KB_WORK "
++                "lda 1,s suba #32 bpl ks_joy_x_abs nega ks_joy_x_abs "
++                "sta KB_CAND" not in joy_sample_flat):
++            raise SystemExit("presentation flow proof: axis callback order no longer maps X and Y stack samples correctly")
++        if ("lda KB_CAND cmpa KB_WORK bhs ks_joy_horizontal "
++                "lda KB_WORK cmpa #8 bls ks_joy_center lda ,s cmpa #32 "
++                "blo ks_joy_north lda #DIR_S" not in joy_sample_flat):
++            raise SystemExit("presentation flow proof: vertical fallthrough does not reload Y magnitude before its deadzone")
++        if ("ks_joy_horizontal lda KB_CAND cmpa #8 bls ks_joy_center "
++                "lda 1,s cmpa #32 blo ks_joy_west lda #DIR_E" not in joy_sample_flat):
++            raise SystemExit("presentation flow proof: horizontal path does not retain X magnitude for its deadzone")
++        if not all(example in joy_sample for example in (
++                "X=32/Y=0 -> N", "X=0/Y=32 -> W", "X=48/Y=48 -> E")):
++            raise SystemExit("presentation flow proof: asymmetric and tied-axis examples are missing")
++        axis_examples = ((32, 0, "N"), (0, 32, "W"), (48, 48, "E"))
++        for x_axis, y_axis, expected in axis_examples:
++            x_delta, y_delta = abs(x_axis - 32), abs(y_axis - 32)
++            if x_delta >= y_delta:
++                actual = "none" if x_delta <= 8 else ("E" if x_axis >= 32 else "W")
++            else:
++                actual = "none" if y_delta <= 8 else ("S" if y_axis >= 32 else "N")
++            if actual != expected:
++                raise SystemExit("presentation flow proof: joystick axis example has the wrong cardinal result")
++        if not all(fragment in joy_sample_flat for fragment in (
++                "cmpa #DIR_NONE beq ks_joy_store", "tst ,s beq ks_joy_store",
++                "cmpa #$FF beq ks_joy_store", "sta key_joy_last")):
++            raise SystemExit("presentation flow proof: cold seed, neutral release, or eligible-edge guard changed")
++        if (len(re.findall(r"^\s*pshs\s+(?:a|b)\s*$", joy_sample_code, re.MULTILINE)) != 3 or
++                len(re.findall(r"^\s*leas\s+2,s\s*$", joy_sample_code, re.MULTILINE)) != 1 or
++                len(re.findall(r"^\s*leas\s+1,s\s*$", joy_sample_code, re.MULTILINE)) != 1):
++            raise SystemExit("presentation flow proof: raw joystick sample stack is unbalanced")
++        if not re.search(
++                r"lda #\$80 sta PIA2_DA lda #\$34 sta \$FF01 "
++                r"lda #\$3C sta \$FF03 sta PIA2_CRB", joy_sample_flat):
++            raise SystemExit("presentation flow proof: raw sample does not restore established GMC selectors")
++        if any(token in joy_sample_code for token in (
++                "PRES_MAIN_READ_JOY", "JOY_X", "JOY_Y", "JOY_DIR",
++                "PLAYER_WANT", "PLAYER_FACE", "PLAYER_MANUAL", "PRES_NAME_")):
++            raise SystemExit("presentation flow proof: private direction sample writes name or gameplay input state")
++
++        joy_axis_start = main_source.index("\njoy_read_axis\n")
++        joy_axis_end = main_source.index("\n        else\n", joy_axis_start)
++        joy_axis_source = main_source[joy_axis_start:joy_axis_end]
++        joy_axis_code = "\n".join(line.split(";", 1)[0] for line in joy_axis_source.splitlines())
++        joy_axis_flat = " ".join(joy_axis_code.split())
++        if "stb PIA2_DA" not in joy_axis_flat or "lda PIA1_DA" not in joy_axis_flat:
++            raise SystemExit("presentation flow proof: existing raw axis callback lost its DAC/PA7 sampling path")
++        if any(token in joy_axis_code for token in (
++                "sta PIA1", "JOY_", "PLAYER_", "PRES_NAME_")):
++            raise SystemExit("presentation flow proof: raw axis callback writes selector or owned game/name state")
++        pft_scan = source[
++            source.index("\npresentation_flow_tick\n"):
++            source.index("\npft_ready\n")
++        ]
++        if ("scan_keys" not in pft_scan or
++                "jsr PRES_MAIN_READ_JOY" not in " ".join(page23_source.split())):
++            raise SystemExit("presentation flow proof: name baseline scan order or name-owned joystick path changed")
+         for fragment in (
+             "lbmi    highscore_timer_owner",
+             "lda     #$80",
+@@ -243,7 +586,7 @@
+                 "presentation flow proof: boot atlas expansion is incomplete"
+             )
+     load_source = source[source.index("\nload_tick\n"):source.index("\nload_done\n")]
+-    if "sta     PRES_ROWS" not in load_source or "dec     PRES_ROWS" not in load_source:
++    if any(re.search(r"^[ \t]+" + opcode + r"[ \t]+<?PRES_ROWS[ \t]*(?:;[^\r\n]*)?\r?$", load_source, re.M) is None for opcode in ("sta", "dec")):
+         raise SystemExit("presentation flow proof: load budget is not memory-backed")
+     if "decb" in load_source:
+         raise SystemExit("presentation flow proof: load budget still uses clobbered B")
+@@ -279,6 +622,19 @@
+             )
+     if source.index("clr     <PRES_ACTOR_FRAME") > source.index("\npft_ready\n"):
+         raise SystemExit("presentation flow proof: actor frame is not initialized")
++        loop_wake = source[
++            source.index("\npft_loop_wake\n"):
++            source.index("\npft_mode\n")
++        ]
++        for fragment in (
++            "#MODE_DEMO", "#MODE_LEVEL", "#PRESENTATION_MAP_INSTRUCTIONS",
++            "#PRESENTATION_MAP_LEVEL_START", "#MODE_LOAD",
++            "#PRESENTATION_MAP_HIGH_SCORE", "#MODE_CREDIT", "bita    #$80",
++            "clr     <PRES_EVENT>", "clr     $D0", "clr     <PENDING>",
++            "#PRESENTATION_MAP_ATTRACT", "clr     <PRES_TIMER>",
++        ):
++            if fragment not in loop_wake:
++                raise SystemExit("presentation flow proof: fresh automatic-loop wake omits " + fragment)
+     if "sta     PRES_ACTOR_PHASE" not in attract_source:
+         raise SystemExit("presentation flow proof: attract phase selection is absent")
+     cold_manifest = presentation_layout.get("native_intermediate", presentation_layout)
+--- a/scripts/verify_shared_text.py
++++ b/scripts/verify_shared_text.py
+@@ -17,6 +17,15 @@
+     cold_path=folder/'ladybug-presentation-cold.bin'
+     if not cold_path.exists():cold_path=folder/'cold.bin'
+     cold=cold_path.read_bytes();data=(folder/'ladybug_shared_text.inc').read_text()
++    source_colours=json.loads((root/'assets/arcade/text-colours.json').read_text())
++    source_runs=[]
++    for run in source_colours['runs']:
++        normalized=dict(run)
++        if normalized['screen']=='high-score':normalized['y']+=2
++        if normalized['y']>=24:continue
++        source_runs.append(normalized)
++    assert shared['colour_configuration']['fields']==source_colours['fields']
++    assert shared['colour_configuration']['runs']==source_runs, 'compiled text colours do not match authored-row mapping'
+     font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','no_end')
+     masks=[font[i:i+8] for i in range(0,len(font),8)]
+     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
+@@ -34,7 +43,7 @@
+         elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
+         elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
+         if colour is not None:
+-            overridden=any(run['screen']==name and run['y']==y and run['x']<=x<run['x']+run['width'] for run in shared['colour_configuration']['runs'])
++            overridden=any(run['screen']==name and run['y']==y and run['x']<=x<run['x']+run['width'] for run in source_runs)
+             if not overridden:assert r['colour']==colour,('approved text colour',r,colour)
+             approved.append((name,x,y))
+     assert len(approved)>50,'approved-colour coverage absent'
+@@ -46,7 +55,17 @@
+         expected=bytearray(p.title_framebuffer(mapping,tiles))
+         seed=bytearray((i*37+11)&255 for i in range(30720)) if name=='game-over' else bytearray(30720)
+         actual=seed.copy()
+-        for run in shared['colour_configuration']['runs']:
++        if name=='high-score':
++            source_map=root/'tiled'/p.MAP_FILES[name]
++            map_root,flat,_=p.flatten_map(source_map)
++            text_codes=set(range(41))|set(range(42,46))
++            for run in (r for r in source_runs if r['screen']==name):
++                for x in range(run['x'],run['x']+run['width']):
++                    code=p.raw_char_code(map_root,source_map,flat[run['y']*40+x]&p.GID_MASK)
++                    assert code in text_codes,('high-score colour run misses authored text',run,x,code)
++                    record=next(r for r in shared['coverage'] if r['screen']==name and r['x']==x and r['y']==run['y'])
++                    assert record['code']==code,('high-score coverage differs from authored text',run,x,record['code'],code)
++        for run in source_runs:
+             if run['screen']!=name:continue
+             for x in range(run['x'],run['x']+run['width']):
+                 for y in range(8):
+--- a/src/demo_runtime.s
++++ b/src/demo_runtime.s
+@@ -61,7 +61,7 @@
+         setdp   $00
+         include "ladybug_presentation.inc"
+         include "ladybug_presentation_symbols.inc"
+-
++; DOC-002 source-contract mirror contract highscore_logo_tick profile=presentation: Advance the shared logo phase and replay twelve phase-changing tiles when the current BACK owner needs an update.
+ PAR5    equ $FFA5
+ PLAYER_DIR equ $0006
+ PLAYER_FACE equ $0007
+--- a/src/keybinding_runtime.s
++++ b/src/keybinding_runtime.s
+@@ -1,6 +1,6 @@
+ ; DOC-002 source-contract mirror contract key_service profile=keybindings: Dispatch physical input, authored menu painting, capture navigation or default initialization.
+-; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.
+-; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns and produce held actions and fresh consumer edges.
++; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; seed impossible keyboard-column and joystick-direction histories; clear capture and repaint state.
++; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns with KB_ROWS as pre-overwrite history, retain held actions and publish fresh keyboard edges; emit joystick direction edges only for automatic-loop owners and silently refresh its baseline on all other presentation screens, including name entry.
+ ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
+ ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
+ ; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
+@@ -9,14 +9,14 @@
+ ; DOC-002 source-contract mirror contract key_name profile=keybindings: Resolve a physical switch to its single glyph or descriptive key name.
+ ; DOC-002 source-contract mirror contract key_text profile=keybindings: Paint an authored length-delimited glyph run.
+ ; DOC-002 source-contract mirror contract key_char profile=keybindings: Paint one source glyph through the resident shared mask renderer.
+-; DOC-002 source-contract mirror profile keybindings Inputs: Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.
+-; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
++; DOC-002 source-contract mirror profile keybindings Inputs: Physical CoCo switch columns; in INPUT_JOYSTICK builds, raw 0..63 axes from conditional PRES_MAIN_JOY_AXIS on presentation screens, including name entry; session bindings, capture state and prepared menu BACK. B selects scan, paint, menu tick or reset.
++; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed coin/menu edges, and a fresh automatic-loop wake token from keyboard or cardinal joystick direction; retained bindings or selected menu pixels. No joystick fire-button event is read.
+ ; DOC-002 source-contract mirror profile keybindings Clobbers: A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.
+-; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
+-; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
+-; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
+-; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
+-; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D stays reserved; key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; fixed coin events stay independent."}
++; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows and, on presentation screens in joystick builds, the existing raw joystick-axis callback; retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
++; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A, profile-local joystick direction history in the page-$3D keybinding module, and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
++; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release. Joystick sampling normalizes raw axes to one cardinal dead-zone edge without writing JOY/player/name state and restores PIA2 DAC and the established audio_select_gmc PIA selectors. All non-emitting presentation screens, including name entry, refresh direction history silently; only automatic-loop owners publish changed non-neutral directions. Painting calls the resident mask renderer without changing PAR5.
++; DOC-002 source-contract mirror profile keybindings Invariants: KB_ROWS at $028E-$0295 is exclusive raw-scan history: key_init seeds impossible $FF before scanning, and key_scan accumulates current-and-not-previous bits before each column overwrite. The joystick callback exists only for INPUT_JOYSTICK=1; cold first sampling seeds direction history without a false edge. During name entry, raw-axis sampling updates only the private baseline, so a held direction through the transition to ranking loading stays suppressed while a newly changed direction wakes the eligible owner; neutral release then repress is a fresh edge. Keyboard builds have no joystick callback reference. Existing page-$3D stream owns code/data at $BA00; caller gateway restores PAR5; bindings reset at startup and never persist to storage.
++; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D stays reserved; key_init after boot_streams_retired and before startup input; KB_ROWS=$028E-$0295 is seeded to $FF then overwritten by every complete eight-column scan","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; raw rows, direction edge history, and capture scratch are reused between scans","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during local menu screens so name-entry row state remains owned by the name renderer; fixed coin events stay independent; joystick sampling does not write JOY/player state."}
+ ; RSCH-014 C3 prototype extension: fixed menu edges track physical state in all phases.
+ ; Source edit is isolated research, not the approved repair implementation.
+ ; Loaded after the unchanged audio prefix in the existing page-$3D stream.
+@@ -40,6 +40,24 @@
+ KB_STATE equ $0298
+ KB_CAND equ $0299
+ KB_WORK equ $029A
++PRES_EVENT equ $00A9
++PRES_MODE equ $00A5
++PRES_SCREEN equ $00A6
++MODE_LOAD equ 1
++MODE_INSTRUCTIONS equ 3
++MODE_DEMO equ 4
++MODE_ATTRACT equ 2
++MODE_CREDIT equ 5
++MODE_GAMEOVER equ 7
++MODE_NAME equ 8
++PRES_CONTEXT equ $00A7
++PIA2_DA equ $FF20
++PIA2_CRB equ $FF23
++DIR_N equ 0
++DIR_E equ 1
++DIR_S equ 2
++DIR_W equ 3
++DIR_NONE equ $FF
+         org $BA00
+ key_service
+         tstb
+@@ -61,6 +79,17 @@
+         clr KB_PREV
+         clr KB_MENU_PREV
+         clr KB_STATE
++        ldx #KB_ROWS
++        lda #$FF
++        ldb #8
++ki_rows
++        sta ,x+
++        decb
++        bne ki_rows
++        ifne INPUT_JOYSTICK
++        lda #$FF
++        sta key_joy_last
++        endc
+         lda #$FF
+         sta key_painted_select
+         sta key_painted_select+1
+@@ -71,6 +100,7 @@
+ key_scan
+         ; $D0 belongs to the instruction colour clock off menu screens.
+         ; ks_local publishes every menu edge, including zero; capture clears locally.
++        clr PRES_EVENT
+         ldx #KB_ROWS
+         lda #$FE
+ ks_column
+@@ -79,6 +109,16 @@
+         lda $FF00
+         coma
+         anda #$7F
++        pshs a
++        lda ,x
++        coma
++        anda ,s
++        beq ks_no_raw_edge
++        lda PRES_EVENT
++        ora #$80
++        sta PRES_EVENT
++ks_no_raw_edge
++        puls a
+         sta ,x+
+         puls a
+         lsla
+@@ -88,8 +128,147 @@
+         lda #$FF
+         sta $FF02
+         ifne INPUT_JOYSTICK
++        lda PRES_MODE
++        cmpa #MODE_INSTRUCTIONS
++        beq ks_joy_emit
++        cmpa #MODE_DEMO
++        beq ks_joy_emit
++        cmpa #MODE_ATTRACT
++        beq ks_joy_silent
++        cmpa #MODE_LOAD
++        bne ks_joy_screen
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_INSTRUCTIONS
++        beq ks_joy_emit
++        cmpa #PRESENTATION_MAP_HIGH_SCORE
++        beq ks_joy_emit
++        cmpa #PRESENTATION_MAP_LEVEL_START
++        bne ks_joy_silent
++        tst PRES_CONTEXT
++        beq ks_joy_emit
++        bra ks_joy_silent
++ks_joy_screen
++        lda PRES_MODE
++        cmpa #MODE_LEVEL
++        bne ks_joy_rank_mode
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_INSTRUCTIONS
++        beq ks_joy_emit
++        cmpa #PRESENTATION_MAP_LEVEL_START
++        bne ks_joy_silent
++        tst PRES_CONTEXT
++        beq ks_joy_emit
++        bra ks_joy_silent
++ks_joy_rank_mode
++        lda PRES_MODE
++        cmpa #MODE_CREDIT
++        beq ks_joy_credit_screen
++        cmpa #MODE_GAMEOVER
++        beq ks_joy_silent
++        cmpa #MODE_NAME
++        bne ks_joy_done
++        ; Keep only the private raw-direction baseline current. Name input
++        ; still uses PRES_MAIN_READ_JOY later and receives no wake here.
++        bra ks_joy_silent
++ks_joy_credit_screen
++        lda PRES_SCREEN
++        cmpa #PRESENTATION_MAP_HIGH_SCORE
++        beq ks_joy_emit
++        bra ks_joy_silent
++ks_joy_emit
++        lda #1
++        bra ks_joy_begin
++ks_joy_silent
++        clra
++ks_joy_begin
++        pshs a
++ks_joy_sample
++        ; Reuse the current source comparator callback. This is a raw sample:
++        ; unlike read_joystick it does not write JOY_* or PLAYER_* state. The
++        ; stack flag permits wake edges only for automatic-loop owners; other
++        ; presentation screens refresh the baseline without dispatching input.
++        lda #$34
++        sta PIA2_CRB
++        sta $FF01
++        sta $FF03
++        jsr PRES_MAIN_JOY_AXIS
++        pshs b
++        lda #$3C
++        sta $FF01
++        jsr PRES_MAIN_JOY_AXIS
++        pshs b
++        lda ,s
++        suba #32
++        bpl ks_joy_y_abs
++        nega
++ks_joy_y_abs
++        sta KB_WORK
++        lda 1,s
++        suba #32
++        bpl ks_joy_x_abs
++        nega
++ks_joy_x_abs
++        sta KB_CAND
++        ; Match read_joystick's dominant-axis rule: horizontal wins X >= Y.
++        ; Raw examples: X=32/Y=0 -> N; X=0/Y=32 -> W; X=48/Y=48 -> E.
++        lda KB_CAND
++        cmpa KB_WORK
++        bhs ks_joy_horizontal
++        ; The compare leaves X magnitude in A; reload Y for this branch's deadzone.
++        lda KB_WORK
++        cmpa #8
++        bls ks_joy_center
++        lda ,s
++        cmpa #32
++        blo ks_joy_north
++        lda #DIR_S
++        bra ks_joy_direction
++ks_joy_north
++        lda #DIR_N
++        bra ks_joy_direction
++ks_joy_horizontal
++        lda KB_CAND
++        cmpa #8
++        bls ks_joy_center
++        lda 1,s
++        cmpa #32
++        blo ks_joy_west
++        lda #DIR_E
++        bra ks_joy_direction
++ks_joy_west
++        lda #DIR_W
++        bra ks_joy_direction
++ks_joy_center
++        lda #DIR_NONE
++ks_joy_direction
++        leas 2,s
++        sta KB_WORK
++        lda key_joy_last
++        cmpa #$FF
++        beq ks_joy_store
++        lda KB_WORK
++        cmpa key_joy_last
++        beq ks_joy_store
++        cmpa #DIR_NONE
++        beq ks_joy_store
++        tst ,s
++        beq ks_joy_store
++        lda PRES_EVENT
++        ora #$80
++        sta PRES_EVENT
++ks_joy_store
++        leas 1,s
++        lda KB_WORK
++        sta key_joy_last
++        lda #$80
++        sta PIA2_DA
++        ; audio_select_gmc's established runtime selector convention.
+         lda #$34
+         sta $FF01
++        lda #$3C
++        sta $FF03
++        sta PIA2_CRB
++ks_joy_done
+         endc
+         clr KB_WORK
+         lda KB_ROWS+3
+@@ -168,10 +347,10 @@
+         pshs a
+         lda KB_DOWN
+         sta KB_PREV
+-        clr $A9
+         tst KB_STATE
+         beq ks_global
+         puls a
++        clr PRES_EVENT
+         clr $D0
+         lda KB_WORK
+         sta KB_MENU_PREV
+@@ -192,7 +371,6 @@
+         sta $A9
+ ks_menu
+         lda $A6
+-        cmpa #3
+         beq ks_local
+         cmpa #6
+         blo ks_done
+@@ -203,7 +381,7 @@
+         sta $D0
+         lda KB_WORK
+         sta KB_MENU_PREV
+-        sta $DF                   ; local menu held state; screen 5 owns $DF otherwise
++        sta $DF                   ; local menu held state; name entry owns $DF otherwise
+         rts
+ ks_done
+         lda KB_WORK
+@@ -480,6 +658,10 @@
+         include "ladybug_keybinding_records.inc"
+ key_painted_select
+         fcb $FF,$FF,$FF
++        ifne INPUT_JOYSTICK
++key_joy_last
++        fcb $FF
++        endc
+ key_single
+         fcb 0
+ key_runtime_end
+--- a/src/main.s
++++ b/src/main.s
+@@ -141,7 +141,7 @@
+ ; DOC-002 source-contract mirror contract install_phase_tiles_for_screen profile=state: Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.
+ ; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.
+ ; DOC-002 source-contract mirror contract irq_handler profile=framebuffer: Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.
+-; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
++; DOC-002 source-contract mirror contract joy_read_axis profile=input: Quantize one currently selected analog joystick axis through the PIA comparator and return its raw 0..63 position.
+ ; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
+ ; DOC-002 source-contract mirror contract merge_sprite_byte profile=state: Merge sprite byte.
+ ; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -47,7 +47,6 @@
+ ; DOC-002 source-contract mirror contract colour_tile profile=render: Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.
+ ; DOC-002 source-contract mirror contract draw_actor_overlay profile=render: Draw the selected presentation actor stream into the current presentation destination.
+ ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
+-; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
+ ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
+ ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
+ ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
+@@ -183,6 +182,13 @@
+         lda     #PRESENTATION_MAP_ATTRACT
+         endc
+         lbsr    start_screen
++        ifne    COMPLETE_PROFILE
++        ; Hidden loading paints the title before its first FRONT publication.
++        ; Seed after start_screen so the retained-screen case is deterministic.
++        clr     $D0
++        clr     $E0
++        clr     $E1
++        endc
+         lda     #1
+         rts
+ pft_ready
+@@ -191,13 +197,35 @@
+         endc
+         lda     <PRES_EVENT
+         anda    #$06
+-        beq     pft_mode
++        beq     pft_no_credit
++        ifne    COMPLETE_PROFILE
++        ; Coin edges only change credits during normal live gameplay.  In
++        ; attract, loading, preview, ranking and local-menu owners, let the
++        ; existing wake/dispatch path consume fresh input without tracking it.
++        pshs    a
++        lda     <PRES_MODE
++        cmpa    #MODE_NORMAL
++        bne     pft_coin_suppress
++        lda     <PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        bne     pft_coin_suppress
++        lda     <PRES_CONTEXT
++        ; Context 0 resumes live play after the stage preview; 2 is still preview.
++        cmpa    #PRES_CONTEXT_NEXT_STAGE
++        beq     pft_coin_suppress
++        puls    a
++        endc
+         cmpa    #$06
+         bne     pft_single_credit
+         bsr     add_credit
+ pft_single_credit
+         bsr     add_credit
+-        ; A credit must not replace live play or a credited level handoff.
++        ifne    COMPLETE_PROFILE
++        ; Live gameplay coin events keep their HUD effect and share the wake check.
++        lbra    pft_loop_wake
++        endc
++        ifeq    COMPLETE_PROFILE
++        ; Preserve the isolated legacy-profile credit flow.
+         lda     <PRES_MODE
+         beq     pft_dispatch
+         cmpa    #MODE_NAME
+@@ -208,18 +236,20 @@
+         tst     <PRES_CONTEXT
+         bne     pft_dispatch
+ pft_idle_credit
+-        ifne    COMPLETE_PROFILE
+-        ; Credit input can pre-empt any auxiliary owner, including cold load.
+-        lbsr    install_highscore_runtime
+-        endc
+         lda     #PRESENTATION_MAP_HIGH_SCORE
+         clr     <PENDING
+         lbsr    start_screen
+         lda     #1
+         rts
++        endc
++        ifne    COMPLETE_PROFILE
++pft_coin_suppress
++        leas    1,s
++        lbra    pft_loop_wake
++        endc
+ add_credit
+         lda     <PRES_CREDITS
+-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
++        cmpa    #9                   ; Preserve the existing one-digit credit/HUD cap.
+         bhs     add_coin
+         inca
+         sta     <PRES_CREDITS
+@@ -229,7 +259,69 @@
+         sta     <CREDIT_RENDER_FLAGS
+ add_coin
+         rts
++pft_no_credit
++        ifne    COMPLETE_PROFILE
++pft_loop_wake
++        ; Pre-empt automatic-loop owners and display-only ranking only.
++        ; Local menus, gameplay, game-over and name entry keep their owners.
++        lda     <PRES_MODE
++        cmpa    #MODE_INSTRUCTIONS
++        beq     pft_loop_wake_event
++        cmpa    #MODE_DEMO
++        beq     pft_loop_wake_event
++        cmpa    #MODE_LEVEL
++        bne     pft_loop_wake_mode_load
++        lda     <PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
++        beq     pft_loop_wake_event
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        bne     pft_dispatch
++        tst     <PRES_CONTEXT
++        beq     pft_loop_wake_event
++        lbra    pft_dispatch
++pft_loop_wake_mode_load
++        cmpa    #MODE_LOAD
++        bne     pft_loop_wake_rank
++        lda     <PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
++        beq     pft_loop_wake_event
++        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        beq     pft_loop_wake_event
++        cmpa    #PRESENTATION_MAP_LEVEL_START
++        bne     pft_dispatch
++        tst     <PRES_CONTEXT
++        beq     pft_loop_wake_event
++        lbra    pft_dispatch
++pft_loop_wake_rank
++        cmpa    #MODE_CREDIT
++        bne     pft_dispatch
++        lda     <PRES_SCREEN
++        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        bne     pft_dispatch
++pft_loop_wake_event
++        lda     <PRES_EVENT
++        bita    #$80
++        beq     pft_dispatch
++        clr     <PRES_EVENT
++        clr     $D0
++        clr     <PENDING
++        lda     #PRESENTATION_MAP_ATTRACT
++        lbsr    start_screen
++        ; Repeat after transition so Start is selected on a retained screen.
++        clr     $D0
++        clr     $E0
++        clr     $E1
++        clr     <PRES_TIMER
++        clr     <PRES_TIMER+1
++        lda     #1
++        rts
++        else
++        lbra    pft_mode
++        endc
+ pft_mode
++        ifne    COMPLETE_PROFILE
++        lbra    pft_dispatch
++        else
+         lda     <PRES_EVENT
+         bita    #1
+         beq     pft_dispatch
+@@ -248,6 +340,7 @@
+         lbsr    start_screen
+         lda     #1
+         rts
++        endc
+ pft_dispatch
+         lda     <PRES_MODE
+         beq     normal_tick
+@@ -436,16 +529,16 @@
+         endc
+         ldd     b,x
+         std     PRES_IN
+-        clr     PRES_RUN
++        clr     <PRES_RUN
+         lda     #MODE_LOAD
+         sta     <PRES_MODE
+         clra
+         clrb
+-        std     PRES_CELL
+-        std     PRES_X
++        std     <PRES_CELL
++        std     <PRES_X
+ start_screen_map
+         ldd     #$2000
+-        std     PRES_DST
++        std     <PRES_DST
+         lbsr    map_back
+         lda     <PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_LEVEL_START
+@@ -459,7 +552,7 @@
+         ifne COMPLETE_PROFILE
+         lda     <PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_HIGH_SCORE
+-        beq     menu_load_event
++        beq     menu_load_continue
+         cmpa    #PRESENTATION_MAP_OPTIONS
+         blo     menu_load_continue
+ menu_load_event
+@@ -474,45 +567,45 @@
+         rts
+ menu_load_continue
+         endc
+-        lda     PRES_HOLD_STATE
++        lda     <PRES_HOLD_STATE
+         bpl     load_tick_normal
+         jmp     PRESENTATION_HOLD_TICK
+ load_tick_normal
+         lda     #32
+-        sta     PRES_ROWS
++        sta     <PRES_ROWS
+ load_cells
+-        ldd     PRES_CELL
++        ldd     <PRES_CELL
+         cmpd    #PRESENTATION_MAP_BYTES
+         bhs     load_done
+-        tst     PRES_RUN
++        tst     <PRES_RUN
+         bne     load_value_ready
+         lbsr    cold_read_byte
+-        sta     PRES_RUN
++        sta     <PRES_RUN
+         lbsr    cold_read_byte
+-        sta     PRES_VALUE
++        sta     <PRES_VALUE
+         cmpa    #174
+         blo     load_value_ready
+         lbsr    cold_read_byte
+         sta     $29
+ load_value_ready
+-        ldb     PRES_VALUE
++        ldb     <PRES_VALUE
+         lbsr    draw_cell
+-        dec     PRES_RUN
+-        inc     PRES_CELL+1
++        dec     <PRES_RUN
++        inc     <PRES_CELL+1
+         bne     load_advance
+-        inc     PRES_CELL
++        inc     <PRES_CELL
+ load_advance
+-        inc     PRES_X
+-        lda     PRES_X
++        inc     <PRES_X
++        lda     <PRES_X
+         cmpa    #40
+         blo     load_next
+-        clr     PRES_X
+-        inc     PRES_Y
+-        ldd     PRES_DST
++        clr     <PRES_X
++        inc     <PRES_Y
++        ldd     <PRES_DST
+         addd    #1120
+-        std     PRES_DST
++        std     <PRES_DST
+ load_next
+-        dec     PRES_ROWS
++        dec     <PRES_ROWS
+         bne     load_cells
+         ifne    COMPLETE_PROFILE
+         lda     $29
+@@ -542,7 +635,6 @@
+         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
+         jsr     PRESENTATION_MODULE_DRAW
+ load_done_no_cucumber
+-        lbsr    draw_coin_slots
+         ifne    HIGHSCORE_TEST_PROFILE
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_HIGH_SCORE
+@@ -566,11 +658,11 @@
+ load_done_dynamic_ready
+         endc
+         endc
+-        lda     PRES_HOLD_STATE
++        lda     <PRES_HOLD_STATE
+         beq     load_done_publish
+         cmpa    #PRES_HOLD_HYDRATE
+         bne     load_done_publish
+-        lda     PRES_SCREEN
++        lda     <PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_ATTRACT
+         bne     load_done_hold_plain
+         ifne    ATTRACT_OVERLAY_ENABLED
+@@ -595,7 +687,7 @@
+         ldd     FB_FRONT_ID
+         exg     a,b
+         std     FB_FRONT_ID
+-        lda     PRES_SCREEN
++        lda     <PRES_SCREEN
+         ifne    COMPLETE_PROFILE
+         lbsr    start_screen_no_instruction_install
+         lda     #1
+@@ -611,7 +703,7 @@
+         andcc   #$EF
+         jsr     PRES_MAIN_FB_PUBLISH
+         lda     #PRES_HOLD_FINAL
+-        sta     PRES_HOLD_STATE
++        sta     <PRES_HOLD_STATE
+ load_done_publish
+         lda     #$34
+         sta     PAR5
+@@ -624,18 +716,18 @@
+         else
+         ldx     #screen_modes
+         endc
+-        ldb     PRES_SCREEN
++        ldb     <PRES_SCREEN
+         lda     b,x
+         sta     <PRES_MODE
+ load_done_normal
+         lda     #$FF
+-        sta     PRES_PHASE
++        sta     <PRES_PHASE
+         ldd     #PLAYER_BG
+         std     PLAYER_BG_PTR
+         clr     PLAYER_BG_VALID
+ load_timer_reset
+-        clr     PRES_TIMER
+-        clr     PRES_TIMER+1
++        clr     <PRES_TIMER
++        clr     <PRES_TIMER+1
+         ifne    ATTRACT_OVERLAY_ENABLED
+         ; Startup leaves page-$34 scratch untouched. Invalidate the BUG-081
+         ; clock tag after PAR5 was restored to $34, before the logo can tick.
+@@ -651,37 +743,15 @@
+ draw_cell
+         cmpb    #$FF
+         beq     draw_cell_advance
+-        ldy     PRES_DST
++        ldy     <PRES_DST
+         jsr    draw_tile_id
+ draw_cell_advance
+-        ldx     PRES_DST
++        ldx     <PRES_DST
+         leax    4,x
+-        stx     PRES_DST
++        stx     <PRES_DST
+         rts
+ 
+ draw_tile_id equ PRES_MAIN_STATIC_TEXT
+-
+-draw_coin_slots
+-        lda     <PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+-        bne     draw_coins_done
+-        lda     <PRES_CREDITS
+-        beq     draw_coins_done
+-        sta     <PRES_COIN_COUNT
+-        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
+-        std     <PRES_IN
+-draw_coin_next
+-        bsr     cold_read_byte
+-        sta     <PRES_DST
+-        bsr     cold_read_byte
+-        sta     <PRES_DST+1
+-        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
+-        ldx     <PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        dec     <PRES_COIN_COUNT
+-        bne     draw_coin_next
+-draw_coins_done
+-        rts
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+ draw_raw_tile
+@@ -751,17 +821,30 @@
+ attract_tick_prepare
+ attract_tick_ready
+         bsr     timer
+-        cmpd    #558
+-        bhs     attract_next
+         ifne    ATTRACT_OVERLAY_ENABLED
++        ; Page-$23 advances the title animation and consumes a fresh local menu
++        ; edge before the idle threshold can hand the screen to the demo loop.
+         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
+         std     PRES_NAME_PTR
+         jsr     PRES_MAIN_PAGE23_RESUME
+         lda     #$34
+         sta     PAR5
++        lda     PRES_MODE
++        cmpa    #MODE_ATTRACT
++        bne     attract_menu_transition
++        ldd     PRES_TIMER
++        cmpd    #558
++        bhs     attract_next
+         jsr     PRESENTATION_ATTRACT_OVERLAY
+-        endc
+         bra     hold
++attract_menu_transition
++        lda     #1
++        rts
++        else
++        cmpd    #558
++        bhs     attract_next
++        bra     hold
++        endc
+ attract_next
+         ifne    BUG011_DEVELOPMENT_PROFILE
+         ifne    HIGHSCORE_TEST_PROFILE
+@@ -815,15 +898,15 @@
+         endc
+         tst     PENDING
+         ifne    COMPLETE_PROFILE
+-        bne     hold
+-        else
+-        bne     hold
++        lbne    hold
++        else
++        lbne    hold
+         endc
+         tst     ACTIVE
+         ifne    COMPLETE_PROFILE
+-        bne     hold
+-        else
+-        bne     hold
++        lbne    hold
++        else
++        lbne    hold
+         endc
+         tst     <PRES_CONTEXT
+         bne     live_begin
+@@ -1768,7 +1851,6 @@
+ PRES_VALUE equ $00BC
+         endc
+ PRES_MAPS equ $00BD
+-PRES_COIN_COUNT equ $00BE
+ PRES_SCORE_H equ $00BF
+ PRES_SCORE_M equ $00C0
+ PRES_SCORE_L equ $00C1
+@@ -1862,7 +1944,6 @@
+ ; DOC-002 source-contract mirror contract colour_tile profile=render: Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.
+ ; DOC-002 source-contract mirror contract draw_actor_overlay profile=render: Draw the selected presentation actor stream into the current presentation destination.
+ ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
+-; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
+ ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
+ ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
+ ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Initialize gameplay.
+@@ -2271,7 +2352,6 @@
+         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
+         jsr     PRESENTATION_MODULE_DRAW
+ load_done_no_cucumber
+-        lbsr    draw_coin_slots
+         ifne    HIGHSCORE_TEST_PROFILE
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_HIGH_SCORE
+@@ -2409,28 +2489,6 @@
+         tfr     y,x
+         tfr     u,y
+         jsr     BLIT_TILE
+-        rts
+-
+-draw_coin_slots
+-        ldb     PRES_SCREEN
+-        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+-        bne     draw_coins_done
+-        lda     <PRES_CREDITS
+-        beq     draw_coins_done
+-        sta     PRES_COIN_COUNT
+-        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
+-        std     PRES_IN
+-draw_coin_next
+-        bsr     cold_read_byte
+-        sta     PRES_DST
+-        bsr     cold_read_byte
+-        sta     PRES_DST+1
+-        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
+-        ldx     PRES_DST
+-        jsr     PRESENTATION_MODULE_DRAW
+-        dec     PRES_COIN_COUNT
+-        bne     draw_coin_next
+-draw_coins_done
+         rts
+ 
+ ; Return X as a CPU pointer into the cold physical page selected by D.
+@@ -2805,7 +2863,7 @@
+         endc
+ add_credit
+         lda     <PRES_CREDITS
+-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
++        cmpa    #9                   ; Preserve the existing one-digit credit/HUD cap.
+         bhs     add_coin
+         inca
+         sta     <PRES_CREDITS
+@@ -3523,7 +3581,6 @@
+ PRES_VALUE equ $00BC
+         endc
+ PRES_MAPS equ $00BD
+-PRES_COIN_COUNT equ $00BE
+ PRES_SCORE_H equ $00BF
+ PRES_SCORE_M equ $00C0
+ PRES_SCORE_L equ $00C1
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -77,8 +77,10 @@
+ PRES_HS_BLACK equ PRESENTATION_NAME_ENTRY_BLACK_TILE
+ PRESENTATION_GAMEPLAY_TILES equ $E3D0
+ MODE_LOAD equ 1
++MODE_ATTRACT equ 2
+ MODE_GAMEOVER equ 7
+ MODE_NAME equ 8
++MODE_CREDIT equ 5
+ MAP_HIGH_SCORE equ PRESENTATION_MAP_HIGH_SCORE
+ MAP_ENTER_HIGH_SCORE equ PRESENTATION_MAP_ENTER_HIGH_SCORE
+ DIR_N equ 0
+@@ -112,13 +114,12 @@
+         org     HIGHSCORE_PHASE_HELPER_ADDRESS
+ 
+ highscore_phase_tick
+-        ; Attract uses the same page-$23 logo strips; decorative actors remain
+-        ; owned by the low-RAM overlay after this resident-gateway call returns.
+         lda     PRES_SCREEN
+         cmpa    #PRESENTATION_MAP_ATTRACT
+-        lbeq    highscore_logo_tick
++        lbeq    highscore_attract_tick
++highscore_phase_not_attract
+         lda     PRES_MODE
+-        cmpa    #5
++        cmpa    #MODE_CREDIT
+         lbeq    menu_tick
+         cmpa    #MODE_GAMEOVER
+         lbeq    highscore_gameover_tick
+@@ -838,41 +839,41 @@
+         ldb 6,u
+         jmp PRES_RANKING_SLICE
+ ranking_schedule_data
+-        fdb 128,$AF84,$2A40
++        fdb 128,$AF84,$3940
+         fcb 1
+-        fdb 160,$AF84,$2A6C
++        fdb 160,$AF84,$396C
+         fcb 0
+-        fdb 192,$AF8E,$3440
++        fdb 192,$AF8E,$3E40
+         fcb 1
+-        fdb 224,$AF8E,$346C
++        fdb 224,$AF8E,$3E6C
+         fcb 0
+-        fdb 256,$AF98,$3940
++        fdb 256,$AF98,$4340
+         fcb 1
+-        fdb 288,$AF98,$396C
++        fdb 288,$AF98,$436C
+         fcb 0
+-        fdb 320,$AFA2,$3E40
++        fdb 320,$AFA2,$4840
+         fcb 1
+-        fdb 352,$AFA2,$3E6C
++        fdb 352,$AFA2,$486C
+         fcb 0
+-        fdb 384,$AFAC,$4340
++        fdb 384,$AFAC,$4D40
+         fcb 1
+-        fdb 416,$AFAC,$436C
++        fdb 416,$AFAC,$4D6C
+         fcb 0
+-        fdb 448,$AFB6,$4840
++        fdb 448,$AFB6,$5240
+         fcb 1
+-        fdb 480,$AFB6,$486C
++        fdb 480,$AFB6,$526C
+         fcb 0
+-        fdb 512,$AFC0,$4D40
++        fdb 512,$AFC0,$5740
+         fcb 1
+-        fdb 544,$AFC0,$4D6C
++        fdb 544,$AFC0,$576C
+         fcb 0
+-        fdb 576,$AFCA,$5240
++        fdb 576,$AFCA,$5C40
+         fcb 1
+-        fdb 608,$AFCA,$526C
++        fdb 608,$AFCA,$5C6C
+         fcb 0
+-        fdb 704,$AFD4,$5740
++        fdb 640,$AFD4,$6140
+         fcb 1
+-        fdb 736,$AFD4,$576C
++        fdb 672,$AFD4,$616C
+         fcb 0
+ ranking_schedule_end
+ 
+@@ -968,34 +969,9 @@
+ 
+ ; BUG-043: publish the authoritative count after its row has been loaded.
+ credit_panel_slice
+-        ldd     $AA
+-        cmpd    #832
+-        beq     credit_panel_count
+-        cmpd    #960
+-        bne     credit_panel_done
+-        lda     PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+-        bne     credit_panel_done
+-        lda     $A8
+-        cmpa    #2
+-        blo     credit_panel_done
+-        ldx     #$9328
+-        leay    credit_panel_two_prompt,pcr
+-        ldb     #20
+-credit_panel_prompt_loop
+-        lda     #5
+-        sta     $29
+-        lda     ,y+
+-        cmpa    #2
+-        bhi     credit_panel_prompt_char
+-        pshs    a
+-        lda     #8
+-        sta     $29
+-        puls    a
+-credit_panel_prompt_char
+-        lbsr    stage_panel_char
+-        decb
+-        bne     credit_panel_prompt_loop
++        ldd $AA
++        cmpd #832
++        beq credit_panel_count
+ credit_panel_done
+         rts
+ credit_panel_count
+@@ -1028,8 +1004,6 @@
+         bra     top_panel_draw
+ credit_panel_label
+         fcb 12,27,14,13,18,29
+-credit_panel_two_prompt
+-        fcb 1,36,24,27,36,2,36,25,21,10,34,14,27,36,11,30,29,29,24,23
+ 
+ ; Publish record zero at TOP on instruction and level-start surfaces.
+ top_panel_draw
+@@ -1061,18 +1035,31 @@
+ menu_tick
+         lda     PRES_SCREEN
+         cmpa    #8
+-        bne     menu_original_tick
++        bne     menu_tick_not_keybinding
+         ldb     #2
+         jsr     PRES_MAIN_KEY_SERVICE
+         cmpb    #$FF
+         lbeq    menu_idle
+         tfr     b,a
+         lbra    menu_change
+-menu_original_tick
++menu_tick_not_keybinding
++        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        lbeq    highscore_logo_tick
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        bne     menu_non_attract_event
++        lda     MENU_EVENT
++        lbeq    menu_idle
++        clr     PRES_TIMER
++        clr     PRES_TIMER+1
++        bita    #32
++        lbne    menu_hold
++        bra     menu_event_ready
++menu_non_attract_event
+         lda     MENU_EVENT
+         lbeq    menu_idle
+         bita    #32
+         lbne    menu_back
++menu_event_ready
+         ldb     PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_CREDITS
+         bne     menu_interactive
+@@ -1131,7 +1118,7 @@
+ menu_down
+         ldb     #2
+         lda     PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
++        cmpa    #PRESENTATION_MAP_ATTRACT
+         beq     menu_last
+         ldb     #3
+ menu_last
+@@ -1143,25 +1130,21 @@
+         sta     MENU_DIRTY
+         bra     menu_idle
+ menu_enter
+-        cmpb    #PRESENTATION_MAP_HIGH_SCORE
++        cmpb    #PRESENTATION_MAP_ATTRACT
+         bne     menu_enter_option
+         lda     MENU_SELECT
+-        bne     menu_high_nonstart
+-        ; Start is available only from this row and consumes one real credit.
+-        tst     $A8
+-        beq     menu_idle
+-        dec     $A8
++        beq     menu_start_free
++        cmpa    #1
++        beq     menu_attract_options
++        lda     #PRESENTATION_MAP_CREDITS
++        bra     menu_change
++menu_start_free
+         lda     #1
+         sta     $A7
+         lda     #PRESENTATION_MAP_LEVEL_START
+         bra     menu_change
+-menu_high_nonstart
+-        cmpa    #1
+-        bne     menu_high_credits
++menu_attract_options
+         lda     #PRESENTATION_MAP_OPTIONS
+-        bra     menu_change
+-menu_high_credits
+-        lda     #PRESENTATION_MAP_CREDITS
+         bra     menu_change
+ menu_enter_option
+         lda     MENU_SELECT
+@@ -1173,7 +1156,7 @@
+         cmpa    #3
+         bne     menu_idle
+ menu_back
+-        lda     #PRESENTATION_MAP_HIGH_SCORE
++        lda     #PRESENTATION_MAP_ATTRACT
+ menu_change
+         clr     MENU_SELECT
+ menu_start
+@@ -1187,10 +1170,13 @@
+ menu_idle
+         ; Loading still accepts input, but cannot publish a field transaction.
+         lda     PRES_MODE
+-        cmpa    #5
++        cmpa    #MODE_ATTRACT
++        beq     menu_idle_active
++        cmpa    #MODE_CREDIT
+         bne     menu_hold
++menu_idle_active
+         tst     MENU_DIRTY
+-        beq     menu_idle_logo
++        beq     menu_hold
+         tst     FB_PENDING
+         bne     menu_hold
+         lda     FB_BACK_ID
+@@ -1201,9 +1187,11 @@
+         std     PRES_NAME_PTR
+         ldd     #PRES_MAIN_PAGE23_RESUME
+         pshs    d
+-        jmp     PRES_HIGHSCORE_FB_PREPARE
++        ldd     #PRES_MAIN_FB_PREPARE
++        pshs    cc,d
++        orcc    #$50
++        jmp     PRES_GAME_PAGE_RETURN
+ menu_updated
+-        ; Existing callback restored page $23 after preparing game-page state.
+         bsr     menu_load_finish
+         lda     FB_BACK_ID
+         inca
+@@ -1214,11 +1202,10 @@
+         std     PRES_NAME_PTR
+         ldd     #PRES_MAIN_PAGE23_RESUME
+         pshs    d
+-        jmp     PRES_HIGHSCORE_FB_FINISH
+-menu_idle_logo
+-        lda     PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+-        lbeq    highscore_logo_tick
++        ldd     #PRES_MAIN_FB_FINISH
++        pshs    cc,d
++        orcc    #$50
++        jmp     PRES_GAME_PAGE_RETURN
+ menu_hold
+         lda     #1
+         rts
+@@ -1231,31 +1218,17 @@
+         jmp     PRES_MAIN_KEY_SERVICE
+ menu_load_original
+         lda     PRES_SCREEN
+-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+-        beq     menu_paint_high
++        cmpa    #PRESENTATION_MAP_ATTRACT
++        beq     menu_paint_attract
+         cmpa    #PRESENTATION_MAP_OPTIONS
+         beq     menu_paint_options
+         cmpa    #PRESENTATION_MAP_CREDITS
+         beq     menu_paint_credits
+         jmp     stage_panel_finish
+-menu_paint_high
+-        leay    menu_high_score_rows,pcr
++menu_paint_attract
++        leay    menu_attract_rows,pcr
+         ldb     #3
+-        bsr     menu_paint_rows
+-        tst     $A8
+-        bne     menu_high_paint_done
+-        lda     #7
+-        tst     MENU_SELECT
+-        bne     menu_high_add_colour
+-        lda     #10
+-menu_high_add_colour
+-        sta     $29
+-        leay    menu_high_score_add_credits,pcr
+-        ldx     ,y++
+-        ldb     ,y+
+-        lbsr    stage_panel_text
+-menu_high_paint_done
+-        rts
++        bra     menu_paint_rows
+ menu_paint_credits
+         lda     #10
+         sta     $29
+@@ -1330,6 +1303,12 @@
+         blo     menu_value_row
+         rts
+         include "ladybug_menu_records.inc"
++highscore_attract_tick
++        lbsr    highscore_logo_tick
++        lda     PRES_MODE
++        cmpa    #MODE_ATTRACT
++        lbne    highscore_phase_hold
++        lbra    menu_tick
+ highscore_phase_helper_end
+ 
+         else
+@@ -1930,8 +1909,9 @@
+         ldx     #PRES_HIGHSCORE_BASE
+         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
+         bsr     draw_high_score_entry
++        ldx     #PRES_HIGHSCORE_BASE
+         leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
+-        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
++        ldb     #PRESENTATION_HIGHSCORE_COUNT
+ draw_high_score_rows
+         pshs    b
+         bsr     draw_high_score_entry
+--- a/wiki/internal/implementation/routine-catalog.html
++++ b/wiki/internal/implementation/routine-catalog.html
+@@ -215,3 +215,3 @@
+           <tr id="routine-resident-runtime-irq-handler"><td><code>irq_handler</code></td><td>Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+-          <tr id="routine-resident-runtime-joy-read-axis"><td><code>joy_read_axis</code></td><td>Sample and normalize one joystick axis through the PIA comparator.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
++          <tr id="routine-resident-runtime-joy-read-axis"><td><code>joy_read_axis</code></td><td>Quantize one currently selected analog joystick axis through the PIA comparator and return its raw 0..63 position.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
+           <tr id="routine-resident-runtime-mark-gate-enemy-overlap"><td><code>mark_gate_enemy_overlap</code></td><td>Mark roaming enemy captures whose destinations intersect the current gate mutation.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+@@ -440,3 +440,3 @@
+ <section id="adaptive-driver-contracts-20260928"><h2>Isolated adaptive driver contracts</h2><p>BUG-058 experimental complete build only. Existing interface profiles below supply conservative registers and memory rules; entry-specific ownership is described in the canonical ticket.</p><ul><li id="routine-resident-runtime-ad-clock-exec"><code>AD_CLOCK_EXEC</code>: Read an atomic raw VBlank snapshot through the fitted mapped gateway. Profile: <a href="#profile-root">root</a>.</li><li id="routine-resident-runtime-ad-reset-exec"><code>AD_RESET_EXEC</code>: Rebase adaptive phase time and clear both damage journals outside active publication. Profile: <a href="#profile-state">state</a>.</li><li id="routine-resident-runtime-ad-work-exec"><code>AD_WORK_EXEC</code>: Execute the active logical batch, damage reduction, audio service and BACK publication transaction. Profile: <a href="#profile-framebuffer">framebuffer</a>.</li><li id="routine-resident-runtime-adaptive-install-active"><code>adaptive_install_active</code>: Restore the active low-RAM driver from staged page $3D after a presentation overlay retires. Profile: <a href="#profile-copy">copy</a>.</li><li id="routine-audio-runtime-aas-clock"><code>aas_clock</code>: Read an atomic raw VBlank snapshot without changing caller IRQ state. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-aas-dirty"><code>aas_dirty</code>: Detect semantic-state or queue changes before admitting audio; no note ages here. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-aas-prime"><code>aas_prime</code>: Decode only newly admitted zero-wait voices; never age an existing dwell. Profile: <a href="#profile-audio">audio</a>.</li><li id="routine-audio-runtime-audio-adaptive-api"><code>audio_adaptive_api</code>: Separate elapsed-note service, semantic admission, audible publication and explicit phase rebase. Profile: <a href="#profile-audio">audio</a>.</li></ul></section>
+-<section id="profile-keybindings"><h2>Session keybinding interface</h2><p><strong>inputs:</strong> Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.</p><p><strong>outputs:</strong> Held action mask, fresh credit/start/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.</p><p><strong>clobbers:</strong> A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.</p><p><strong>reads:</strong> PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.</p><p><strong>writes:</strong> Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.</p><p><strong>side effects:</strong> Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.</p><p><strong>invariants:</strong> The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.</p></section><section id="routine-resident-runtime-presentation-key-service"><h3><code>presentation_key_service</code></h3><p>Call the bounded physical key component while preserving the caller bank mapping. Interface: <a href="#profile-input">input</a>. Source: <code>src/main.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-service"><h3><code>key_service</code></h3><p>Dispatch physical input, authored menu painting, capture navigation or default initialization. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-init"><h3><code>key_init</code></h3><p>Restore seven default physical bindings and clear capture and repaint history. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-scan"><h3><code>key_scan</code></h3><p>Sample eight physical columns and produce held actions and fresh consumer edges. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-down"><h3><code>key_down</code></h3><p>Test one column-times-eight-plus-row physical switch while preserving caller indexes. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-capture"><h3><code>key_capture</code></h3><p>Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-tick"><h3><code>key_tick</code></h3><p>Navigate the seven actions and BACK or begin waiting for a replacement switch. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-paint"><h3><code>key_paint</code></h3><p>Repaint all hydrated rows or only the previous and current selected rows for the prepared owner. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-waiting"><h3><code>key_waiting</code></h3><p>Report whether the current row owns active capture parentheses. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-name"><h3><code>key_name</code></h3><p>Resolve a physical switch to its single glyph or descriptive key name. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-text"><h3><code>key_text</code></h3><p>Paint an authored length-delimited glyph run. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-char"><h3><code>key_char</code></h3><p>Paint one source glyph through the resident shared mask renderer. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-resident-runtime-asset-draw-part-value"><h3><code>asset_draw_part_value</code></h3><p>BUG061 integrated and accepted at669b157; current fixed part formatter. Input A=part1–255 and HUD_X=hundreds column. Compute hundreds in B and remainder in A, then jump to immutable asset_part_digits; write blank for zero hundreds followed by fixed tens/units through the existing two-digit writer. Uses the last compact font glyph only under the producer blank-mask guard. Writes HUD_X and target framebuffer glyph cells; preserves stage/lives and existing MMU ownership. Clobbers A/B and follows the existing render interface. Source: src/main.s and src/shared_text_runtime.inc. Current capacity and integration qualification are recorded in <a href="../tickets/bug-061-global-two-digit-part-format.html#split-formatter-fit-20261003">BUG061</a>.</p></section><section id="routine-highscore-helper-stage-player-score"><h3><code>stage_player_score</code></h3><p>BUG-069 integrated and accepted at7f52f46; parent full build and visible score handoff verified. Existing mapped stage helper paints six score digits at x33–38,row2 in light green during hidden hydration. Context2 reads current SCORE_BCD; contexts0/1 paint zero. Existing stage_panel_char preserves loop registers; score accounting and MMU ownership remain unchanged.</p></section><section id="routine-resident-runtime-life-marker-position"><h3><code>life_marker_position</code></h3><p>Map reserve slots0–11 to authored HUD tile roots; write HUD_X and HUD_Y only. Input A is slot0–11; A/B and condition codes are scratch. HUD origin is x33+2*(slot%3), y21−2*(slot//3). No life-counter mutation or actor-transfer ownership. Interface: <a href="#profile-render">render</a>. Source: <code>src/shared_text_runtime.inc</code>, mirrored by src/main.s and the current source-reference registry. <a href="../tickets/bug-062-twelve-life-indicator-grid.html">Approved grid contract</a>.</p></section><section id="routine-enemy-runtime-player-entry-width"><h2>player_entry_width — persistent HUD transfer width</h2><p>BUG084 helper in existing src/enemy_runtime.s. Input: INITIAL_ENTRY_STATE and hydrated current/old PLAYER_FB low byte. During WALKOUT/OFFSCREEN only, return/write PLAYER_DX=min(8,max(0,160−byte-column)); other states retain eight packed bytes. A/B/condition codes are scratch; no life-counter or framebuffer-owner mutation. Horizontal HUD rows are page-aligned. The existing persistent capture/restore/commit loops retain16 rows and eight-byte stage/save-under strides while framebuffer reads/writes use the visible width. At x320, width is zero; both owner histories must retire before normal maze entry reuses full width. Excluded nonpersistent vertical-clipping path remains unchanged. <a href="../tickets/bug-084-marker-exit-direction.html">Approved transfer contract and current evidence</a>.</section><section id="routine-resident-runtime-hud-fb-address"><h2>hud_fb_address — resolve a HUD cell framebuffer address</h2><p>Existing src/main.s render helper. Read the full-width HUD_X and HUD_Y coordinates and return X=FB_VIRT+(HUD_Y*1280)+(HUD_X*4); A/B/D and condition codes are scratch. Shared by life-marker erasure, HUD tile drawing and marker-entry setup. Interface: <a href="#profile-render">render</a>.</p></section><section id="routine-resident-runtime-marker-entry-begin"><h2>marker_entry_begin — arm the already-consumed life</h2><p>Existing src/main.s entry-state helper; interface <a href="#profile-movement">movement</a>. Initial WAIT_STAGE consumes one reserve only after RF_STAGE commits; if the latest post-PSG status is busy, state1 and DEATH_TIMER=1 wait without repeating the decrement. Death replacement arrives after its existing decrement and uses the same wait sentinel only when prior music remains busy. On idle, read the already-decremented count as the consumed HUD slot, seed DEATH_TIMER=80 before HUD rendering mutates scratch, call life_marker_position and hud_fb_address, set DIR/face east and stateWALKOUT, and merge RF_LIVES|RF_PLAYER. A/B/D and condition codes are scratch. The accepted two-pixel WALKOUT/OFFSCREEN ticks count down the exit pad while both owner histories are checked every callback; state4 retains the Y18 final pose until the published music status is idle after the existing pending-render IRQ gate. The routine never decrements LIVES, resets maze/stage, or changes manual/want. Zero reserves retain the existing game-over branch. <a href="../tickets/bug-085-marker-every-life.html">Approved replacement-life contract</a>.</p></section><section id="routine-highscore-helper-logo-vbord-clock"><h2>logo_vbord_clock</h2><p>BUG081 integrated source pending combined acceptance. IRQ-atomic FRAMES sample advances the fixed31-VBL logo phase using reserved A8FD-A8FF state; preserves caller PAR4 and CC. Screen changes reinitialize phase/owner caches; actor D3 remains unchanged. Interface details and live qualification are recorded in <a href="../tickets/bug-081-logo-animation-dwell.html">BUG081</a>.</p></section></main>
++<section id="profile-keybindings"><h2>Session keybinding interface</h2><p><strong>inputs:</strong> Physical CoCo switch columns; in INPUT_JOYSTICK builds, raw 0..63 axes from conditional PRES_MAIN_JOY_AXIS on presentation screens, including name entry; session bindings, capture state and prepared menu BACK. B selects scan, paint, menu tick or reset.</p><p><strong>outputs:</strong> Five held gameplay actions, fresh fixed coin/menu edges, and a fresh automatic-loop wake token from keyboard or cardinal joystick direction; retained bindings or selected menu pixels. No joystick fire-button event is read.</p><p><strong>clobbers:</strong> A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.</p><p><strong>reads:</strong> PIA keyboard rows and, on presentation screens in joystick builds, the existing raw joystick-axis callback; retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.</p><p><strong>writes:</strong> Unbanked low RAM $0287-$029A, profile-local joystick direction history in the page-$3D keybinding module, and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.</p><p><strong>side effects:</strong> Capture suppresses global and local consumers through accepted-key release. Joystick sampling normalizes raw axes to one cardinal dead-zone edge without writing JOY/player/name state and restores PIA2 DAC and the established audio_select_gmc PIA selectors. All non-emitting presentation screens, including name entry, refresh direction history silently; only automatic-loop owners publish changed non-neutral directions. Painting calls the resident mask renderer without changing PAR5.</p><p><strong>invariants:</strong> KB_ROWS at $028E-$0295 is exclusive raw-scan history: key_init seeds impossible $FF before scanning, and key_scan accumulates current-and-not-previous bits before each column overwrite. The joystick callback exists only for INPUT_JOYSTICK=1; cold first sampling seeds direction history without a false edge. During name entry, raw-axis sampling updates only the private baseline, so a held direction through the transition to ranking loading stays suppressed while a newly changed direction wakes the eligible owner; neutral release then repress is a fresh edge. Keyboard builds have no joystick callback reference. Existing page-$3D stream owns code/data at $BA00; caller gateway restores PAR5; bindings reset at startup and never persist to storage.</p></section><section id="routine-resident-runtime-presentation-key-service"><h3><code>presentation_key_service</code></h3><p>Call the bounded physical key component while preserving the caller bank mapping. Interface: <a href="#profile-input">input</a>. Source: <code>src/main.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-service"><h3><code>key_service</code></h3><p>Dispatch physical input, authored menu painting, capture navigation or default initialization. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-init"><h3><code>key_init</code></h3><p>Restore seven default physical bindings and clear capture and repaint history. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-scan"><h3><code>key_scan</code></h3><p>Sample eight physical columns and produce held actions and fresh consumer edges. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-down"><h3><code>key_down</code></h3><p>Test one column-times-eight-plus-row physical switch while preserving caller indexes. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-capture"><h3><code>key_capture</code></h3><p>Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-tick"><h3><code>key_tick</code></h3><p>Navigate the seven actions and BACK or begin waiting for a replacement switch. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-paint"><h3><code>key_paint</code></h3><p>Repaint all hydrated rows or only the previous and current selected rows for the prepared owner. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-waiting"><h3><code>key_waiting</code></h3><p>Report whether the current row owns active capture parentheses. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-name"><h3><code>key_name</code></h3><p>Resolve a physical switch to its single glyph or descriptive key name. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-text"><h3><code>key_text</code></h3><p>Paint an authored length-delimited glyph run. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-keybinding-runtime-key-char"><h3><code>key_char</code></h3><p>Paint one source glyph through the resident shared mask renderer. Interface: <a href="#profile-keybindings">keybindings</a>. Source: <code>src/keybinding_runtime.s</code>; current source-reference module pages retain emitted-address and call evidence.</p></section><section id="routine-resident-runtime-asset-draw-part-value"><h3><code>asset_draw_part_value</code></h3><p>BUG061 integrated and accepted at669b157; current fixed part formatter. Input A=part1–255 and HUD_X=hundreds column. Compute hundreds in B and remainder in A, then jump to immutable asset_part_digits; write blank for zero hundreds followed by fixed tens/units through the existing two-digit writer. Uses the last compact font glyph only under the producer blank-mask guard. Writes HUD_X and target framebuffer glyph cells; preserves stage/lives and existing MMU ownership. Clobbers A/B and follows the existing render interface. Source: src/main.s and src/shared_text_runtime.inc. Current capacity and integration qualification are recorded in <a href="../tickets/bug-061-global-two-digit-part-format.html#split-formatter-fit-20261003">BUG061</a>.</p></section><section id="routine-highscore-helper-stage-player-score"><h3><code>stage_player_score</code></h3><p>BUG-069 integrated and accepted at7f52f46; parent full build and visible score handoff verified. Existing mapped stage helper paints six score digits at x33–38,row2 in light green during hidden hydration. Context2 reads current SCORE_BCD; contexts0/1 paint zero. Existing stage_panel_char preserves loop registers; score accounting and MMU ownership remain unchanged.</p></section><section id="routine-resident-runtime-life-marker-position"><h3><code>life_marker_position</code></h3><p>Map reserve slots0–11 to authored HUD tile roots; write HUD_X and HUD_Y only. Input A is slot0–11; A/B and condition codes are scratch. HUD origin is x33+2*(slot%3), y21−2*(slot//3). No life-counter mutation or actor-transfer ownership. Interface: <a href="#profile-render">render</a>. Source: <code>src/shared_text_runtime.inc</code>, mirrored by src/main.s and the current source-reference registry. <a href="../tickets/bug-062-twelve-life-indicator-grid.html">Approved grid contract</a>.</p></section><section id="routine-enemy-runtime-player-entry-width"><h2>player_entry_width — persistent HUD transfer width</h2><p>BUG084 helper in existing src/enemy_runtime.s. Input: INITIAL_ENTRY_STATE and hydrated current/old PLAYER_FB low byte. During WALKOUT/OFFSCREEN only, return/write PLAYER_DX=min(8,max(0,160−byte-column)); other states retain eight packed bytes. A/B/condition codes are scratch; no life-counter or framebuffer-owner mutation. Horizontal HUD rows are page-aligned. The existing persistent capture/restore/commit loops retain16 rows and eight-byte stage/save-under strides while framebuffer reads/writes use the visible width. At x320, width is zero; both owner histories must retire before normal maze entry reuses full width. Excluded nonpersistent vertical-clipping path remains unchanged. <a href="../tickets/bug-084-marker-exit-direction.html">Approved transfer contract and current evidence</a>.</section><section id="routine-resident-runtime-hud-fb-address"><h2>hud_fb_address — resolve a HUD cell framebuffer address</h2><p>Existing src/main.s render helper. Read the full-width HUD_X and HUD_Y coordinates and return X=FB_VIRT+(HUD_Y*1280)+(HUD_X*4); A/B/D and condition codes are scratch. Shared by life-marker erasure, HUD tile drawing and marker-entry setup. Interface: <a href="#profile-render">render</a>.</p></section><section id="routine-resident-runtime-marker-entry-begin"><h2>marker_entry_begin — arm the already-consumed life</h2><p>Existing src/main.s entry-state helper; interface <a href="#profile-movement">movement</a>. Initial WAIT_STAGE consumes one reserve only after RF_STAGE commits; if the latest post-PSG status is busy, state1 and DEATH_TIMER=1 wait without repeating the decrement. Death replacement arrives after its existing decrement and uses the same wait sentinel only when prior music remains busy. On idle, read the already-decremented count as the consumed HUD slot, seed DEATH_TIMER=80 before HUD rendering mutates scratch, call life_marker_position and hud_fb_address, set DIR/face east and stateWALKOUT, and merge RF_LIVES|RF_PLAYER. A/B/D and condition codes are scratch. The accepted two-pixel WALKOUT/OFFSCREEN ticks count down the exit pad while both owner histories are checked every callback; state4 retains the Y18 final pose until the published music status is idle after the existing pending-render IRQ gate. The routine never decrements LIVES, resets maze/stage, or changes manual/want. Zero reserves retain the existing game-over branch. <a href="../tickets/bug-085-marker-every-life.html">Approved replacement-life contract</a>.</p></section><section id="routine-highscore-helper-logo-vbord-clock"><h2>logo_vbord_clock</h2><p>BUG081 integrated source pending combined acceptance. IRQ-atomic FRAMES sample advances the fixed31-VBL logo phase using reserved A8FD-A8FF state; preserves caller PAR4 and CC. Screen changes reinitialize phase/owner caches; actor D3 remains unchanged. Interface details and live qualification are recorded in <a href="../tickets/bug-081-logo-animation-dwell.html">BUG081</a>.</p></section></main>
+ </div>
