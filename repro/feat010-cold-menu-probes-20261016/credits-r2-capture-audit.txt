@@ -1,0 +1,17 @@
+FEAT010 Credits R2 capture audit (read-only)
+
+Evidence identity
+- Frozen capsule: repro/feat010-manual-review-20261016/capsule, ROM SHA-256 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53.
+- All four captured presentation-module dumps (selected, menu-load-event, load-done, load-done-publish) match the packaged 1,271-byte module, SHA-256 bbd98060a2e099acff75140746505dff25bc156fb15fcee9094baaaf7e5cf5c4. Each presentation binding passed.
+- All four captured helper dumps at $0300 up to $06AA exclusive (938 bytes) match the packaged instruction runtime, SHA-256 32116bc664e91054a70fdb1d4763242820c281afd0ae0c2d52cffb9f8d6f0654. They do not identify as the packaged demo runtime (143 bytes, SHA-256 019820f10fa4edddfd9d58ab7cfab880cf03f0353c2a2c04f1cadcb5d4110090). This byte identity establishes contents at snapshots, not logical owner or a call during the interval.
+- Selected start-screen marker $1A78 had A=$07 and state bytes $A5..$A6 = 02 00. At $1ACE, $1B48, and $1BC1 state bytes were 01 07. In the packaged source, $A5 is PRES_MODE and $A6 is PRES_SCREEN; MODE_ATTRACT=2, MODE_LOAD=1, PRESENTATION_MAP_ATTRACT=0, and PRESENTATION_MAP_CREDITS=7.
+
+Source/capture boundary
+- At $1ACE, the packaged menu_load_event begins by testing $D0; only its nonzero branch calls MENU_TICK. The run did not capture $D0 or stop inside MENU_TICK, so this marker does not prove that call occurred.
+- Leading source-specific wrong-phase hypothesis: complete-profile load_done code at $1B65 compares PRES_SCREEN with PRESENTATION_MAP_HIGH_SCORE (3); screen 7 is not below 3, so the source falls through to `jsr DEMO_RUNTIME_TICK` at $1B6C, target $0300. The run resumed from $1B48 and reached $1BC1 with screen 7 at both captured endpoints, while the helper snapshots before and after match the instruction payload. This strongly supports a wrong-helper/phase dispatch. It is not a direct trace at $1B6C or $0300, and does not identify the actual framebuffer writes or establish the complete cause.
+- $1BC1 is the entry to load_done_publish, before its instructions execute. Packaged code then sets PENDING, reads PRES_MAIN_SCREEN_MODES at $F5DA, and stores the indexed mode. The captured live resident table is 02 03 06 05 07 08 05 05 05; index 7 maps to MODE_CREDIT=5. This is a byte-qualified static route only. No post-publication mode write or final PC was captured.
+
+Observed result and limits
+- Runtime phase ended INCOMPLETE at 23.023s of the 45s phase limit, using 7 of 12 continue slots. The final witness continue timed out at 5s; the signal helper later reported completion, but exact signal delivery time and a final stop snapshot are absent.
+- The supplied native witness confirms Credits was visible with collectables flickering and attract-screen graphics overlaid. It does not confirm the earlier generic garbage/crash report, input freeze, or visible duration.
+- Two cumulative observation-tool timeouts have occurred. No further runtime experiment is supported here. Retain the visual reproduction and the leading source/capture hypothesis for parent reassessment; leave direct call execution and visual-write attribution unresolved.
