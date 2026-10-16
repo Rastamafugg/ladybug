@@ -1,0 +1,183 @@
+{
+  "ticket": "FEAT-010",
+  "proposal_status": "Proposed; read-only audit only; no implementation authorized by this audit",
+  "parent_classification": "High-risk FEAT010 parent; this bounded step addresses a stale static observer assertion, not a product defect",
+  "objective": "Correct the conditional joystick callback assertion and complete only the already-approved remaining static postchecks against the unchanged passing capsule.",
+  "observed_baseline": {
+    "artifact": {
+      "capsule": "repro/feat010-source-documentation-repair-20261016/capsule",
+      "source_build_receipt_sha256": "6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445",
+      "source_reference_registry_sha256": "4e3007ce29d1d8fd77547fcacb4f3be8f38bea1ce14a945d5d2592cda043e10b",
+      "demo_runtime_source_sha256": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "maintained_flow_verifier_sha256": "498c2ca218fc8dc6ca980fb331d4c1e32e12e408885cf8456c53cf54ec05eab2",
+      "historical_reference_manifest_sha256": "730f4e2d5044ed9420f48ea6b4ffff438da45cad50b22079c9b486ac8d998b78",
+      "final_rom_sha256": "274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53",
+      "build_log_sha256": "421831775e1cd7f3d9357d4f9b49eb8e0f96b3d9c520d61519ecba13ea51e831",
+      "frozen_post_command_sha256": "198bb8d6aa609ef3791169f0e0717122f749b5bd4529955d0a1c687521fe2a70",
+      "failed_post_flow_log_sha256": "7898538ec820332b7853e7dee7865184b59010c37d19ea89f1015385e3e1cf20",
+      "failed_post_result_sha256": "f5346832dd3092ae172b75571ff2ee5e075ab4ec459d7b8179b7653489953207",
+      "verification_summary_sha256": "8dbd2328131dacd7ed585c69e71070afef07c6da841aa12a9f2f324896c198e9"
+    },
+    "build_profile": "complete / keyboard / 6809 / adaptive",
+    "build": {
+      "result": "PASS",
+      "attempts": 1,
+      "elapsed_upper_bound_seconds": 348.139,
+      "deadline_seconds": 600,
+      "source_reference_modules": 16,
+      "documented_routines": "319/319",
+      "classified_labels": "4851/4851",
+      "resident_bytes_and_free": "8088/8192; 104 free",
+      "presentation_bytes_and_cap": "1271/1280",
+      "assets_bytes_and_cap": "7667/7680"
+    },
+    "qualification": {
+      "result": "PASS",
+      "elapsed_seconds": 40.73619674600013,
+      "expected_negative_controls": 3
+    },
+    "postphase_failure": {
+      "result": "FAIL at first flow assertion",
+      "elapsed_seconds": 0.4213945000001331,
+      "error": "AssertionError('presentation flow command failed')",
+      "classification": "observer/setup failure; no product failure established",
+      "last_proven_marker": "passing qualification and successful build; later postchecks not reached"
+    }
+  },
+  "confirmed_cause": {
+    "file": "capsule/scripts/verify_presentation_flow.py",
+    "line": 332,
+    "current_assertion": "PRES_MAIN_JOY_AXIS must be in key_module.external_symbols",
+    "current_receipted_metadata": {
+      "external_symbols": [
+        "PRES_MAIN_SHARED_MASK"
+      ],
+      "conditional_external_symbols": [
+        "PRES_MAIN_JOY_AXIS"
+      ]
+    },
+    "cross_check": "The preceding build-script guard at line 328 verifies the joystick callback is conditionally exported. The registry declaration is present in the correct conditional field and absent from the unconditional list.",
+    "classification": "The assertion requires obsolete unconditional metadata. The failure occurs before the verifier finishes; it does not show a flow or runtime product defect."
+  },
+  "minimal_correction": {
+    "exact_predicate": "if (\"PRES_MAIN_JOY_AXIS\" not in key_module.get(\"conditional_external_symbols\", []) or \"PRES_MAIN_JOY_AXIS\" in key_module.get(\"external_symbols\", [])):",
+    "preserved_error_text": "presentation flow proof: conditional joystick dependency is undocumented",
+    "semantics": "Pass only when the callback is explicitly conditional and is not also declared unconditional.",
+    "all_other_guards": "Preserve every existing verifier assertion, including the neighboring conditional build export guard and all later source/capacity checks."
+  },
+  "proposed_external_observer": {
+    "planned_path": "repro/feat010-stale-flow-proposal-20261016/observer/verify_presentation_flow.py",
+    "source": "unchanged receipted capsule/scripts/verify_presentation_flow.py",
+    "snapshot_deltas_only": [
+      {
+        "line": 12,
+        "change": "Bind ROOT to /mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule."
+      },
+      {
+        "line": 332,
+        "change": "Replace the old unconditional-membership If with the exact conditional-membership AND unconditional-absence predicate above."
+      }
+    ],
+    "root_guard": "Before execution, require the resolved observer ROOT to equal the fixed WSL path and require the five capsule fingerprints in artifact_identity to match; reject any root mismatch.",
+    "capsule_integrity": "Keep the snapshot outside the capsule. Do not edit or copy over a receipted file, update the receipt, regenerate inputs, or rebuild.",
+    "maintained_verifier_future_patch": {
+      "scope": "One hunk containing only the corrected line-332 If in scripts/verify_presentation_flow.py during normal source integration.",
+      "applied_now": false,
+      "root_binding_in_production_patch": false
+    },
+    "import_and_side_effect_review": {
+      "flow_verifier": "Imports only standard-library modules, declares path constants and functions, and calls main only under the __main__ guard. No import-time file writes or subprocess calls were found. Execute the external snapshot as a subprocess; do not import and invoke main as an in-process observer.",
+      "provenance_validator": "source_reference.provenance.validate reads and hashes receipt inputs, generated inputs, and artifacts; it does not write. Load the module by file path under a non-__main__ name or otherwise call only validate; do not call its CLI main/build actions."
+    }
+  },
+  "proposed_qualification_card": {
+    "purpose_and_risk": "Prove the corrected guard recognizes the current explicit conditional callback while continuing to reject missing, legacy-only, and contradictory metadata; prove the observer snapshot contains no unrelated assertion edits.",
+    "test_type": "Static AST-scoped assertion qualification; no full verifier, model, build, runtime, or production source execution in this phase.",
+    "fixture_identity": "Current keybinding-runtime metadata from the unchanged passing capsule and its pinned receipt; three in-memory dictionary variants only.",
+    "positive": {
+      "external_symbols": [
+        "PRES_MAIN_SHARED_MASK"
+      ],
+      "conditional_external_symbols": [
+        "PRES_MAIN_JOY_AXIS"
+      ],
+      "expected": "Corrected If does not raise. Old If rejects this known-good current metadata, demonstrating the stale assertion."
+    },
+    "negative_controls": [
+      {
+        "name": "missing",
+        "metadata": "PRES_MAIN_JOY_AXIS absent from both lists",
+        "expected": "Corrected If rejects."
+      },
+      {
+        "name": "legacy-only",
+        "metadata": "PRES_MAIN_JOY_AXIS present only in external_symbols",
+        "expected": "Corrected If rejects; old If would accept."
+      },
+      {
+        "name": "both",
+        "metadata": "PRES_MAIN_JOY_AXIS present in both lists",
+        "expected": "Corrected If rejects; old If would accept."
+      }
+    ],
+    "AST_scope": "Parse the receipted script and the external snapshot. Extract the exact old and corrected If nodes by their error text/line. Compile and execute only the corrected If node against the four controlled dictionaries. Normalize the two approved AST deltas (ROOT assignment and target If) and require all remaining AST to equal the original; do not import or execute module main for qualification.",
+    "root_binding_negative_control": "Run the same fixed-ROOT binding validator against a deliberately mismatched ROOT value and require rejection. The valid snapshot must resolve exactly to /mnt/e/projects/ladybug/repro/feat010-source-documentation-repair-20261016/capsule.",
+    "pass_rule_and_tolerance": "Exact: current positive passes, each of three negatives rejects, old guard rejects current positive, and all AST nodes outside ROOT plus the target If are identical. Any mismatch fails; no tolerance.",
+    "command_and_prerequisites": "One parent-frozen python3 - AST qualification command from the repository workspace. Verify capsule ROOT, receipt hash, verifier source hash, registry hash, source hash, and ROM hash before fixture evaluation; require the deliberately mismatched ROOT negative control to reject. No writes to capsule.",
+    "deadline_seconds": 60,
+    "command_cost": "Projected and unmeasured; the entire AST, fixture, and identity phase is capped at 60 seconds. The prior 0.4213945-second failure measured only the stale first assertion path, not the full postphase.",
+    "attempts": 1,
+    "failure_evidence": "Retain the first qualification result and concise AST/fixture results. Any setup, identity, AST, or control failure stops the step.",
+    "automated_manual_split": "Automated static checks only; no manual or runtime acceptance is claimed.",
+    "approval_and_owner": "Parent reviews and freezes the exact command/card, then runs it. This audit does not authorize execution.",
+    "parent_card_reference": "wiki/internal/tickets/feat-010-attract-menu-free-start.html#stale-flow-correction-proposed-20261016"
+  },
+  "proposed_remaining_postphase_card": {
+    "purpose_and_risk": "Complete the approved flow/raw/source checks that the stale assertion blocked, while proving the receipted capsule and ROM remain unchanged.",
+    "test_type": "Static source-flow and artifact verification; no emulator or hardware runtime probe.",
+    "fixture_identity": "Same passing complete/keyboard/6809/adaptive capsule; source-build-receipt SHA-256 6298b88f2d559b9a48f185226730093c2ca6d7e8491924358ac77b7a5cd78445; final ROM SHA-256 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53.",
+    "order": [
+      "Archive the prior failed post-result.json and post-flow.log before reusing those output names.",
+      "Call read-only provenance.validate(root, root/build, source_reference_config) and pin the expected receipt SHA before running checks.",
+      "Run one external flow snapshot subprocess with ROOT fixed to the passing capsule; collect the maintained flow-proof output.",
+      "Run the existing frozen post-command checks from the capsule working directory, using an external copy with only the subprocess target changed to the snapshot path. Preserve root=Path.cwd(), evidence=root.parent, baseline, build log, preflight bindings, and every check after the subprocess line.",
+      "In the same wrapper and within the same deadline, call provenance.validate again and require the same receipt and ROM hashes."
+    ],
+    "remaining_acceptance_checks": {
+      "flow": "External maintained full flow verifier completes and emits its normal presentation-flow proof output.",
+      "helper_symbols": {
+        "highscore_phase_tick": "AC40",
+        "logo_vbord_clock": "ACAF",
+        "gap": "ACFF",
+        "highscore_after_tile": "AD00",
+        "stage_panel_read_letters": "B062",
+        "stage_panel_draw": "B080",
+        "stage_panel_slice_entry": "B083",
+        "menu_scan_entry": "B086",
+        "menu_tick_entry": "B089",
+        "highscore_attract_tick": "B830",
+        "highscore_phase_helper_end": "B83E"
+      },
+      "helper_bytes": "3070 bytes; fixed 80-byte ACAF clock region SHA-256 b50276a0194d58851a03b109ec6fad58e67e3bd407585747f748ded851d3e45; ACFF is zero; wrapper is exact 14 bytes; dispatch prefix at AC40 is exact 8 bytes.",
+      "presentation_operands": "All 32 approved direct operand sites match the source listing encoding and raw presentation binary.",
+      "payloads": "All 30 receipted .bin/.rom payloads equal the historical receipt values; final ROM remains SHA-256 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53.",
+      "provenance_and_coverage": "Receipt state complete, same 266-input inventory and hashes, same generated-input/artifact hashes, 319/319 documented routines, 4851/4851 classified labels, unchanged helper/presentation/resident/assets sizes and stock limits."
+    },
+    "pass_rule_and_tolerance": "Exact zero-difference hashes, addresses, bytes, operand encodings, inventories, and counts. Every named check must execute and pass; missing output or early stop is missing coverage and prevents acceptance.",
+    "command_and_prerequisites": "One parent-frozen postphase wrapper/driver. Run with current working directory equal to the WSL capsule path so the unchanged post-command root/evidence/baseline/build-log bindings remain valid. The external observer is passed by absolute path. The wrapper calls only provenance.validate before/after; it does not refresh receipts or artifacts.",
+    "deadline_seconds": 60,
+    "command_cost": "Projected and unmeasured; one entire postphase including both provenance checks, the nested external verifier, raw checks, 32 sites, 30 payload hashes, and all nested waits is capped at 60 seconds. Existing first-assertion elapsed time is not a measurement of this complete phase.",
+    "attempts": 1,
+    "failure_evidence": "Keep previous failed post-result.json and post-flow.log archived. Retain the new phase result, flow output, pre/post receipt/ROM hashes, raw/clock/operand/payload summary, and first failure. Stop on the first unexpected failure; no retry.",
+    "automated_manual_split": "Automated static checks only; natural flow/runtime/manual scenarios remain pending and outside this proposal.",
+    "approval_and_owner": "Parent reviews the binding approval brief/card and owns qualification, postphase, evidence, QA, and lifecycle updates."
+  },
+  "constraints_and_exclusions": [
+    "No candidate source, registry, receipt, generated input, artifact, ROM, maintained verifier, or canonical wiki change in this audit or proposed postphase.",
+    "No rebuild, runtime/GDB/emulator, alternate profile, broad suite, retry, or unrelated metadata repair.",
+    "Do not move PRES_MAIN_JOY_AXIS into unconditional external_symbols, relax the guard, accept either category, or manually refresh provenance.",
+    "Do not change any flow assertion besides the target If in the external snapshot; later production integration is one If hunk only.",
+    "Do not run the existing post command unchanged because it launches the stale capsule verifier; preserve the frozen original and use the reviewed external copy for the later one attempt."
+  ],
+  "decision": "Recommend a parent-prepared Proposed approval brief/card for the two bounded static phases. Passing would complete only the named FEAT010 source-documentation observer/postcheck gate; it would not establish runtime/manual acceptance, root integration, or ticket Done."
+}
