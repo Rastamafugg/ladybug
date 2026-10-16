@@ -1,0 +1,230 @@
+// One renewed Credits timing-correction case. Parent rebinds the fresh blank
+// GDB identity below, reviews and freezes this source. No retry or route search.
+const gdb = {
+  session_id: "e6a8b278",
+  pid: 1859,
+  start_ticks: "3497113",
+  parent_pid: 13,
+  exe: "/usr/local/bin/m6809-gdb"
+};
+const sid = gdb.session_id;
+const base = "/mnt/e/projects/ladybug/repro/feat010-cold-menu-probes-20261016";
+const trace = [];
+let started = 0, observations = 0, outcome = "INCOMPLETE", failure = null, cleanupFailed = false;
+function remaining() { return 45000 - (Date.now() - started); }
+function requireTime(ms) { if (remaining() < ms + 8000) throw Error("Shared deadline reserve reached"); }
+function body(r) { return r.structuredContent && r.structuredContent.result !== undefined ? r.structuredContent.result : r.content.filter(x=>x.type==="text").map(x=>x.text).join("\n"); }
+async function host(py, cleanup=false) {
+  if (started && !cleanup) requireTime(10000);
+  const r = await tools.exec_command({cmd:"@'\n"+py+"\n'@ | wsl -d Ubuntu --exec timeout --kill-after=0.1s "+(cleanup ? "1.5" : "8")+"s python3 -",yield_time_ms:10000,max_output_tokens:1800});
+  if (r.session_id || r.exit_code !== 0) throw Error("Host command incomplete: "+r.output);
+  return r.output.trim();
+}
+async function cmd(c,seconds=2) {
+  requireTime(seconds*1000+5000);
+  const r = await tools.mcp__gdb_mcp__exec_command({session_id:sid,command:c,timeout:seconds});
+  trace.push({at_ms:Date.now()-started,command:c,response:r});
+  if (r.isError || /ERROR:|\^error|Cannot access memory/i.test(String(body(r)))) throw Error("GDB command failed: "+c);
+  return String(body(r));
+}
+const validateGdb = [
+  "from pathlib import Path","import os",
+  "p=Path('/proc/'+str("+gdb.pid+")); s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+  "assert t[19]=="+JSON.stringify(gdb.start_ticks)+" and t[1]==str("+gdb.parent_pid+"), 'GDB process identity changed'",
+  "assert os.readlink(p/'exe')=="+JSON.stringify(gdb.exe),
+  "assert (p/'cmdline').read_bytes().split(b'\\0')[:3]==[b'gdb',b'--interpreter=mi2',b'--quiet']",
+  "assert b'gdb-mcp' in Path('/proc/'+str("+gdb.parent_pid+")+'/cmdline').read_bytes()"
+].join("\n");
+async function boundedTimeoutSnapshot(label) {
+  const retainedReads=[];
+  trace.push({at_ms:Date.now()-started,phase:"bounded-timeout-snapshot",label});
+  try {
+    const sync=await cmd("echo COLD_MENU_TIMEOUT_SYNC",1);
+    if (!sync.includes("COLD_MENU_TIMEOUT_SYNC")) throw Error("GDB prompt not synchronized");
+    // Listed raw reads only; no code label interpretation, dump, binding, or continue.
+    // Per-call guards preserve the shared phase deadline and cleanup reserve.
+    for (const c of [
+      "p/x $pc","p/x $a","x/2xb 0x00a5","x/4xb 0x008f",
+      "x/2xb 0x0096","x/2xb 0x0098","x/8xb 0xffa0","x/8xb $pc","x/8xb $s"
+    ]) {
+      await cmd(c,1);
+      retainedReads.push(c);
+    }
+    trace.push({at_ms:Date.now()-started,timeout_snapshot_status:"complete",retained_reads:retainedReads});
+  } catch(e) {
+    trace.push({at_ms:Date.now()-started,timeout_snapshot_status:retainedReads.length ? "partial" : "unavailable",retained_reads:retainedReads,error:String(e),remaining_ms:remaining()});
+  }
+}
+async function resumeExpected(expectedPC,waitSeconds=5) {
+  requireTime(waitSeconds*1000+5000);
+  if (++observations > 12) throw Error("Observation cap");
+  const continueStartedAt=Date.now();
+  let result, commandError;
+  try { result=await tools.mcp__gdb_mcp__continue_exec({session_id:sid,timeout:waitSeconds}); } catch(e) { commandError=e; }
+  const continueStoppedAt=Date.now();
+  trace.push({at_ms:continueStoppedAt-started,continue_start_utc:new Date(continueStartedAt).toISOString(),continue_stop_utc:new Date(continueStoppedAt).toISOString(),continue_elapsed_ms:continueStoppedAt-continueStartedAt,continue_result:result,expectedPC,expected_wait_seconds:waitSeconds,scheduled_host_interrupt:false});
+  if (commandError || !result || result.isError || !/breakpoint-hit/i.test(String(body(result)))) {
+    await boundedTimeoutSnapshot("expected-pc-"+expectedPC.toString(16));
+    throw Error(commandError ? String(commandError) : "Expected natural breakpoint not reported within "+waitSeconds+" seconds");
+  }
+  const sync=await cmd("echo COLD_MENU_STOP_SYNC");
+  if (!sync.includes("COLD_MENU_STOP_SYNC")) throw Error("Observer stop response not synchronized");
+  const raw=await cmd("p/x $pc");
+  const match=raw.match(/=\s*0x([0-9a-f]+)/i);
+  if (!match) throw Error("PC response not understood: "+raw);
+  const pc=parseInt(match[1],16);
+  if (pc!==expectedPC) {
+    await snapshot("unexpected-"+expectedPC.toString(16),false);
+    throw Error("First unexpected stop: "+pc.toString(16));
+  }
+  return pc;
+}
+async function resumeWitness() {
+  requireTime(14000);
+  if (++observations > 12) throw Error("Observation cap");
+  let active=true, fired=false, timerId, finishTimer;
+  const timer=new Promise(resolve=>{
+    finishTimer=resolve;
+    timerId=setTimeout(async()=>{
+      fired=true;
+      try {
+        if(active) {
+          const output=await host(validateGdb+"\nimport os,signal\nos.kill("+gdb.pid+",signal.SIGINT)\nprint('owned GDB signalled')");
+          trace.push({at_ms:Date.now()-started,control:output});
+        }
+        resolve(null);
+      } catch(e) { resolve(String(e)); }
+    },4000);
+  });
+  const continueStartedAt=Date.now();
+  let result, commandError;
+  try { result=await tools.mcp__gdb_mcp__continue_exec({session_id:sid,timeout:5}); } catch(e) { commandError=e; }
+  finally { active=false; if(!fired) { clearTimeout(timerId); finishTimer(null); } }
+  const continueStoppedAt=Date.now();
+  const controlError=await timer;
+  trace.push({at_ms:continueStoppedAt-started,continue_start_utc:new Date(continueStartedAt).toISOString(),continue_stop_utc:new Date(continueStoppedAt).toISOString(),continue_elapsed_ms:continueStoppedAt-continueStartedAt,continue_result:result,expectedPC:null,expected_wait_seconds:5,final_witness:true});
+  if(commandError) throw commandError;
+  if(controlError || !result || result.isError) throw Error(controlError || "Final witness continue failed/timeout");
+  const stopBody=String(body(result));
+  const signalStop=/signal-received|SIGINT/i.test(stopBody);
+  if(fired && !signalStop) throw Error("Timer/natural-stop race; observer state incomplete");
+  const sync=await cmd("echo COLD_MENU_STOP_SYNC");
+  if(!sync.includes("COLD_MENU_STOP_SYNC")) throw Error("Observer stop response not synchronized");
+  const raw=await cmd("p/x $pc");
+  const match=raw.match(/=\s*0x([0-9a-f]+)/i);
+  if(!match) throw Error("PC response not understood: "+raw);
+  const pc=parseInt(match[1],16);
+  if(!fired || !signalStop) {
+    await snapshot("unexpected-final-witness",false);
+    throw Error("Final witness did not end at the owned timer signal: "+pc.toString(16));
+  }
+  return pc;
+}
+async function binding(name,file) {
+  requireTime(3000);
+  const py=[
+    "import sys,json,hashlib","from pathlib import Path",
+    "sys.path.insert(0,"+JSON.stringify(base)+")",
+    "from binding import expected_bindings,classify_binding",
+    "e=expected_bindings()["+JSON.stringify(name)+"]",
+    "b=Path("+JSON.stringify(base+"/"+file)+").read_bytes()",
+    "o=dict(e,length=len(b),sha256=hashlib.sha256(b).hexdigest())",
+    "r=classify_binding(e,o)","print(json.dumps(r))",
+    "assert r['accepted'], 'Live binding mismatch'"
+  ].join("\n");
+  const response=await host(py);trace.push({at_ms:Date.now()-started,binding:name,response});
+}
+async function snapshot(label,checkModule) {
+  for (const c of ["p/x $pc","p/x $a","x/2xb 0x00a5","x/4xb 0x008f","x/2xb 0x0096","x/2xb 0x0098","x/8xb 0xffa0","x/8xb $pc","x/8xb $s"])
+    await cmd(c);
+  await cmd("dump binary memory "+base+"/credits-r2-"+label+"-module.bin 0x1900 0x1df7");
+  await cmd("dump binary memory "+base+"/credits-r2-"+label+"-helper.bin 0x0300 0x06aa");
+  await cmd("dump binary memory "+base+"/credits-r2-"+label+"-state.bin 0x00a5 0x00a7");
+  if(checkModule) await binding("presentation","credits-r2-"+label+"-module.bin");
+}
+await host(validateGdb+"\nimport sys,socket\nsys.path.insert(0,"+JSON.stringify(base)+")\nfrom binding import verify_static_capsule\nassert not verify_static_capsule(), 'Capsule identity changed'\nsock=socket.socket(); sock.bind(('127.0.0.1',65522)); sock.close()\nprint('fresh blank GDB and capsule identity confirmed; port unused')");
+started=Date.now();
+try {
+  trace.push({phase:"launch",start_utc:new Date(started).toISOString(),native_input:["Down press","release","Down press","release","Return press","release"],expected_screen_id:7});
+  const launch=[
+    "from pathlib import Path","import json,subprocess,os",
+    "d=Path("+JSON.stringify(base)+"); m=json.loads((d/'manifest.json').read_text())",
+    "assert not (d/'credits-r2-owned.json').exists(), 'No retry: owned launch record already exists'",
+    "assert not (d/'credits-r2-result.json').exists(), 'No retry: result already exists'",
+    "log=(d/'credits-r2-xroar.log').open('xb')",
+    "p=subprocess.Popen([m['launch']['executable']]+m['launch']['arguments'],stdin=subprocess.DEVNULL,stdout=log,stderr=subprocess.STDOUT,start_new_session=True)",
+    "q=Path('/proc')/str(p.pid); s=(q/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+    "o={'pid':p.pid,'start_ticks':t[19],'exe':os.readlink(q/'exe')}",
+    "(d/'credits-r2-owned.json').write_text(json.dumps(o))","print(json.dumps(o))"
+  ].join("\n");
+  trace.push({launch:await host(launch)});
+  await new Promise(resolve=>setTimeout(resolve,500));
+  await cmd("target remote :65522");
+  await cmd("tbreak *0xc116"); await resumeExpected(0xc116);
+  await cmd("dump binary memory "+base+"/credits-r2-resident.bin 0xc000 0xfe00");
+  await binding("resident_bank1","credits-r2-resident.bin");
+  trace.push({verified_marker:"resident-entry",pc:"0xc116"});
+  await cmd("tbreak *0x1900"); await resumeExpected(0x1900);
+  await cmd("dump binary memory "+base+"/credits-r2-initial-module.bin 0x1900 0x1df7");
+  await binding("presentation","credits-r2-initial-module.bin");
+  trace.push({verified_marker:"presentation-entry",pc:"0x1900"});
+  await cmd("tbreak *0x1a78 if $a == 7");
+  const inputStageRemainingMs=remaining();
+  if(inputStageRemainingMs<37000) throw Error("Input-stage admission missed; no native keys requested");
+  const inputNotificationUtc=new Date().toISOString();
+  notify("Credits input anchor at "+inputNotificationUtc+" UTC. Focus the new XRoar window; when the menu appears press/release Down, press/release Down, then press/release Return. This anchor does not prove the menu is visible.");
+  trace.push({phase:"native-input-request",notification_utc:inputNotificationUtc,remaining_before_request_ms:inputStageRemainingMs,required_remaining_ms:37000,native_input:["Down press","release","Down press","release","Return press","release"]});
+  await resumeExpected(0x1a78,15);
+  await snapshot("selected",true);
+  trace.push({verified_marker:"credits-selected",pc:"0x1a78"});
+  await cmd("tbreak *0x1ace"); await resumeExpected(0x1ace);
+  await snapshot("menu-load-event",true);
+  trace.push({verified_marker:"menu_load_event",pc:"0x1ace"});
+  await cmd("tbreak *0x1b48"); await resumeExpected(0x1b48);
+  await snapshot("load-done",true);
+  trace.push({verified_marker:"load_done",pc:"0x1b48"});
+  await cmd("tbreak *0x1bc1"); await resumeExpected(0x1bc1);
+  await snapshot("load-done-publish",true);
+  trace.push({verified_marker:"load_done_publish",pc:"0x1bc1"});
+  await cmd("delete breakpoints");
+  await resumeWitness();
+  await snapshot("witness-stop",true);
+  outcome="STATE CAPTURED; MANUAL WITNESS PENDING";
+} catch(e) {
+  failure=String(e); trace.push({failure,at_ms:Date.now()-started});
+} finally {
+  const cleanupStartedAt=Date.now();
+  trace.push({cleanup_start_utc:new Date(cleanupStartedAt).toISOString()});
+  try {
+    trace.push({cleanup:await host([
+      "from pathlib import Path","import os,signal,json,time",
+      "d=Path("+JSON.stringify(base)+"); f=d/'credits-r2-owned.json'",
+      "if f.exists():",
+      " o=json.loads(f.read_text()); p=Path('/proc')/str(o['pid'])",
+      " if p.exists():",
+      "  s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+      "  assert t[19]==o['start_ticks'] and os.readlink(p/'exe')==o['exe'], 'Owned emulator identity mismatch'",
+      "  os.kill(o['pid'],signal.SIGTERM)",
+      "  until=time.monotonic()+0.5",
+      "  while p.exists() and time.monotonic()<until: time.sleep(0.05)",
+      "  if p.exists():",
+      "   s=(p/'stat').read_text(); t=s[s.rfind(')')+2:].split()",
+      "   if t[0]!='Z':",
+      "    assert t[19]==o['start_ticks'] and os.readlink(p/'exe')==o['exe']",
+      "    os.kill(o['pid'],signal.SIGKILL)",
+      "print('Owned emulator cleanup requested')"
+    ].join("\n"),true)});
+  } catch(e) { cleanupFailed=true; trace.push({cleanup_error:String(e)}); }
+  try { const closed=await tools.mcp__gdb_mcp__stop_session({session_id:sid}); trace.push({gdb_cleanup:closed}); if(closed.isError) throw Error("GDB cleanup failed"); }
+  catch(e) { cleanupFailed=true; trace.push({gdb_cleanup_error:String(e)}); }
+  trace.push({cleanup_stop_utc:new Date().toISOString(),cleanup_failed:cleanupFailed});
+  const report={outcome,failure,observations,limit_ms:45000,elapsed_ms:Date.now()-started,user_witness:"PENDING; manual observation required",trace};
+  if(cleanupFailed) report.outcome="INCOMPLETE: OWNED CLEANUP FAILED";
+  if(report.elapsed_ms>45000) report.outcome="INCOMPLETE: WHOLE-PHASE DEADLINE MISSED";
+  const encoded=JSON.stringify(JSON.stringify(report));
+  try {
+    await host("from pathlib import Path\nPath("+JSON.stringify(base+"/credits-r2-result.json") + ").write_text("+encoded+")\nprint('Credits evidence retained')",true);
+  } catch(e) { report.outcome="INCOMPLETE: RESULT RETENTION FAILED"; report.retention_error=String(e); }
+  store("coldMenuCreditsR2Result",report);
+  text(report);
+}

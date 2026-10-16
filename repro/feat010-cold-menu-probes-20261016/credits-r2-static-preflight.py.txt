@@ -1,0 +1,43 @@
+from pathlib import Path
+import hashlib,json,re,subprocess,time
+start=time.monotonic()
+d=Path(__file__).resolve().parent
+p=d/'credits-runtime-command-r2.js.txt'
+s=p.read_text(encoding='utf-8')
+expected_sha='0d5032b980ef1814467dddb71e8f73d1feea33ef3611341622a13541fc410665'
+assert hashlib.sha256(p.read_bytes()).hexdigest()==expected_sha,'Source hash changed'
+def timing_contract(src):
+    flat=re.sub(r'\s+','',src)
+    if 'asyncfunctionresumeExpected(expectedPC,waitSeconds=5)' not in flat:return 'non-input wait default changed'
+    calls=re.findall(r'awaitresumeExpected\(([^)]*)\)',flat)
+    if calls!=['0xc116','0x1900','0x1a78,15','0x1ace','0x1b48','0x1bc1']:return 'selected-wait scope mismatch'
+    for required in ['requireTime(waitSeconds*1000+5000)','timeout:waitSeconds','if(inputStageRemainingMs<37000)','return45000-(Date.now()-started)','remaining()<ms+8000','++observations>12']:
+        if required not in flat:return 'missing timing guard: '+required
+    arm=src.index('await cmd("tbreak *0x1a78 if $a == 7")')
+    guard=src.index('if(inputStageRemainingMs<37000)')
+    notice=src.index('notify("Credits input anchor')
+    run=src.index('await resumeExpected(0x1a78,15)')
+    if not arm<guard<notice<run:return 'input notification order'
+    return 'PASS'
+assert timing_contract(s)=='PASS',timing_contract(s)
+stale=s.replace('await resumeExpected(0x1a78,15)','await resumeExpected(0x1a78,5)')
+blanket=s.replace('waitSeconds=5','waitSeconds=15')
+assert timing_contract(stale)=='selected-wait scope mismatch'
+assert timing_contract(blanket)=='non-input wait default changed'
+assert 'binding("presentation","credits-r2-"+label+"-module.bin")' in s
+assert not re.search(r'"/credits-(?!r2-)|"credits-(?!r2-)[^"\n]+\.(?:bin|json|log)',s),'Old evidence output reference'
+assert 'REBIND_REQUIRED' not in s
+assert '},4000)' in re.sub(r'\s+','',s)
+assert 'timeout_snapshot_status:' in s and 'continue_start_utc:' in s and 'cleanup_stop_utc:' in s
+pins={'binding.py':'c580423a3ab367f139937e572bc6ad3f3d906c7d4fd9abc6e75d7d91afb38cae','manifest.json':'a0cad190bb6fc3c46aea3451a0537e84b6b3de3c7c81f463aa26e699ca66ec1c','qualification-result.json':'025bf204700418c630607d01660c68347d69e76eb9664675be57e3dcdf91fde6','packaged-source-facts.json':'69ef73f2a37218a53880e46fcba147be670e11608a6f3bf0bf9d1ca7da9139e1'}
+for name,h in pins.items():assert hashlib.sha256((d/name).read_bytes()).hexdigest()==h,name
+assert not (d/'credits-r2-owned.json').exists()
+r=subprocess.run([r'C:\Program Files\nodejs\node.exe','--input-type=module','--check'],input=s.encode(),capture_output=True,timeout=8)
+assert r.returncode==0,r.stderr.decode()
+py="from pathlib import Path\nimport os\np=Path('/proc/1859');s=(p/'stat').read_text();t=s[s.rfind(')')+2:].split()\nassert t[19]=='3497113' and t[1]=='13'\nassert os.readlink(p/'exe')=='/usr/local/bin/m6809-gdb'\nassert b'gdb-mcp' in Path('/proc/13/cmdline').read_bytes()\nassert (p/'cmdline').read_bytes().split(b'\\0')[:3]==[b'gdb',b'--interpreter=mi2',b'--quiet']\nprint('owned blank debugger identity confirmed')\n"
+r=subprocess.run(['wsl','-d','Ubuntu','--exec','python3','-'],input=py.encode(),capture_output=True,timeout=5)
+assert r.returncode==0,r.stderr.decode()
+result={'status':'PASS; runtime conditional on fresh native-user availability','source_sha256':expected_sha,'preflight_source_sha256':hashlib.sha256(Path(__file__).read_bytes()).hexdigest(),'elapsed_seconds':time.monotonic()-start,'limit_seconds':20,'intended_timing':'PASS','negative_controls':{'stale5':timing_contract(stale),'blanket15':timing_contract(blanket)},'qualified_binding_inputs':pins,'gdb':{'session_id':'e6a8b278','pid':1859,'start_ticks':'3497113','parent_pid':13},'runtime_launched':False,'limits':{'whole_phase_seconds':45,'input_wait_seconds':15,'input_admission_remaining_seconds':37,'cleanup_reserve_seconds':8,'continue_cap':12,'planned_continues':7}}
+assert result['elapsed_seconds']<20
+(d/'credits-r2-ready-review.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result))

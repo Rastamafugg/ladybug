@@ -1,0 +1,13 @@
+FEAT-010 Credits timing-correction fixture preparation
+
+Classification: High-risk observer correction under FEAT-010. The user approved the native-input timing correction and one renewed Credits attempt. Scope is limited to credits-runtime-command-r2.js.txt and this report.
+
+Exact delta from the parent-frozen Credits command: only the conditional A=7 stop at 0x1a78 receives a 15-second GDB continue; every other expected wait remains five seconds. After arming that breakpoint, the command requires at least 37 seconds remaining before requesting keys. It then immediately notifies the user, records the notification timestamp, and asks for the natural Down/release, Down/release, Return/release sequence when the menu appears. Expected continue start/stop timestamps and elapsed time are retained; cleanup start/stop UTC timestamps are also recorded. Seven continues remain planned: six expected stops plus the four-second final witness.
+
+The 45-second whole-phase deadline, 12-observation cap, eight-second cleanup reserve, native input, source bindings, original callbacks at 0x1ace/0x1b48/0x1bc1, and final owned-GDB SIGINT witness are preserved. Timeout handling attempts only the synchronized listed raw reads when the shared guards permit; it labels complete, partial, or unavailable retention and ends without another continue. There is no promised post-recovery allowance. The read ranges continue to omit 0x0093.
+
+All runtime evidence uses fresh credits-r2-* names and the store key coldMenuCreditsR2Result. The executor source keeps REBIND_REQUIRED placeholders for a fresh blank GDB identity. The parent must review the exact source, run its scoped static qualification with stale-five-second and blanket-fifteen-second negative controls, rebind and freeze a fresh session identity and source hash, then confirm native-user availability before execution. Preparation does not imply runtime readiness.
+
+No syntax check, test, qualification, GDB command, emulator launch, runtime, build, Git, wiki, or canonical-ticket write was performed.
+
+Parent source review corrections before qualification: dynamic expected-wait budget includes waitSeconds plus5second recovery; timeout diagnostic uses the actual wait; presentation binding reads the new credits-r2 dump rather than the old Credits path. Bound fresh blank GDB e6a8b278/PID1859/start3497113/parent13. Historical placeholder description above records executor handoff. No runtime executed.
