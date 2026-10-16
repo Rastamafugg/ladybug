@@ -1,0 +1,17 @@
+Options cold-menu dispatch plan
+
+Status: NOT READY for runtime dispatch. The approved 45-second case can reach and observe bounded breakpoints, but the available GDB-MCP calls are synchronous and provide no documented asynchronous stop while the emulator runs unpaused. `detach` followed by `target remote :65522` could permit user-visible observation and later capture, but reconnect behavior is unqualified; treating it as supported would invent the required first-failure stop mechanism. Do not launch until that mechanism is established within the existing supported transport or the parent records an approved scope change.
+
+Approved case boundary
+- One newly owned XRoar process, fresh emulator start, ROM/profile from manifest; use documented GDB port 65522, with 65520 only if independently confirmed unused. Do not attach to or terminate PID 898.
+- Start the single 45-second clock immediately before launching the owned XRoar. The deadline includes launch, attach, observations, user input/witness, capture, and cleanup. Each GDB-MCP command/continue call is at most 10 seconds; at most 12 stop/continue observations. No retry.
+- Native inputs: Options Down press, Down release, Return press, Return release. User must witness the overlay while XRoar is unpaused. A stopped-at-breakpoint screenshot/state is not pixel acceptance.
+- On any future authorized run, cleanup only the PID created by that run, using its owned PID file, then stop its GDB-MCP session. Never kill PID 898.
+
+Existing read plan, if dispatch becomes ready
+1. Attach with the existing prelaunch.gdb setup (`set remote supported-packets-packet off` precedes `target remote :65522`). At the C116 marker, dump and hash live `$C000-$FDFF`; compare with the manifest-pinned runtime ROM bank-1 slice before interpreting PC. This binds authored `ladybug-runtime.rom` -> packaged ROM bank 1 -> live resident bytes; it makes no transient PAR21 claim.
+2. At the 1900 marker, dump/hash live `$1900-$1DF6` (1271 bytes) and compare against the manifest-pinned packaged presentation module before interpreting module labels. This is the natural currently mapped CPU-visible module; do not write PAR or infer physical GIME PAR state.
+3. In options.gdb, install the conditional `start_screen=$1A78 if $A==6` breakpoint before native input; its stop/snapshot occurs only after the user selects Options. Snapshot PC, A, `$00A5-$00A6` (PRES_MODE/SCREEN), `$008F-$0099` (front/back/pending/commit, reserved `$0093-$0095`, missed-commit counter, render-active, write-front-fault), eight bytes at PC, and eight bytes at S. Then issue the approved native input edges and use only the card's bounded callback stops at `$1ACE`, `$1B48`, and `$1BC1`, retaining the same read set and first failing snapshot. Optional helper-copy tuples are comments only; do not wait for an absent helper or force an attract-loop path. The high-score copy at `$0300` is a legitimate owner.
+
+Unresolved readiness item
+The available calls can continue to a breakpoint or stop the GDB session; the approved interaction requires unpaused native visual observation and a bounded capture at the user's first witnessed failure. No documented supported call in the current GDB-MCP interface provides that sequence. Do not substitute an unqualified detach/reconnect, asynchronous command, new adapter, monitor, or state write. Until parent review establishes the supported capture path, classify the case as observer/setup-blocked and do not start its 45-second clock.
