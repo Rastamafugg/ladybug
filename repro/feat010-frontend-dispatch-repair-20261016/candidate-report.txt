@@ -1,0 +1,11 @@
+FEAT-010 isolated candidate preparation
+
+Status: source candidate prepared from the immutable complete-profile capsule. It has not been statically qualified, assembled, built, tested, or run. The candidate contains assets/, src/, scripts/, tiled/ and wiki/; no build/ directory was copied.
+
+Before patching, all 266 receipted input files matched source-build-receipt.json (SHA-256 4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f). The baseline ROM SHA-256 is 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53; baseline src/presentation_runtime.s SHA-256 is 23db3e251ba2b6bf169a4adf394e104e8ef374eab36b08a8fbb37598d05481b0. The original capsule and receipt remain unchanged outside the candidate.
+
+Only candidate/src/presentation_runtime.s changed. It reuses the existing page-$23 MENU_TICK path for steady map 6–8 credit ticks, bypasses the load-only event test at the new local label, skips the wrong $0300 dispatch for menu screens at load completion while preserving normal publication, and applies exactly the three approved direct-page operand forces. Alternate profile source branches remain unchanged. candidate/scripts/source_reference.json was left unchanged because it does not enumerate local labels; no ownership entry was needed.
+
+Static byte projection: credit_tick +8, load_done guard +4, three direct-page savings -3, net +9. Against 1271/1280 this projects 1280/1280 with zero margin. This is not a build result or proof of fit. Measured accompanying capacities recorded by the approved card are resident 8088/8192 and assets 7667/7680; neither grows. The 266-file before/after hash manifest in candidate-preparation.json records exactly one receipted-input change: src/presentation_runtime.s.
+
+Parent review, static qualification and the single approved build lease remain pending. No assembly, build, tests, syntax checks, GDB, runtime, emulator, Git, wiki or canonical-ticket changes were performed.

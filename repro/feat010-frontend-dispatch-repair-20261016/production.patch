@@ -1,0 +1,46 @@
+--- a/src/presentation_runtime.s
++++ b/src/presentation_runtime.s
+@@ -558,6 +558,7 @@
+ menu_load_event
+         tst     <$D0
+         beq     menu_load_continue
++menu_runtime_dispatch
+         lda     #$23
+         sta     PAR5
+         jsr     MENU_TICK
+@@ -651,9 +652,11 @@
+ load_done_dynamic_ready
+         else
+         ifne    COMPLETE_PROFILE
+-        ldb     PRES_SCREEN
++        ldb     <PRES_SCREEN
+         cmpb    #PRESENTATION_MAP_HIGH_SCORE
+         blo     load_done_dynamic_ready
++        cmpb    #PRESENTATION_MAP_OPTIONS
++        bhs     load_done_dynamic_ready
+         jsr     DEMO_RUNTIME_TICK
+ load_done_dynamic_ready
+         endc
+@@ -680,10 +683,10 @@
+         sta     PAR5
+         jsr     PRES_MAIN_FB_CAPTURE
+ load_done_hold_owner
+-        tst     PRES_HOLD_OWNER
++        tst     <PRES_HOLD_OWNER
+         bne     load_done_hold_second
+         lda     #1
+-        sta     PRES_HOLD_OWNER
++        sta     <PRES_HOLD_OWNER
+         ldd     FB_FRONT_ID
+         exg     a,b
+         std     FB_FRONT_ID
+@@ -880,6 +883,9 @@
+         rts
+         endc
+ credit_tick
++        ldb     <PRES_SCREEN
++        cmpb    #PRESENTATION_MAP_OPTIONS
++        lbhs    menu_runtime_dispatch
+         jmp     DEMO_RUNTIME_TICK
+ level_tick
+         bsr     timer
