@@ -1,0 +1,105 @@
+FEAT-010 frontend-dispatch repair: verification-plan review
+Status: proposal input only; not an approved card or runtime authorization.
+
+Review baseline and retained controls
+-------------------------------------
+Use the immutable complete/keyboard/adaptive review capsule, ROM SHA-256
+274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53 and
+receipt SHA-256 4f323de854fabb2841871694d26fc3833c06ae94d94c1cf15874b0bb5f1b789f.
+Do not modify that capsule. Current recorded fit is resident 8088/8192 bytes
+(104 free; contract minimum 32 free), presentation 1271/1280, assets
+7667/7680, helper 3070/3136. Those are baseline measurements, not candidate
+results. Every candidate needs a fresh ROM hash, receipt hash, and source
+identity after the isolated fit build and before Ready.
+
+Preserve the prior diagnostic/witness identities as history and the known-bad
+visual control: options-r2-result.json SHA-256
+FE9D4E7FC3BC86D766E67BB9D86AE83759A55338ED22A159D6B8C25DDEF0ABE2;
+options-r2-manual-witness.json SHA-256
+092BBDCF6829DAF6041176B0AA73154BFF87131EF0C133AC0A4FE3DB0CE72F6B;
+credits-r2-result.json SHA-256
+C7CF176799DC439A82F30550E5B969EAC3009A85A1C20DAAE67701672E32FEBC;
+credits-r2-manual-witness.json SHA-256
+1E6AEB22DE87D455118CD0AD8693BFD0CE957C7E516BC97B92134FEC9744397D.
+The Options witness reports persistent flicker, not separately tested input
+freeze. The Credits witness reports collectible/Attract overlay; the old
+Credits R1 observer did not reach its selected marker; Credits R2 captured
+selection and three callbacks but missed its final witness stop. Keep both
+diagnostic coverage limits explicit. Two observation-tool timeouts mean the old final-SIGINT capture is
+not qualified for reuse.
+
+Recommended narrow card set
+---------------------------
+1. Automated fit/build card (one profile only): build an isolated candidate
+copy from the frozen capsule using the existing primary complete,
+keyboard/adaptive `scripts/build.sh build` path. Reuse only the relevant
+existing build/source guards after confirming their recorded baseline pass
+matches the immutable review artifact: the complete-profile `verify_shared_text.py` path (not
+`verify_presentation.py`), authored-layer and existing source/packing/capacity
+guards actually invoked by the ordinary build. Do not claim standalone flow
+checks ran merely from their names; stale external flow verifiers are not reused
+as unqualified gates. Require all
+current bounds, including resident at most 8160/8192 bytes (at least 32 free),
+presentation at most 1280, assets at most 7680, helper at most 3136, and all
+existing fixed pack/layout limits. Preserve exact logs, source identity, new
+ROM hash, and matching source-build receipt. Historical baseline build time
+was 317.555 seconds; this is a single-observation cost reference, not a
+candidate guarantee. Do not broaden to blocked joystick/nonadaptive profiles
+or claim full FEAT-010 integration acceptance.
+
+2. Manual cold Options card (one fresh native process, at most 60 seconds
+from launch through owned normal cleanup): launch the new candidate with the
+reviewed CoCo 3/6809, 512-KiB random-RAM, RGB, GTK3/Pulse XRoar settings from
+the retained manifest, substituting the candidate ROM and removing its GDB
+listener flags; freeze the exact argv before Ready. No GDB, monitor, injected
+input, or guest-state write.
+When the Attract menu is visible, first record that its normal authored
+presentation remains visible as the adjacent legal-helper positive control;
+then use native Down press/release and Return press/release. Observe the
+Options screen for at least five seconds; if the phase budget does not permit this, coverage is incomplete. Pass:
+Options is visibly selected and no instruction collectibles or Attract
+graphics flicker over it. Report input unresponsiveness separately; it is
+not established by the prior witness. Add a functional-input check: after
+Options opens at selection zero, Down/release once must move the highlight;
+two further separate Down/releases reach Back at index3, then Return/release
+must restore Attract with Start selected. A confirmed wrong screen/crash is a
+product assertion failure; missing input opportunity or a deadline is
+setup/coverage-incomplete. One cold launch only; no retry.
+
+3. Manual cold Credits card (independent fresh native process, same 60-second
+whole-phase cap and cleanup rule): use the same candidate and native launch
+settings. Record the Attract positive control, then native Down press/release,
+Down press/release, Return press/release when the menu is visible. Observe the
+Credits screen for at least five seconds; insufficient budget means incomplete coverage. Pass: Credits is
+visibly selected with no collectible/Attract overlay, garbage, or crash.
+After the observation, Return/release must restore Attract with Start selected.
+Do not infer a product failure from a missing menu/input opportunity and do
+not assert input freeze unless separately witnessed. One cold launch only.
+
+For both manual cards, start the deadline at process launch, not when the
+menu appears. The user acts only on the visible native window. A timeout or
+missed selection is incomplete coverage, not proof of slow code. Retain the
+candidate identity, launch/input/cleanup times, exact screen reached, and a
+short user visual report; an available screenshot may supplement but does not
+replace the report. The five-second observation is a minimum visual check,
+not a guarantee of a hidden or permanent state.
+
+Decision and remaining gates
+----------------------------
+The historical 274d09 visual witnesses are the negative control for the
+manual oracle; the Attract view at the start of each case is the adjacent
+legal-helper positive control. No extra screen/profile cross-product is
+needed. Existing current-byte/source-to-packaged identity evidence may support
+the code route, but does not prove a live call owner or physical FRONT pixels.
+Actual GIME FRONT pixel readback remains unqualified and is not an acceptance
+oracle here.
+
+Recommend that the approval brief explicitly replace the old terminal-SIGINT
+capture obligation for this narrow repair's acceptance with the byte-qualified
+source/build evidence plus these ordinary native manual cases, without GDB.
+This is a proposed verification-method change requiring user approval. It
+does not complete or waive the historically incomplete Credits diagnostic,
+and it does not claim the old runtime cause is proven. If the repaired build
+fits and both visible cases pass, that supports only the approved narrow
+repair. Other profile, integration, and FRONT-readback blockers remain
+separate FEAT-010 completion work.
