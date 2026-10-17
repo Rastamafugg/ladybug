@@ -1,0 +1,48 @@
+"""One non-gating offline snapshot structure/identity inspection; no guest control."""
+from pathlib import Path
+import hashlib, importlib.util, json, time
+START=time.monotonic()
+ROOT=Path(__file__).resolve().parents[2]
+CASE=Path(__file__).resolve().parent
+BASE=ROOT/'repro/feat010-frontend-dispatch-repair-20261016/candidate'
+def budget():
+    assert time.monotonic()-START<60, 'initial offline phase deadline'
+def sha(data): return hashlib.sha256(data).hexdigest()
+def vu(buf,pos):
+    budget()
+    if pos>=len(buf): raise ValueError('truncated integer')
+    first=buf[pos]; value=first; mask=127; size=1; pos+=1
+    while size<5 and first&128:
+        if pos>=len(buf): raise ValueError('truncated integer')
+        first<<=1; value=(value<<8)|buf[pos]; pos+=1; size+=1; mask=(mask<<7)|127
+    return value&mask,pos
+for data,value in [(b'\x00',0),(b'\x7f',127),(b'\x80\x80',128),(b'\xc8\x00\x00',524288)]:
+    assert vu(data,0)==(value,len(data))
+try: vu(b'\x80',0)
+except ValueError: pass
+else: raise AssertionError('truncation control accepted')
+buf=(CASE/'highscore-current.sna').read_bytes(); records=[]; stack=[]; pos=0; closes=0
+while pos<len(buf):
+    budget(); offset=pos; tag,pos=vu(buf,pos)
+    if tag==0:
+        assert stack, 'unmatched close'; stack.pop(); closes+=1; continue
+    length,pos=vu(buf,pos); assert pos+length<=len(buf), 'truncated payload'
+    data=buf[pos:pos+length]
+    record={'id':len(records),'parent':stack[-1] if stack else None,'tag':tag,'offset':offset,'data_offset':pos,'length':length}
+    if length<=64: record['hex']=data.hex(); record['text']=''.join(chr(x) if 32<=x<127 else '.' for x in data)
+    records.append(record); stack.append(record['id']); pos+=length
+assert records[0]['tag']==35
+assert buf[records[0]['data_offset']:records[0]['data_offset']+records[0]['length']]==b'/usr/bin/env xroar\n# 6809.org.uk\n'
+assert len(stack)<=1, 'unclosed non-header nodes'
+ram_nodes=[r for r in records if r['length']==524288]
+assert len(ram_nodes)==1, 'RAM identity ambiguous'
+r=ram_nodes[0]; ram=buf[r['data_offset']:r['data_offset']+r['length']]
+spec=importlib.util.spec_from_file_location('savedram',ROOT/'scripts/read_snapshot.py'); module=importlib.util.module_from_spec(spec);spec.loader.exec_module(module)
+assert module.find_ram(buf)==ram, 'independent RAM extraction mismatch'
+rom=(BASE/'build/ladybug.rom').read_bytes(); receipt_bytes=(BASE/'build/source-build-receipt.json').read_bytes()
+assert sha(rom)=='6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08'
+assert sha(receipt_bytes)=='cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0'
+report={'snapshot_sha256':sha(buf),'snapshot_bytes':len(buf),'records':records,'remaining_open_ids':stack,'RAM_record_id':r['id'],'RAM_sha256':sha(ram),'parser_controls':'vuint vectors/truncation/RAM independent extraction PASS','ROM_sha256':sha(rom),'receipt_sha256':sha(receipt_bytes),'elapsed_seconds':time.monotonic()-START}
+(CASE/'snapshot-structure.json').write_text(json.dumps(report,indent=2)+'\n')
+print(json.dumps({k:v for k,v in report.items() if k!='records'}))
+print(json.dumps([r for r in records if r.get('text') in ['MC6809','TCC1014','coco3','ram']]))
