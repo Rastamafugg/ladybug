@@ -1,0 +1,37 @@
+FEAT-010 Attract stutter and selection rollback diagnosis preparation
+
+Status and evidence boundary
+
+This is a read-only, High-risk diagnosis proposal for the persistent-framebuffer and cross-phase symptoms A1/A2. The retained manual report records both symptoms on ROM 274d09efd147373bc3d931ed3ab71354d316b93614a3abbb641e642eecb8fa53: all sprites appear to repeat a couple of frames at apparently random times; changing selection during a repeat briefly shows the previous selection. The expected behavior is continuous choreography and the current selection on every published frame. The report does not separately establish A1/A2's initial history or a source cause.
+
+The current isolated primary candidate is ROM 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08, receipt cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0. The user's 2026-10-17 PASS covers Options and Credits functionality only. A1/A2 have not been reported on this candidate, which is not integrated into root. Old A1/A2 findings therefore remain uncleared historical observations, not a current-candidate failure or pass.
+
+Static source and worklist audit
+
+- In the current candidate's presentation_runtime.s, attract_tick advances PRES_TIMER, calls PRESENTATION_ATTRACT_OVERLAY while the timer is below 558, and advances to the next screen at the threshold. In the final hold state it waits while PENDING is set. draw_actor_overlay selects its sparse sprite data using PRES_ACTOR_FRAME. These facts describe the path; they do not show a replay or identify its cause.
+- The demo_runtime.s source contracts say menu_tick replays changed fields to dirty BACK owners and menu_updated paints current fields before publishing. That leaves selection/update and per-owner restoration as separate hypotheses; the contracts do not prove that a prior selection was published.
+- Existing verify_bug010_natural_attract.py is a monitor/GDB worklist for the natural 558-tick phase and CPU/module state. verify_bug010_phase_cycles.py also inspects owner-page bytes by changing PAR1 through monitor writes. Neither is an unassisted actual-scanout oracle or a qualified A1/A2 reproducer. Do not dispatch either: two prior observation-tool timeouts already ended runtime diagnosis, and the old final stop/FRONT read remains unqualified.
+
+Competing explanations
+
+- A1: actor frame/phase update may replay an earlier frame; alternatively, restoring a BACK owner may reveal its older actor image. The current evidence does not separate these or establish that buffer identity causes the symptom.
+- A2: changed selection may be repainted late or an older owner may be restored after the new selection. It may be coupled to A1, but no shared cause is established.
+- A visual report alone can confirm presence or absence in the observed interval; it cannot establish the executed write or actual FRONT bytes. Keep A1 and A2 separate unless one observed sequence discriminates them.
+
+Smallest manual-first diagnostic card proposal
+
+- Purpose/type: one non-gating, unassisted native visual observation on the pinned current candidate. It asks whether either symptom is visible; it is not a cause test or acceptance gate.
+- Artifact/profile: the ROM and receipt hashes above, complete keyboard/adaptive isolated candidate. Record these pins with the report. Do not substitute the old 274d09 ROM or imply root integration.
+- Launch: one fresh XRoar process using the already reviewed native settings, with no GDB or monitor flags and no input injection:
+
+  wsl.exe -d Ubuntu --exec /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar -ui gtk3 -ao pulse -machine coco3 -machine-cpu 6809 -ram 512 -ram-init random -cart-type gmc -cart-rom /mnt/e/projects/ladybug/repro/feat010-frontend-dispatch-repair-20261016/candidate/build/ladybug.rom -cart-autorun -tv-input rgb -joy-right "" -joy-left ""
+
+- Controlled observation and expected result: start from the natural Attract menu. Observe up to 15 seconds without input as the selection stability control. Then observe natural Attract animation for the remainder. If A1 occurs naturally, make one Down press/release during that repeat to exercise the reported A2 condition; do not repeat input or wait for a later occurrence. Expect no visible frame replay and, after Down, only the new selection across subsequent frames. If no A1 occurs, record A1 as not observed in this session and do not claim A2's repeat-conditioned case was tested.
+- Deadline/stop: maximum 60 seconds wall-clock from launch through user-closing the process. The user manually ends the phase; no helper, automatic timeout, or auto-close is proposed. A crash, frozen guest, or obvious corruption ends observation immediately. No retry or extension. Failure to close within 60 seconds is a protocol deviation, not a product result.
+- Negative control: the no-input segment controls only whether the menu selection changes without user input. There is no independent, qualified visual negative control for A1 and no qualified actual-FRONT capture. This prevents using the card as a DOC-014 acceptance gate.
+- Retained evidence: one user note with candidate ROM/receipt pins, launch/close wall times, whether A1 appeared, whether the single Down was made during A1, whether A2 appeared, and any crash/freeze. No screenshot or GUI capture is required. A symptom not seen within the bounded session is “not observed,” not cleared.
+- Cost and scope: one native launch and at most 60 seconds of user observation; no GDB stops, guest reads/writes, monitor, forced route, owner crossover, random-route search, source repair, or additional probe. Do not infer owner causality without identical-state crossover.
+
+Readiness limit
+
+The native invocation is recorded for a future user-directed manual session, but this preparation does not dispatch it. This card is suitable only as a bounded manual symptom report. Before any diagnostic gate is Ready, the parent must decide whether an independent visual oracle and an A1 negative fixture are required or explicitly waive gating in favor of manual-only evidence. No current source/worklist provides those. No runtime experiment, build, test, syntax check, emulator process control, source change, wiki edit, or Git action was performed here.
