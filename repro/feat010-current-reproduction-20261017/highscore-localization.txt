@@ -1,0 +1,30 @@
+FEAT-010 current High Score source localization
+Date: 2026-10-17
+
+Current manual result is pinned to candidate ROM 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08, receipt cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0. The user confirms all four High Score symptoms on this candidate. The manual record does not include the earned score, whether name entry appeared or was committed, or the exact publication frame. It confirms visible symptoms, not the write or display bytes that caused them. The current emulator snapshot has not been reviewed; no live state or PC is interpreted here.
+
+H1 — TOP/2nd/3rd missing, 4th partial
+
+In candidate `tiled/coco-high-score-screen.tmx`, the authored table has TOP at row 4, ranks 1–9 at rows 5–13, names at column 16 and scores at column 27. Generated `build/ladybug_presentation.inc` declares nine 10-byte records: three packed score bytes plus seven name bytes, at `$AF84` in PAR5 page `$34` (`PRES_HIGHSCORE_ALIAS=$8F84` while PAR4 is `$34`). The same include gives TOP name/score destinations `$3440/$346C` and following-row destinations `$3940/$396C`.
+
+`src/presentation_runtime.s:draw_high_score_screen` begins with record pointer X, name destination U and score destination Y. `draw_high_score_entry` saves X in `PRES_NAME_PTR`, uses X+3 and Y=U to draw seven name glyphs, restores the score destination Y, then reads three score bytes from X as six digits. The source loop draws TOP plus `PRESENTATION_HIGHSCORE_COUNT-1` entries: nine records total, not ten. The generated row contract lists ten authored positions (TOP plus nine ranks), so the source currently paints through row 12 and leaves row 13 outside the dynamic record loop. This count/layout discrepancy can affect the last authored rank; it does not explain the reported missing upper fields or partial fourth row.
+
+The dynamic writer is a separate candidate. `src/shared_text_ranking.inc:highscore_gameover_tick` waits 180 ticks, prepares and compares the qualifying score, then routes a qualifying record through name entry. `highscore_commit_name` shifts/writes ten bytes only on commit. Because current name-entry/commit history is unreported, do not attribute H1 to that writer. A useful later discriminator is the observed entered name/score and commit event versus the first visible table; distinguish fixed rank labels from the dynamic names/scores.
+
+H2 — animated logo at the old vertical position
+
+Current authored high-score frame cells in `coco-high-score-screen.tmx` are at y=15, 17 and 20. The corresponding attract frame cells are y=7, 9 and 12. `scripts/build_presentation.py` compiles the twelve phase-changing tiles from the attract map and currently targets `(x,y+6)`, producing high-score destination rows 13, 15 and 18. The generated `ladybug_highscore_logo.inc` decodes to anchors `(10,13),(18,13),(23,13),(13,15),(16,15),(18,15),(20,15),(25,15),(27,15),(29,15),(17,18),(27,18)`. `src/shared_text_stage.inc:highscore_logo_tick` uses those destination words unchanged for High Score; its `$1E00` adjustment runs only for Attract. The target table is therefore two map rows above the current authored high-score frame cells. This source mismatch matches the reported direction of displacement, but does not prove which live writes reached FRONT.
+
+H3 — R is white instead of red
+
+The current TMX trademark mark occupies columns 30–31, rows 15–16. In `scripts/build_presentation.py:presentation_pen_map`, the red full-mark exception still covers columns 30–31 at rows 13–14. At the current authored R cells, column 30 falls into the logo white/light-blue rule and column 31 falls through to white; those cells are not compiled as a red mark. The separate special case at `(22,21)` is not the current TMX mark and does not establish that this R is red. This is a source-level color-coordinate mismatch consistent with the manual symptom; no live FRONT capture is available to prove the emitted color.
+
+H4 — y/g descenders are white instead of light blue
+
+The user’s light-blue requirement is explicit. The current high-score TMX logo art occupies rows 15–20, but the compiler's white/light-blue logo rule in `presentation_pen_map` stops at row 18. Rows 19–20 therefore use the high-score white fallback. This is a direct authored-range/source-rule discrepancy and predicts the reported white lower descenders in the static output. It does not prove current FRONT bytes.
+
+Smallest next step
+
+H2, H3 and H4 share a two-row coordinate inconsistency in the generator, palette exception and current authored high-score map, but keep their acceptance checks separate. A bounded source-repair proposal can align high-score generated destinations to authored y+8, move the red mark rule to columns 30–31/rows 15–16, and extend the white/light-blue logo rule through rows 15–20. Do not apply these changes without parent/user approval or claim that the source mismatch alone proves the live corrupting write.
+
+Keep H1 separate. The next useful fact is whether the current natural run showed and committed a name; no score or name path is assumed. The current emulator has no GDB listener. A saved snapshot is pending; `scripts/read_snapshot.py` assumes `PAR_EXEC`, so do not interpret its bytes without resolving the snapshot's actual mapping and proving address identity. Actual FRONT capture remains unqualified, and the two prior observer timeouts remain the stop boundary. No new probe, source change, build, emulator execution or file change beyond this report was performed.
