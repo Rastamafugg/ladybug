@@ -1,0 +1,24 @@
+FEAT-010 saved High Score state findings
+Date: 2026-10-17
+
+Identity and state
+
+The inspected snapshot is `highscore-current.sna`, SHA-256 `a65eaec513c7917a66b18c39c8a5de87406f9bf63916a663bbaae28abb460ca5`. Its structure record validates the complete TLV tree, vuint/truncation controls and 512 KiB RAM extraction. It is associated with ROM `6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08`, receipt `cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0`.
+
+Decoded saved CPU state has PC `$C117`, S `$1FFE`, CC `$C0`, D `$057B`, DP `$00`, X `$BD44`, Y `$0000`, U `$AA28`. GIME INIT0 `$68` has MMU enable and MC3 set; task selection is 0, so the active executive pages are `$38,$2C,$2D,$2E,$2F,$34,$3E,$3F`. The PC maps to physical `$7C117`; the full resident image at `$7C000` matches the pinned runtime artifact before any code-location interpretation. The saved direct-page bytes give `PRES_SCREEN=$03` (the generated High Score map ID), `PRES_MODE=$05`, and current score bytes `$01,$50,$20`.
+
+The logical record base `$AF84` is in PAR5, physical page `$34`, so it maps to RAM at `$68F84`. Its nine 10-byte records are intact. Rows 1–8 contain scores `09 00 00` through `02 00 00`; each has seven nonzero name tiles `70 55 AE 56 71 26 73`, matching the initialized default-name data. Row 9 contains score `01 50 20` and seven nonzero tiles `8E 80 8E 8E 8E 8E 8E`. The saved current score is also `01 50 20`. This establishes populated display inputs, not when or how the final row was changed; name-entry/commit history remains unknown.
+
+H1 — first table fields are drawn before the background cells
+
+The strongest H1 explanation is the deterministic order in the byte-matched loader/helper path. `presentation_runtime.s:575-620` draws 32 map cells per load slice, then calls `PRES_STAGE_SLICE`. `shared_text_stage.inc:577-579` routes High Score slices to `ranking_schedule_tick`; lines 841-878 schedule ranking fields at cell-count thresholds. The saved `$0300` copy (917 bytes) and page-$23 helper at physical `$46C40` (3,070 bytes) match their packaged candidate artifacts, including `ranking_schedule_data`; the presentation runtime and resident also match their current artifacts. No source interpretation depends on a mismatched module.
+
+The schedule omits the TOP row. For rank rows, the first name/score pair is drawn at thresholds 128/160 to row 5 destinations `$3940/$396C`; later pairs use thresholds 192/224, 256/288, 320/352, 384/416, and onward. With 40 columns per map row, row-5 name cells are 216–222 and score cells 227–232. At threshold 128/160 those cells are still ahead of the 32-cell loader. The same ordering holds for rows 6 and 7. Row 8's name cells 336–342 are drawn at 320, before load; its score cells 347–352 are drawn at 352, when only cells 0–351 have been loaded. Thus the next background slice overwrites the name and the last score cell. By row 9, the scheduled threshold 384 follows the relevant cells. The saved cold map has ordinary zero-valued cells, not transparent skip markers, at the erased field positions. This predicts the reported missing upper rows and partial fourth row from source order, with intact record bytes.
+
+The saved-buffer reconstruction reproduces the same missing TOP/2nd/3rd fields, fourth-row name and last score digit, with later rows present. It is a reconstruction from saved RAM and GIME mapping, not a contemporaneous scanout capture or per-write history. Therefore the loader-order mechanism is a strong byte-bound explanation, but the snapshot does not timestamp each scheduled write or erase.
+
+H2–H4 remain separate source discrepancies
+
+The logo generator targets high-score frame rows 13, 15 and 18 while the authored TMX frames are at rows 15, 17 and 20. The two-row vertical mismatch remains consistent with H2. The current TMX R occupies columns 30–31, rows 15–16, while the red-mark exception covers rows 13–14, consistent with H3's white R. The explicit light-blue descender requirement covers rows 19–20, but the generator's light-blue range ends at row 18, consistent with H4. These are independent generator/map checks; this snapshot does not establish their FRONT pixel history.
+
+The first-publication frame and name-entry/commit sequence remain unrecorded. No emulator, GDB, build, or production source was changed or run for this offline inspection. The two prior observer timeouts remain the boundary for any further runtime experiment.
