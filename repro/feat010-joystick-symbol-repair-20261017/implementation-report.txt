@@ -1,0 +1,14 @@
+FEAT-010 joystick consumer-scoped symbol repair — implementation handoff
+
+Applied the frozen transform to only candidate/scripts/build.sh using read_bytes/write_bytes. The transform preserved the baseline file bytes outside the authorized edits and produced the parent-specified SHA-256. production.patch is the corresponding byte-preserving unified diff.
+
+Change: the existing presentation module-map wanted/required entries now include the identity exports PRESENTATION_MAP_INSTRUCTIONS, PRESENTATION_MAP_HIGH_SCORE, PRESENTATION_MAP_LEVEL_START, and MODE_LEVEL. The existing map-derived writer wraps only these four EQU lines in IFDEF KEYBINDING_SYMBOL_CONSTANTS / ENDC. The selector define is present only on the keybinding_runtime.s assembler invocation. No constant values were added to production source and no other files were changed.
+
+Identity:
+- Baseline scripts/build.sh SHA-256: c3beb3400479144c5ed639f8f60aca8f7f1ddaac76d4d296c9a1d2ce19d85fa3
+- Candidate scripts/build.sh SHA-256: 37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30
+- production.patch SHA-256: ef05152f107a791f9cb6e1e4bcf0b680ea1a44c2715e9d45f2393f1cc101f1b6
+
+Capacity: the four EQU definitions and selector do not directly emit machine bytes, so the direct source-level capacity projection is 0 bytes. Total assembled sizes and headroom are unmeasured; the earlier joystick partial 8124/8192 result remains rejected evidence. Acceptance still requires resident use <=8160/8192 bytes (at least 32 bytes free), assets <=7680 bytes, presentation <=1280 bytes, page-23 high-score helper <=3136 bytes, keybinding <=1536 bytes, and audio <=6656 bytes.
+
+No qualifier rerun, test, build, assembler, source checker, emulator, runtime, GDB, monitor, Git, or wiki action was performed. The parent retains the 266-input identity review, patch inspection/commit, one complete/joystick/adaptive/6809 build capped at 600 seconds, and one postcheck capped at 60 seconds. Stop on the first failure; do not retry. No runtime joystick functionality claim is made.

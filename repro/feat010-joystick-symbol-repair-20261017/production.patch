@@ -1,0 +1,51 @@
+--- a/candidate/scripts/build.sh
++++ b/candidate/scripts/build.sh
+@@ -894,6 +894,10 @@
+     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
+     'colour_surface': 'PRES_MODULE_COLOUR_SURFACE',
+     'start_screen': 'PRES_MODULE_START_SCREEN',
++    'PRESENTATION_MAP_INSTRUCTIONS': 'PRESENTATION_MAP_INSTRUCTIONS',
++    'PRESENTATION_MAP_HIGH_SCORE': 'PRESENTATION_MAP_HIGH_SCORE',
++    'PRESENTATION_MAP_LEVEL_START': 'PRESENTATION_MAP_LEVEL_START',
++    'MODE_LEVEL': 'MODE_LEVEL',
+ }
+ for line in open(source, encoding='utf-8'):
+     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+@@ -904,6 +908,10 @@
+     'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR', 'PRES_MODULE_DRAW_RAW_TILE',
+     'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
+     'PRES_MODULE_START_SCREEN',
++    'PRESENTATION_MAP_INSTRUCTIONS',
++    'PRESENTATION_MAP_HIGH_SCORE',
++    'PRESENTATION_MAP_LEVEL_START',
++    'MODE_LEVEL',
+ }
+ if set(symbols) != required:
+     raise SystemExit('build: presentation module symbols missing: ' + ', '.join(sorted(required - set(symbols))))
+@@ -913,7 +921,17 @@
+             original = open(output, encoding='ascii').read()
+             match = re.search(r'^PRES_MAIN_DYNAMIC_TEXT equ \$([0-9A-Fa-f]+)$', original, re.M)
+             if match: value = match.group(1)
+-        handle.write(f'{name} equ ${value}\n')
++        if name in (
++            'PRESENTATION_MAP_INSTRUCTIONS',
++            'PRESENTATION_MAP_HIGH_SCORE',
++            'PRESENTATION_MAP_LEVEL_START',
++            'MODE_LEVEL',
++        ):
++            handle.write('        ifdef KEYBINDING_SYMBOL_CONSTANTS\n')
++            handle.write(f'{name} equ ${value}\n')
++            handle.write('        endc\n')
++        else:
++            handle.write(f'{name} equ ${value}\n')
+ from pathlib import Path
+ Path(output).with_name('ladybug_shared_link.inc').write_text(
+     f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n")
+@@ -1103,6 +1121,7 @@
+             --list="$BUILD_DIR/ladybug-keybinding-runtime.lst" \
+             --map="$BUILD_DIR/ladybug-keybinding-runtime.map" \
+             -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \
++            -DKEYBINDING_SYMBOL_CONSTANTS=1 \
+             -I "$BUILD_DIR" -I "$ROOT/src" "$ROOT/src/keybinding_runtime.s"
+         keybinding_args=(--keybinding-runtime "$BUILD_DIR/ladybug-keybinding-runtime.bin")
+     fi
