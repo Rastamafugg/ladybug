@@ -122,5 +122,6 @@ open('build/ladybug.rom','wb').write(data + b'\\xff'*pad)
     </footer>
   </main>
 </div>
+<section id="duplicate-equ-source-audit-20261017"><h2>2026-10-17 — Shared constant headers must avoid duplicate EQU</h2><p>Read-only inspection of the local tool source at /home/rastamafugg/coco-tools/lwtools/lwasm/pseudo.c:1063–1083 and symbol.c:127–167 shows EQU registered with symbol_flag_none and an existing symbol rejected with E_SYMBOL_DUPE; equality of numeric value does not waive the duplicate. Do not unconditionally export constants into a shared symbol header when consumers also include their defining data header or define them later. A header-local ifndef alone cannot avoid a definition that follows it. <a href="../tickets/feat-010-attract-menu-free-start.html#joystick-shared-consumer-reassessment-proposed-20261017">FEAT010 source-level finding and proposed consumer selector</a>. No assembler probe was run for this finding.</p></section>
 </body>
 </html>
