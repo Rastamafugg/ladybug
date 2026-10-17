@@ -1,0 +1,25 @@
+FEAT-010 J setup report
+
+Status: setup artifacts prepared for parent review. The source qualifier, patch specification, manifest, and postcheck have not been executed. No production source was changed; no assembler, build, test, source checker, or runtime was invoked.
+
+Class: Standard. The source-level failure is bounded to missing symbols in keybinding_runtime.s, but resolving it crosses the generated-module exporter and shared-header consumers. The three map values and MODE_LEVEL are present in the presentation runtime map, while their include consumers already own same-name EQU declarations. The assembler rejects duplicate EQU declarations. This consumer collision is why flat symbol export is invalid and why the approved correction scopes the four equates under KEYBINDING_SYMBOL_CONSTANTS, enabled only for the keybinding assembly invocation.
+
+Baseline: complete cumulative frontend-repaired source at repro/feat010-frontend-dispatch-repair-20261016/candidate, with receipt cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0 and reviewed ROM 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08. The immutable base-inputs.json pins 266 inputs. The joystick candidate is a fresh unbuilt copy with those 266 hashes unchanged; the original menu repair remains in that source. Historical joystick partial packing at 8124/8192 bytes is not accepted fit evidence.
+
+Proposed production change: one file, candidate/scripts/build.sh. Extend only the existing presentation module-map wanted/required allowlists for PRESENTATION_MAP_INSTRUCTIONS=1, PRESENTATION_MAP_HIGH_SCORE=3, PRESENTATION_MAP_LEVEL_START=2, and MODE_LEVEL=6, values sourced from the presentation runtime map. Emit only these four new equates inside IFDEF KEYBINDING_SYMBOL_CONSTANTS / ENDC. Define the selector only on the existing keybinding_runtime.s assembler invocation. Preserve existing exports and all source/header data. The qualifier extracts and evaluates only the actual exporter writer loop in memory, proves old export lines remain identical, and checks the marked and unmarked header views. It rejects the baseline missing-export state and a flat export that recreates all four duplicate EQU hazards. This is source-only qualification, not assembly evidence.
+
+Next steps after parent review: run the read-only qualifier from repository root with `python3 repro/feat010-joystick-symbol-repair-20261017/setup/qualifier.py.txt` (entire phase <=60 seconds). If it passes and the ticket reaches Ready, apply only the approved transform to the isolated candidate, then run the existing one-attempt wrapper with `python3 repro/feat010-joystick-symbol-repair-20261017/build-once.py.txt` (entire phase <=600 seconds). Its raw output and result are `build-first.log` and `build-result.json` at the ticket root. Run the bounded postcheck with `python3 repro/feat010-joystick-symbol-repair-20261017/setup/post.py.txt` (<=60 seconds). Stop at the first failure without retry. The postcheck binds wrapper argv/outcome/elapsed/log digest, the complete receipt, invocation flags, 266 input hashes, four map/header values, ROM digest, every resident/assets summary, the final layout map, and existing module capacity guards.
+
+Targets: resident use <=8160/8192 bytes, preserving at least 32 bytes free; presentation <=1280 bytes; assets <=7680 bytes; page-23 high-score helper <=3136 bytes; keybinding <=1536 bytes; audio <=6656 bytes. Existing ordinary build guards remain required. No joystick runtime functionality claim, root integration, other-profile build, cap change, or hardware support claim is in scope. If any source authority, identity, consumer guard, receipt, or capacity condition fails, stop and return the evidence for reassessment.
+
+Files:
+- patchspec.txt: exact one-file source delta and collision rationale.
+- manifest.json: pinned identities, paths, limits, commands, and phase bounds.
+- qualifier.py.txt: source-only in-memory controls; read-only.
+- post.py.txt: fresh receipt, symbols, capacities, and artifact identity check; run only after the single successful build.
+
+Setup artifact hashes (SHA-256; report hash is supplied with the parent handoff):
+qualifier.py.txt B3FD9B3653370B601D2775BBFAD4D57C2685D38361A3E1752195AECE0B7638F0
+post.py.txt 50ACDFF937E30A26022DCEC3056EBFD7CAD21BC1828CABCE04EF601FA7D0136A
+patchspec.txt 0AB361E23C4F33517A0C1B5CD197A448B27FFA4471FA764E9C32B60F9E3DC00C
+manifest.json FEDA000501391A86BA93BC375CF919553301C0E169C1351025CE30162B91BF56

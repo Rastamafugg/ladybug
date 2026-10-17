@@ -1,0 +1,87 @@
+{
+  "ticket": "FEAT-010",
+  "proposal": "joystick-symbol-repair-consumer-scoped-export",
+  "status": "setup-preparation-only; parent review and source qualification required before Ready",
+  "baseline": {
+    "root": "repro/feat010-frontend-dispatch-repair-20261016/candidate",
+    "receipt_sha256": "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0",
+    "rom_sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+    "input_manifest": "repro/feat010-joystick-symbol-repair-20261017/base-inputs.json",
+    "input_count": 266,
+    "build_script_sha256": "c3beb3400479144c5ed639f8f60aca8f7f1ddaac76d4d296c9a1d2ce19d85fa3"
+  },
+  "candidate": "repro/feat010-joystick-symbol-repair-20261017/candidate",
+  "owned_setup_files": [
+    "repro/feat010-joystick-symbol-repair-20261017/setup/qualifier.py.txt",
+    "repro/feat010-joystick-symbol-repair-20261017/setup/post.py.txt",
+    "repro/feat010-joystick-symbol-repair-20261017/setup/patchspec.txt",
+    "repro/feat010-joystick-symbol-repair-20261017/setup/manifest.json",
+    "repro/feat010-joystick-symbol-repair-20261017/setup/report.txt"
+  ],
+  "production_scope": {
+    "files": ["scripts/build.sh"],
+    "map_authority": "build/ladybug-presentation-runtime.map",
+    "symbols": {
+      "PRESENTATION_MAP_INSTRUCTIONS": "0001",
+      "PRESENTATION_MAP_HIGH_SCORE": "0003",
+      "PRESENTATION_MAP_LEVEL_START": "0002",
+      "MODE_LEVEL": "0006"
+    },
+    "consumer_guard": "IFDEF KEYBINDING_SYMBOL_CONSTANTS / ENDC around only these four new equates",
+    "selector": "-DKEYBINDING_SYMBOL_CONSTANTS=1 only on src/keybinding_runtime.s assembler invocation",
+    "source_constants": "No map values hardcoded in production source"
+  },
+  "qualification": {
+    "command_from_repository_root": "python3 repro/feat010-joystick-symbol-repair-20261017/setup/qualifier.py.txt",
+    "deadline_seconds_entire_phase": 60,
+    "mutates_source_or_candidate": false,
+    "checks": [
+      "Immutable complete receipt and ROM identities",
+      "All 266 pinned baseline and fresh candidate input hashes",
+      "Candidate is unbuilt and unchanged before qualification",
+      "Missing-export baseline control is rejected",
+      "Flat unguarded-export control is rejected",
+      "In-memory consumer-scoped transform is accepted",
+      "Unmarked consumers receive no new equates; marked keybinding receives all four map-derived equates",
+      "Existing shared-header definition collisions are confirmed from the baseline source"
+    ]
+  },
+  "single_build": {
+    "working_directory": "repro/feat010-joystick-symbol-repair-20261017/candidate",
+    "command_from_repository_root": "python3 repro/feat010-joystick-symbol-repair-20261017/build-once.py.txt",
+    "inner_command": [
+      "wsl", "-d", "Ubuntu", "--cd",
+      "/mnt/e/projects/ladybug/repro/feat010-joystick-symbol-repair-20261017/candidate",
+      "--exec", "timeout", "--kill-after=2s", "595s", "env",
+      "LADYBUG_PROFILE=complete", "LADYBUG_INPUT=joystick", "LADYBUG_CPU=6809",
+      "LADYBUG_ADAPTIVE=1", "bash", "scripts/build.sh", "build"
+    ],
+    "deadline_seconds_entire_phase": 600,
+    "wrapper_result": "repro/feat010-joystick-symbol-repair-20261017/build-result.json",
+    "raw_log": "repro/feat010-joystick-symbol-repair-20261017/build-first.log",
+    "attempt_limit": 1,
+    "retry_policy": "Stop at the first failure; no retry"
+  },
+  "postcheck": {
+    "command_from_repository_root": "python3 repro/feat010-joystick-symbol-repair-20261017/setup/post.py.txt",
+    "deadline_seconds_entire_phase": 60,
+    "checks": [
+      "Fresh complete receipt, adaptive registry, exact joystick/6809 invocation, and transformed 266-input identity",
+      "Four values agree between presentation map and generated guarded symbols header",
+      "Existing build-once wrapper records exact argv, success, elapsed time <=600 seconds, and raw-log digest",
+      "Every resident/assets summary passes <=8160/8192 resident and <=7680 assets; the final summary agrees with the final resident map",
+      "Existing capacity limits pass: presentation <=1280 bytes, page-23 high-score helper <=3136 bytes, keybinding <=1536 bytes, audio <=6656 bytes",
+      "ROM artifact digest agrees with the fresh receipt"
+    ]
+  },
+  "acceptance_limits": {
+    "resident_free_bytes_minimum": 32,
+    "presentation_bytes_maximum": 1280,
+    "assets_bytes_maximum": 7680,
+    "page23_highscore_helper_bytes_maximum": 3136,
+    "keybinding_bytes_maximum": 1536,
+    "audio_bytes_maximum": 6656,
+    "runtime_joystick_functionality_claim": false,
+    "root_integration_or_other_profiles": false
+  }
+}

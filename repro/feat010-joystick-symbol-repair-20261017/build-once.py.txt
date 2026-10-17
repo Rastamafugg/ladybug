@@ -1,0 +1,28 @@
+from pathlib import Path
+import hashlib,json,subprocess,time
+start=time.monotonic()
+root=Path(__file__).resolve().parent
+ready=json.loads((root/'parent-build-ready.json').read_text())
+assert ready['status']=='READY FOR ONE BUILD'
+assert hashlib.sha256(Path(__file__).read_bytes()).hexdigest()==ready['build_driver_sha256']
+candidate=root/'candidate'
+for rel,h in ready['candidate_inputs'].items():
+    assert hashlib.sha256((candidate/rel).read_bytes()).hexdigest()==h,rel
+assert not (candidate/'build/source-build-receipt.json').exists(),'Fresh build required'
+marker=root/'build-attempt.json'
+with marker.open('x',encoding='utf-8') as f:json.dump({'status':'STARTED','limit_seconds':600,'source_qualification':ready['source_qualification_sha256']},f)
+command=['wsl','-d','Ubuntu','--cd','/mnt/e/projects/ladybug/repro/feat010-joystick-symbol-repair-20261017/candidate','--exec','timeout','--kill-after=2s','595s','env','LADYBUG_PROFILE=complete','LADYBUG_INPUT=joystick','LADYBUG_CPU=6809','LADYBUG_ADAPTIVE=1','bash','scripts/build.sh','build']
+result={'command':command,'limit_seconds':600,'deadline_terminates_build_seconds':595,'kill_grace_seconds':2,'outcome':'INCOMPLETE'}
+try:
+    with (root/'build-first.log').open('xb') as log:
+        run=subprocess.run(command,stdout=log,stderr=subprocess.STDOUT,timeout=598)
+    result.update(returncode=run.returncode,outcome='BUILD RETURNED ZERO; PARENT ACCEPTANCE PENDING' if run.returncode==0 else 'BUILD FAILED; STOP')
+except Exception as e:result['error']=str(e)
+result['elapsed_seconds']=time.monotonic()-start
+if result['elapsed_seconds']>600:result['outcome']='INCOMPLETE: WHOLE BUILD DEADLINE MISSED'
+result['log_sha256']=hashlib.sha256((root/'build-first.log').read_bytes()).hexdigest() if (root/'build-first.log').exists() else None
+for name in ['ladybug.rom','source-build-receipt.json','ladybug-presentation-runtime.bin']:
+    p=candidate/'build'/name
+    result[name]={'sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'bytes':p.stat().st_size} if p.exists() else None
+(root/'build-result.json').write_text(json.dumps(result,indent=2)+'\n')
+print(json.dumps(result))

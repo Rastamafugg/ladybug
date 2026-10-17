@@ -1,0 +1,123 @@
+#!/usr/bin/env python3
+"""FEAT-010 J post-build identity/capacity check; run only after one successful build."""
+import json
+import hashlib
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+TICKET = ROOT / 'repro/feat010-joystick-symbol-repair-20261017'
+BASELINE = ROOT / 'repro/feat010-frontend-dispatch-repair-20261016/candidate'
+CANDIDATE = TICKET / 'candidate'
+BUILD = CANDIDATE / 'build'
+SETUP = TICKET / 'setup'
+QUALIFIER = SETUP / 'qualifier.py.txt'
+Q = {'__file__': str(QUALIFIER), '__name__': 'feat010_source_qualifier'}
+exec(compile(QUALIFIER.read_text(encoding='utf-8'), str(QUALIFIER), 'exec'), Q)
+require = Q['require']
+digest = Q['digest']
+inputs = Q['inputs']
+manifest = json.loads((TICKET / 'base-inputs.json').read_text(encoding='utf-8'))
+
+expected_build = Q['transform_build']((BASELINE / 'scripts/build.sh').read_bytes())
+require((CANDIDATE / 'scripts/build.sh').read_bytes() == expected_build, 'candidate build.sh differs from approved in-memory transform')
+expected_inputs = dict(manifest['inputs'])
+expected_inputs['scripts/build.sh'] = hashlib.sha256(expected_build).hexdigest()
+receipt_path = BUILD / 'source-build-receipt.json'
+require(digest(receipt_path) != manifest['receipt_sha256'], 'fresh candidate receipt unexpectedly aliases the immutable baseline receipt')
+receipt = json.loads(receipt_path.read_text(encoding='utf-8'))
+require(receipt.get('state') == 'complete' and receipt.get('profile') == 'complete', 'receipt is not complete/complete')
+require(len(receipt.get('inputs', {})) == 266 and receipt['inputs'] == expected_inputs, 'receipt input hashes do not match the 266-input candidate plus the one-file transform')
+require(inputs(CANDIDATE) == expected_inputs, 'candidate source inputs changed after build')
+config_path = BUILD / 'source-reference-adaptive.json'
+require(config_path.is_file() and config_path.name in receipt.get('artifacts', {}), 'adaptive source-reference receipt artifact is absent')
+config = json.loads(config_path.read_text(encoding='utf-8'))
+validated = Q['validate'](CANDIDATE, BUILD, config)
+require(validated['state'] == 'complete', 'stock provenance validation did not pass')
+
+result_path = TICKET / 'build-result.json'
+result = json.loads(result_path.read_text(encoding='utf-8'))
+expected_command = [
+    'wsl', '-d', 'Ubuntu', '--cd',
+    '/mnt/e/projects/ladybug/repro/feat010-joystick-symbol-repair-20261017/candidate',
+    '--exec', 'timeout', '--kill-after=2s', '595s', 'env',
+    'LADYBUG_PROFILE=complete', 'LADYBUG_INPUT=joystick', 'LADYBUG_CPU=6809',
+    'LADYBUG_ADAPTIVE=1', 'bash', 'scripts/build.sh', 'build',
+]
+require(result.get('command') == expected_command, 'single-build wrapper command/profile/target identity differs')
+require(result.get('limit_seconds') == 600 and result.get('deadline_terminates_build_seconds') == 595 and result.get('kill_grace_seconds') == 2,
+        'single-build wrapper phase bounds differ')
+require(result.get('returncode') == 0 and result.get('outcome') == 'BUILD RETURNED ZERO; PARENT ACCEPTANCE PENDING',
+        'single-build wrapper did not record one successful build')
+require(isinstance(result.get('elapsed_seconds'), (int, float)) and result['elapsed_seconds'] <= 600,
+        'single-build wrapper whole-phase deadline exceeded or is unrecorded')
+log_path = TICKET / 'build-first.log'
+log_text = log_path.read_text(encoding='utf-8')
+log_lines = log_text.splitlines()
+require(log_lines, 'raw build log is empty')
+require(result.get('log_sha256') == digest(log_path), 'raw build log digest differs from wrapper result')
+invocations = receipt.get('invocations', [])
+keybinding = [i for i in invocations if i.get('output') == 'ladybug-keybinding-runtime.bin']
+resident = [i for i in invocations if i.get('output') == 'ladybug-runtime.rom']
+require(len(keybinding) == 1 and len(resident) >= 1, 'joystick resident/keybinding assembly invocations missing')
+key_args = keybinding[0].get('arguments', [])
+require('-DINPUT_JOYSTICK=1' in key_args and '-DADAPTIVE_RENDERING=1' in key_args
+        and '-DKEYBINDING_SYMBOL_CONSTANTS=1' in key_args and '-9' in key_args,
+        'keybinding joystick/adaptive/6809/selector flags differ')
+require(all('-DKEYBINDING_SYMBOL_CONSTANTS=1' not in i.get('arguments', []) for i in invocations if i is not keybinding[0]), 'consumer selector leaked to a non-keybinding invocation')
+require(resident and all('-DINPUT_JOYSTICK=1' in i.get('arguments', [])
+                         and '-DADAPTIVE_RENDERING=1' in i.get('arguments', [])
+                         and '-9' in i.get('arguments', []) for i in resident),
+        'resident joystick/adaptive/6809 flags differ')
+
+names = ('PRESENTATION_MAP_INSTRUCTIONS', 'PRESENTATION_MAP_HIGH_SCORE', 'PRESENTATION_MAP_LEVEL_START', 'MODE_LEVEL')
+base_values = Q['map_symbols'](BASELINE / 'build/ladybug-presentation-runtime.map', names)
+map_path = BUILD / 'ladybug-presentation-runtime.map'
+map_values = Q['map_symbols'](map_path, names)
+require(map_values == base_values, 'joystick build map enum values differ from the reviewed source-authority map')
+header_path = BUILD / 'ladybug_presentation_symbols.inc'
+header_lines = header_path.read_text(encoding='ascii').splitlines()
+header_values = {}
+for name in names:
+    hits = [(i, re.fullmatch(rf'\s*{name}\s+equ\s+\$([0-9A-Fa-f]+)\s*', line)) for i, line in enumerate(header_lines)]
+    hits = [(i, m) for i, m in hits if m]
+    require(len(hits) == 1, 'generated header must define exactly one ' + name)
+    i, match = hits[0]
+    require(i > 0 and i + 1 < len(header_lines) and header_lines[i - 1].strip().lower() == 'ifdef keybinding_symbol_constants' and header_lines[i + 1].strip().lower() == 'endc', name + ' is not consumer-guarded')
+    header_values[name] = int(match.group(1), 16)
+require(header_values == map_values, 'generated header values differ from presentation map')
+
+resident_rows = [
+    tuple(map(int, match.groups()))
+    for match in re.finditer(r'^build: resident (\d+)/(\d+) bytes; assets (\d+)/(\d+) bytes$', log_text, re.M)
+]
+require(resident_rows, 'no stock resident/assets capacity summary was retained')
+for resident_used, resident_limit, assets_used, assets_limit in resident_rows:
+    require(resident_limit == 8192 and assets_limit == 7680, 'stock resident/assets capacity limits changed')
+    require(resident_used <= 8160 and assets_used <= 7680, 'a resident/assets summary missed headroom or cap')
+final_map = Q['source_map_symbols'](BUILD / 'ladybug.map')
+final_used = int(final_map['resident_end'], 16) - 0xC000
+final_assets = int(final_map['asset_end'], 16) - int(final_map['asset_start'], 16)
+last_resident, last_resident_limit, last_assets, last_assets_limit = resident_rows[-1]
+require((last_resident, last_resident_limit, last_assets, last_assets_limit) == (final_used, 8192, final_assets, 7680),
+        'last resident/assets summary does not match the final resident layout map')
+resident_used, assets_used = last_resident, last_assets
+size_caps = {
+    'ladybug-presentation-runtime.bin': 1280,
+    'ladybug-highscore-helper.bin': 3136,
+    'ladybug-keybinding-runtime.bin': 0x600,
+    'ladybug-audio-runtime.bin': 0x1A00,
+}
+for name, limit in size_caps.items():
+    path = BUILD / name
+    require(path.is_file() and path.stat().st_size <= limit, f'{name} exceeds existing cap {limit}')
+rom = BUILD / 'ladybug.rom'
+rom_sha = digest(rom)
+require(receipt.get('artifacts', {}).get('ladybug.rom') == rom_sha, 'fresh ROM identity differs from receipt')
+rom_record = result.get('ladybug.rom') or {}
+require(rom_record.get('sha256') == rom_sha, 'wrapper ROM identity differs from fresh receipt')
+print('PASS receipt: complete profile, adaptive registry, joystick/6809 invocation and 266 input hashes')
+print('PASS symbols: presentation map and guarded header match ' + ', '.join(f'{n}={header_values[n]:X}' for n in names))
+print(f'PASS capacities: resident {resident_used}/8192 ({8192-resident_used} free), assets {assets_used}/7680, presentation 1280, page-23 helper 3136, keybinding 1536, audio 6656 maximums')
+print('FRESH ROM SHA-256 ' + rom_sha)
+print('Postcheck is static build-artifact evidence; it makes no runtime joystick-functionality claim.')

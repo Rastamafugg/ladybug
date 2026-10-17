@@ -1,0 +1,12 @@
+Patch specification — FEAT-010 joystick symbol repair
+
+Scope: one production file, candidate/scripts/build.sh. This file is a proposal only; do not apply it before parent review and the Ready transition.
+
+1. In the existing presentation-module map exporter, add identity entries to its current wanted map and required-symbol set for exactly PRESENTATION_MAP_INSTRUCTIONS, PRESENTATION_MAP_HIGH_SCORE, PRESENTATION_MAP_LEVEL_START, and MODE_LEVEL. The source values continue to come from ladybug-presentation-runtime.map. Reviewed authoritative values are 1, 3, 2, and 6 respectively.
+2. In the export writer, wrap only those four new equates in assembler IFDEF KEYBINDING_SYMBOL_CONSTANTS / ENDC. Preserve every existing export and its current output.
+3. Add -DKEYBINDING_SYMBOL_CONSTANTS=1 only to the existing keybinding_runtime.s lwasm invocation. Do not add it to any other assembler invocation.
+4. Leave generated data headers, runtime sources, other build exporters, cap rules, profiles, and runtime behavior unchanged.
+
+Reason: the shared symbols header is included after the full presentation data header by demo_runtime.s, instruction_runtime.s, and presentation_runtime.s. The data header already defines the three presentation-map names; presentation_runtime.s also defines MODE_LEVEL. The assembler rejects duplicate EQU symbols even when values match. The guarded equates therefore must be active for keybinding_runtime.s only.
+
+Source authority and control values: baseline complete presentation map at repro/feat010-frontend-dispatch-repair-20261016/candidate/build/ladybug-presentation-runtime.map. The four expected map values are pinned in setup/manifest.json and checked against the in-memory proposed output. No constant values are hardcoded into production build.sh.
