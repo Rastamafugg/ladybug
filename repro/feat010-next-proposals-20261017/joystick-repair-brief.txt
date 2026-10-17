@@ -1,0 +1,34 @@
+FEAT-010 joystick missing-symbol repair — approval brief
+Date: 2026-10-17
+Disposition: Proposed only. No source, build, test, or runtime action was performed for this report.
+
+Recommendation
+Approve a bounded build-time symbol-visibility repair for the joystick/adaptive profile. Keep FEAT-010 as the canonical ticket. The repair restores compilation of already-authored conditional joystick comparisons; it does not change joystick logic or establish runtime joystick support.
+
+Classification and scope
+Bug class: Standard. The cause is confirmed and an existing generated symbol-header pattern applies, with no runtime ownership, protocol, loader, or MMU change. Compact is not selected because the repair must reassemble a previously failing profile and prove the resident hard minimum and fixed module caps on current cumulative source. No architectural change is proposed.
+
+In scope: expose the four missing constants through the existing symbol-only presentation include and qualify/build one fresh complete/joystick/adaptive/6809 profile.
+Out of scope: input logic or behavior changes; full/data-bearing presentation includes in keybinding; runtime or manual joystick testing; other profiles, root integration, capacity changes, unrelated FEAT-010 findings, and XRoar/GDB/monitor work.
+
+Blocker and evidence
+The retained first joystick/adaptive attempt failed during assembly after 200.220 seconds, with seven undefined-symbol diagnostics in src/keybinding_runtime.s: PRESENTATION_MAP_INSTRUCTIONS (lines 141, 155), PRESENTATION_MAP_HIGH_SCORE (143, 175), PRESENTATION_MAP_LEVEL_START (145, 157), and MODE_LEVEL (152). The exact log and receipt are repro/feat010-remaining-verification-20261016/build-joystick-adaptive.log and build-joystick-adaptive-result.json. The receipt is incomplete, with zero final artifacts; postchecks did not run. This is not a capacity failure or runtime input verdict.
+
+Current cumulative base: repro/feat010-frontend-dispatch-repair-20261016/candidate, whose reviewed primary ROM is SHA-256 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08 and receipt is cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0. That keyboard/adaptive result verified 266 inputs; measured presentation 1280/1280, resident 8088/8192 (104 free; minimum 32), assets 7667/7680, and page helper 3070/3136. It is not joystick-profile fit evidence. The failed joystick clone predates the current helper repair. Its partial resident 8124/8192 (68 free) and other partial sizes are not acceptance evidence.
+
+Confirmed cause and minimal change
+The current keybinding module already includes build/ladybug_runtime_symbols.inc and build/ladybug_presentation_symbols.inc. The latter is the established symbol-only export/import header generated in scripts/build.sh from the presentation module map. It does not export these constants. The current presentation module map contains PRESENTATION_MAP_INSTRUCTIONS=1, PRESENTATION_MAP_LEVEL_START=2, PRESENTATION_MAP_HIGH_SCORE=3, and MODE_LEVEL=6. The map IDs derive from the map-name authority in scripts/build_presentation.py; MODE_LEVEL is defined in src/presentation_runtime.s. The keyboard build omits the INPUT_JOYSTICK branch, so it did not expose this assembly defect.
+
+Proposed production edit: scripts/build.sh only. Extend the existing PRESENTATION_SYMBOLS allowlist sourced from the presentation module map with all four equates and emit them into ladybug_presentation_symbols.inc before keybinding assembly. The current presentation map already contains all four values, so no extra parser, hardcoded values, data-bearing include, or keybinding source change is needed. No scripts/source_reference.json change is expected: its external-symbol metadata tracks call targets; these are compile-time equates, not calls. Preserve the existing external and conditional external call metadata.
+
+Target and verification card
+Acceptance target: the fresh complete/joystick/adaptive/6809 ordinary build exits 0 with a fresh complete receipt, resolves all four constants to the authoritative values above, passes every existing build guard, preserves every fixed cap, and retains at least 32 free resident bytes (8192-used >= 32). No limit is raised. Current primary presentation is already at its 1280-byte maximum, so any miss remains a hard failure.
+
+1. One static source-qualification phase, maximum 60 seconds. Pin the cumulative candidate/source inputs; verify the symbol-only import/export route and values, unchanged keybinding logic, and existing numeric/source-reference guards. Qualify the check with the good candidate passing and a controlled known-bad missing-declaration fixture failing. Parent must freeze the exact command and card before Ready. Timeout or setup failure means unqualified; do not build.
+2. One fresh ordinary build, maximum 600 seconds, using the existing joystick/adaptive profile command: timeout --signal=TERM --kill-after=2s 595s env LADYBUG_PROFILE=complete LADYBUG_INPUT=joystick LADYBUG_CPU=6809 LADYBUG_ADAPTIVE=1 bash scripts/build.sh build. Success marker is exit 0 plus the fresh receipt and all existing cap guards. Timeout means incomplete, not a product/runtime conclusion.
+3. Only after build success, run the existing qualified relevant postchecks within one 60-second whole-phase limit. Retain concise source/receipt hashes, build output, capacity results, and postcheck summary.
+
+Stop on the first static, build, identity, or cap failure. Do not retry, repair during verification, run another profile, or launch runtime. Preserve the failure evidence and return to Proposed for parent reassessment. The two prior observation-tool timeouts remain unrelated; this approval does not reopen runtime diagnosis or claim joystick actuation works. The proposed work is viable within the existing module/header pattern, but joystick keybinding size and final resident headroom remain unmeasured on cumulative source.
+
+Approval vs Ready
+Approval would authorize only this symbol-visibility change, the stated targets, and the bounded qualification/build/postcheck card. It would not mark the ticket Ready. Parent owns canonical ticket/card updates, exact assignment commands and ownership, candidate/source review, retained commit, and the Ready decision.
