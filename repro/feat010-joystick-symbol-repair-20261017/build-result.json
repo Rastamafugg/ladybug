@@ -1,0 +1,37 @@
+{
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug/repro/feat010-joystick-symbol-repair-20261017/candidate",
+    "--exec",
+    "timeout",
+    "--kill-after=2s",
+    "595s",
+    "env",
+    "LADYBUG_PROFILE=complete",
+    "LADYBUG_INPUT=joystick",
+    "LADYBUG_CPU=6809",
+    "LADYBUG_ADAPTIVE=1",
+    "bash",
+    "scripts/build.sh",
+    "build"
+  ],
+  "limit_seconds": 600,
+  "deadline_terminates_build_seconds": 595,
+  "kill_grace_seconds": 2,
+  "outcome": "BUILD FAILED; STOP",
+  "returncode": 1,
+  "elapsed_seconds": 200.92863280000165,
+  "log_sha256": "dd5b610bde1b19d09ef0837de9ca1b455d5a01cb3b4253d2fb6e779512686264",
+  "ladybug.rom": null,
+  "source-build-receipt.json": {
+    "sha256": "87313ad24c9ad090d6598d1458c4ac058e7c5735c9008d6adc02aed477949797",
+    "bytes": 46122
+  },
+  "ladybug-presentation-runtime.bin": {
+    "sha256": "588661d02bd7655b36dc8d1ceec0c4a41e096703f9553a2c50ef7255dd0d2e98",
+    "bytes": 1280
+  }
+}
