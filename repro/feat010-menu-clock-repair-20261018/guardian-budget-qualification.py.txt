@@ -1,0 +1,130 @@
+from __future__ import annotations
+
+import importlib.machinery
+import importlib.util
+import json
+import sys
+from pathlib import Path
+
+
+CASE = Path(__file__).resolve().parent
+GUARDIAN_PATH = CASE / "build-once.py.txt"
+
+
+def load_guardian():
+    loader = importlib.machinery.SourceFileLoader("feat010_guardian", str(GUARDIAN_PATH))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    if spec is None:
+        raise RuntimeError("could not create the guardian import specification")
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
+class FakeClock:
+    def __init__(self, now):
+        self._now = float(now)
+
+    def monotonic(self):
+        return self._now
+
+    def advance(self, seconds):
+        self._now += float(seconds)
+
+
+def legacy_wrapper_wait(elapsed_seconds):
+    remaining = 600 - elapsed_seconds
+    return min(598, int(remaining - 1))
+
+
+def main():
+    guardian = load_guardian()
+    wrapper_hash = "a" * 64
+    command_hash = "b" * 64
+    valid_receipt = {
+        "card": "MC-B-SETUP",
+        "outcome": "PREFLIGHT PASSED",
+        "wrapper_sha256": wrapper_hash,
+        "command_sha256": command_hash,
+        "baseline_manifest_sha256": guardian.BASELINE_MANIFEST_SHA256,
+        "candidate_manifest_sha256": guardian.APPROVED_CANDIDATE_MANIFEST_SHA256,
+        "wiki_manifest_sha256": guardian.APPROVED_WIKI_MANIFEST_SHA256,
+        "wiki_inventory_sha256": guardian.APPROVED_WIKI_INVENTORY_SHA256,
+        "source_card_sha256": guardian.APPROVED_SOURCE_CARD_SHA256,
+        "source_result_sha256": guardian.APPROVED_SOURCE_RESULT_SHA256,
+        "post_card_sha256": guardian.APPROVED_POST_CARD_SHA256,
+        "candidate_input_count": 266,
+        "candidate_wiki_file_count": 379,
+        "build_outputs_absent": True,
+    }
+
+    controls = {}
+
+    def record(name, passed):
+        controls[name] = "PASS" if passed else "FAIL"
+
+    valid_receipt_passes = guardian.preflight_receipt_eligible(
+        valid_receipt, wrapper_hash, command_hash,
+    )
+    record("owned_frozen_receipt_accepted", valid_receipt_passes)
+
+    nominal_setup = 30.25
+    nominal_build = 597.0
+    nominal_total = nominal_setup + nominal_build
+    record(
+        "nontrivial_setup_with_595_plus_2_build_fits_660",
+        valid_receipt_passes
+        and guardian.budget_eligible(nominal_setup, nominal_build, nominal_total),
+    )
+    record("missing_receipt_rejected",
+           not guardian.preflight_receipt_eligible(None, wrapper_hash, command_hash))
+
+    failed_receipt = dict(valid_receipt, outcome="PREFLIGHT FAILED; STOP")
+    record("failed_receipt_rejected",
+           not guardian.preflight_receipt_eligible(failed_receipt, wrapper_hash, command_hash))
+
+    foreign_receipt = dict(valid_receipt, source_card_sha256="c" * 64)
+    record("foreign_hash_receipt_rejected",
+           not guardian.preflight_receipt_eligible(foreign_receipt, wrapper_hash, command_hash))
+
+    record("setup_over_60_rejected",
+           not guardian.budget_eligible(60.001, 0, 60.001))
+    record("build_over_600_rejected",
+           not guardian.budget_eligible(1, 600.001, 601.001))
+    record("total_over_660_rejected",
+           not guardian.budget_eligible(60, 600, 660.001))
+    record("inclusive_phase_limits_accepted",
+           guardian.budget_eligible(60, 600, 660))
+
+    clock = FakeClock(1000.0)
+    started = clock.monotonic()
+    clock.advance(2.01)
+    legacy_wait = legacy_wrapper_wait(clock.monotonic() - started)
+    record("fake_clock_old_nominal_two_second_window_rejects_2_01s",
+           legacy_wait == 596 and legacy_wait < 595 + 2)
+
+    failures = [name for name, outcome in controls.items() if outcome != "PASS"]
+    result = {
+        "card": "MC-B-QUAL",
+        "outcome": "PASS" if not failures else "FAIL",
+        "pure_controls_only": True,
+        "process_or_build_invoked": False,
+        "nontrivial_setup_seconds": nominal_setup,
+        "build_seconds_in_positive_control": nominal_build,
+        "total_seconds_in_positive_control": nominal_total,
+        "legacy_fake_clock_elapsed_seconds": round(clock.monotonic() - started, 3),
+        "legacy_fake_clock_wrapper_wait_seconds": legacy_wait,
+        "controls": controls,
+        "failures": failures,
+    }
+    print(json.dumps(result, indent=2, sort_keys=True))
+    return 0 if not failures else 1
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
