@@ -1,0 +1,29 @@
+FEAT-010 High Score separator regression diagnosis
+Date: 2026-10-18
+Status: report-only static diagnosis; no source change, qualification, build, assembler, runtime, or live pixel capture.
+
+Observed report and bound artifacts
+
+The user reports an extra entry between TOP and 2ND on ROM `6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f`. The candidate `build/ladybug.rom` has that same SHA-256 and is 65,536 bytes. Its receipt is `c1146d3b26112f31ea39cf680a0eba2b295345d3ecf3c410d83acbde0f19485b`; source stage `src/shared_text_stage.inc` is `e396cd3f26524a69dcda3035abbe54c4b9fd613324412850260ef5954c67ada3`; generator `scripts/build_presentation.py` is `1044377b4f73f7f219401b12464dd270442275c082e94ee73c4c180a509b3a92`.
+
+The compiled helper schedule is bound by helper binary SHA-256 `5f5c026d0cddb3115821fceb633e3b53ae869cc14e0e0ea401ffefb0e8aa434d`, map SHA-256 `4c40333d77911892e6949f5699e1d66d2871878ac0706070e2574a950328bf27`, and listing SHA-256 `c10e5b3987c4ac5314544f4bcfa900092cfc7467174045a57d625543c8853eaf`. The schedule is at `$B41D-$B4A9` with helper origin `$AC40`; the 140-byte schedule has 20 jobs. Its first 14 bytes are `0100af843940010120af84396c00`; its last 14 are `0340af843440010360af84346c00`.
+
+Confirmed static cause
+
+The first pair writes source `$AF84` to `$3940` and `$396C` at thresholds 256 and 288. Using the presentation address formula `$2000 + 1280*y + 4*x`, these are columns 16 and 27 of row 5. The later TOP pair writes the same `$AF84` to `$3440` and `$346C` at thresholds 832 and 864, columns 16 and 27 of row 4. Thus the schedule explicitly paints record zero twice: as a row-5 entry and as TOP. The intervening rank pairs use `$AF8E` through `$AFD4` at thresholds 320 through 800 and target rows 6 through 13.
+
+The frozen TMX is SHA-256 `98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425`, dimensions 40 by 24. Its “High Score Table and Branding” layer places TOP on row 4, leaves row 5 empty, and authors 2ND through 9TH on rows 6 through 13. Both logo layers are empty on rows 4 through 13. The TMX geometry independently identifies row 5 as the required blank separator. This static schedule/TMX agreement identifies a duplicate producer, not a baked label or coordinate/stride error. No live target bytes or pixels were captured, so the static diagnosis does not claim to prove what a running machine displayed.
+
+Minimal repair and scope
+
+For the current complete-profile production schedule, remove only the two row-5 `$AF84` jobs at thresholds 256 and 288. Keep TOP at row 4; keep the eight `$AF8E` through `$AFD4` rank pairs at rows 6 through 13 and thresholds 320 through 800; retain the stored-record count of nine and all rank/source associations. This removes 14 schedule bytes and changes the current 20-job schedule to 18 jobs. It does not shift records or alter TMX data. Any revised approval should measure the final helper and all stock capacity guards; the 14-byte reduction is a source-size calculation, not a new measured build result.
+
+The generator metadata currently declares record rows 4 through 13, including row 5, and the test-profile direct renderer draws TOP then starts its nine-record loop again from record zero at row 5. Those contracts also conflict with the newly reported blank-separator expectation. They are explicitly outside this minimal production-only diagnosis/repair; preserve them unchanged for this bounded repair and scope any compatibility correction separately. Do not treat generator metadata as the row oracle: the frozen TMX is the independent row oracle. The canonical ticket must return to Proposed before implementing the newly requested blank-separator outcome because it changes the previously approved row behavior.
+
+Minimal discriminating verification to put in a renewed assignment
+
+1. A source schedule card must bind the source revision and frozen TMX, assert no scheduled destination covers either row-5 field, and independently assert TOP remains `$AF84` at row 4 while `$AF8E` through `$AFD4` remain mapped to rows 6 through 13 and count remains nine. The current schedule is the defective negative control and must fail specifically on its two row-5 writes. An in-memory fixture with only those two jobs removed must pass. Derive row/column expectations from TMX geometry and the address formula, not from generator row metadata.
+2. After implementation is separately approved and released, the existing complete keyboard/adaptive/6809 build and receipt-bound postcheck must decode the compiled helper and assert the same no-row-5-write and retained-mapping conditions. The current ROM/helper is the compiled negative control and must fail for its row-5 writes. Do not add a separate test-profile build. Recheck presentation, assets, resident, and helper stock limits on the actual repaired build.
+3. Retain the existing natural-flow manual High Score observation on the repaired ROM: confirm the separator stays blank and TOP plus 2ND through 9TH appear on their authored rows. The user's report is the only current runtime evidence; no screenshot/frame capture is available.
+
+No verification card, source edit, build, assembler, emulator, or runtime probe was run for this report. The diagnosis is based on bound source, staged helper, receipt/artifact identity, and frozen TMX structure only.
