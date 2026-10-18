@@ -12,7 +12,7 @@ import time
 
 
 WORK = Path(__file__).resolve().parent
-PLAN_PATH = WORK / "runtime-plan.json"
+PLAN_PATH = WORK / "runtime-plan-a1r-phase-20261018.json"
 EXPECTED = {
     "rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
     "receipt_sha256": "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc",
@@ -20,6 +20,10 @@ EXPECTED = {
     "helper_map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
     "helper_listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b",
     "helper_source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "presentation_source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "presentation_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "presentation_map_sha256": "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c",
+    "presentation_listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
     "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
 }
 
@@ -35,7 +39,7 @@ def require(ok: bool, message: str) -> None:
 
 def load_pinned_plan(expected_plan_sha: str) -> dict:
     raw = PLAN_PATH.read_bytes()
-    require(digest(PLAN_PATH) == expected_plan_sha, "retained runtime-plan.json SHA differs")
+    require(digest(PLAN_PATH) == expected_plan_sha, "retained phase-revision runtime plan SHA differs")
     plan = json.loads(raw)
     require(plan.get("card") == "A1-R" and plan.get("target_path_qualified") is False,
             "retained plan is not the reviewed offline A1-R plan")
@@ -62,8 +66,9 @@ def verify_inputs(plan_sha: str) -> tuple[dict, dict, list[str]]:
             and post.get("receipt_sha256") == EXPECTED["receipt_sha256"]
             and digest(setup / "post-build-result.json") == plan["artifacts"]["post_build_result_sha256"],
             "current A1-P result differs from the frozen plan")
-    receipt = build / "source-build-receipt.json"
-    require(digest(receipt) == EXPECTED["receipt_sha256"], "complete build receipt SHA differs")
+    receipt_path = build / "source-build-receipt.json"
+    require(digest(receipt_path) == EXPECTED["receipt_sha256"], "complete build receipt SHA differs")
+    receipt = json.loads(receipt_path.read_bytes())
     require(digest(build / "ladybug.rom") == EXPECTED["rom_sha256"], "packaged ROM SHA differs")
     require(digest(build / "ladybug-perimeter-reset-helper.bin") == EXPECTED["helper_sha256"],
             "staged helper SHA differs")
@@ -73,6 +78,28 @@ def verify_inputs(plan_sha: str) -> tuple[dict, dict, list[str]]:
             "helper listing SHA differs")
     require(digest(candidate / "src/perimeter_reset_helper.s") == EXPECTED["helper_source_sha256"],
             "candidate helper source SHA differs")
+    presentation_source = candidate / "src/presentation_runtime.s"
+    presentation_bin = build / "ladybug-presentation-runtime.bin"
+    presentation_map = build / "ladybug-presentation-runtime.map"
+    presentation_listing = build / "ladybug-presentation-runtime.lst"
+    require(digest(presentation_source) == EXPECTED["presentation_source_sha256"]
+            and receipt.get("inputs", {}).get("src/presentation_runtime.s") == EXPECTED["presentation_source_sha256"],
+            "receipt-bound presentation source SHA differs")
+    for path, key in ((presentation_bin, "presentation_sha256"),
+                       (presentation_map, "presentation_map_sha256"),
+                       (presentation_listing, "presentation_listing_sha256")):
+        expected = EXPECTED[key]
+        require(digest(path) == expected and receipt.get("artifacts", {}).get(path.name) == expected,
+                f"receipt-bound {path.name} SHA differs")
+    entry = plan.get("presentation_entry", {})
+    require(entry.get("id") == "attract_tick_entry" and entry.get("address") == "0x1c56"
+            and entry.get("length") == 5 and entry.get("expected_hex") == "b600d48181"
+            and entry.get("module_origin") == "0x1900" and entry.get("module_offset") == "0x0356"
+            and entry.get("source_sha256") == EXPECTED["presentation_source_sha256"]
+            and entry.get("module_sha256") == EXPECTED["presentation_sha256"]
+            and entry.get("map_sha256") == EXPECTED["presentation_map_sha256"]
+            and entry.get("listing_sha256") == EXPECTED["presentation_listing_sha256"],
+            "frozen Attract entry plan differs from the approved receipt-bound span")
     launch = plan["launch"]
     executable = Path(launch["executable"])
     require(str(executable) == "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar"
@@ -91,8 +118,8 @@ def verify_inputs(plan_sha: str) -> tuple[dict, dict, list[str]]:
     port = subprocess.run(["ss", "-H", "-ltn", "sport = :65521"], capture_output=True,
                           timeout=2, check=True)
     require(not port.stdout.strip(), "approved diagnostic port already has a listener")
-    for name in ("probe-attempt-a1r-correction-20261018.json", "probe-launch-a1r-correction-20261018.json", "probe-cleanup-a1r-correction-20261018.json",
-                 "probe-cleanup-request-a1r-correction-20261018", "probe-xroar-a1r-correction-20261018.log"):
+    for name in ("probe-attempt-a1r-phase-20261018.json", "probe-launch-a1r-phase-20261018.json", "probe-cleanup-a1r-phase-20261018.json",
+                 "probe-cleanup-request-a1r-phase-20261018", "probe-xroar-a1r-phase-20261018.log"):
         require(not (WORK / name).exists(), f"one-shot A1-R output already exists: {name}")
     return plan, launch, [str(executable), *argv]
 
@@ -110,12 +137,12 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
     require(phase_start_ms <= int(time.time() * 1000), "phase start timestamp is in the future")
     deadline_ms = phase_start_ms + 36000
     require(int(time.time() * 1000) < deadline_ms, "whole-phase cleanup deadline has already arrived")
-    (WORK / "probe-attempt-a1r-correction-20261018.json").write_text(json.dumps({
+    (WORK / "probe-attempt-a1r-phase-20261018.json").write_text(json.dumps({
         "card": "A1-R", "attempt": 1, "plan_sha256": plan_sha,
         "phase_started_epoch_ms": phase_start_ms, "whole_phase_limit_seconds": 45,
         "cleanup_begins_by_seconds": 37,
     }, indent=2) + "\n", encoding="utf-8")
-    log = (WORK / "probe-xroar-a1r-correction-20261018.log").open("xb")
+    log = (WORK / "probe-xroar-a1r-phase-20261018.log").open("xb")
     process = subprocess.Popen(command, cwd=spec["cwd"], stdin=subprocess.DEVNULL,
                                stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     expected = None
@@ -136,10 +163,10 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
             "launch_guard_sha256": digest(Path(__file__)), "phase_started_epoch_ms": phase_start_ms,
             "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-        (WORK / "probe-launch-a1r-correction-20261018.json").write_text(json.dumps(launch_record, indent=2) + "\n", encoding="utf-8")
+        (WORK / "probe-launch-a1r-phase-20261018.json").write_text(json.dumps(launch_record, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(launch_record), flush=True)
         while int(time.time() * 1000) < deadline_ms:
-            if process.poll() is not None or (WORK / "probe-cleanup-request-a1r-correction-20261018").exists():
+            if process.poll() is not None or (WORK / "probe-cleanup-request-a1r-phase-20261018").exists():
                 break
             time.sleep(0.02)
     finally:
@@ -185,7 +212,7 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
             "elapsed_seconds": round(elapsed_ms / 1000, 3), "within_45_seconds": elapsed_ms <= 45000,
             "plan_sha256": plan_sha,
         }
-        (WORK / "probe-cleanup-a1r-correction-20261018.json").write_text(json.dumps(cleanup_record, indent=2) + "\n", encoding="utf-8")
+        (WORK / "probe-cleanup-a1r-phase-20261018.json").write_text(json.dumps(cleanup_record, indent=2) + "\n", encoding="utf-8")
         log.close()
         print(json.dumps(cleanup_record), flush=True)
 
@@ -198,21 +225,21 @@ def main() -> None:
                 "invalid frozen plan SHA")
         # Validate before starting the detached guard and before any target launch.
         verify_inputs(plan_sha)
-        with (WORK / "probe-driver-a1r-correction-20261018.log").open("xb") as driver_log:
+        with (WORK / "probe-driver-a1r-phase-20261018.log").open("xb") as driver_log:
             child = subprocess.Popen([sys.executable, "-B", __file__, "--guard", plan_sha,
                                       str(phase_start_ms)], stdin=subprocess.DEVNULL,
                                      stdout=driver_log, stderr=subprocess.STDOUT, start_new_session=True)
         until = min(time.monotonic() + 3, time.monotonic() + max(0, (phase_start_ms + 36000 - int(time.time() * 1000)) / 1000))
         while time.monotonic() < until:
-            identity_path = WORK / "probe-launch-a1r-correction-20261018.json"
+            identity_path = WORK / "probe-launch-a1r-phase-20261018.json"
             if identity_path.exists():
                 print(identity_path.read_text(), flush=True)
                 return
             if child.poll() is not None:
                 break
             time.sleep(0.02)
-        if not (WORK / "probe-cleanup-request-a1r-correction-20261018").exists():
-            (WORK / "probe-cleanup-request-a1r-correction-20261018").touch(exist_ok=True)
+        if not (WORK / "probe-cleanup-request-a1r-phase-20261018").exists():
+            (WORK / "probe-cleanup-request-a1r-phase-20261018").touch(exist_ok=True)
         print(json.dumps({"outcome": "No launch identity; stop", "guard_pid": child.pid}), flush=True)
         raise SystemExit(1)
     if len(args) == 3 and args[0] == "--guard":

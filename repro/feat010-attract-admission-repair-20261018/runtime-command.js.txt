@@ -3,7 +3,8 @@ const session = load('attractA1RSession');
 const ready = load('attractA1RReady');
 const work = 'E:/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
 const wslWork = '/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
-const audit = {card: 'A1-R', outcome: 'NOT STARTED', stops: [], gdb_calls: [], last_proven_marker: 'none', launch_attempted: false};
+const audit = {card: 'A1-R', phase_revision: 'a1r-phase-20261018', outcome: 'NOT STARTED',
+               stops: [], gdb_calls: [], last_proven_marker: 'none', launch_attempted: false};
 const started = Date.now();
 const phaseStartedEpochMs = started;
 function fail(message, kind = 'OBSERVER FAILURE; STOP') {
@@ -11,14 +12,18 @@ function fail(message, kind = 'OBSERVER FAILURE; STOP') {
 }
 function requireReady() {
   if (!plan || plan.card !== 'A1-R' || plan.status !== 'offline plan; no target qualified') fail('Missing or unexpected frozen A1-R plan');
-  if (!ready || !ready.parent_review_ready || ready.plan_sha256 !== plan.plan_sha256) fail('Parent Ready metadata does not bind the frozen runtime-plan.json');
+  if (!ready || !ready.parent_review_ready || ready.plan_sha256 !== plan.plan_sha256) fail('Parent Ready metadata does not bind the frozen phase-revision plan');
   if (!session || !ready.local_only || ready.architecture !== 'm6809' || ready.qSupported !== 'off' || ready.target_attached !== false) fail('Parent GDB session is not the reviewed idle local-only m6809 setup');
   const readyHashes = ready.gdb_tool_control_hashes ?? {};
   const planHashes = plan.gdb_tool_control_hashes ?? {};
   const hashNames = Object.keys(planHashes).sort();
   if (JSON.stringify(Object.keys(readyHashes).sort()) !== JSON.stringify(hashNames)
       || hashNames.some(name => readyHashes[name] !== planHashes[name])) fail('Current GDB tool hashes differ from the frozen plan');
-  if (plan.target_path_qualified !== false || plan.artifacts.rom_sha256 !== '2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b') fail('Plan is not bound to the current A1-P artifact');
+  if (plan.target_path_qualified !== false || plan.artifacts.rom_sha256 !== '2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b'
+      || plan.artifacts.presentation_source_sha256 !== '6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123'
+      || plan.artifacts.presentation_sha256 !== '53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2'
+      || plan.artifacts.presentation_map_sha256 !== '7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c'
+      || plan.artifacts.presentation_listing_sha256 !== '7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329') fail('Plan is not bound to the current receipt-qualified A1-P presentation artifact');
 }
 function outputs(result) {
   if (result.isError) { audit.last_tool_error = result; fail('GDB-MCP call returned an error'); }
@@ -127,7 +132,7 @@ try {
                       pc: registers.pc, dp: registers.dp};
     audit.stops.push(evidence);
     audit.last_proven_marker = stop.address;
-    if (index === 0) {
+    if (index === 1) {
       const ccOutput = rows.find(row => row.command === stop.cc_command)?.output ?? '';
       const regPc = registerValue(ccOutput, 'pc'), regDp = registerValue(ccOutput, 'dp');
       const cc = registerValue(ccOutput, 'cc');
@@ -143,18 +148,29 @@ try {
     evidence.fields = stateFields(memory(stateRow.output, 2, 231));
     evidence.elapsed_ms = Date.now() - started;
     audit.last_proven_marker = stop.address + ' qualified state';
+    if (evidence.fields.PRES_MODE !== 2 || evidence.fields.PRES_SCREEN !== 0) {
+      audit.outcome = 'INCOMPLETE COVERAGE; STOP';
+      audit.interpretation = 'The stop was not in the approved Attract mode/screen context.';
+      break;
+    }
     if (index === 0) {
+      if (evidence.fields.MENU_EVENT !== 0 || evidence.fields.MENU_SELECT !== 0) {
+        audit.outcome = 'INCOMPLETE COVERAGE; STOP';
+        audit.interpretation = 'The natural Attract entry did not have the approved neutral menu-event/selection state.';
+        break;
+      }
+    } else if (index === 1) {
       audit.p0 = evidence.fields.PRES_ACTOR_PHASE;
       if ((evidence.cc & 0x04) !== 0) {
         audit.outcome = 'INCOMPLETE POSITIVE COVERAGE; STOP';
         audit.interpretation = 'The byte-matched TST did not produce CC.Z=0 at the BNE stop; no admission assertion is made.';
         break;
       }
-    } else if (index === 1) {
+    } else if (index === 2) {
       if (qualified.actual !== '39') fail('pao_done destination is not the byte-qualified RTS', 'PRODUCT ASSERTION FAILURE; STOP');
       if (evidence.fields.PRES_ACTOR_PHASE !== audit.p0) fail('Actor phase cache changed on the pending path', 'PRODUCT ASSERTION FAILURE; STOP');
       evidence.p0_preserved = true;
-    } else {
+    } else if (index === 3) {
       const expectedPhase = phaseFromTimer(evidence.fields.PRES_TIMER);
       evidence.expected_phase_from_timer = expectedPhase;
       if (evidence.fields.PENDING !== 0 || evidence.fields.PRES_ACTOR_PHASE !== expectedPhase) {
@@ -174,11 +190,11 @@ try {
 } finally {
   try {
     if (audit.launch_attempted) {
-      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request-a1r-correction-20261018\n+Approved A1-R probe ended.\n*** End Patch');
+      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request-a1r-phase-20261018\n+Approved A1-R phase probe ended.\n*** End Patch');
     }
     if (audit.launch_attempted) {
       audit.gdb_cleanup = await tools.mcp__gdb_mcp__stop_session({session_id: session});
-      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup-a1r-correction-20261018.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
+      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup-a1r-phase-20261018.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
       audit.process_cleanup = JSON.parse(cleanup.output.trim() || '{}');
       if (!audit.process_cleanup.owned_process_exited || !audit.process_cleanup.cleanup_started_by_37_seconds
           || !audit.process_cleanup.within_45_seconds || audit.gdb_cleanup.isError) audit.outcome = 'CLEANUP INCOMPLETE; STOP';

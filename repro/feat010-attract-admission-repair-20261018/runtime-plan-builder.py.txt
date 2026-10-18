@@ -1,4 +1,4 @@
-"""Emit the parent-reviewed, offline A1-R plan after the current A1-P pass."""
+"""Emit the parent-reviewed, offline four-stop A1-R plan after A1-P pass."""
 from __future__ import annotations
 
 import hashlib
@@ -20,6 +20,13 @@ HELPER_SHA = "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde"
 HELPER_MAP_SHA = "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d"
 HELPER_LISTING_SHA = "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b"
 SOURCE_SHA = "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c"
+PRESENTATION_SOURCE_SHA = "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123"
+PRESENTATION_BIN_SHA = "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2"
+PRESENTATION_MAP_SHA = "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c"
+PRESENTATION_LISTING_SHA = "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329"
+PRESENTATION_ORIGIN = 0x1900
+PRESENTATION_ENTRY = 0x1C56
+PRESENTATION_ENTRY_HEX = "b600d48181"
 XROAR = "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar"
 XROAR_SHA = "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
 GDB_TOOL_HASHES = {
@@ -103,6 +110,13 @@ def main() -> None:
     source_bytes = require_digest(source_path, SOURCE_SHA, "candidate helper source")
     require(receipt.get("inputs", {}).get("src/perimeter_reset_helper.s") == SOURCE_SHA,
             "candidate helper source is not receipt-bound")
+    presentation_source_path = CANDIDATE / "src/presentation_runtime.s"
+    presentation_source = require_digest(presentation_source_path, PRESENTATION_SOURCE_SHA,
+                                         "candidate presentation source")
+    require(receipt.get("inputs", {}).get("src/presentation_runtime.s") == PRESENTATION_SOURCE_SHA,
+            "candidate presentation source is not receipt-bound")
+    require(b"MODE_LOAD equ 1" in presentation_source and b"MODE_ATTRACT equ 2" in presentation_source,
+            "receipt-bound presentation source no longer defines the approved mode distinction")
 
     rom_path = BUILD / "ladybug.rom"
     rom_bytes = require_digest(rom_path, ROM_SHA, "packaged GMC ROM")
@@ -118,6 +132,35 @@ def main() -> None:
                          (listing_path, HELPER_LISTING_SHA)):
         require(receipt.get("artifacts", {}).get(path.name) == digest,
                 f"{path.name} is not bound by the complete receipt")
+
+    presentation_path = BUILD / "ladybug-presentation-runtime.bin"
+    presentation_map_path = BUILD / "ladybug-presentation-runtime.map"
+    presentation_listing_path = BUILD / "ladybug-presentation-runtime.lst"
+    presentation = require_digest(presentation_path, PRESENTATION_BIN_SHA, "staged presentation module")
+    presentation_map = require_digest(presentation_map_path, PRESENTATION_MAP_SHA, "presentation map")
+    presentation_listing = require_digest(presentation_listing_path, PRESENTATION_LISTING_SHA,
+                                          "presentation listing")
+    for path, digest in ((presentation_path, PRESENTATION_BIN_SHA),
+                         (presentation_map_path, PRESENTATION_MAP_SHA),
+                         (presentation_listing_path, PRESENTATION_LISTING_SHA)):
+        require(receipt.get("artifacts", {}).get(path.name) == digest,
+                f"{path.name} is not bound by the complete receipt")
+    require(len(presentation) == 1280, "staged presentation module size differs")
+    presentation_symbols = decoder.parse_symbols(presentation_map.decode("utf-8"))
+    presentation_rows = decoder.parse_listing(presentation_listing.decode("utf-8"))
+    require(presentation_symbols.get("attract_tick") == PRESENTATION_ENTRY
+            and presentation_symbols.get("MODE_LOAD") == 1
+            and presentation_symbols.get("MODE_ATTRACT") == 2,
+            "presentation map does not bind the approved Attract entry and mode values")
+    require(listing_row(presentation_rows, PRESENTATION_ENTRY, "lda PRES_HOLD_STATE")
+            == bytes.fromhex("b600d4")
+            and listing_row(presentation_rows, PRESENTATION_ENTRY + 3, "cmpa #PRES_HOLD_FINAL")
+            == bytes.fromhex("8181"),
+            "presentation listing differs at the approved Attract entry")
+    presentation_offset = PRESENTATION_ENTRY - PRESENTATION_ORIGIN
+    presentation_entry = presentation[presentation_offset:presentation_offset + 5]
+    require(presentation_offset == 0x0356 and presentation_entry.hex() == PRESENTATION_ENTRY_HEX,
+            "staged Attract entry bytes or module offset differ from the approved span")
 
     symbols = decoder.parse_symbols(map_bytes.decode("utf-8"))
     rows = decoder.parse_listing(listing_bytes.decode("utf-8"))
@@ -179,6 +222,16 @@ def main() -> None:
             "compiled admission BNE no longer targets byte-qualified pao_done RTS")
     require(helper[0x0792 - 0x06B2:0x0795 - 0x06B2] == bytes.fromhex("bd0ddf"),
             "compiled pre-prepare JSR is not unchanged target $0DDF")
+    presentation_entry_span = {
+        "id": "attract_tick_entry", "address": f"0x{PRESENTATION_ENTRY:04x}", "length": 5,
+        "expected_hex": PRESENTATION_ENTRY_HEX,
+        "description": "lda PRES_HOLD_STATE; cmpa #PRES_HOLD_FINAL",
+        "source": "src/presentation_runtime.s", "source_sha256": PRESENTATION_SOURCE_SHA,
+        "module": presentation_path.name, "module_origin": f"0x{PRESENTATION_ORIGIN:04x}",
+        "module_offset": f"0x{presentation_offset:04x}", "module_sha256": PRESENTATION_BIN_SHA,
+        "map_sha256": PRESENTATION_MAP_SHA, "listing_sha256": PRESENTATION_LISTING_SHA,
+    }
+    spans.insert(0, presentation_entry_span)
 
     candidate_wsl = "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate"
     plan = {
@@ -191,9 +244,15 @@ def main() -> None:
             "rom_sha256": ROM_SHA, "rom_bytes": len(rom_bytes),
             "helper_source_sha256": SOURCE_SHA, "helper_sha256": HELPER_SHA,
             "helper_map_sha256": HELPER_MAP_SHA, "helper_listing_sha256": HELPER_LISTING_SHA,
+            "presentation_source_sha256": PRESENTATION_SOURCE_SHA,
+            "presentation_sha256": PRESENTATION_BIN_SHA,
+            "presentation_map_sha256": PRESENTATION_MAP_SHA,
+            "presentation_listing_sha256": PRESENTATION_LISTING_SHA,
+            "presentation_origin": "0x1900", "presentation_bytes": len(presentation),
+            "presentation_entry_offset": "0x0356", "presentation_entry_hex": PRESENTATION_ENTRY_HEX,
             "helper_bytes": len(helper), "helper_range": "0x06b2-0x07ff",
             "helper_exclusive_end": "0x0800", "resident_free_minimum": 104,
-            "asset_used": 7667, "presentation_bytes": 1280,
+            "asset_used": 7667,
         },
         "compiled_decoder": {key: (f"0x{value:04x}" if isinstance(value, int) else value)
                              for key, value in decoded.items()},
@@ -205,6 +264,7 @@ def main() -> None:
             "zero_path": "SUBD #6 sets borrow; BLO reaches CLRA; RTS",
             "normal_path": "TFR B,A; LSRA x3; ANDA #3; RTS",
         },
+        "presentation_entry": presentation_entry_span,
         "code_spans": spans,
         "state_read": {"command": "x/231xb 0x0002", "start": "0x0002", "length": 231,
                        "report_fields": STATE_FIELDS},
@@ -215,6 +275,10 @@ def main() -> None:
                 'printf "attach_pc=%04x attach_dp=%02x\\n",$pc,$dp',
             ],
             "stops": [
+                {"address": "0x1c56", "expected_pc": "0x1c56", "expected_dp": "0x00",
+                 "span_id": "attract_tick_entry", "code_command": "x/5xb 0x1c56",
+                 "raw_pc_dp_command": 'printf "stop_pc=%04x stop_dp=%02x\\n",$pc,$dp',
+                 "assertion": "MODE=2; SCREEN=0; MENU_EVENT=0; MENU_SELECT=0; no PENDING/timer/phase requirement"},
                 {"address": "0x078e", "expected_pc": "0x078e", "expected_dp": "0x00",
                  "span_id": "admission_tst_and_bne", "code_command": "x/4xb 0x078c",
                  "raw_pc_dp_command": 'printf "stop_pc=%04x stop_dp=%02x\\n",$pc,$dp',
@@ -252,11 +316,12 @@ def main() -> None:
         "boundaries": [
             "A1-R no-input branch diagnostic only; A2 selection rollback is separate.",
             "First byte-match source/staged/live code; only then interpret stopped PC, DP, or CC.",
-            "Only the three helper code spans above, info registers pc dp cc at stop 1, and x/231xb 0x0002 are authorized live reads.",
-            "No stack, MMIO, guest writes, input, successor stop, retry, user-window routing, or owner matrix.",
+            "Only the Attract entry span and three helper spans above, info registers pc dp cc at the guard stop, and x/231xb 0x0002 are authorized live reads.",
+            "Require MODE_ATTRACT=2 and SCREEN=0 at all four stops; require MENU_EVENT=0 and MENU_SELECT=0 only at the Attract entry. Do not constrain entry PENDING, timer, or phase.",
+            "No stack, MMIO, guest writes, input, extra stop, occurrence search, retry, user-window routing, or owner matrix.",
             "PENDING=1 is not required at the post-TST state dump; CC.Z=0 proves the matched TST observed nonzero PENDING before a possible IRQ clear.",
             "The stop at $07E3 plus matched branch target and RTS bytes proves the guarded path reached pao_done; no live stack return-target claim.",
-            "The changed-ROM runtime is unmeasured. Prior old-ROM result 7.797/45 is historical evidence, not a guarantee.",
+            "The changed-ROM four-stop runtime is unmeasured. Prior current-ROM one-stop and historical old-ROM timings are not a guarantee.",
         ],
         "target_path_qualified": False,
     }

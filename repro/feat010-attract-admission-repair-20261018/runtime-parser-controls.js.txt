@@ -56,6 +56,10 @@ function stateBytes(values) {
   set(0x0091, values.PENDING ?? 0);
   set(0x00b0, values.PRES_TIMER ?? 0, 2);
   set(0x00d3, values.PRES_ACTOR_PHASE ?? 0);
+  set(0x00a5, values.PRES_MODE ?? 0);
+  set(0x00a6, values.PRES_SCREEN ?? 0);
+  set(0x00d0, values.MENU_EVENT ?? 0);
+  set(0x00e0, values.MENU_SELECT ?? 0);
   return bytes;
 }
 function dump(bytes, start = 2) {
@@ -94,9 +98,33 @@ function checkThirdStop(codeOutput, rawOutput, fields) {
   if (fields.PRES_ACTOR_PHASE !== phaseForTimer(fields.PRES_TIMER)) throw new Error('phase differs from timer function');
   return true;
 }
+function checkEntryStop(codeOutput, rawOutput, stateOutput, fields) {
+  checkSpan(codeOutput, 0x1c56, 'b600d48181');
+  const regs = readPcDp(rawOutput);
+  if (regs.pc !== 0x1c56 || regs.dp !== 0) throw new Error('wrong Attract-entry stop PC/DP');
+  const values = readState(readMemory(stateOutput, 2, 231), fields);
+  if (values.PRES_MODE !== 2 || values.PRES_SCREEN !== 0) throw new Error('Attract entry is not MODE_ATTRACT on screen 0');
+  if (values.MENU_EVENT !== 0 || values.MENU_SELECT !== 0) throw new Error('Attract entry menu state is not neutral');
+  return values;
+}
 
 // Offline parser controls only. These synthetic byte streams are not an A1-R fixture or product result.
 const fields = ["PENDING 0091", "PRES_TIMER 00B0-00B1", "PRES_ACTOR_PHASE 00D3"];
+const entryFields = [...fields, "PRES_MODE 00A5", "PRES_SCREEN 00A6", "MENU_EVENT 00D0", "MENU_SELECT 00E0"];
+const entryBytes = stateBytes({PENDING: 1, PRES_TIMER: 0xffff, PRES_ACTOR_PHASE: 0xff,
+  PRES_MODE: 2, PRES_SCREEN: 0, MENU_EVENT: 0, MENU_SELECT: 0});
+const entryCode = dump(Uint8Array.from([0xb6, 0x00, 0xd4, 0x81, 0x81]), 0x1c56);
+const entryRaw = 'stop_pc=1c56 stop_dp=00';
+const entryState = dump(entryBytes, 2);
+if (checkEntryStop(entryCode, entryRaw, entryState, entryFields).PENDING !== 1) throw new Error('Attract-entry positive parser control failed');
+let rejectedWrongEntryMode = false;
+try { checkEntryStop(entryCode, entryRaw, dump(stateBytes({PRES_MODE: 1, PRES_SCREEN: 0}), 2), entryFields); }
+catch (_) { rejectedWrongEntryMode = true; }
+if (!rejectedWrongEntryMode) throw new Error('MODE_LOAD at Attract entry was accepted');
+let rejectedWrongEntryBytes = false;
+try { checkEntryStop(dump(Uint8Array.from([0xb6, 0x00, 0xd4, 0x81, 0x80]), 0x1c56), entryRaw, entryState, entryFields); }
+catch (_) { rejectedWrongEntryBytes = true; }
+if (!rejectedWrongEntryBytes) throw new Error('wrong Attract-entry bytes were accepted');
 const p0Bytes = stateBytes({PENDING: 0, PRES_TIMER: 7, PRES_ACTOR_PHASE: 3});
 const p0 = readState(p0Bytes, fields);
 const pass1 = checkFirstStop(dump(Uint8Array.from([0x0d, 0x91, 0x26, 0x53]), 0x078c),
@@ -120,4 +148,4 @@ let rejectedPending = false;
 try { checkThirdStop(dump(Uint8Array.from([0xbd, 0x0d, 0xdf]), 0x0792), 'stop_pc=0792 stop_dp=00', {...finalFields, PENDING: 1}); }
 catch (_) { rejectedPending = true; }
 if (!rejectedPending) throw new Error('PENDING=1 at prepare entry was accepted');
-text({offline_a1r_parser_controls: 'PASS', controls: 6, real_tools_called: false});
+text({offline_a1r_parser_controls: 'PASS', controls: 9, real_tools_called: false});
