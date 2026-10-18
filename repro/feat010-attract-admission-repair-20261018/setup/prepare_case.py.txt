@@ -1,0 +1,189 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import shutil
+from pathlib import Path
+
+
+REPO = Path(__file__).resolve().parents[3]
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+BASELINE = REPO / "repro/feat010-frontend-dispatch-repair-20261016/candidate"
+CANDIDATE = WORK / "candidate"
+BASELINE_REVISION = "65d9b28a17c9745847ea48fea6d3a6bc39fd638f"
+BASELINE_ROM_SHA256 = "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08"
+BASELINE_RECEIPT_SHA256 = "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0"
+BASELINE_HELPER_SHA256 = "8cc9322759ab5f1dad866528291fa68e4d4a5141d9c836e503d0462b46649e04"
+BASELINE_HELPER_MAP_SHA256 = "0494bbeb5977b48cdcee05900e980a5e72ae00bfc90d4edd131d13cd96cf1f4d"
+BASELINE_HELPER_LIST_SHA256 = "733a77ff22a358230b26d825f452b42d9c3b0f896b109dda09b12bfe8bc5c5fc"
+BASELINE_PRESENTATION_SHA256 = "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2"
+BASELINE_HELPER_SOURCE_SHA256 = "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf"
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
+
+
+def inventory(folder: Path) -> dict[str, str]:
+    return {
+        path.relative_to(folder).as_posix(): sha(path.read_bytes())
+        for path in folder.rglob("*") if path.is_file()
+    }
+
+
+def source_inventory(folder: Path) -> dict[str, str]:
+    result = {}
+    for dirname in ("src", "scripts", "assets", "tiled"):
+        root = folder / dirname
+        for path in root.rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result[path.relative_to(folder).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def projected_helper(source: bytes) -> bytes:
+    newline = b"\r\n" if b"\r\n" in source else b"\n"
+    old_call = b"        lbsr    presentation_attract_phase"
+    new_call = b"        bsr     presentation_attract_phase"
+    if source.count(old_call) != 1 or b"        bsr     presentation_attract_phase" in source:
+        raise SystemExit("baseline helper call site differs from the approved single LBSR")
+    source = source.replace(old_call, new_call, 1)
+    anchor = b"pao_phase_change" + newline
+    guard = b"        tst     PENDING" + newline + b"        bne     pao_done" + newline
+    source_lines = source.splitlines(keepends=True)
+    start = next(i for i, line in enumerate(source_lines) if line.strip() == b"presentation_attract_overlay_impl")
+    change = next(i for i, line in enumerate(source_lines) if line.strip() == b"pao_phase_change")
+    prefix = source_lines[start:change]
+    if (source.count(anchor) != 1
+            or any(re.match(rb"\s*(tst\s+PENDING|bne\s+pao_done)\s*$", line.strip(), re.I) for line in prefix)):
+        raise SystemExit("baseline helper phase-change anchor or guard state differs")
+    return source.replace(anchor, guard + anchor, 1)
+
+
+def main() -> None:
+    if CANDIDATE.exists():
+        raise SystemExit(f"candidate path already exists; refusing overwrite: {CANDIDATE}")
+    receipt_path = BASELINE / "build/source-build-receipt.json"
+    receipt_bytes = receipt_path.read_bytes()
+    receipt = json.loads(receipt_bytes)
+    if (sha(receipt_bytes) != BASELINE_RECEIPT_SHA256
+            or receipt.get("revision") != BASELINE_REVISION
+            or receipt.get("profile") != "complete"
+            or receipt.get("state") != "complete"):
+        raise SystemExit("pinned baseline receipt identity/profile/state mismatch")
+    if len(receipt.get("inputs", {})) != 266:
+        raise SystemExit("pinned receipt source closure is not exactly 266 files")
+    observed = source_inventory(BASELINE)
+    if observed != receipt["inputs"]:
+        raise SystemExit("pinned baseline source files do not match its 266-input receipt")
+
+    rom_bytes = (BASELINE / "build/ladybug.rom").read_bytes()
+    helper_bytes = (BASELINE / "build/ladybug-perimeter-reset-helper.bin").read_bytes()
+    helper_map = (BASELINE / "build/ladybug-perimeter-reset-helper.map").read_bytes()
+    helper_list = (BASELINE / "build/ladybug-perimeter-reset-helper.lst").read_bytes()
+    presentation = (BASELINE / "build/ladybug-presentation-runtime.bin").read_bytes()
+    if len(rom_bytes) != 65536 or sha(rom_bytes) != BASELINE_ROM_SHA256:
+        raise SystemExit("pinned baseline ROM identity/size mismatch")
+    if (sha(helper_bytes) != BASELINE_HELPER_SHA256
+            or sha(helper_map) != BASELINE_HELPER_MAP_SHA256
+            or sha(helper_list) != BASELINE_HELPER_LIST_SHA256
+            or len(helper_bytes) != 331):
+        raise SystemExit("pinned helper binary/map/listing identity mismatch")
+    if len(presentation) != 1280 or sha(presentation) != BASELINE_PRESENTATION_SHA256:
+        raise SystemExit("pinned presentation module identity/cap mismatch")
+
+    wiki_files = inventory(BASELINE / "wiki")
+    if len(wiki_files) != 379:
+        raise SystemExit(f"pinned baseline wiki has {len(wiki_files)} files, expected 379")
+    wiki_inventory_sha = sha(json.dumps(wiki_files, sort_keys=True, separators=(",", ":")).encode())
+    helper_source = (BASELINE / "src/perimeter_reset_helper.s").read_bytes()
+    if sha(helper_source) != BASELINE_HELPER_SOURCE_SHA256:
+        raise SystemExit("pinned helper source differs from the approved baseline hash")
+    projected = projected_helper(helper_source)
+    projected_inputs = dict(observed)
+    projected_inputs["src/perimeter_reset_helper.s"] = sha(projected)
+
+    CANDIDATE.mkdir(parents=True)
+    for relative in receipt["inputs"]:
+        source = BASELINE / relative
+        destination = CANDIDATE / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+    for relative in wiki_files:
+        source = BASELINE / "wiki" / relative
+        destination = CANDIDATE / "wiki" / relative
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+
+    copied_inputs = source_inventory(CANDIDATE)
+    copied_wiki = inventory(CANDIDATE / "wiki")
+    if copied_inputs != observed or copied_wiki != wiki_files:
+        raise SystemExit("fresh candidate copy does not equal the manifest-enumerated baseline")
+    expected_paths = set(receipt["inputs"]) | {f"wiki/{name}" for name in wiki_files}
+    actual_paths = {path.relative_to(CANDIDATE).as_posix() for path in CANDIDATE.rglob("*") if path.is_file()}
+    if actual_paths != expected_paths or (CANDIDATE / "build").exists() or (CANDIDATE / ".git").exists():
+        raise SystemExit("candidate contains an unmanifested file, build output, or .git directory")
+
+    baseline_manifest = {
+        "ticket": "FEAT-010", "step": "pinned source-only baseline copy",
+        "baseline_candidate": "repro/feat010-frontend-dispatch-repair-20261016/candidate",
+        "source_commit": BASELINE_REVISION, "profile": "complete/keyboard/6809/adaptive=1",
+        "rom_sha256": BASELINE_ROM_SHA256, "receipt_sha256": BASELINE_RECEIPT_SHA256,
+        "input_count": len(observed), "inputs": observed,
+    }
+    wiki_manifest = {
+        "baseline_root": "repro/feat010-frontend-dispatch-repair-20261016/candidate/wiki",
+        "candidate_root": "repro/feat010-attract-admission-repair-20261018/candidate/wiki",
+        "file_count": len(wiki_files), "total_bytes": sum((BASELINE / "wiki" / path).stat().st_size for path in wiki_files),
+        "inventory_sha256": wiki_inventory_sha, "files": wiki_files,
+    }
+    projected_manifest = {
+        "ticket": "FEAT-010", "step": "in-memory approved guard plus one-byte BSR projection; not applied",
+        "baseline_rom_sha256": BASELINE_ROM_SHA256, "baseline_receipt_sha256": BASELINE_RECEIPT_SHA256,
+        "input_count": len(projected_inputs), "changed_inputs": ["src/perimeter_reset_helper.s"],
+        "inputs": projected_inputs, "projection_only": True,
+    }
+    artifacts = {
+        "rom": {"sha256": BASELINE_ROM_SHA256, "bytes": len(rom_bytes)},
+        "receipt": {"sha256": BASELINE_RECEIPT_SHA256},
+        "helper_source": {"sha256": BASELINE_HELPER_SOURCE_SHA256},
+        "helper": {"sha256": BASELINE_HELPER_SHA256, "bytes": len(helper_bytes)},
+        "helper_map": {"sha256": BASELINE_HELPER_MAP_SHA256},
+        "helper_listing": {"sha256": BASELINE_HELPER_LIST_SHA256},
+        "presentation_module": {"sha256": BASELINE_PRESENTATION_SHA256, "bytes": len(presentation)},
+    }
+    candidate_manifest = {
+        "candidate_root": "repro/feat010-attract-admission-repair-20261018/candidate",
+        "source_input_count": len(copied_inputs), "wiki_file_count": len(copied_wiki),
+        "candidate_file_count": len(actual_paths), "source_inventory_sha256": sha(json.dumps(copied_inputs, sort_keys=True, separators=(",", ":")).encode()),
+        "wiki_inventory_sha256": wiki_inventory_sha, "build_directory_present": False, "git_directory_present": False,
+        "manifest_only_baseline": True,
+    }
+    result = {
+        "status": "source-only baseline copy prepared; no gate/build/assembler/runtime",
+        "candidate_manifest_sha256": None,
+        "source_input_count": len(copied_inputs), "wiki_file_count": len(copied_wiki),
+        "total_candidate_files": len(actual_paths), "candidate_build_directory_created": False,
+        "candidate_source_hashes_equal_receipt": True, "candidate_wiki_hashes_equal_frozen_inventory": True,
+        "projected_changed_input": "src/perimeter_reset_helper.s", "projected_helper_sha256": sha(projected),
+        "baseline_rom_sha256": BASELINE_ROM_SHA256, "baseline_receipt_sha256": BASELINE_RECEIPT_SHA256,
+        "baseline_wiki_inventory_sha256": wiki_inventory_sha,
+    }
+    write_json(SETUP / "baseline-inputs.json", baseline_manifest)
+    write_json(SETUP / "wiki-inputs.json", wiki_manifest)
+    write_json(SETUP / "projected-inputs.json", projected_manifest)
+    write_json(SETUP / "baseline-artifacts.json", artifacts)
+    write_json(SETUP / "candidate-manifest.json", candidate_manifest)
+    result["candidate_manifest_sha256"] = sha((SETUP / "candidate-manifest.json").read_bytes())
+    write_json(SETUP / "preparation-result.json", result)
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()

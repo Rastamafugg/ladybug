@@ -1,0 +1,210 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import sys
+import time
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+LIMIT_SECONDS = 60
+STARTED = time.monotonic()
+SOURCE_RELATIVE = "src/perimeter_reset_helper.s"
+HELPER_BASE = 0x06B2
+sys.path.insert(0, str(SETUP))
+from helper_byte_decoder import parse_listing, parse_symbols, verify_helper_contract
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise AssertionError(message)
+
+
+def phase_instructions(source: bytes) -> list[str]:
+    lines = source.decode("utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip() == "presentation_attract_overlay_impl")
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "pao_done")
+    return [re.sub(r"\s+", " ", line.strip().lower()) for line in lines[start + 1:end]
+            if line.strip() and not line.strip().startswith(";")]
+
+
+def ordered_gate(source: bytes) -> tuple[bool, str]:
+    try:
+        instructions = [line for line in phase_instructions(source) if not line.endswith(":")]
+        tst = next(i for i, line in enumerate(instructions) if re.fullmatch(r"tst\s+pending", line))
+        branch = next(i for i, line in enumerate(instructions) if re.fullmatch(r"bne\s+pao_done", line))
+        store = next(i for i, line in enumerate(instructions) if re.fullmatch(r"sta\s+pres_actor_phase", line))
+        prepare = next(i for i, line in enumerate(instructions) if re.fullmatch(r"jsr\s+pres_main_fb_prepare", line))
+        require(branch == tst + 1, "TST PENDING and BNE pao_done are not adjacent")
+        require(tst < store and branch < store and tst < prepare and branch < prepare,
+                "admission branch is not before cache write and framebuffer prepare")
+        return True, "guard precedes cache write and prepare"
+    except (AssertionError, StopIteration) as error:
+        return False, str(error)
+
+
+def projected_source(source: bytes) -> bytes:
+    newline = b"\r\n" if b"\r\n" in source else b"\n"
+    old_call = b"        lbsr    presentation_attract_phase"
+    new_call = b"        bsr     presentation_attract_phase"
+    require(source.count(old_call) == 1, "baseline does not contain exactly one approved LBSR")
+    changed = source.replace(old_call, new_call, 1)
+    anchor = b"pao_phase_change" + newline
+    guard = b"        tst     PENDING" + newline + b"        bne     pao_done" + newline
+    lines = changed.splitlines(keepends=True)
+    start = next(i for i, line in enumerate(lines) if line.strip() == b"presentation_attract_overlay_impl")
+    change = next(i for i, line in enumerate(lines) if line.strip() == b"pao_phase_change")
+    prefix = lines[start:change]
+    require(changed.count(anchor) == 1 and not any(
+        re.match(rb"\s*(tst\s+PENDING|bne\s+pao_done)\s*$", line.strip(), re.I) for line in prefix),
+        "baseline phase-change anchor or guard state differs")
+    return changed.replace(anchor, guard + anchor, 1)
+
+
+def projected_helper_fixture(old: bytes, map_text: str, listing: str):
+    """Make only an in-memory byte/map/listing projection for shared decoder qualification."""
+    symbols = parse_symbols(map_text)
+    rows = parse_listing(listing)
+    overlay = symbols["presentation_attract_overlay_impl"]
+    phase = symbols["presentation_attract_phase"]
+    done = symbols["pao_done"]
+    change = symbols["pao_phase_change"]
+    call_offset = overlay - HELPER_BASE
+    cmp_old, beq_old = overlay + 3, overlay + 5
+    require(old[call_offset:call_offset + 3] == b"\x17\x00\x5b",
+            "pinned baseline LBSR bytes differ from the approved source projection")
+    projected_phase, projected_done = phase + 3, done + 3
+    call_disp = projected_phase - (overlay + 2)
+    beq_new = overlay + 4
+    beq_disp = projected_done - (beq_new + 2)
+    guard, bne = change - 1, change + 1
+    bne_disp = projected_done - (bne + 2)
+    require(all(-128 <= value <= 127 for value in (call_disp, beq_disp, bne_disp)),
+            "projected BSR or short-branch displacement is outside signed 8-bit range")
+
+    image = bytearray(old[:call_offset] + bytes((0x8D, call_disp & 0xFF)) + old[call_offset + 3:])
+    beq_offset = beq_new - HELPER_BASE
+    image[beq_offset:beq_offset + 2] = bytes((0x27, beq_disp & 0xFF))
+    insertion = guard - HELPER_BASE
+    image = image[:insertion] + bytes((0x0D, symbols["PENDING"] & 0xFF, 0x26, bne_disp & 0xFF)) + image[insertion:]
+
+    projected_symbols = dict(symbols)
+    for name in ("pao_done", "pao_phase_change", "presentation_attract_phase",
+                 "presentation_phase_zero", "hold_source_pages", "PERIMETER_PRESENTATION_HELPER_END"):
+        projected_symbols[name] = symbols[name] + 3
+
+    projected_rows = []
+    for address, code, statement in rows:
+        if address == overlay:
+            projected_rows.append((overlay, bytes((0x8D, call_disp & 0xFF)), "bsr presentation_attract_phase"))
+        elif address == cmp_old:
+            projected_rows.append((overlay + 2, code, statement))
+        elif address == beq_old:
+            projected_rows.append((beq_new, bytes((0x27, beq_disp & 0xFF)), statement))
+        else:
+            projected_rows.append((address + 3 if address >= change else address, code, statement))
+    projected_rows.extend((
+        (guard, bytes((0x0D, symbols["PENDING"] & 0xFF)), "tst pending"),
+        (bne, bytes((0x26, bne_disp & 0xFF)), "bne pao_done"),
+    ))
+    projected_rows.sort(key=lambda item: item[0])
+    require(len(image) == 334, "in-memory projected helper is not exactly 334 bytes")
+    return bytes(image), projected_symbols, projected_rows
+
+
+def misplaced(source: bytes, after: bytes) -> bytes:
+    newline = b"\r\n" if b"\r\n" in source else b"\n"
+    guard = b"        tst     PENDING" + newline + b"        bne     pao_done"
+    require(source.count(after) == 1, f"negative-control insertion anchor is not unique: {after!r}")
+    return source.replace(after, after + newline + guard, 1)
+
+
+def main() -> None:
+    baseline = json.loads((SETUP / "baseline-inputs.json").read_text(encoding="utf-8"))
+    projection = json.loads((SETUP / "projected-inputs.json").read_text(encoding="utf-8"))
+    candidate_manifest = json.loads((SETUP / "candidate-manifest.json").read_text(encoding="utf-8"))
+    source = (CANDIDATE / SOURCE_RELATIVE).read_bytes()
+    require(sha(source) == baseline["inputs"].get(SOURCE_RELATIVE)
+            == "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+            "source-card fixture is not the pinned untouched helper")
+    require(candidate_manifest.get("build_directory_present") is False,
+            "source-card candidate unexpectedly contains build output")
+
+    baseline_pass, baseline_reason = ordered_gate(source)
+    require(not baseline_pass, "known-bad pinned source passed without an admission guard")
+    positive = projected_source(source)
+    positive_pass, positive_reason = ordered_gate(positive)
+    require(positive_pass, f"approved in-memory source transform failed: {positive_reason}")
+    require(projection["inputs"].get(SOURCE_RELATIVE) == sha(positive)
+            and projection.get("changed_inputs") == [SOURCE_RELATIVE],
+            "positive transform differs from the one-file projected input manifest")
+
+    artifacts = json.loads((SETUP / "baseline-artifacts.json").read_text(encoding="utf-8"))
+    baseline_root = Path(baseline["baseline_candidate"])
+    baseline_root = Path(__file__).resolve().parents[3] / baseline_root
+    bad_binary = (baseline_root / "build/ladybug-perimeter-reset-helper.bin").read_bytes()
+    bad_map_bytes = (baseline_root / "build/ladybug-perimeter-reset-helper.map").read_bytes()
+    bad_listing_bytes = (baseline_root / "build/ladybug-perimeter-reset-helper.lst").read_bytes()
+    require(sha(bad_binary) == artifacts["helper"]["sha256"]
+            and sha(bad_map_bytes) == artifacts["helper_map"]["sha256"]
+            and sha(bad_listing_bytes) == artifacts["helper_listing"]["sha256"],
+            "frozen compiled negative-control helper/map/listing identity changed")
+
+    try:
+        verify_helper_contract(bad_binary, parse_symbols(bad_map_bytes.decode("utf-8")),
+                               parse_listing(bad_listing_bytes.decode("utf-8")))
+    except ValueError as error:
+        bad_binary_reason = str(error)
+    else:
+        raise AssertionError("frozen old compiled helper unexpectedly passed the shared A1-P decoder")
+    require("TST PENDING admission guard is absent" in bad_binary_reason,
+            f"known-bad compiled helper was rejected for the wrong reason: {bad_binary_reason}")
+
+    projected_binary, projected_symbols, projected_rows = projected_helper_fixture(
+        bad_binary, bad_map_bytes.decode("utf-8"), bad_listing_bytes.decode("utf-8"))
+    positive_decode = verify_helper_contract(projected_binary, projected_symbols, projected_rows)
+
+    after_store = misplaced(source, b"        sta     PRES_ACTOR_PHASE")
+    after_prepare = misplaced(source, b"        jsr     PRES_MAIN_FB_PREPARE")
+    after_store_pass, after_store_reason = ordered_gate(after_store)
+    after_prepare_pass, after_prepare_reason = ordered_gate(after_prepare)
+    require(not after_store_pass, "guard-after-store negative control was not rejected")
+    require(not after_prepare_pass, "guard-after-prepare negative control was not rejected")
+    require(time.monotonic() - STARTED <= LIMIT_SECONDS, "A1-S exceeded its whole-phase 60-second limit")
+
+    result = {
+        "card": "A1-S", "outcome": "PASS",
+        "baseline_source_sha256": sha(source), "positive_projection_sha256": sha(positive),
+        "source_card_sha256": sha(Path(__file__).read_bytes()),
+        "decoder_sha256": sha((SETUP / "helper_byte_decoder.py").read_bytes()),
+        "candidate_manifest_sha256": sha((SETUP / "candidate-manifest.json").read_bytes()),
+        "known_bad_source_rejected": True, "known_bad_source_reason": baseline_reason,
+        "positive_source_transform_passed": True, "positive_source_reason": positive_reason,
+        "frozen_old_helper_rejected_by_shared_decoder": True,
+        "frozen_old_helper_reason": bad_binary_reason,
+        "in_memory_projected_helper_bytes": len(projected_binary),
+        "in_memory_projected_helper_sha256": sha(projected_binary),
+        "in_memory_projected_decode": {key: f"${value:04X}" if isinstance(value, int) else value
+                                      for key, value in positive_decode.items()},
+        "binary_projection_is_assembler_output": False,
+        "guard_after_store_rejected": True, "guard_after_store_reason": after_store_reason,
+        "guard_after_prepare_rejected": True, "guard_after_prepare_reason": after_prepare_reason,
+        "fixture_written": False, "candidate_product_source_modified": False,
+        "duration_seconds": round(time.monotonic() - STARTED, 3),
+        "whole_phase_limit_seconds": LIMIT_SECONDS,
+    }
+    (SETUP / "source-card-result.json").write_text(json.dumps(result, indent=2) + "\n",
+                                                    encoding="utf-8", newline="\n")
+    print(json.dumps(result, indent=2))
+
+
+if __name__ == "__main__":
+    main()

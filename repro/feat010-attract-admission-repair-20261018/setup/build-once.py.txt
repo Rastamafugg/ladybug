@@ -1,0 +1,171 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+PROJECTED = SETUP / "projected-inputs.json"
+SOURCE_RESULT = SETUP / "source-card-result.json"
+ATTEMPT = SETUP / "build-attempt.json"
+RESULT = SETUP / "build-result.json"
+LOG = SETUP / "build-once.log"
+TOTAL_LIMIT = 600
+CHILD_LIMIT = 595
+KILL_GRACE = 2
+PROFILE = {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1",
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def source_inventory() -> dict[str, str]:
+    result = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        for path in (CANDIDATE / folder).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result[path.relative_to(CANDIDATE).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def wsl_candidate_path() -> str:
+    absolute = str(CANDIDATE.resolve())
+    if not absolute.lower().startswith("e:\\"):
+        raise SystemExit(f"A1-B requires candidate on E: drive, got {absolute}")
+    return "/mnt/e/" + absolute[3:].replace("\\", "/")
+
+
+def command() -> list[str]:
+    return [
+        "wsl", "-d", "Ubuntu", "--cd", wsl_candidate_path(), "--exec",
+        "timeout", "--signal=TERM", f"--kill-after={KILL_GRACE}s", f"{CHILD_LIMIT}s", "env",
+        *(f"{name}={value}" for name, value in PROFILE.items()),
+        "bash", "scripts/build.sh", "build",
+    ]
+
+
+def verify_prebuild_state() -> tuple[int, str, str, str, str]:
+    projected = json.loads(PROJECTED.read_text(encoding="utf-8"))
+    baseline = json.loads((SETUP / "baseline-inputs.json").read_text(encoding="utf-8"))
+    wiki = json.loads((SETUP / "wiki-inputs.json").read_text(encoding="utf-8"))
+    card = json.loads(SOURCE_RESULT.read_text(encoding="utf-8"))
+    card_path = SETUP / "source-card.py.txt"
+    decoder_path = SETUP / "helper_byte_decoder.py"
+    if (card.get("card") != "A1-S" or card.get("outcome") != "PASS"
+            or card.get("source_card_sha256") != sha(card_path.read_bytes())
+            or card.get("decoder_sha256") != sha(decoder_path.read_bytes())):
+        raise SystemExit("A1-S passing result is absent or does not bind the current source card and shared decoder")
+    if (not projected.get("projection_only") or projected.get("input_count") != 266
+            or projected.get("changed_inputs") != ["src/perimeter_reset_helper.s"]
+            or baseline.get("input_count") != 266 or wiki.get("file_count") != 379):
+        raise SystemExit("A1-B source or wiki manifests do not match the approved closure")
+    expected = projected["inputs"]
+    if set(expected) != set(baseline["inputs"]):
+        raise SystemExit("A1-B projection changed the source input set")
+    actual = source_inventory()
+    if actual != expected:
+        raise SystemExit("candidate source files do not match the approved one-file projection")
+    actual_wiki = {
+        path.relative_to(CANDIDATE / "wiki").as_posix(): sha(path.read_bytes())
+        for path in (CANDIDATE / "wiki").rglob("*") if path.is_file()
+    }
+    if actual_wiki != wiki["files"] or len(actual_wiki) != 379:
+        raise SystemExit("candidate wiki differs from the frozen 379-file inventory")
+    if (CANDIDATE / "build").exists() or (CANDIDATE / ".git").exists():
+        raise SystemExit("candidate has build output or .git state; a build/retry is prohibited")
+    if any(path.exists() for path in (ATTEMPT, RESULT, LOG)):
+        raise SystemExit("A1-B attempt artifacts already exist; only one build is authorized")
+    wiki_hash = sha(json.dumps(actual_wiki, sort_keys=True, separators=(",", ":")).encode())
+    return (len(actual), wiki_hash, expected["src/perimeter_reset_helper.s"],
+            card["source_card_sha256"], card["decoder_sha256"])
+
+
+def write_json_once(path: Path, data: dict) -> None:
+    with path.open("x", encoding="utf-8", newline="\n") as handle:
+        json.dump(data, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def main() -> None:
+    started = time.monotonic()
+    if os.name != "nt" or shutil.which("wsl") is None:
+        raise SystemExit("A1-B prerequisite unavailable: this bounded wrapper requires Windows WSL")
+    input_count, wiki_hash, helper_hash, card_hash, decoder_hash = verify_prebuild_state()
+    argv = command()
+    wrapper_hash = sha(Path(__file__).read_bytes())
+    remaining = TOTAL_LIMIT - (time.monotonic() - started)
+    outer_wait = min(598, int(remaining - 1))
+    if outer_wait < CHILD_LIMIT + KILL_GRACE:
+        raise SystemExit("A1-B preflight exceeded its bounded launch allowance; no build was started")
+    attempt = {
+        "card": "A1-B", "attempt": 1, "started_utc": datetime.now(timezone.utc).isoformat(),
+        "candidate": "repro/feat010-attract-admission-repair-20261018/candidate",
+        "baseline_rom_sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+        "source_input_count": input_count, "projected_helper_source_sha256": helper_hash,
+        "wiki_inventory_sha256": wiki_hash, "source_card_sha256": card_hash,
+        "decoder_sha256": decoder_hash,
+        "wrapper_sha256": wrapper_hash, "argv": argv, "profile": PROFILE,
+        "child_limit_seconds": CHILD_LIMIT, "kill_grace_seconds": KILL_GRACE,
+        "whole_phase_limit_seconds": TOTAL_LIMIT, "outcome": "started",
+    }
+    write_json_once(ATTEMPT, attempt)
+    return_code, timed_out = None, False
+    try:
+        with LOG.open("xb") as log_handle:
+            try:
+                completed = subprocess.run(
+                    argv, cwd=WORK.parents[1], stdout=log_handle, stderr=subprocess.STDOUT,
+                    timeout=outer_wait, check=False,
+                )
+                return_code = completed.returncode
+            except subprocess.TimeoutExpired:
+                timed_out = True
+    except BaseException as error:
+        attempt["outcome"] = "wrapper failure; no retry"
+        attempt["error"] = f"{type(error).__name__}: {error}"
+        attempt["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        ATTEMPT.write_text(json.dumps(attempt, indent=2) + "\n", encoding="utf-8", newline="\n")
+        raise
+
+    log_hash = sha(LOG.read_bytes()) if LOG.is_file() else None
+    receipt_path = CANDIDATE / "build/source-build-receipt.json"
+    rom_path = CANDIDATE / "build/ladybug.rom"
+    receipt_hash = sha(receipt_path.read_bytes()) if receipt_path.is_file() else None
+    rom_hash = sha(rom_path.read_bytes()) if rom_path.is_file() else None
+    elapsed = round(time.monotonic() - started, 3)
+    passed = (return_code == 0 and not timed_out and elapsed <= TOTAL_LIMIT
+              and log_hash is not None and receipt_hash is not None and rom_hash is not None)
+    result = {
+        "card": "A1-B", "attempt": 1, "wrapper_sha256": wrapper_hash, "argv": argv,
+        "profile": PROFILE, "source_input_count": input_count, "wiki_inventory_sha256": wiki_hash,
+        "source_card_sha256": card_hash, "decoder_sha256": decoder_hash,
+        "returncode": return_code, "timed_out": timed_out, "elapsed_seconds": elapsed,
+        "whole_phase_limit_seconds": TOTAL_LIMIT, "child_limit_seconds": CHILD_LIMIT,
+        "kill_grace_seconds": KILL_GRACE, "log": LOG.name, "log_sha256": log_hash,
+        "receipt_sha256": receipt_hash, "rom_sha256": rom_hash,
+        "outcome": "BUILD RETURNED ZERO; A1-P PENDING" if passed else "BUILD FAILURE/TIMEOUT; STOP",
+    }
+    write_json_once(RESULT, result)
+    attempt.update({"outcome": result["outcome"], "result_sha256": sha(RESULT.read_bytes())})
+    ATTEMPT.write_text(json.dumps(attempt, indent=2) + "\n", encoding="utf-8", newline="\n")
+    print(json.dumps(result, indent=2))
+    if not passed:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

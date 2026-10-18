@@ -1,0 +1,126 @@
+FEAT-010 A1 admission-repair setup preparation
+Date: 2026-10-18
+Owner: setup-only preparation
+Status: preparation complete; parent source-card review and all A1 cards remain pending
+
+Scope and result
+
+Prepared only repro/feat010-attract-admission-repair-20261018/.gitattributes,
+setup/, report/, and a manifest-enumerated baseline candidate. The candidate
+contains the pinned 266 receipt inputs plus the pinned 379-file wiki (645 files
+total). The preparation result confirms candidate source hashes match the
+complete receipt, candidate wiki hashes match the frozen inventory, and no
+candidate build/ or .git directory exists. The candidate helper remains the
+unmodified baseline source. No production source, canonical wiki, assembler,
+build, card, emulator, GDB session, or runtime was changed or executed here.
+
+The candidate is copied from immutable
+repro/feat010-frontend-dispatch-repair-20261016/candidate, revision
+65d9b28a17c9745847ea48fea6d3a6bc39fd638f. It is pinned by ROM SHA-256
+6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08 and receipt
+SHA-256 cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0.
+The copied helper source SHA-256 is
+2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf. Frozen
+compiled artifacts are helper bin 8cc9322759ab5f1dad866528291fa68e4d4a5141d9c836e503d0462b46649e04,
+map 0494bbeb5977b48cdcee05900e980a5e72ae00bfc90d4edd131d13cd96cf1f4d,
+listing 733a77ff22a358230b26d825f452b42d9c3b0f896b109dda09b12bfe8bc5c5fc,
+and presentation runtime 53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2.
+The frozen wiki inventory hash is
+c702a3fcea325cacef347117ee2b5eb5fe8ef0fab043c7eb69226c6fe4acf0ce.
+
+The one-file source projection is confined to candidate
+src/perimeter_reset_helper.s: add TST PENDING / BNE pao_done before the phase
+cache write and prepare call, and replace the overlay LBSR with BSR to recover
+one byte. Its projected source SHA-256 is
+a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c. This is a
+manifest-only projection; the candidate source has not been edited. The
+projected binary arithmetic is helper size 334/334, exclusive end $0800,
+BSR return $0788 and target $07E7 (displacement +95 / $5F), guard at $078C,
+BNE at $078E, cache store at $0790 and prepare JSR at $0792. These are expected
+projection values; A1-P must decode actual compiled map/listing/bytes.
+
+Prepared card mechanics
+
+A1-S has a 60-second whole-phase cap. It checks the untouched source as the
+known-bad fixture, the exact one-file source transform as positive, and
+guard-after-store and guard-after-prepare negative controls. The frozen 331-byte
+helper/map/listing are also passed to the same helper_byte_decoder.py decoder
+used by A1-P; the old image must fail specifically because the map-relative
+TST PENDING guard is absent, before the final-size check. An in-memory 334-byte
+projection with relocated map symbols/listing rows must pass that shared
+decoder. The projected bytes are never written as an assembler artifact.
+
+A1-S is a 60-second whole-phase source-fixture qualification. After parent
+reviews the fixture mechanics, its command is:
+  python -B repro/feat010-attract-admission-repair-20261018/setup/source-card.py.txt
+
+A1-B is one Windows-to-WSL build attempt, complete/keyboard/6809/adaptive=1,
+600 seconds for the whole phase, 595 seconds for the child and a two-second
+kill grace. The wrapper verifies A1-S result hashes, source/wiki closure and
+absence of prior build/attempt artifacts, writes a unique attempt marker, uses
+the exact argv recorded in its result, and never retries. Command from the
+repository root after A1-S and parent release:
+  python -B repro/feat010-attract-admission-repair-20261018/setup/build-once.py.txt
+
+A1-P is a focused 60-second post-build check. It binds the unique attempt,
+wrapper hash, exact argv, explicit profile, source-card/decoder hashes, log
+hash, result hash, 266 inputs, 379 wiki files, complete receipt and packaged
+ROM. It calls the candidate's stock
+scripts/source_reference/provenance.py validate function with
+build/source-reference-adaptive.json, after matching that generated config's
+SHA-256 to the receipt artifact entry. The shared decoder
+checks the actual 334-byte helper, map-relative guard and branch destinations,
+short-BSR target/range/return continuation, pao_done RTS, and normal/zero-phase
+RTS paths against both listing and packaged helper bytes. It checks the
+1,280-byte presentation module, ordinary resident/assets capacity rows,
+resident free space of at least 32 bytes, and assets at or below 7,680 bytes.
+Command after the single build returns zero:
+  python -B repro/feat010-attract-admission-repair-20261018/setup/post-build-card.py.txt
+
+The R45/M60 template preserves the approved split. R uses three unconditional
+one-shot stops, at most three continues of at most five seconds, and a 45-second
+whole phase with cleanup beginning by second 37. It allows only the approved
+fixed DP read x/231xb 0x0002 plus exact code spans and raw PC/DP/CC; no stack,
+MMIO, guest writes, input, extra stop, retry, or new transport. Parent must
+freeze source/staged/live spans and hashes after A1-B/A1-P. The no-stack-read
+interpretation for the approved RTS destination is explicitly retained: the
+template proves the matched BSR target/continuation and byte-qualified RTS. If
+the approved card requires a live stack return-target read, report that gap
+before Ready rather than expanding read authority.
+
+M is a separate manual, uninstrumented visit with a 60-second entire-phase cap
+including launch, observation and owned cleanup; title appearance is due within
+15 seconds. It requires complete visible cycle/handoff coverage. Unclear or
+incomplete observation, or no symptoms without full-visit coverage, is missing
+coverage. The old observed PENDING=1 is an admission opportunity, not proof of
+the visible cause, producer, interrupt behavior, or same-callback transition.
+No A2 result is inferred.
+
+Verification and blockers
+
+Preparation script result: source closure 266/266, wiki 379/379, total candidate
+files 645, candidate build absent, candidate .git absent. A Python AST-only
+syntax parse passed for the preparation, source-card, build wrapper, post-card
+and shared decoder files; setup JSON manifests parsed successfully. No A1-S,
+A1-B, A1-P, A1-R or A1-M card was run. This is not an implementation-ready
+release until parent reviews the source card and authorizes the next approved
+card sequence. Parent owns all gate execution and the post-build live-plan
+freeze. No file was staged or committed; repro/ is ignored by repository
+.gitignore, so a later parent-approved index window must force-add the owned
+paths.
+
+Artifact SHA-256 values
+
+.gitattributes 27d5af0d4a60cedf97101d28bbc0dcb02610cec26463b249d7a6a453996e086f
+setup/prepare_case.py.txt 35183ab5079bc20f096cf03324ec424e5f839ff8f16603f50e4bad5f1bcd36cb
+setup/helper_byte_decoder.py 212ac0bb0e47ec1d3547f51850c69af4186071f9a3d0e9f0a6e5730a251da25e
+setup/source-card.py.txt 4bb72bfbe1aefbeee0124606954e44f85d6841421fe76009538fa1dd4d7fe313
+setup/build-once.py.txt edf75e3003cba50d193737f9cc3bf974eba4387a66d9bdb7c699275fbed5b221
+setup/post-build-card.py.txt f9bf8a8cdd4a5b465708304d03ae02fa9d9b76256eca1debc2e006124a598818
+setup/runtime-card-template.txt 18443edba2744ba9032edb07c9e1e8e0e3d575ed0f358e1316267c976c19c0bf
+setup/baseline-inputs.json 24bb21b2ca68bfe2c444b5a628c45af566b8d6a37704ebeae81e3fb1ac7cf0df
+setup/baseline-artifacts.json 1c4fdc5d0e57fd71e674f3b19621a3fb02ca0afbef2f9f174960ae70fd757da6
+setup/projected-inputs.json 8fc35563e0f35c0cc2a5e6d82b2e3e385f0371c7d033279503fdf0dd39c1aa09
+setup/wiki-inputs.json b8d3cea2f2634db9296dd17e967cd148e80ff9e7f8d9adbd0d1f22f43012997b
+setup/candidate-manifest.json ad496eda9a103a4da89423125a4d77f42246a55b00fb61ebb6c30ecce03dbc00
+setup/preparation-result.json baf7cd1869bbe15a76bc3531ce58663f7509e71e3271b9676b272182a2d1c89f
