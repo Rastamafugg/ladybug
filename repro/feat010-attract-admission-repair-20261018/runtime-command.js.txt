@@ -174,11 +174,11 @@ try {
 } finally {
   try {
     if (audit.launch_attempted) {
-      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request\n+Approved A1-R probe ended.\n*** End Patch');
+      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request-a1r-correction-20261018\n+Approved A1-R probe ended.\n*** End Patch');
     }
     if (audit.launch_attempted) {
       audit.gdb_cleanup = await tools.mcp__gdb_mcp__stop_session({session_id: session});
-      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
+      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup-a1r-correction-20261018.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
       audit.process_cleanup = JSON.parse(cleanup.output.trim() || '{}');
       if (!audit.process_cleanup.owned_process_exited || !audit.process_cleanup.cleanup_started_by_37_seconds
           || !audit.process_cleanup.within_45_seconds || audit.gdb_cleanup.isError) audit.outcome = 'CLEANUP INCOMPLETE; STOP';
