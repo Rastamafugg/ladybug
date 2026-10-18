@@ -1,0 +1,219 @@
+{
+  "card": "A1-R",
+  "outcome": "INCOMPLETE POSITIVE COVERAGE; STOP",
+  "stops": [
+    {
+      "address": "0x078e",
+      "span_id": "admission_tst_and_bne",
+      "live_hex": "0d912653",
+      "pc": 1934,
+      "dp": 0,
+      "cc": 197,
+      "fields": {
+        "FRAMES": 66,
+        "FB_FRONT_ID": 0,
+        "FB_BACK_ID": 1,
+        "PENDING": 0,
+        "FB_COMMIT_SEQ": 1,
+        "FB_SIM_SEQ": 1,
+        "FB_MISSED_COMMIT": 0,
+        "FB_RENDER_ACTIVE": 0,
+        "FB_WRITE_FRONT_FAULT": 0,
+        "PRES_MODE": 1,
+        "PRES_SCREEN": 0,
+        "PRES_EVENT": 0,
+        "PRES_TIMER": 318,
+        "MENU_EVENT": 0,
+        "logo cache A": 0,
+        "PRES_ACTOR_PHASE": 255,
+        "MENU_PREV": 0,
+        "MENU_SELECT": 0,
+        "MENU_DIRTY": 0,
+        "logo cache B": 0,
+        "desired logo phase": 0
+      },
+      "elapsed_ms": 5785
+    }
+  ],
+  "gdb_calls": [
+    {
+      "commands": [
+        "target remote :65521",
+        "show architecture",
+        "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 3,
+      "elapsed_ms": 441,
+      "outputs": [
+        {
+          "command": "target remote :65521",
+          "output": "Remote debugging using :65521\n0x00004060 in ?? ()\n[Stopped: in ??]\n"
+        },
+        {
+          "command": "show architecture",
+          "output": "The target architecture is set to \"auto\" (currently \"m6809\").\n"
+        },
+        {
+          "command": "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp",
+          "output": "attach_pc=4060 attach_dp=00\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "tbreak *0x078e"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 25,
+      "outputs": [
+        {
+          "command": "tbreak *0x078e",
+          "output": "Temporary breakpoint 1 at 0x78e\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "continue"
+      ],
+      "timeout_seconds_per_command": 5,
+      "command_timeout_budget_seconds": 5,
+      "elapsed_ms": 3764,
+      "outputs": [
+        {
+          "command": "continue",
+          "output": "Continuing.\n\nTemporary breakpoint 1, 0x0000078e in ?? ()\n[Stopped: breakpoint-hit, in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/4xb 0x078c",
+        "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "info registers pc dp cc"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 3,
+      "elapsed_ms": 26,
+      "outputs": [
+        {
+          "command": "x/4xb 0x078c",
+          "output": "0x78c:\t0x0d\t0x91\t0x26\t0x53\n"
+        },
+        {
+          "command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+          "output": "stop_pc=078e stop_dp=00\n"
+        },
+        {
+          "command": "info registers pc dp cc",
+          "output": "pc         0x078e 1934\ndp         0x00   0\ncc         0xc5   EF---Z-C   u<= == >= <= \n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/231xb 0x0002"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 64,
+      "outputs": [
+        {
+          "command": "x/231xb 0x0002",
+          "output": "0x2:\t0x00\t0x42\t0x20\t0xff\t0x00\t0x00\t0x00\t0x00\n0xa:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x12:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x1e\n0x1a:\t0x01\t0x1e\t0x03\t0x1e\t0x03\t0x1e\t0x03\t0x7f\n0x22:\t0x37\t0x7f\t0xff\t0x00\t0x00\t0x7f\t0xff\t0x07\n0x2a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x32:\t0x00\t0x1e\t0x0d\t0x07\t0x00\t0x00\t0x00\t0x00\n0x3a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x42:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x4a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x52:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x5a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x62:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x6a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x72:\t0x00\t0x00\t0x7f\t0xff\t0x00\t0x00\t0x00\t0x00\n0x7a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x82:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0x8a:\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x01\t0x00\n0x92:\t0x00\t0x01\t0x00\t0x01\t0x00\t0x00\t0x00\t0x00\n0x9a:\t0x01\t0x84\t0x00\t0xb4\t0x4a\t0x0c\t0xa7\t0x26\n0xa2:\t0xa3\t0x00\t0xa5\t0x01\t0x00\t0x00\t0x00\t0x00\n0xaa:\t0x03\t0xc0\t0x00\t0x18\t0x98\t0x00\t0x01\t0x3e\n0xb2:\t0x03\t0x00\t0x00\t0x11\t0x59\t0x0c\t0x00\t0x10\n0xba:\t0x06\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n0xc2:\t0x00\t0x00\t0x00\t0x00\t0x20\t0x00\t0x80\t0x00\n0xca:\t0x60\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\t0x03\n0xd2:\t0x00\t0xff\t0x03\t0x06\t0x00\t0x01\t0x1e\t0x00\n0xda:\t0x00\t0x00\t0x00\t0x00\t0x02\t0x00\t0x00\t0x00\n0xe2:\t0x02\t0x00\t0x00\t0x00\t0x00\t0x00\t0x00\n"
+        }
+      ]
+    }
+  ],
+  "last_proven_marker": "0x078e qualified state",
+  "launch_attempted": true,
+  "launch_tool": {
+    "exit_code": 0,
+    "output": "{\n  \"pid\": 969,\n  \"exe\": \"/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar\",\n  \"argv\": [\n    \"/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar\",\n    \"-ui\",\n    \"gtk3\",\n    \"-ao\",\n    \"pulse\",\n    \"-machine\",\n    \"coco3\",\n    \"-machine-cpu\",\n    \"6809\",\n    \"-ram\",\n    \"512\",\n    \"-ram-init\",\n    \"random\",\n    \"-cart-type\",\n    \"gmc\",\n    \"-cart-rom\",\n    \"/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate/build/ladybug.rom\",\n    \"-cart-autorun\",\n    \"-tv-input\",\n    \"rgb\",\n    \"-joy-right\",\n    \"\",\n    \"-joy-left\",\n    \"\",\n    \"-gdb\",\n    \"-gdb-ip\",\n    \"127.0.0.1\",\n    \"-gdb-port\",\n    \"65521\"\n  ],\n  \"start_ticks\": \"2212394\",\n  \"started_epoch_ms\": 1792333647719,\n  \"plan_sha256\": \"951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b\",\n  \"rom_sha256\": \"2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b\",\n  \"launch_guard_sha256\": \"313713e941d6ca46b6841a65b214e2af2bfe7c59ec63068810c3d583fffea174\",\n  \"phase_started_epoch_ms\": 1792333646364,\n  \"utc\": \"2026-10-18T14:27:27.721335+00:00\"\n}\n\n"
+  },
+  "launch": {
+    "pid": 969,
+    "exe": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "argv": [
+      "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "-ui",
+      "gtk3",
+      "-ao",
+      "pulse",
+      "-machine",
+      "coco3",
+      "-machine-cpu",
+      "6809",
+      "-ram",
+      "512",
+      "-ram-init",
+      "random",
+      "-cart-type",
+      "gmc",
+      "-cart-rom",
+      "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate/build/ladybug.rom",
+      "-cart-autorun",
+      "-tv-input",
+      "rgb",
+      "-joy-right",
+      "",
+      "-joy-left",
+      "",
+      "-gdb",
+      "-gdb-ip",
+      "127.0.0.1",
+      "-gdb-port",
+      "65521"
+    ],
+    "start_ticks": "2212394",
+    "started_epoch_ms": 1792333647719,
+    "plan_sha256": "951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b",
+    "rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
+    "launch_guard_sha256": "313713e941d6ca46b6841a65b214e2af2bfe7c59ec63068810c3d583fffea174",
+    "phase_started_epoch_ms": 1792333646364,
+    "utc": "2026-10-18T14:27:27.721335+00:00"
+  },
+  "attach": [
+    {
+      "command": "target remote :65521",
+      "output": "Remote debugging using :65521\n0x00004060 in ?? ()\n[Stopped: in ??]\n"
+    },
+    {
+      "command": "show architecture",
+      "output": "The target architecture is set to \"auto\" (currently \"m6809\").\n"
+    },
+    {
+      "command": "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp",
+      "output": "attach_pc=4060 attach_dp=00\n"
+    }
+  ],
+  "p0": 255,
+  "interpretation": "The byte-matched TST did not produce CC.Z=0 at the BNE stop; no admission assertion is made.",
+  "cleanup_request": {},
+  "gdb_cleanup": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"stopped\": true\n}"
+      }
+    ],
+    "isError": false
+  },
+  "process_cleanup": {
+    "outcome": "Owned process exited",
+    "signals": [
+      "TERM"
+    ],
+    "returncode": -15,
+    "owned_process_exited": true,
+    "cleanup_started_epoch_ms": 1792333652208,
+    "cleanup_started_by_37_seconds": true,
+    "elapsed_seconds": 5.876,
+    "within_45_seconds": true,
+    "plan_sha256": "951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b"
+  },
+  "elapsed_ms": 6531,
+  "within_45_seconds": true
+}

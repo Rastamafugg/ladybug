@@ -1,0 +1,40 @@
+{
+  "ticket": "FEAT-010",
+  "step": "Approved Compact observer correction; enclosing feature High-risk",
+  "approval": "User approved bounded observer correction and one renewed A1-R attempt on 2026-10-18",
+  "source_pins": {
+    "runtime-launch-guard.py.txt": {
+      "baseline_sha256": "c7bc9e92ccf80156eb4de45a2570ad658796a2841e925d1d19d46d1b44133c7b",
+      "approved_projected_sha256": "313713e941d6ca46b6841a65b214e2af2bfe7c59ec63068810c3d583fffea174"
+    },
+    "runtime-command.js.txt": {
+      "baseline_sha256": "e3d9711fa9e648d0e2fea16e55a7cd3b6f62238b35a66b6e830fd56a6327c072",
+      "approved_projected_sha256": "34d13e481d7c9007d22637c8fc97a9fed6ae5e0d1ee11e3b62cf7c464a4269ce"
+    }
+  },
+  "literal_output_renames": {
+    "probe-attempt.json": "probe-attempt-a1r-correction-20261018.json",
+    "probe-launch.json": "probe-launch-a1r-correction-20261018.json",
+    "probe-cleanup.json": "probe-cleanup-a1r-correction-20261018.json",
+    "probe-cleanup-request": "probe-cleanup-request-a1r-correction-20261018",
+    "probe-driver.log": "probe-driver-a1r-correction-20261018.log",
+    "probe-xroar.log": "probe-xroar-a1r-correction-20261018.log"
+  },
+  "qualification_command_argv": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--exec",
+    "python3",
+    "-B",
+    "-c",
+    "import sys,json,hashlib,subprocess\nfrom unittest.mock import patch\ndata=json.loads(sys.stdin.read())\nassert sys.version_info[:3]==(3,8,10),sys.version\nbad=data['bad_source']; good=data['good_source']\nassert hashlib.sha256(bad.encode()).hexdigest()==data['bad_sha256']\nassert hashlib.sha256(good.encode()).hexdigest()==data['good_sha256']\ndef forbidden(*args,**kwargs): raise AssertionError('Forbidden process or port action during import-only qualification')\nwith patch.object(subprocess,'Popen',forbidden),patch.object(subprocess,'run',forbidden):\n    try:\n        exec(compile(bad,data['filename'],'exec'),{'__name__':'observer_import_preflight','__file__':data['filename']})\n    except TypeError as err:\n        assert str(err)==\"'type' object is not subscriptable\",str(err)\n    else: raise AssertionError('Known-bad guard unexpectedly imported')\n    namespace={'__name__':'observer_import_preflight','__file__':data['filename']}\n    exec(compile(good,data['filename'],'exec'),namespace)\n    assert callable(namespace['verify_inputs']) and callable(namespace['main'])\nprint(json.dumps({'outcome':'PASS','python':sys.version.split()[0],'known_bad_rejected':True,'corrected_import_passed':True,'guest_access':False,'target_launch':False}))\n"
+  ],
+  "qualification_stdin": "JSON with git10adce56 bad_source and exact corrected file good_source, pinned SHA256s and WSL guard filename; non-main import only",
+  "qualification_limit_seconds": 60,
+  "runtime_limit_seconds": 45,
+  "runtime_plan_sha256": "951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b",
+  "attempts": 1,
+  "stop": "First qualification or runtime failure; no retry",
+  "next_role": "Direct implementation of approved exact observer transform, then QA-reviewer"
+}
