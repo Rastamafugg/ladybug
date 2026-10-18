@@ -1,0 +1,19 @@
+{
+  "ticket": "FEAT-010",
+  "step": "MC production patch",
+  "status": "Ready",
+  "approved_card_anchor": "attract-menu-clock-repair-proposed-20261018",
+  "source_qualification_summary": "PASS whole5.986/60 seconds; known-good and all required negative controls qualified",
+  "source_qualification_sha256": "03a940d70e3d449a4e8a8996fb87e10f76cc13762a2ebec33b11b0f788bb308d",
+  "source_card_sha256": "f32c1404bb0dc6088c7fa3b7ebbf1c869f88a24ae9eccca364291f08e021ba3f",
+  "expected_target_hashes": {
+    "src/presentation_runtime.s": "10cdd089e0f993b474fdc08256ca4d1265d8052160d1d60904c21399b45b9506",
+    "src/shared_text_stage.inc": "d7f8474b06f86f98cccdfb6bc6f5370b49774cd7413dad099bae46587ef85633"
+  },
+  "owned_files": [
+    "candidate/src/presentation_runtime.s",
+    "candidate/src/shared_text_stage.inc"
+  ],
+  "implementation": "Materialize only the two exact already-qualified in-memory source transforms; preserve raw EOLs. Reuse transform_runtime/transform_shared functions by safe import without invoking main/qualification. Verify each output hash against expected_target_hashes before writing. No test/build/runtime/gate rerun or wiki/manifest/observer changes. Separate commit containing only these two source files.",
+  "required_report": "commit, actualhashes, exact2file scope, no executions, residual risks, projected capacity; parent owns build/post/manual and integration."
+}
