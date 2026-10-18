@@ -1,0 +1,29 @@
+{
+  "ticket": "FEAT-010",
+  "result_class": "MC-P assertion/observer-contract failure",
+  "source_commit": "50c75644",
+  "guardian_commit": "e9791fc8",
+  "MC_B": "PASS setup4.996/60 build323.584/600 total328.580/660",
+  "MC_P": "FAIL6.670/60: unchanged actor reset helper differs from receipt-bound A1 334-byte image",
+  "MC_P_retry": false,
+  "production_defect_proved": false,
+  "diagnosis": "Exactly one linked operand byte moved with receipt-bound map_back. The byte-identity target is too strict; source helper and instruction stream are unchanged except required address fixup.",
+  "old_helper_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+  "new_helper_sha256": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959",
+  "lengths": [
+    334,
+    334
+  ],
+  "different_offsets": [
+    210
+  ],
+  "absolute_changed_address": "0784",
+  "call_instruction_address": "0782",
+  "old_instruction": "BD1C2A",
+  "new_instruction": "BD1C2E",
+  "old_map_back": "1C2A",
+  "new_map_back": "1C2E",
+  "source_helper_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+  "proof": "Compared old/new bins, listings, helper maps and presentation maps only after receipt artifact hash checks; generated PRES_MODULE_MAP_BACK symbols also agree. No guest or additional gate execution.",
+  "manual_status": "Not started; required MC-P pass absent"
+}
