@@ -1,0 +1,42 @@
+{
+  "ticket": "FEAT-010",
+  "step": "guardian correction",
+  "status": "Ready",
+  "approval": "User approved guardian correction and one renewed build",
+  "class": "Standard tooling step within High-risk FEAT-010",
+  "owned_files": [
+    "build-once.py.txt",
+    "guardian-budget-qualification.py.txt"
+  ],
+  "protected_sha256": {
+    "clock-source-card.py.txt": "f32c1404bb0dc6088c7fa3b7ebbf1c869f88a24ae9eccca364291f08e021ba3f",
+    "clock-post-card.py.txt": "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95",
+    "source-card-result.json": "03a940d70e3d449a4e8a8996fb87e10f76cc13762a2ebec33b11b0f788bb308d",
+    "baseline-inputs.json": "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43",
+    "candidate-inputs.json": "562ff8969e885ddf389da93e637dab0ef73fcb49d209cf8e947e616d7db0407b",
+    "wiki-inputs.json": "a83a19ee66c0237d459e36f946501959e74ef53fc778b6a4fef63b5c5738f5b8",
+    "candidate/src/presentation_runtime.s": "10cdd089e0f993b474fdc08256ca4d1265d8052160d1d60904c21399b45b9506",
+    "candidate/src/shared_text_stage.inc": "d7f8474b06f86f98cccdfb6bc6f5370b49774cd7413dad099bae46587ef85633"
+  },
+  "qualification_command": [
+    "python",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/guardian-budget-qualification.py.txt"
+  ],
+  "build_command": [
+    "python",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/build-once.py.txt"
+  ],
+  "bounds": {
+    "pure_qualification_seconds": 60,
+    "preflight_seconds": 60,
+    "build_seconds": 600,
+    "whole_guardian_seconds": 660,
+    "build_child_seconds": 595,
+    "kill_grace_seconds": 2,
+    "attempts": 1
+  },
+  "contract": "One guardian file change and pure qualification fixture only. Preserve complete source/wiki and current MC-S/post identity checks. Preflight bounded child/helper mode of same guardian, no real process inside pure fixtures. Parent inspects and executes qualification once then renewed build once. Preserve existing MC-P result schema and build600/child595+2 fields; additive setup/total evidence. No production/observer-card/manifest edit, gate execution/build/runtime by executor. First failure stops.",
+  "report": "Separate commit only2ownedfiles; hashes, key functions, controls, no execution and residual risks."
+}
