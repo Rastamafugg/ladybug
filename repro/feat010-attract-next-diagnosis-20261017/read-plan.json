@@ -1,0 +1,535 @@
+{
+  "date": "2026-10-18",
+  "scope": "Offline source/staged byte and read-command preparation only; no emulator launch, GDB attach, or guest read",
+  "candidate_revision": "65d9b28a17c9745847ea48fea6d3a6bc39fd638f",
+  "build_profile": "complete",
+  "build_receipt_sha256": "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0",
+  "pinned_rom_sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+  "source_input_hashes": [
+    {
+      "path": "src/main.s",
+      "sha256": "0a8d620cea3202d225579c2879b6ed79d14704c97fbcb7cda6d10e4e76d6e72d",
+      "receipt_sha256": "0a8d620cea3202d225579c2879b6ed79d14704c97fbcb7cda6d10e4e76d6e72d",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/presentation_runtime.s",
+      "sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+      "receipt_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/demo_runtime.s",
+      "sha256": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "receipt_sha256": "2b81bb6c2b61e7e7a501d99cc74a848ee57f6eb05bebabf3983b22057f0fd75a",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/shared_text_stage.inc",
+      "sha256": "60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7",
+      "receipt_sha256": "60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/perimeter_reset_helper.s",
+      "sha256": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+      "receipt_sha256": "2326c2ddc88d4c157f12c4c806a2b852ab383c476764d6ba14feb3c3126b17cf",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/enemy_runtime.s",
+      "sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "receipt_sha256": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/keybinding_runtime.s",
+      "sha256": "ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be",
+      "receipt_sha256": "ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be",
+      "matches_receipt": true
+    },
+    {
+      "path": "src/adaptive_interface.inc",
+      "sha256": "751444d11c75ddc015765e203e073af91bc346bd2d72a326c3400d243372eec2",
+      "receipt_sha256": "751444d11c75ddc015765e203e073af91bc346bd2d72a326c3400d243372eec2",
+      "matches_receipt": true
+    }
+  ],
+  "staged_artifact_hashes": [
+    {
+      "path": "build/ladybug.rom",
+      "sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+      "receipt_sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-presentation-runtime.bin",
+      "sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+      "receipt_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-highscore-helper.bin",
+      "sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "receipt_sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-perimeter-reset-helper.bin",
+      "sha256": "8cc9322759ab5f1dad866528291fa68e4d4a5141d9c836e503d0462b46649e04",
+      "receipt_sha256": "8cc9322759ab5f1dad866528291fa68e4d4a5141d9c836e503d0462b46649e04",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-enemy-runtime.rom",
+      "sha256": "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9",
+      "receipt_sha256": "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-presentation-runtime.map",
+      "sha256": "278469629fe9b924e20a7160425f7516fafc55ae8eecfe01b6d07e43f03036cc",
+      "receipt_sha256": "278469629fe9b924e20a7160425f7516fafc55ae8eecfe01b6d07e43f03036cc",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-highscore-helper.map",
+      "sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "receipt_sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-perimeter-reset-helper.map",
+      "sha256": "0494bbeb5977b48cdcee05900e980a5e72ae00bfc90d4edd131d13cd96cf1f4d",
+      "receipt_sha256": "0494bbeb5977b48cdcee05900e980a5e72ae00bfc90d4edd131d13cd96cf1f4d",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-enemy-runtime.map",
+      "sha256": "d1d9766da5d94f65124aa788bd1734227d1b40594881ab95f10d2d88b2018d55",
+      "receipt_sha256": "d1d9766da5d94f65124aa788bd1734227d1b40594881ab95f10d2d88b2018d55",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-presentation-runtime.lst",
+      "sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
+      "receipt_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-highscore-helper.lst",
+      "sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "receipt_sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-perimeter-reset-helper.lst",
+      "sha256": "733a77ff22a358230b26d825f452b42d9c3b0f896b109dda09b12bfe8bc5c5fc",
+      "receipt_sha256": "733a77ff22a358230b26d825f452b42d9c3b0f896b109dda09b12bfe8bc5c5fc",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-enemy-runtime.lst",
+      "sha256": "5aa35485cb03968b54fa8f31261328468ae6c716689584a7002b63492968228a",
+      "receipt_sha256": "5aa35485cb03968b54fa8f31261328468ae6c716689584a7002b63492968228a",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_presentation.inc",
+      "sha256": "2a7218783bfc79bc13ade315aec03293b36eb887646495d2612e5f6bfc1d7f64",
+      "receipt_sha256": "2a7218783bfc79bc13ade315aec03293b36eb887646495d2612e5f6bfc1d7f64",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_presentation_symbols.inc",
+      "sha256": "4024b0aeef3ccb3ef74378ccf51f520e3a3689a380ee4c2fd8c640066c37ea69",
+      "receipt_sha256": "4024b0aeef3ccb3ef74378ccf51f520e3a3689a380ee4c2fd8c640066c37ea69",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_audio_symbols.inc",
+      "sha256": "a072368904bf782e233f75d9e45cecd19f087a41de98b57225b3de5544c3892f",
+      "receipt_sha256": "a072368904bf782e233f75d9e45cecd19f087a41de98b57225b3de5544c3892f",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_menu_records.inc",
+      "sha256": "5fe8a540e8b2fc54ca6140ee0ab75697e38815eedfb3303fa1b3707cdb1fa42f",
+      "receipt_sha256": "5fe8a540e8b2fc54ca6140ee0ab75697e38815eedfb3303fa1b3707cdb1fa42f",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_highscore_logo.inc",
+      "sha256": "3be1df303603c49c3c27f1d67d654fc62725d19a8787c6f3cfc087cadc510f65",
+      "receipt_sha256": "3be1df303603c49c3c27f1d67d654fc62725d19a8787c6f3cfc087cadc510f65",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_shared_mode.inc",
+      "sha256": "ae0d865a47447809faa2028f88b7f05b6366da9ce9ad6e2226aca7e8b36551fb",
+      "receipt_sha256": "ae0d865a47447809faa2028f88b7f05b6366da9ce9ad6e2226aca7e8b36551fb",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug_resident.inc",
+      "sha256": "44aecce9104674a498680dfb0fc110e4010b8c6dfc1cd07d9f27c01aac87b1a2",
+      "receipt_sha256": "44aecce9104674a498680dfb0fc110e4010b8c6dfc1cd07d9f27c01aac87b1a2",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug-runtime.rom",
+      "sha256": "c22c95421cd42087eeee9cda4f28bc2e0f37160b3ab343b51113b52a24b4eb79",
+      "receipt_sha256": "c22c95421cd42087eeee9cda4f28bc2e0f37160b3ab343b51113b52a24b4eb79",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug.lst",
+      "sha256": "51019d27556d29fef2cbd86260a79b73f348c3e1515c17dcd5e75b341d71be34",
+      "receipt_sha256": "51019d27556d29fef2cbd86260a79b73f348c3e1515c17dcd5e75b341d71be34",
+      "matches_receipt": true
+    },
+    {
+      "path": "build/ladybug.map",
+      "sha256": "fb9d1142c7c5e89357d369b9c628e2fd97bdc8dea95b009900a0abc8d1994ed5",
+      "receipt_sha256": "fb9d1142c7c5e89357d369b9c628e2fd97bdc8dea95b009900a0abc8d1994ed5",
+      "matches_receipt": true
+    }
+  ],
+  "code_spans": [
+    {
+      "id": "attract_entry_to_page23_and_actor_call",
+      "address": "0x1C56",
+      "length": 51,
+      "expected_hex": "b600d4818126070d9126e87f00d48de6ccac40fd00e4bddf218634b7ffa5b600a58102260efc00b01083022e2408bd06c920c0",
+      "source": "src/presentation_runtime.s",
+      "module": "ladybug-presentation-runtime.bin",
+      "module_origin": "0x1900",
+      "module_offset": "0x356",
+      "module_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+      "listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
+      "map_sha256": "278469629fe9b924e20a7160425f7516fafc55ae8eecfe01b6d07e43f03036cc",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "attract_tick=$1C56",
+        "attract_menu_transition=$1C89"
+      ]
+    },
+    {
+      "id": "page23_attract_callback",
+      "address": "0xB830",
+      "length": 14,
+      "expected_hex": "17fc6896a581021026f4e216fd85",
+      "source": "src/shared_text_stage.inc",
+      "module": "ladybug-highscore-helper.bin",
+      "module_origin": "0xAC40",
+      "module_offset": "0xBF0",
+      "module_sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "listing_sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "map_sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "highscore_attract_tick=$B830"
+      ]
+    },
+    {
+      "id": "highscore_logo_callback",
+      "address": "0xB49B",
+      "length": 149,
+      "expected_hex": "96a681002707dcb0c30001ddb017f80497e80d91267fd6e88e00d2969027038e00e3e184276fe784ccb4d7dde4ccdf213406cc0ddf34071a507e06be0fe996e9c6043d308d0051308b10ae8496a6810026071f20831e001f02ec020de82703c300201f03ccb50edde4ccdf2134061f307e1bfe0ce996e9810c25c396a581012716ccb530dde4ccdf213406cc0e4934071a507e06be",
+      "source": "src/shared_text_stage.inc",
+      "module": "ladybug-highscore-helper.bin",
+      "module_origin": "0xAC40",
+      "module_offset": "0x85B",
+      "module_sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "listing_sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "map_sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "highscore_logo_tick=$B49B",
+        "highscore_logo_hold=$B530"
+      ]
+    },
+    {
+      "id": "logo_vbord_clock",
+      "address": "0xACAF",
+      "length": 80,
+      "expected_hex": "34011a10b6ffa434028634b7ffa4de0296a6488a801f898e88fda80284fe26191f30a3841083001f2519ec84c3001fed84a6028801a70220e7ef84e70286ff97d297e3e602c4013502b7ffa41f983581",
+      "source": "src/shared_text_stage.inc",
+      "module": "ladybug-highscore-helper.bin",
+      "module_origin": "0xAC40",
+      "module_offset": "0x6F",
+      "module_sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "listing_sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "map_sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "logo_vbord_clock=$ACAF",
+        "span_end=$ACFF"
+      ]
+    },
+    {
+      "id": "menu_dispatch_to_helper_entry",
+      "address": "0xB5C3",
+      "length": 332,
+      "expected_hex": "96a681082610c602bddf2ac1ff102700ed1f981600d581031027febc8100261296d0102700d80fb00fb1852010260119200c96d0102700c68520102600abd6a6c107260985101026009f1600fc8510266ed6dfc403c10327088501264485022648d6a6c10610260095d6e0c1021024008d8e00ea3ad6dfc40cc10c1027007f8504261485082777860c0de027028663a184236b6c842022a684810123616a8420180de027590ae02010c60296a681002702c603d1e023470ce0860397e1203fc100261896e027088101270c8607201c860197a7860220148606201096e081022604860820068103261586000fe03402ccb70cdde435028edf2134107e1a7896a581022704810526410de1273d0d91263996904c94e12732ccb6eedde4ccdf213406cc0ddf34071a507e06be8d1f96904c4394e197e1ccb70cdde4ccdf213406cc0e4934071a507e06be860139",
+      "source": "src/shared_text_stage.inc",
+      "module": "ladybug-highscore-helper.bin",
+      "module_origin": "0xAC40",
+      "module_offset": "0x983",
+      "module_sha256": "6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382",
+      "listing_sha256": "0f4925e377e94417e42ca7a8519ca70c03aadd90d94cc4cb3edb8ac27d19b2ca",
+      "map_sha256": "1345d303a7890d9a620bad65858241179ec55bce122abeaa4b3c5bb90e5460e2",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "menu_tick=$B5C3",
+        "menu_load_finish=$B70F"
+      ]
+    },
+    {
+      "id": "actor_phase_change_and_prepare_call",
+      "address": "0x0786",
+      "length": 25,
+      "expected_hex": "17005b91d3275397d3bd0ddf863cb7ffa596d3810326028601",
+      "source": "src/perimeter_reset_helper.s",
+      "module": "ladybug-perimeter-reset-helper.bin",
+      "module_origin": "0x06B2",
+      "module_offset": "0xD4",
+      "module_sha256": "8cc9322759ab5f1dad866528291fa68e4d4a5141d9c836e503d0462b46649e04",
+      "listing_sha256": "733a77ff22a358230b26d825f452b42d9c3b0f896b109dda09b12bfe8bc5c5fc",
+      "map_sha256": "0494bbeb5977b48cdcee05900e980a5e72ae00bfc90d4edd131d13cd96cf1f4d",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "presentation_attract_overlay_impl=$0786",
+        "pao_phase_change=$078D",
+        "pao_phase_ready=$079F"
+      ]
+    },
+    {
+      "id": "framebuffer_prepare_back",
+      "address": "0x0DDF",
+      "length": 106,
+      "expected_hex": "0d9a27639690918f26050c991a0139860197981707bf1709f8a642976aa64397a1ec44dd678ea3000d9027038eab009fa23348108ea8900f868e11660f5dec41eda16d462708d65da6859a86978633480c5d965d810425e63344ecc4fda898ec42fda89abdc7451cfe39",
+      "source": "src/enemy_runtime.s",
+      "module": "ladybug-enemy-runtime.rom",
+      "module_origin": "0x0800",
+      "module_offset": "0x5DF",
+      "module_sha256": "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9",
+      "listing_sha256": "5aa35485cb03968b54fa8f31261328468ae6c716689584a7002b63492968228a",
+      "map_sha256": "d1d9766da5d94f65124aa788bd1734227d1b40594881ab95f10d2d88b2018d55",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "framebuffer_prepare_back=$0DDF",
+        "framebuffer_finish_back=$0E49"
+      ]
+    },
+    {
+      "id": "resident_page23_return_gateway",
+      "address": "0xDF21",
+      "length": 9,
+      "expected_hex": "8623b7ffa56e9f00e4",
+      "source": "src/main.s",
+      "source_layout_anchor": "src/main.s:498 org $C000",
+      "module": "ladybug-runtime.rom",
+      "module_origin": "0xC000",
+      "module_offset": "0x1F21",
+      "module_sha256": "c22c95421cd42087eeee9cda4f28bc2e0f37160b3ab343b51113b52a24b4eb79",
+      "listing_sha256": "51019d27556d29fef2cbd86260a79b73f348c3e1515c17dcd5e75b341d71be34",
+      "map_sha256": "fb9d1142c7c5e89357d369b9c628e2fd97bdc8dea95b009900a0abc8d1994ed5",
+      "listing_matches_module": true,
+      "map_anchors": [
+        "presentation_page23_resume=$DF21"
+      ]
+    }
+  ],
+  "control_source_check": {
+    "first_1c56": "PENDING=$91 is cleared by framebuffer_init_impl (pinned candidate src/enemy_runtime.s:1286); main.s:707-710 waits while it is nonzero, so the first natural Attract dispatch at $1C56 is reached with PENDING=0. The pinned complete-profile presentation_flow_tick cold path calls start_screen and then clears MENU_EVENT=$D0, MENU_SELECT=$E0, and MENU_DIRTY=$E1 (candidate src/presentation_runtime.s:184-193). The receipt profile is complete, and the compiled active module listing shows the matching instructions at $192F/$1931/$1933. No input preserves these cleared menu controls through Attract startup.",
+    "first_b830": "Attract entry $1C56 calls its timer, stores the page-23 callback pointer, and invokes the resident gateway; actor overlay is later (candidate src/presentation_runtime.s:744-762). The page-23 callback at $B830 calls highscore_logo_tick before menu_tick (candidate src/shared_text_stage.inc:1306-1311). No source action between $1C56 and $B830 arms PENDING. On the no-input path, the cold-start D0/E0/E1 clears remain in effect through the first callback.",
+    "outcome": "The first $1C56 and $B830 controls are source-supported: PENDING=0 from framebuffer init/mainloop gating, and menu event/selection/dirty zero from the complete-profile cold-start clears plus no-input Attract path. This is source and compiled-artifact evidence, not runtime evidence."
+  },
+  "state_read": {
+    "command": "x/231xb 0x0002",
+    "address": "0x0002-0x00E8",
+    "rationale": "One contiguous read within unbanked direct-page RAM, containing all named card fields from FRAMES through desired logo phase. Parse and retain only report_fields; do not interpret adjacent bytes. This does not access GIME/PIA MMIO.",
+    "report_fields": [
+      "FRAMES 0002-0003",
+      "FB_FRONT_ID 008F",
+      "FB_BACK_ID 0090",
+      "PENDING 0091",
+      "FB_COMMIT_SEQ 0092-0093",
+      "FB_SIM_SEQ 0094-0095",
+      "FB_MISSED_COMMIT 0096-0097",
+      "FB_RENDER_ACTIVE 0098",
+      "FB_WRITE_FRONT_FAULT 0099",
+      "PRES_MODE 00A5",
+      "PRES_SCREEN 00A6",
+      "PRES_EVENT 00A9",
+      "PRES_TIMER 00B0-00B1",
+      "MENU_EVENT 00D0",
+      "logo cache A 00D2",
+      "PRES_ACTOR_PHASE 00D3",
+      "MENU_PREV 00DF",
+      "MENU_SELECT 00E0",
+      "MENU_DIRTY 00E1",
+      "logo cache B 00E3",
+      "desired logo phase 00E8"
+    ]
+  },
+  "execution_recipe": {
+    "session": "Parent-owned idle local GDB-MCP session 2d9a4588. Prior c61754f7 is gone. Local setup: 718 ms start; setup batch 903 ms. No target path qualified.",
+    "initial_attach": "One batch_commands call, timeout=5 per command, stop_on_error=true: target remote :65521; show architecture; printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp. Record PC and DP raw only; do not interpret before bytes.",
+    "stop_batch": "At each target address issue one batch_commands call, timeout=5 per command, stop_on_error=true: tbreak *ADDRESS; continue; then the address-specific code x reads listed below, followed by printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp. This gives one unconditional one-shot stop and one continue per address. Compare all bytes first; only then require the captured PC to equal that stop address and DP=$00 before reading state. Do not run later stops if prior source/live bytes or PC/DP qualification mismatches.",
+    "stops": [
+      {
+        "address": "0x1c56",
+        "code_commands": [
+          "x/51xb 0x1c56",
+          "x/9xb 0xdf21"
+        ],
+        "source_expected": "attract_entry_to_page23_and_actor_call, resident_page23_return_gateway",
+        "expected_pc": "0x1c56",
+        "expected_dp": "0x00",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "commands": [
+          "tbreak *0x1c56",
+          "continue",
+          "x/51xb 0x1c56",
+          "x/9xb 0xdf21",
+          "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+        ]
+      },
+      {
+        "address": "0xb830",
+        "code_commands": [
+          "x/14xb 0xb830",
+          "x/149xb 0xb49b",
+          "x/80xb 0xacaf",
+          "x/332xb 0xb5c3"
+        ],
+        "source_expected": "page23_attract_callback, highscore_logo_callback, logo_vbord_clock, menu_dispatch_to_helper_entry",
+        "expected_pc": "0xb830",
+        "expected_dp": "0x00",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "commands": [
+          "tbreak *0xb830",
+          "continue",
+          "x/14xb 0xb830",
+          "x/149xb 0xb49b",
+          "x/80xb 0xacaf",
+          "x/332xb 0xb5c3",
+          "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+        ]
+      },
+      {
+        "address": "0x078d",
+        "code_commands": [
+          "x/25xb 0x0786",
+          "x/106xb 0x0ddf"
+        ],
+        "source_expected": "actor_phase_change_and_prepare_call, framebuffer_prepare_back",
+        "expected_pc": "0x078d",
+        "expected_dp": "0x00",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "commands": [
+          "tbreak *0x078d",
+          "continue",
+          "x/25xb 0x0786",
+          "x/106xb 0x0ddf",
+          "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+        ]
+      }
+    ],
+    "state_read_per_stop": "After every live code span at that stop matches expected source/listing/staged bytes, and raw PC/DP match expected_pc and expected_dp, run one separate batch_commands call containing x/231xb 0x0002; extract only state_read.report_fields. The read is common direct-page RAM only. Do not interpret any state until all stop-local source/listing/staged/live code spans and the PC/DP values agree.",
+    "stop_cap": "Three unconditional temporary stops; one continue per stop, timeout=5 seconds; stop on first error, timeout or byte mismatch. No input, writes, conditional breakpoints, retry, successor stop or MMIO.",
+    "deadline": "45 seconds from launch through identity-verified cleanup. Reserve 8 seconds for cleanup; 37 seconds before cleanup.",
+    "cost_projection": "Projected nominal pre-cleanup remains 27.421 s: launch plus ownership/identity checks 1.1 s; attach batch at <=5 s; three continues <=5 s each (15 s total); 7 GDB MCP calls (attach + 3 stop/code batches + 3 state batches) at observed local setup-call latency 0.903 s/call (6.321 s), total 27.421 s, leaving 9.579 s before the 8 s cleanup reserve. This is a labeled projection, not a bound or target-path measurement. It now includes the resident gateway read and raw PC/DP print in the existing first stop batch; the total remains 23 sequential GDB commands across seven batch calls. The 0.903 s measurement was a two-command local-only setup batch and does not measure target-memory read latency. A single command timeout adds at most 5 s before stop_on_error halts that batch; stop immediately and use no retry. Parent must enforce the hard 45 s phase deadline and begin identity-verified cleanup by 37 s.",
+    "launch": "Parent rechecks 127.0.0.1:65521 unused, verifies pinned XRoar/ROM hashes, records PID/exe/argv/start time, then uses exact reviewed argv in report.txt. Parent alone owns verified PID cleanup.",
+    "launch_identity_cleanup": {
+      "cwd": "/mnt/e/projects/ladybug/repro/feat010-frontend-dispatch-repair-20261016/candidate",
+      "executable": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "argv": [
+        "-ui",
+        "gtk3",
+        "-ao",
+        "pulse",
+        "-machine",
+        "coco3",
+        "-machine-cpu",
+        "6809",
+        "-ram",
+        "512",
+        "-ram-init",
+        "random",
+        "-cart-type",
+        "gmc",
+        "-cart-rom",
+        "/mnt/e/projects/ladybug/repro/feat010-frontend-dispatch-repair-20261016/candidate/build/ladybug.rom",
+        "-cart-autorun",
+        "-tv-input",
+        "rgb",
+        "-joy-right",
+        "",
+        "-joy-left",
+        "",
+        "-gdb",
+        "-gdb-ip",
+        "127.0.0.1",
+        "-gdb-port",
+        "65521"
+      ],
+      "prelaunch": [
+        "Recheck exe and ROM SHA-256 pins",
+        "Confirm `ss -H -ltn sport = :65521` shows no listener in the launch network namespace"
+      ],
+      "identity": "Capture new PID, /proc/PID/exe, /proc/PID/cmdline, and process start time; retain log path /tmp/feat010-attract-pending.log. Never signal any other emulator.",
+      "cleanup": "Within the reserved 8 seconds, send TERM only to recorded PID after rechecking exe/cmdline/start time; wait bounded. If it remains, recheck that exact PID identity is unchanged, then KILL only that process. Record signal and exit/absence."
+    },
+    "initial_attach_commands": [
+      "target remote :65521",
+      "show architecture",
+      "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp"
+    ],
+    "exact_port_precheck": "ss -H -ltn 'sport = :65521'"
+  },
+  "boundaries": [
+    "No GDB target or XRoar runtime action performed in this preparation step.",
+    "Interpret PC and DP state only after live code spans match the expected staged bytes and source/listing provenance.",
+    "PENDING=1 at $078D is admission opportunity only: not same-callback 0-to-1 proof, producer attribution, prepare execution, IRQ overlap/commit proof, visual cause, or FRONT write.",
+    "No GIME/PIA MMIO."
+  ],
+  "qualification": "Offline source/listing/artifact checks only; parent must review and execute the single approved runtime diagnostic.",
+  "tool_control_hashes": {
+    "gdb_py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "gdb_mcp_server_py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "m6809_gdb": "b26d0c76b4f73109ef3c0dfd54360805f7056dc2d80a1ab9080374446ba3168c",
+    "port_65521": "offline observed unused; parent must recheck before launch",
+    "target_path_qualified": false
+  },
+  "pinned_xroar": {
+    "path": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+  },
+  "pinned_receipt_sha256": "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0",
+  "pinned_source_root": "repro/feat010-frontend-dispatch-repair-20261016/candidate",
+  "control_compiled_proof": {
+    "profile": "complete",
+    "source": "src/presentation_runtime.s",
+    "source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "source_receipt_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "source_matches_receipt": true,
+    "source_range": "184-193",
+    "compiled_module": "ladybug-presentation-runtime.bin",
+    "module_origin": "0x1900",
+    "address": "0x192F",
+    "module_offset": "0x002F",
+    "length": 6,
+    "expected_hex": "0fd00fe00fe1",
+    "module_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
+    "map_sha256": "278469629fe9b924e20a7160425f7516fafc55ae8eecfe01b6d07e43f03036cc",
+    "listing_matches_module": true,
+    "artifact_matches_receipt": true
+  },
+  "source_selection_notes": [
+    "Rejected initial interpretation based on mutable workspace src/presentation_runtime.s (SHA-256 5498bbe1785127218e3b5da1f15fe1ff6c6ab239ab3dcf5224aa57f0e7e4f13c): it is not the pinned diagnostic source and differs from the candidate receipt. Authoritative source is candidate/src/presentation_runtime.s (SHA-256 6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123), matching the receipt; its complete-profile cold path and compiled listing/module confirm the $D0/$E0/$E1 clear sequence."
+  ]
+}
