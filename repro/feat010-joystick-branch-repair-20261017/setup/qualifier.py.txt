@@ -67,8 +67,8 @@ def replace_once(text, old, new, label):
 def transform_keybinding(baseline_bytes):
     text = baseline_bytes.decode('utf-8')
     nl = '\r\n' if '\r\n' in text else '\n'
-    start_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_rank_mode[ \t]*$', text))
-    end_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_credit_screen[ \t]*$', text))
+    start_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_rank_mode[ \t]*\r?$', text))
+    end_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_credit_screen[ \t]*\r?$', text))
     require(len(start_labels) == 1 and len(end_labels) == 1,
             'joystick rank-mode block labels are missing or repeated')
     start = start_labels[0].start()
@@ -76,7 +76,7 @@ def transform_keybinding(baseline_bytes):
     require(end > start, 'joystick rank-mode block boundary order changed')
     lines = text.splitlines()
     start_line = text.count('\n', 0, start)
-    done_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_done[ \t]*$', text))
+    done_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_done[ \t]*\r?$', text))
     require(len(done_labels) == 1, 'joystick branch destination label is missing or repeated')
     done_line = text.count('\n', 0, done_labels[0].start())
     stack = []
