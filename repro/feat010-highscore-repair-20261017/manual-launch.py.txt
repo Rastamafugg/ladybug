@@ -1,0 +1,38 @@
+"""Approved unassisted HS-M: ordinary native emulator, no debugger or closure."""
+from pathlib import Path
+import hashlib
+import json
+import os
+import subprocess
+import time
+
+work = Path(__file__).resolve().parent
+candidate = work / 'candidate'
+rom = candidate / 'build/ladybug.rom'
+exe = Path('/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar')
+assert hashlib.sha256(rom.read_bytes()).hexdigest() == '6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f'
+assert hashlib.sha256(exe.read_bytes()).hexdigest() == 'bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf'
+assert json.loads((work / 'post-result.json').read_bytes())['outcome'] == 'PASS'
+with (work / 'manual-launch-attempt.json').open('x') as marker:
+    json.dump({'card': 'HS-M', 'attempt': 1, 'automatic_closure': False}, marker)
+command = [str(exe), '-ui', 'gtk3', '-ao', 'pulse', '-machine', 'coco3',
+           '-machine-cpu', '6809', '-ram', '512', '-ram-init', 'random',
+           '-cart-type', 'gmc', '-cart-rom', str(rom), '-cart-autorun',
+           '-tv-input', 'rgb', '-joy-right', '', '-joy-left', '']
+with (work / 'manual-xroar.log').open('xb') as log:
+    process = subprocess.Popen(command, cwd=candidate, stdin=subprocess.DEVNULL,
+                               stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    time.sleep(1)
+proc = Path('/proc') / str(process.pid)
+record = {'card': 'HS-M', 'pid': process.pid, 'command': command,
+          'rom_sha256': hashlib.sha256(rom.read_bytes()).hexdigest(),
+          'running_after_seconds': 1, 'returncode': process.poll(),
+          'automatic_closure': False, 'debugger_or_monitor': False,
+          'manual_acceptance': 'pending user report; no visible output inferred'}
+if process.poll() is None:
+    record['exe'] = os.readlink(proc / 'exe')
+    record['start_ticks'] = proc.joinpath('stat').read_text().rsplit(')', 1)[1].split()[19]
+    record['actual_argv'] = [os.fsdecode(value) for value in proc.joinpath('cmdline').read_bytes().split(b'\0')[:-1]]
+    assert record['exe'] == str(exe.resolve()) and record['actual_argv'] == command
+(work / 'manual-launch.json').write_bytes((json.dumps(record, indent=2) + '\n').encode())
+print(json.dumps(record), flush=True)
