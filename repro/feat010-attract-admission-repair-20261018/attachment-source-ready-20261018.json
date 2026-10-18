@@ -1,0 +1,46 @@
+{
+  "ticket": "FEAT-010",
+  "class": "High-risk verification revision",
+  "approval": "User approved bounded attachment-readiness correction and one A1-R attempt,2026-10-18",
+  "owner": "parent; Luna unavailable due usage limit",
+  "files": {
+    "runtime-launch-guard.py.txt": "f0bd5de6a115a4c7d7d2bec8afb1c3018af21d5a8fca72fe40f0a5ecdbaa11eb",
+    "runtime-command.js.txt": "60cd0784783595f3f7875b96c7c1c2dc23bd7091d0199de163f87c5ed9cd8f01"
+  },
+  "qualification_argv": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--exec",
+    "python3",
+    "-B",
+    "-c",
+    "import sys,json,types,time,subprocess\nfrom unittest.mock import patch\nassert sys.version_info[:3]==(3,8,10)\ndata=json.loads(sys.stdin.read()); g={'__name__':'observer_import_preflight','__file__':data['filename']}\nexec(compile(data['source'],data['filename'],'exec'),g)\nexpected={'pid':42,'exe':'fixture','argv_bytes':[],'start_ticks':'7'}\nclass Child:\n    pid=42\n    def poll(self): return None\nclass Clock:\n    value=0.0\n    def mono(self): return self.value\n    def epoch(self): return 1000+self.value\n    def sleep(self,delay): self.value+=delay\nrow='LISTEN 0 1 127.0.0.1:65521 0.0.0.0:* users:((\"xroar\",pid=42,fd=9))'\nassert g['listener_owner']('',42) is False\nassert g['listener_owner'](row,42) is True\nfor bad in [row.replace('pid=42','pid=43'),row.replace('127.0.0.1','0.0.0.0'),row.replace('pid=42,',''),row+'\\n'+row,'garbage']:\n    try: g['listener_owner'](bad,42)\n    except RuntimeError: pass\n    else: raise AssertionError('Invalid listener was accepted')\ndef run_case(outputs,fail_command=False,change_identity=False):\n    clock=Clock(); calls=[]; samples=[]\n    def command(argv,**kwargs):\n        calls.append((list(argv),kwargs['timeout']))\n        assert argv==['ss','-H','-ltnp','sport = :65521'] and 0<kwargs['timeout']<=.25\n        if fail_command: raise subprocess.CalledProcessError(1,argv)\n        return types.SimpleNamespace(stdout=outputs[min(len(calls)-1,len(outputs)-1)],returncode=0)\n    ident=(lambda pid: {**expected,'start_ticks':'8'}) if change_identity else (lambda pid:expected)\n    with patch.object(time,'monotonic',clock.mono),patch.object(time,'time',clock.epoch),patch.object(time,'sleep',clock.sleep),patch.object(subprocess,'run',command),patch.dict(g,{'identity':ident}):\n        try: result=g['wait_for_listener'](Child(),expected,1000000,samples); error=None\n        except (RuntimeError,subprocess.CalledProcessError) as caught: result=None; error=str(caught)\n    return result,error,calls,samples,clock.value\nresult,error,calls,samples,elapsed=run_case(['',row]);assert result['qualified'] and len(calls)==2 and elapsed<=3\nresult,error,calls,samples,elapsed=run_case(['']);assert error and len(calls)==6 and elapsed<=3\nresult,error,calls,samples,elapsed=run_case([''],fail_command=True);assert error and len(calls)==1\nresult,error,calls,samples,elapsed=run_case([row],change_identity=True);assert error and len(calls)==0\nprint(json.dumps({'outcome':'PASS','python':sys.version.split()[0],'expected_owner_accepted':True,'negative_listener_controls':5,'bounded_wait_controls':4,'real_port_process_guest_calls':False}))\n"
+  ],
+  "qualification_stdin": "JSON source of corrected guard and exact WSL filename, imported with non-main name",
+  "controller_qualification": "Compile unchanged runtime body; extract listenerReadyForLaunch pure predicate and reject legacy/malformed/late/wrongPID evidence; accept exact owned listener proof. No real tools.",
+  "qualification_limit_seconds": 60,
+  "runtime_limit_seconds": 45,
+  "setup_limit_seconds": 8,
+  "post_spawn_listener_limit_seconds": 3,
+  "sample_offsets_seconds": [
+    0,
+    0.5,
+    1,
+    1.5,
+    2,
+    2.5
+  ],
+  "sample_command": [
+    "ss",
+    "-H",
+    "-ltnp",
+    "sport = :65521"
+  ],
+  "sample_timeout_seconds": 0.25,
+  "attach_timeout_seconds": 3,
+  "attempts": 1,
+  "namespace": "a1r-attachment-20261018",
+  "plan_sha256": "4162ef18bdfdd0d310aeccd367c766e907b1eba1a30f027900ae4bc3beb9d08f",
+  "stop": "First failure/missing coverage; no retry; cleanup37 and whole45 unchanged"
+}

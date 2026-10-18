@@ -1,0 +1,497 @@
+{
+  "card": "A1-R",
+  "phase_revision": "a1r-attachment-20261018",
+  "outcome": "A1-R PASS: deferred phase preserved and later admitted before prepare",
+  "stops": [
+    {
+      "address": "0x1c56",
+      "span_id": "attract_tick_entry",
+      "live_hex": "b600d48181",
+      "pc": 7254,
+      "dp": 0,
+      "fields": {
+        "FRAMES": 101,
+        "FB_FRONT_ID": 1,
+        "FB_BACK_ID": 0,
+        "PENDING": 0,
+        "FB_COMMIT_SEQ": 2,
+        "FB_SIM_SEQ": 2,
+        "FB_MISSED_COMMIT": 34,
+        "FB_RENDER_ACTIVE": 0,
+        "FB_WRITE_FRONT_FAULT": 0,
+        "PRES_MODE": 2,
+        "PRES_SCREEN": 0,
+        "PRES_EVENT": 0,
+        "PRES_TIMER": 0,
+        "MENU_EVENT": 0,
+        "logo cache A": 0,
+        "PRES_ACTOR_PHASE": 3,
+        "MENU_PREV": 0,
+        "MENU_SELECT": 0,
+        "MENU_DIRTY": 0,
+        "logo cache B": 0,
+        "desired logo phase": 0
+      },
+      "elapsed_ms": 7699
+    },
+    {
+      "address": "0x078e",
+      "span_id": "admission_tst_and_bne",
+      "live_hex": "0d912653",
+      "pc": 1934,
+      "dp": 0,
+      "cc": 193,
+      "fields": {
+        "FRAMES": 101,
+        "FB_FRONT_ID": 1,
+        "FB_BACK_ID": 0,
+        "PENDING": 1,
+        "FB_COMMIT_SEQ": 2,
+        "FB_SIM_SEQ": 2,
+        "FB_MISSED_COMMIT": 34,
+        "FB_RENDER_ACTIVE": 0,
+        "FB_WRITE_FRONT_FAULT": 0,
+        "PRES_MODE": 2,
+        "PRES_SCREEN": 0,
+        "PRES_EVENT": 0,
+        "PRES_TIMER": 1,
+        "MENU_EVENT": 0,
+        "logo cache A": 0,
+        "PRES_ACTOR_PHASE": 3,
+        "MENU_PREV": 0,
+        "MENU_SELECT": 0,
+        "MENU_DIRTY": 0,
+        "logo cache B": 255,
+        "desired logo phase": 0
+      },
+      "elapsed_ms": 7832
+    },
+    {
+      "address": "0x07e3",
+      "span_id": "pao_done_rts",
+      "live_hex": "39",
+      "pc": 2019,
+      "dp": 0,
+      "fields": {
+        "FRAMES": 101,
+        "FB_FRONT_ID": 1,
+        "FB_BACK_ID": 0,
+        "PENDING": 1,
+        "FB_COMMIT_SEQ": 2,
+        "FB_SIM_SEQ": 2,
+        "FB_MISSED_COMMIT": 34,
+        "FB_RENDER_ACTIVE": 0,
+        "FB_WRITE_FRONT_FAULT": 0,
+        "PRES_MODE": 2,
+        "PRES_SCREEN": 0,
+        "PRES_EVENT": 0,
+        "PRES_TIMER": 1,
+        "MENU_EVENT": 0,
+        "logo cache A": 0,
+        "PRES_ACTOR_PHASE": 3,
+        "MENU_PREV": 0,
+        "MENU_SELECT": 0,
+        "MENU_DIRTY": 0,
+        "logo cache B": 255,
+        "desired logo phase": 0
+      },
+      "elapsed_ms": 7958,
+      "p0_preserved": true
+    },
+    {
+      "address": "0x0792",
+      "span_id": "prepare_jsr",
+      "live_hex": "bd0ddf",
+      "pc": 1938,
+      "dp": 0,
+      "fields": {
+        "FRAMES": 103,
+        "FB_FRONT_ID": 1,
+        "FB_BACK_ID": 0,
+        "PENDING": 0,
+        "FB_COMMIT_SEQ": 4,
+        "FB_SIM_SEQ": 4,
+        "FB_MISSED_COMMIT": 34,
+        "FB_RENDER_ACTIVE": 0,
+        "FB_WRITE_FRONT_FAULT": 0,
+        "PRES_MODE": 2,
+        "PRES_SCREEN": 0,
+        "PRES_EVENT": 0,
+        "PRES_TIMER": 3,
+        "MENU_EVENT": 0,
+        "logo cache A": 0,
+        "PRES_ACTOR_PHASE": 0,
+        "MENU_PREV": 0,
+        "MENU_SELECT": 0,
+        "MENU_DIRTY": 0,
+        "logo cache B": 0,
+        "desired logo phase": 0
+      },
+      "elapsed_ms": 8093,
+      "expected_phase_from_timer": 0
+    }
+  ],
+  "gdb_calls": [
+    {
+      "commands": [
+        "target remote :65521"
+      ],
+      "timeout_seconds_per_command": 3,
+      "command_timeout_budget_seconds": 3,
+      "elapsed_ms": 57,
+      "outputs": [
+        {
+          "command": "target remote :65521",
+          "output": "Remote debugging using :65521\n0x0000417c in ?? ()\n[Stopped: in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "show architecture",
+        "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 2,
+      "elapsed_ms": 36,
+      "outputs": [
+        {
+          "command": "show architecture",
+          "output": "The target architecture is set to \"auto\" (currently \"m6809\").\n"
+        },
+        {
+          "command": "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp",
+          "output": "attach_pc=417c attach_dp=00\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "tbreak *0x1c56"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 41,
+      "outputs": [
+        {
+          "command": "tbreak *0x1c56",
+          "output": "Temporary breakpoint 1 at 0x1c56\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "continue"
+      ],
+      "timeout_seconds_per_command": 5,
+      "command_timeout_budget_seconds": 5,
+      "elapsed_ms": 4108,
+      "outputs": [
+        {
+          "command": "continue",
+          "output": "Continuing.\n\nTemporary breakpoint 1, 0x00001c56 in ?? ()\n[Stopped: breakpoint-hit, in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/5xb 0x1c56",
+        "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 2,
+      "elapsed_ms": 23,
+      "outputs": [
+        {
+          "command": "x/5xb 0x1c56",
+          "output": "0x1c56:\t0xb6\t0x00\t0xd4\t0x81\t0x81\n"
+        },
+        {
+          "command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+          "output": "stop_pc=1c56 stop_dp=00\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/231xb 0x0002"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 62,
+      "outputs": [
+        {
+          "command": "x/231xb 0x0002",
+          "output": "Named fields retained in the matching stop record; bulk dump omitted."
+        }
+      ]
+    },
+    {
+      "commands": [
+        "tbreak *0x078e"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 26,
+      "outputs": [
+        {
+          "command": "tbreak *0x078e",
+          "output": "Temporary breakpoint 2 at 0x78e\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "continue"
+      ],
+      "timeout_seconds_per_command": 5,
+      "command_timeout_budget_seconds": 5,
+      "elapsed_ms": 28,
+      "outputs": [
+        {
+          "command": "continue",
+          "output": "Continuing.\n\nTemporary breakpoint 2, 0x0000078e in ?? ()\n[Stopped: breakpoint-hit, in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/4xb 0x078c",
+        "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "info registers pc dp cc"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 3,
+      "elapsed_ms": 22,
+      "outputs": [
+        {
+          "command": "x/4xb 0x078c",
+          "output": "0x78c:\t0x0d\t0x91\t0x26\t0x53\n"
+        },
+        {
+          "command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+          "output": "stop_pc=078e stop_dp=00\n"
+        },
+        {
+          "command": "info registers pc dp cc",
+          "output": "pc         0x078e 1934\ndp         0x00   0\ncc         0xc1   EF-----C   u<= != >= > \n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/231xb 0x0002"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 56,
+      "outputs": [
+        {
+          "command": "x/231xb 0x0002",
+          "output": "Named fields retained in the matching stop record; bulk dump omitted."
+        }
+      ]
+    },
+    {
+      "commands": [
+        "tbreak *0x07e3"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 26,
+      "outputs": [
+        {
+          "command": "tbreak *0x07e3",
+          "output": "Temporary breakpoint 3 at 0x7e3\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "continue"
+      ],
+      "timeout_seconds_per_command": 5,
+      "command_timeout_budget_seconds": 5,
+      "elapsed_ms": 21,
+      "outputs": [
+        {
+          "command": "continue",
+          "output": "Continuing.\n\nTemporary breakpoint 3, 0x000007e3 in ?? ()\n[Stopped: breakpoint-hit, in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/1xb 0x07e3",
+        "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 2,
+      "elapsed_ms": 21,
+      "outputs": [
+        {
+          "command": "x/1xb 0x07e3",
+          "output": "0x7e3:\t0x39\n"
+        },
+        {
+          "command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+          "output": "stop_pc=07e3 stop_dp=00\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/231xb 0x0002"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 57,
+      "outputs": [
+        {
+          "command": "x/231xb 0x0002",
+          "output": "Named fields retained in the matching stop record; bulk dump omitted."
+        }
+      ]
+    },
+    {
+      "commands": [
+        "tbreak *0x0792"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 18,
+      "outputs": [
+        {
+          "command": "tbreak *0x0792",
+          "output": "Temporary breakpoint 4 at 0x792\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "continue"
+      ],
+      "timeout_seconds_per_command": 5,
+      "command_timeout_budget_seconds": 5,
+      "elapsed_ms": 35,
+      "outputs": [
+        {
+          "command": "continue",
+          "output": "Continuing.\n\nTemporary breakpoint 4, 0x00000792 in ?? ()\n[Stopped: breakpoint-hit, in ??]\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/3xb 0x0792",
+        "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 2,
+      "elapsed_ms": 21,
+      "outputs": [
+        {
+          "command": "x/3xb 0x0792",
+          "output": "0x792:\t0xbd\t0x0d\t0xdf\n"
+        },
+        {
+          "command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+          "output": "stop_pc=0792 stop_dp=00\n"
+        }
+      ]
+    },
+    {
+      "commands": [
+        "x/231xb 0x0002"
+      ],
+      "timeout_seconds_per_command": 1,
+      "command_timeout_budget_seconds": 1,
+      "elapsed_ms": 61,
+      "outputs": [
+        {
+          "command": "x/231xb 0x0002",
+          "output": "Named fields retained in the matching stop record; bulk dump omitted."
+        }
+      ]
+    }
+  ],
+  "last_proven_marker": "0x0792 qualified state",
+  "launch_attempted": true,
+  "launch": {
+    "pid": 1473,
+    "exe": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "argv": [
+      "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "-ui",
+      "gtk3",
+      "-ao",
+      "pulse",
+      "-machine",
+      "coco3",
+      "-machine-cpu",
+      "6809",
+      "-ram",
+      "512",
+      "-ram-init",
+      "random",
+      "-cart-type",
+      "gmc",
+      "-cart-rom",
+      "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate/build/ladybug.rom",
+      "-cart-autorun",
+      "-tv-input",
+      "rgb",
+      "-joy-right",
+      "",
+      "-joy-left",
+      "",
+      "-gdb",
+      "-gdb-ip",
+      "127.0.0.1",
+      "-gdb-port",
+      "65521"
+    ],
+    "listener_ready": {
+      "qualified": true,
+      "pid": 1473,
+      "endpoint": "127.0.0.1:65521",
+      "samples": 4,
+      "elapsed_ms": 1507.9609299937147,
+      "ready_epoch_ms": 1792348917517
+    },
+    "start_ticks": "3739303",
+    "started_epoch_ms": 1792348916017,
+    "plan_sha256": "4162ef18bdfdd0d310aeccd367c766e907b1eba1a30f027900ae4bc3beb9d08f",
+    "rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
+    "launch_guard_sha256": "2e5a9a4230f16e4b76159ba4af266b18be47eb30b79b937c00a292cd4e336631",
+    "phase_started_epoch_ms": 1792348914257,
+    "utc": "2026-10-18T18:41:57.518993+00:00"
+  },
+  "p0": 3,
+  "interpretation": "This establishes the approved no-input admission sequence only; it does not prove a visible cause, actor producer, IRQ publication, or A2 relationship.",
+  "cleanup_request": {},
+  "gdb_cleanup": {
+    "content": [
+      {
+        "type": "text",
+        "text": "{\n  \"stopped\": true\n}"
+      }
+    ],
+    "isError": false
+  },
+  "process_cleanup": {
+    "outcome": "Owned process exited",
+    "signals": [
+      "TERM"
+    ],
+    "returncode": -15,
+    "owned_process_exited": true,
+    "cleanup_started_epoch_ms": 1792348922402,
+    "cleanup_started_by_37_seconds": true,
+    "elapsed_seconds": 8.182,
+    "within_45_seconds": true,
+    "plan_sha256": "4162ef18bdfdd0d310aeccd367c766e907b1eba1a30f027900ae4bc3beb9d08f"
+  },
+  "elapsed_ms": 8794,
+  "within_45_seconds": true
+}
