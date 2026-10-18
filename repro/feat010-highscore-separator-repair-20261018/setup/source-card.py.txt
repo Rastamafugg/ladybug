@@ -1,0 +1,265 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import time
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate-clean"
+FIXTURE = SETUP / "fixtures/baseline/src/shared_text_stage.inc"
+STARTED = time.monotonic()
+BASELINE_STAGE_SHA256 = "e396cd3f26524a69dcda3035abbe54c4b9fd613324412850260ef5954c67ada3"
+TMX_SHA256 = "98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425"
+TARGETS = ((256, 0xAF84, 0x3940, 1), (288, 0xAF84, 0x396C, 0))
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def parse_schedule(source: bytes) -> list[tuple[int, int, int, int]]:
+    lines = source.decode("utf-8").splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip() == "ranking_schedule_data")
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "ranking_schedule_end")
+    records = []
+    i = start + 1
+    while i < end:
+        fdb = re.fullmatch(r"\s*fdb\s+(\d+)\s*,\s*\$([0-9A-Fa-f]{4})\s*,\s*\$([0-9A-Fa-f]{4})\s*", lines[i])
+        require(fdb is not None and i + 1 < end, f"malformed schedule record at source line {i + 1}")
+        fcb = re.fullmatch(r"\s*fcb\s+([01])\s*", lines[i + 1])
+        require(fcb is not None, f"malformed schedule flags at source line {i + 2}")
+        records.append((int(fdb.group(1)), int(fdb.group(2), 16), int(fdb.group(3), 16), int(fcb.group(1))))
+        i += 2
+    return records
+
+
+def remove_only_separator_pair(source: bytes) -> bytes:
+    lines = source.splitlines(keepends=True)
+    text_lines = source.decode("utf-8").splitlines()
+    start = next(i for i, line in enumerate(text_lines) if line.strip() == "ranking_schedule_data")
+    end = next(i for i in range(start + 1, len(text_lines)) if text_lines[i].strip() == "ranking_schedule_end")
+    removed: set[int] = set()
+    found = []
+    i = start + 1
+    while i < end:
+        fdb = re.fullmatch(r"\s*fdb\s+(\d+)\s*,\s*\$([0-9A-Fa-f]{4})\s*,\s*\$([0-9A-Fa-f]{4})\s*", text_lines[i])
+        require(fdb is not None and i + 1 < end, f"malformed schedule record at source line {i + 1}")
+        fcb = re.fullmatch(r"\s*fcb\s+([01])\s*", text_lines[i + 1])
+        require(fcb is not None, f"malformed schedule flags at source line {i + 2}")
+        item = (int(fdb.group(1)), int(fdb.group(2), 16), int(fdb.group(3), 16), int(fcb.group(1)))
+        if item in TARGETS:
+            found.append(item)
+            removed.update((i, i + 1))
+        i += 2
+    require(tuple(found) == TARGETS, f"baseline source does not contain only the approved ordered pair: {found}")
+    return b"".join(line for index, line in enumerate(lines) if index not in removed)
+
+
+def tmx_layout(path: Path):
+    root = ET.parse(path).getroot()
+    layers = {}
+    for layer in root.findall("layer"):
+        width, height = int(layer.get("width")), int(layer.get("height"))
+        flat = [int(value) for value in layer.find("data").text.replace("\n", "").split(",") if value.strip()]
+        require(len(flat) == width * height, f"TMX dimensions mismatch: {layer.get('name')}")
+        layers[layer.get("name")] = (width, height, [flat[y * width:(y + 1) * width] for y in range(height)])
+    require("High Score Table and Branding" in layers and "Background" in layers, "authored TMX layers missing")
+    width, height, branding = layers["High Score Table and Branding"]
+    require(width == 40 and height == 24, "frozen TMX dimensions differ from the authored High Score layout")
+    require([x for x, cell in enumerate(branding[4]) if cell] == [10, 11, 12], "TMX TOP label is not on row 4")
+    require(not any(branding[5]), "TMX separator row 5 is not blank")
+    rank_rows = [row for row in range(6, 14) if [x for x, cell in enumerate(branding[row]) if cell] == [10, 11, 12]]
+    require(rank_rows == list(range(6, 14)), "TMX does not author eight ordinal labels on rows 6 through 13")
+    return layers, rank_rows
+
+
+def destination_cell(destination: int) -> tuple[int, int]:
+    offset = destination - 0x2000
+    require(offset >= 0 and offset % 4 == 0, f"destination {destination:04X} is not an aligned screen cell")
+    row, row_offset = divmod(offset, 1280)
+    return row, row_offset // 4
+
+
+def expected_schedule(rank_rows: list[int]) -> list[tuple[int, int, int, int]]:
+    expected = []
+    for index, row in enumerate(rank_rows):
+        source = 0xAF8E + 10 * index
+        expected.append((320 + 64 * index, source, 0x2000 + row * 1280 + 16 * 4, 1))
+        expected.append((352 + 64 * index, source, 0x2000 + row * 1280 + 27 * 4, 0))
+    expected.extend(((832, 0xAF84, 0x3440, 1), (864, 0xAF84, 0x346C, 0)))
+    return expected
+
+
+def verify_schedule(records: list[tuple[int, int, int, int]], layers, rank_rows: list[int]) -> None:
+    expected = expected_schedule(rank_rows)
+    if any(destination_cell(item[2])[0] == 5 for item in records):
+        raise AssertionError("separator row 5 has a scheduled write")
+    expected_sources = [0xAF84, *(0xAF8E + 10 * i for i in range(8))]
+    for source in expected_sources:
+        names = [item for item in records if item[1] == source and item[3] == 1]
+        scores = [item for item in records if item[1] == source and item[3] == 0]
+        require(len(names) == len(scores) == 1,
+                f"record {source:04X} lacks one required name and score job")
+    require(len(records) == 18, f"projected schedule has {len(records)} jobs, expected 18")
+    require(records == expected, "schedule changed a threshold, rank source, destination, flag, or order")
+    name_seen, score_seen = [], []
+    background = layers["Background"][2]
+    for threshold, source, destination, flag in records:
+        row, column = destination_cell(destination)
+        width = 7 if flag == 1 else 6
+        require(column == (16 if flag == 1 else 27), "schedule field begins at an unexpected column")
+        require(row in (4, *rank_rows) and column + width <= 40, "schedule field lies outside the authored row bounds")
+        require(all(background[row][x] for x in range(column, column + width)),
+                f"field background is not opaque at row {row}, columns {column}-{column + width - 1}")
+        require(threshold % 32 == 0 and threshold < 960
+                and row * 40 + column + width - 1 < threshold,
+                f"full-field hydration bound failed for source {source:04X} at {column},{row}")
+        (name_seen if flag == 1 else score_seen).append((source, row))
+    expected_sources = [0xAF84, *(0xAF8E + 10 * i for i in range(8))]
+    require(sorted(source for source, _ in name_seen) == expected_sources
+            and sorted(source for source, _ in score_seen) == expected_sources,
+            "not every one of nine records has exactly one name and score job")
+    require(sorted(row for source, row in name_seen if source != 0xAF84) == rank_rows
+            and sorted(row for source, row in score_seen if source != 0xAF84) == rank_rows,
+            "2ND through 9TH record associations do not match authored ordinal rows")
+    top = [entry for entry in records if entry[1] == 0xAF84]
+    require(top == [(832, 0xAF84, 0x3440, 1), (864, 0xAF84, 0x346C, 0)],
+            "record zero is not preserved exclusively at authored TOP row 4")
+
+
+def main() -> None:
+    baseline = json.loads((SETUP / "baseline-inputs.json").read_text(encoding="utf-8"))
+    projected = json.loads((SETUP / "projected-inputs.json").read_text(encoding="utf-8"))
+    wiki = json.loads((SETUP / "wiki-inputs.json").read_text(encoding="utf-8"))
+    prep = json.loads((SETUP / "preparation.json").read_text(encoding="utf-8"))
+    require(baseline["input_count"] == 266 and len(baseline["inputs"]) == 266, "baseline input manifest count changed")
+    require(prep["candidate_source_inputs"] == 266 and prep["candidate_wiki_files"] == 379
+            and prep["candidate_build_directory_created"] is False, "source-only preparation summary changed")
+    require(projected["projection_only"] and projected["input_count"] == 266
+            and projected["changed_inputs"] == ["src/shared_text_stage.inc"], "projected one-file manifest is invalid")
+    require(set(projected["inputs"]) == set(baseline["inputs"])
+            and {path for path in baseline["inputs"]
+                 if baseline["inputs"][path] != projected["inputs"].get(path)}
+            == {"src/shared_text_stage.inc"},
+            "projected manifest changes an input outside the one approved source file")
+    input_files = {
+        path.relative_to(CANDIDATE).as_posix()
+        for folder in ("src", "scripts", "assets", "tiled")
+        for path in (CANDIDATE / folder).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    wiki_files = {f"wiki/{rel}" for rel in wiki["files"]}
+    candidate_files = {path.relative_to(CANDIDATE).as_posix() for path in CANDIDATE.rglob("*") if path.is_file()}
+    wiki_paths = {f"wiki/{rel}" for rel in wiki["files"]}
+    require(input_files == set(baseline["inputs"])
+            and candidate_files == set(baseline["inputs"]) | wiki_paths,
+            "candidate inventory differs from the pinned 266-file inputs plus frozen wiki")
+    require(not (CANDIDATE / "build").exists(), "source-only candidate contains build output")
+    for relative, expected_hash in baseline["inputs"].items():
+        require(sha((CANDIDATE / relative).read_bytes()) == expected_hash, f"candidate baseline hash mismatch: {relative}")
+    observed_wiki = {
+        path.relative_to(CANDIDATE / "wiki").as_posix(): sha(path.read_bytes())
+        for path in (CANDIDATE / "wiki").rglob("*") if path.is_file()
+    }
+    wiki_hash = sha(json.dumps(wiki["files"], sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    require(len(observed_wiki) == 379 and observed_wiki == wiki["files"]
+            and wiki_hash == wiki["inventory_sha256"], "candidate wiki differs from frozen baseline inventory")
+    baseline_stage = FIXTURE.read_bytes()
+    require(sha(baseline_stage) == BASELINE_STAGE_SHA256
+            and baseline["inputs"]["src/shared_text_stage.inc"] == BASELINE_STAGE_SHA256,
+            "known-defective raw source fixture identity mismatch")
+    require((CANDIDATE / "src/shared_text_stage.inc").read_bytes() == baseline_stage,
+            "candidate source changed before SEP-S; source-only preparation must remain baseline")
+    tmx_path = CANDIDATE / "tiled/coco-high-score-screen.tmx"
+    require(sha(tmx_path.read_bytes()) == TMX_SHA256
+            and projected["inputs"]["tiled/coco-high-score-screen.tmx"] == TMX_SHA256,
+            "frozen authored TMX identity changed")
+    layers, rank_rows = tmx_layout(tmx_path)
+
+    defective = parse_schedule(baseline_stage)
+    require(len(defective) == 20 and defective[:2] == list(TARGETS),
+            "known-defective source is not the approved 20-job row-5 negative control")
+    baseline_rows = [destination_cell(item[2])[0] for item in defective]
+    require(baseline_rows[:2] == [5, 5] and verify_bad(defective, layers, rank_rows),
+            "old source did not fail the blank-separator assertion")
+
+    good_bytes = remove_only_separator_pair(baseline_stage)
+    good = parse_schedule(good_bytes)
+    require(sha(good_bytes) == projected["inputs"]["src/shared_text_stage.inc"],
+            "in-memory good fixture differs from projected manifest")
+    verify_schedule(good, layers, rank_rows)
+    wrong_rank = [item for item in good if item[1] != 0xAF8E]
+    require(not any(destination_cell(item[2])[0] == 5 for item in wrong_rank),
+            "wrong-rank negative control unexpectedly retains row-5 jobs")
+    rejected_wrong_rank = False
+    try:
+        verify_schedule(wrong_rank, layers, rank_rows)
+    except AssertionError as error:
+        rejected_wrong_rank = "record AF8E lacks one required name and score job" in str(error)
+    require(rejected_wrong_rank, "wrong-rank deletion control passed despite missing 2ND jobs")
+
+    post_path = SETUP / "post-card.py.txt"
+    post_namespace = {"__file__": str(post_path), "__name__": "feat010_sep_post_observer"}
+    exec(compile(post_path.read_text(encoding="utf-8"), str(post_path), "exec"), post_namespace)
+    post_rows = post_namespace["tmx_rank_rows"](tmx_path)
+    baseline_bin_path = SETUP / "fixtures/baseline/build/ladybug-highscore-helper.bin"
+    baseline_map_path = SETUP / "fixtures/baseline/build/ladybug-highscore-helper.map"
+    baseline_helper = baseline_bin_path.read_bytes()
+    baseline_map = baseline_map_path.read_text(encoding="utf-8")
+    require(sha(baseline_helper) == json.loads((SETUP / "baseline-artifacts.json").read_text(encoding="utf-8"))["helper"]["sha256"],
+            "SEP-P decoder fixture helper identity changed")
+    post_bad = post_namespace["schedule_from_binary"](baseline_helper, baseline_map)
+    require(len(post_bad) == 20 and sum(post_namespace["cell"](entry[2])[0] == 5 for entry in post_bad) == 2,
+            "SEP-P decoder did not find the two mapped baseline separator jobs")
+    rejected_post_bad = False
+    try:
+        post_namespace["assert_good_schedule"](post_bad, post_rows)
+    except AssertionError as error:
+        rejected_post_bad = "separator row 5" in str(error)
+    require(rejected_post_bad, "SEP-P good-schedule oracle did not reject its compiled negative control")
+    post_good_bytes = b"".join(
+        threshold.to_bytes(2, "big") + source.to_bytes(2, "big")
+        + destination.to_bytes(2, "big") + bytes((flags,))
+        for threshold, source, destination, flags in post_bad if (threshold, source, destination, flags) not in TARGETS
+    )
+    post_good = post_namespace["decode_schedule"](post_good_bytes)
+    post_namespace["assert_good_schedule"](post_good, post_rows)
+    require(post_good == good, "SEP-P binary decoder differs from independent SEP-S source schedule")
+    require(time.monotonic() - STARTED <= 60, "SEP-S exceeded its 60-second whole-phase deadline")
+    print(json.dumps({
+        "card": "SEP-S",
+        "baseline_input_count": len(baseline["inputs"]),
+        "wiki_file_count": len(wiki["files"]),
+        "baseline_stage_sha256": sha(baseline_stage),
+        "projected_stage_sha256": sha(good_bytes),
+        "tmx_sha256": sha(tmx_path.read_bytes()),
+        "bad_20_job_fixture": "rejected for row-5 jobs",
+        "good_18_job_fixture": "passed; 2ND-9TH and TOP retained",
+        "wrong_rank_fixture": "rejected for missing 2ND record despite blank row 5",
+        "compiled_negative_control": "SEP-P decoder rejected mapped old helper for row-5 jobs",
+        "compiled_good_fixture": "SEP-P decoder passed in-memory corrected 18-job table",
+        "schedule_jobs": len(good),
+        "duration_seconds": round(time.monotonic() - STARTED, 3),
+    }, indent=2))
+
+
+def verify_bad(records, layers, rank_rows) -> bool:
+    try:
+        verify_schedule(records, layers, rank_rows)
+    except AssertionError as error:
+        return "separator row 5 has a scheduled write" in str(error)
+    return False
+
+
+if __name__ == "__main__":
+    main()

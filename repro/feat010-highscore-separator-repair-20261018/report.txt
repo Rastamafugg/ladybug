@@ -1,0 +1,45 @@
+FEAT-010 High Score blank-separator repair setup
+Date: 2026-10-18
+Status: approved setup prepared for parent review; no source qualification, build, assembler, runtime or manual result.
+
+Scope and ownership
+
+This setup implements only the approved FEAT-010 separator assignment. The canonical production repair remains one file: remove the two row-5 `$AF84` schedule jobs at thresholds 256 and 288, destinations `$3940/$396C`. Retain TOP and all eight 2ND-through-9TH records, thresholds, destinations, flags, record storage/count and TMX unchanged. Generator and test-profile discrepancies remain excluded. No wiki, root source, production candidate, or gate was changed or run.
+
+Fresh source-only fixture and retained copy issue
+
+The source baseline is the current High Score candidate from commit `3b6c01d7`, bound to ROM SHA-256 `6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f` and receipt SHA-256 `c1146d3b26112f31ea39cf680a0eba2b295345d3ecf3c410d83acbde0f19485b`. Its receipt enumerates 266 source inputs. The frozen wiki has 379 files and inventory SHA-256 `c702a3fcea325cacef347117ee2b5eb5fe8ef0fab043c7eb69226c6fe4acf0ce`.
+
+An initial directory-tree copy at `candidate/` inherited 18 `__pycache__/*.pyc` files from the prior candidate. Two attempts to remove them inside that owned copy were rejected by the automatic review; the tool returned `CreateProcess ... Rejected(... blocked by policy)` without a more specific reason. No further deletion or workaround was attempted. That copy is retained untouched and excluded from every card and command. The clean source-only candidate is `candidate-clean/`; the preparation script copies only receipt-enumerated input files and frozen wiki manifest entries, one file at a time. Its post-copy inventory check passed: exactly 266 source inputs and 379 wiki files, no unmanifested file and no `build/` directory. Raw source bytes are copied unchanged.
+
+Frozen baseline `src/shared_text_stage.inc` SHA-256 is `e396cd3f26524a69dcda3035abbe54c4b9fd613324412850260ef5954c67ada3`, 57,182 bytes. The in-memory projected file removes exactly four assembly lines for the two approved jobs and hashes to `28e1ec3d30275d45aecee5597af1cab97633741ed5cae5678567df47c88a3375`, 57,098 bytes. The physical `candidate-clean/src/shared_text_stage.inc` remains baseline-identical. The projected manifest changes only this file; the other 265 input hashes and all 379 wiki hashes remain unchanged. Current compiled helper negative-control SHA-256 is `5f5c026d0cddb3115821fceb633e3b53ae869cc14e0e0ea401ffefb0e8aa434d`, map SHA-256 is `4c40333d77911892e6949f5699e1d66d2871878ac0706070e2574a950328bf27`. It contains the known 20-job schedule.
+
+The current measured High Score build reports helper 3,084/3,136 bytes, resident 8,088/8,192 with 104 free, assets 7,649/7,680, and presentation 1,280/1,280. Removing two seven-byte compiled jobs projects helper usage to 3,070/3,136 with 66 free. All other limits remain mandatory on the actual one-build result: resident has at least 32 free, presentation at most 1,280, assets at most 7,680 and helper at most 3,136. The helper change is a projection until SEP-P reads the new build.
+
+Prepared cards and commands
+
+* SEP-S source fixture qualification, 60-second whole-phase maximum: `python -B repro/feat010-highscore-separator-repair-20261018/setup/source-card.py.txt` from the repository root. It binds the exact baseline 266-input and wiki manifests, confirms the frozen TMX has TOP on row 4, blank row 5 and ordinal labels on rows 6-13, then checks all full name/score field bounds and exact retained schedule jobs. The current 20-job source must reject specifically because it writes row 5. The in-memory exact deletion must pass. A wrong-rank negative control removes the AF8E 2ND pair while leaving row 5 blank and must reject for missing 2ND. SEP-S also loads the SEP-P observer definitions with a non-main module name, decodes the pinned 20-job helper/map and requires row-5 rejection, then decodes an in-memory 18-job table after the exact pair deletion and requires the same compiled-good assertion to pass. It does not call SEP-P main, read build outputs, or launch a build.
+* SEP-B one complete build, 600-second whole-phase maximum: `python -B repro/feat010-highscore-separator-repair-20261018/setup/build-once.py.txt` from the repository root. The wrapper requires the projected 266-input source and frozen wiki, an absent build directory and fresh one-shot markers. It launches one WSL `complete/keyboard/6809/adaptive=1` `bash scripts/build.sh build` in `candidate-clean/`, with a 595-second child timeout and two-second termination grace. It binds command, profile, log, receipt and ROM hashes and does not retry.
+* SEP-P focused compiled postcheck, 60-second whole-phase maximum: `python -B repro/feat010-highscore-separator-repair-20261018/setup/post-card.py.txt` from the repository root. It checks the SEP-B one-shot result, projected source and frozen wiki identities, complete receipt/profile using the candidate stock provenance validator, 64-KiB delivered ROM, separate 16-KiB resident runtime, mapped schedule bytes decoded from the actual helper binary/map, the pinned defective 20-job binary negative control, and all four stock capacity guards. The target is exactly 18 jobs, zero row-5 writes, unchanged remaining thresholds/record associations/destinations, helper 3,070 bytes and presentation 1,280 bytes. It does not rerun ordinary suites.
+* SEP-M remains the approved user-paced natural High Score visit on the new byte-identified ROM using the existing HS-M procedure. The user reports whether the separator stays blank, TOP and 2ND-through-9TH retain their proper rows, and earlier logo/color/field corrections remain visible. No forced score, debugger, route search or runtime probe is added. No live result exists yet.
+
+Artifacts, checks and handoff
+
+Setup files under `setup/` are `prepare_case.py.txt`, `source-card.py.txt`, `build-once.py.txt`, `post-card.py.txt`, the three manifests `baseline-inputs.json`, `projected-inputs.json`, `wiki-inputs.json`, identity file `baseline-artifacts.json`, preparation record `preparation.json`, and the baseline raw source/helper/map fixtures. `.gitattributes` protects these bytes and the new candidate source from line-ending conversion.
+
+The preparation script ran once for the clean candidate in 6.5 seconds and confirmed the exact file inventory, source/wiki hashes, 20-to-18 projected schedule, unchanged physical candidate source, and no build directory. Python AST syntax parsing passed for the four setup scripts. These are preparation checks only. SEP-S, the SEP-P fixture qualification, SEP-B, SEP-P and SEP-M have not run. No candidate source was edited. No files were staged or committed; the shared Git index remains under parent control.
+
+Prepared artifact SHA-256 values:
+
+* `.gitattributes`: `06eec77895e0ac5043756975acc7bc840b6a343a2d8c7950758285bd4497d7f6`
+* `setup/prepare_case.py.txt`: `36c1baeff27f83ecb68ee058085b74a912c764626ba201a9cfff4c44822be9da`
+* `setup/source-card.py.txt`: `52d1f828d3c378e1074d857c5c5c79f5912120ec4174359e1bf966e78b35374e`
+* `setup/build-once.py.txt`: `94b9aeb4931cd2b666c4c3ad5975595c0d03f8344cfc1c2db9f27f89c94df184`
+* `setup/post-card.py.txt`: `1b67be4622893cc537d0eb590657820d1bb3b212f2a98bbe1a37ea3b5aebcf19`
+* `setup/baseline-inputs.json`: `9c88f12ea599e0beed7b1e72425db98fbb521f75da2bb5301fb6e03257e20441`
+* `setup/projected-inputs.json`: `8adf4eb69c5a09325af2e444f3bb2194352414ca3146a52be8d6d0297441f13e`
+* `setup/wiki-inputs.json`: `b6b44fe948df3ef137d1cc5e36d32b76100474bae667d89bbee8462d7ecbeaef`
+* `setup/baseline-artifacts.json`: `e5901f6df0ff676ffe74b7d3bb66472d04592fffc707ec83999b3b64a940924c`
+* `setup/preparation.json`: `2dd71b8581034d2581762f3fb52e24d2e34f71964f880aa6980d44ed08d8fde2`
+
+Parent review of the exact setup paths, card logic and hashes is pending. After review, the parent runs SEP-S once. A pass is required before the separate source-only implementation Ready release. SEP-B and SEP-P remain sequenced after that release; SEP-M remains pending user observation.

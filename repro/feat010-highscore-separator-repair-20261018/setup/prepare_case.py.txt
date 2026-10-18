@@ -1,0 +1,233 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+from pathlib import Path
+
+
+REPO = Path(__file__).resolve().parents[3]
+WORK = Path(__file__).resolve().parents[1]
+OLD_CASE = REPO / "repro/feat010-highscore-repair-20261017"
+BASELINE = OLD_CASE / "candidate"
+CANDIDATE = WORK / "candidate-clean"
+SETUP = WORK / "setup"
+PROFILE = "complete/keyboard/6809/adaptive=1"
+BASELINE_ROM_SHA256 = "6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f"
+BASELINE_RECEIPT_SHA256 = "c1146d3b26112f31ea39cf680a0eba2b295345d3ecf3c410d83acbde0f19485b"
+BASELINE_HELPER_SHA256 = "5f5c026d0cddb3115821fceb633e3b53ae869cc14e0e0ea401ffefb0e8aa434d"
+BASELINE_HELPER_MAP_SHA256 = "4c40333d77911892e6949f5699e1d66d2871878ac0706070e2574a950328bf27"
+TARGETS = {
+    (256, 0xAF84, 0x3940, 1),
+    (288, 0xAF84, 0x396C, 0),
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def write_json(path: Path, payload: dict) -> None:
+    path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+
+def write_fixture(path: Path, data: bytes) -> None:
+    if path.exists():
+        if path.read_bytes() != data:
+            raise SystemExit(f"existing fixture differs from frozen bytes: {path}")
+        return
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(data)
+
+
+def inventory(folder: Path) -> dict[str, str]:
+    return {
+        path.relative_to(folder).as_posix(): sha(path.read_bytes())
+        for path in folder.rglob("*") if path.is_file()
+    }
+
+
+def source_inventory(folder: Path) -> dict[str, str]:
+    return {
+        path.relative_to(folder).as_posix(): sha(path.read_bytes())
+        for path in folder.rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+
+
+def schedule_bytes(source: bytes) -> list[tuple[tuple[int, int, int, int], tuple[int, int]]]:
+    lines = source.splitlines(keepends=True)
+    start = next(i for i, line in enumerate(lines) if line.strip() == b"ranking_schedule_data")
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == b"ranking_schedule_end")
+    records = []
+    index = start + 1
+    while index < end:
+        fdb = lines[index].strip().decode("ascii").split()
+        if len(fdb) != 2 or fdb[0].lower() != "fdb":
+            raise SystemExit(f"unexpected ranking schedule entry at line {index + 1}")
+        values = [piece.strip() for piece in fdb[1].split(",")]
+        if len(values) != 3:
+            raise SystemExit(f"unexpected ranking schedule tuple at line {index + 1}")
+        threshold = int(values[0], 10)
+        source_addr = int(values[1].removeprefix("$").replace("$", ""), 16)
+        destination = int(values[2].removeprefix("$").replace("$", ""), 16)
+        if index + 1 >= end:
+            raise SystemExit(f"missing rank flag after line {index + 1}")
+        flag_line = lines[index + 1].strip().decode("ascii").split()
+        if len(flag_line) != 2 or flag_line[0].lower() != "fcb" or flag_line[1] not in ("0", "1"):
+            raise SystemExit(f"unexpected rank flag at line {index + 2}")
+        records.append(((threshold, source_addr, destination, int(flag_line[1])), (index, index + 1)))
+        index += 2
+    return records
+
+
+def projected_source(source: bytes) -> bytes:
+    lines = source.splitlines(keepends=True)
+    entries = schedule_bytes(source)
+    found = [record for record, _ in entries if record in TARGETS]
+    if len(found) != len(TARGETS) or set(found) != TARGETS:
+        raise SystemExit(f"expected exactly the two approved separator jobs, got {found}")
+    removed = {line_index for record, pair in entries if record in TARGETS for line_index in pair}
+    projected = b"".join(line for index, line in enumerate(lines) if index not in removed)
+    after = [record for record, _ in schedule_bytes(projected)]
+    before = [record for record, _ in entries]
+    expected = [record for record in before if record not in TARGETS]
+    if len(before) != 20 or len(after) != 18 or after != expected:
+        raise SystemExit("projected schedule is not exactly the 20-to-18 two-job deletion")
+    return projected
+
+
+def main() -> None:
+    if CANDIDATE.exists():
+        raise SystemExit(f"fresh candidate path already exists: {CANDIDATE}")
+    receipt_path = BASELINE / "build/source-build-receipt.json"
+    receipt_bytes = receipt_path.read_bytes()
+    receipt = json.loads(receipt_bytes)
+    rom_bytes = (BASELINE / "build/ladybug.rom").read_bytes()
+    helper_bytes = (BASELINE / "build/ladybug-highscore-helper.bin").read_bytes()
+    helper_map_bytes = (BASELINE / "build/ladybug-highscore-helper.map").read_bytes()
+    if sha(rom_bytes) != BASELINE_ROM_SHA256 or len(rom_bytes) != 65536:
+        raise SystemExit("current High Score review ROM identity or 64 KiB format changed")
+    if sha(receipt_bytes) != BASELINE_RECEIPT_SHA256:
+        raise SystemExit("current High Score source-build receipt identity changed")
+    if sha(helper_bytes) != BASELINE_HELPER_SHA256 or sha(helper_map_bytes) != BASELINE_HELPER_MAP_SHA256:
+        raise SystemExit("current compiled helper negative-control identity changed")
+    if receipt.get("state") != "complete" or receipt.get("profile") != "complete":
+        raise SystemExit("current High Score receipt is not a completed complete-profile build")
+    inputs = receipt.get("inputs", {})
+    if len(inputs) != 266:
+        raise SystemExit(f"receipt has {len(inputs)} source inputs, expected 266")
+    observed = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        observed.update({f"{folder}/{rel}": digest for rel, digest in source_inventory(BASELINE / folder).items()})
+    if observed != inputs:
+        raise SystemExit("current candidate source files differ from the completed build receipt")
+
+    old_wiki = json.loads((OLD_CASE / "setup/wiki-inputs.json").read_text(encoding="utf-8"))
+    wiki_files = inventory(BASELINE / "wiki")
+    if wiki_files != old_wiki["files"] or len(wiki_files) != 379:
+        raise SystemExit("current candidate wiki differs from the frozen 379-file High Score baseline")
+
+    baseline_stage = (BASELINE / "src/shared_text_stage.inc").read_bytes()
+    projected_stage = projected_source(baseline_stage)
+    if len(schedule_bytes(baseline_stage)) != 20 or len(schedule_bytes(projected_stage)) != 18:
+        raise SystemExit("baseline/projected schedule count mismatch")
+
+    CANDIDATE.mkdir(parents=True)
+    for relative in inputs:
+        source_path = BASELINE / relative
+        target_path = CANDIDATE / relative
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, target_path)
+    for relative in wiki_files:
+        source_path = BASELINE / "wiki" / relative
+        target_path = CANDIDATE / "wiki" / relative
+        target_path.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source_path, target_path)
+    if (CANDIDATE / "build").exists():
+        raise SystemExit("build output was copied into the source-only candidate")
+
+    candidate_source_files = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        candidate_source_files.update({f"{folder}/{rel}": digest for rel, digest in source_inventory(CANDIDATE / folder).items()})
+    candidate_wiki_files = inventory(CANDIDATE / "wiki")
+    if candidate_source_files != inputs or candidate_wiki_files != wiki_files:
+        raise SystemExit("manifest-enumerated file copy does not match the frozen inputs")
+    candidate_all_files = {path.relative_to(CANDIDATE).as_posix() for path in CANDIDATE.rglob("*") if path.is_file()}
+    if candidate_all_files != set(inputs) | {f"wiki/{relative}" for relative in wiki_files}:
+        raise SystemExit("source-only candidate contains unmanifested files")
+
+    fixture_base = SETUP / "fixtures/baseline"
+    write_fixture(fixture_base / "src/shared_text_stage.inc", baseline_stage)
+    write_fixture(fixture_base / "build/ladybug-highscore-helper.bin", helper_bytes)
+    write_fixture(fixture_base / "build/ladybug-highscore-helper.map", helper_map_bytes)
+
+    wiki_inventory_sha256 = sha(json.dumps(wiki_files, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    wiki_manifest = {
+        "baseline_root": "repro/feat010-highscore-repair-20261017/candidate/wiki",
+        "candidate_root": "repro/feat010-highscore-separator-repair-20261018/candidate-clean/wiki",
+        "file_count": len(wiki_files),
+        "total_bytes": sum((BASELINE / "wiki" / rel).stat().st_size for rel in wiki_files),
+        "inventory_sha256": wiki_inventory_sha256,
+        "files": wiki_files,
+    }
+    baseline_manifest = {
+        "ticket": "FEAT-010",
+        "step": "approved blank separator repair",
+        "source_commit": "3b6c01d751762cddc568f5a7d77dbfda29101005",
+        "baseline_candidate": "repro/feat010-highscore-repair-20261017/candidate",
+        "profile": PROFILE,
+        "rom_sha256": BASELINE_ROM_SHA256,
+        "receipt_sha256": BASELINE_RECEIPT_SHA256,
+        "input_count": len(inputs),
+        "inputs": inputs,
+    }
+    projected_inputs = dict(inputs)
+    projected_inputs["src/shared_text_stage.inc"] = sha(projected_stage)
+    projected_manifest = {
+        "ticket": "FEAT-010",
+        "step": "in-memory projected separator-job deletion; not applied to candidate",
+        "baseline_rom_sha256": BASELINE_ROM_SHA256,
+        "baseline_receipt_sha256": BASELINE_RECEIPT_SHA256,
+        "input_count": len(projected_inputs),
+        "changed_inputs": ["src/shared_text_stage.inc"],
+        "inputs": projected_inputs,
+        "projection_only": True,
+    }
+    baseline_artifacts = {
+        "rom": {"sha256": BASELINE_ROM_SHA256, "bytes": len(rom_bytes)},
+        "receipt": {"sha256": BASELINE_RECEIPT_SHA256},
+        "helper": {"sha256": BASELINE_HELPER_SHA256, "bytes": len(helper_bytes)},
+        "helper_map": {"sha256": BASELINE_HELPER_MAP_SHA256},
+    }
+    preparation = {
+        "status": "source-only candidate and projected deletion prepared; no qualification/build/runtime",
+        "candidate_source_inputs": len(observed),
+        "fresh_candidate_root": "repro/feat010-highscore-separator-repair-20261018/candidate-clean",
+        "candidate_wiki_files": len(wiki_files),
+        "candidate_build_directory_created": False,
+        "candidate_source_hashes_equal_baseline": True,
+        "candidate_wiki_hashes_equal_frozen_baseline": True,
+        "baseline_stage_sha256": sha(baseline_stage),
+        "baseline_stage_bytes": len(baseline_stage),
+        "projected_stage_sha256": sha(projected_stage),
+        "projected_stage_bytes": len(projected_stage),
+        "schedule_jobs_before": 20,
+        "schedule_jobs_after_projection": 18,
+        "compiled_helper_bytes_before": len(helper_bytes),
+        "projected_helper_bytes_after": len(helper_bytes) - 14,
+        "helper_limit": 3136,
+        "baseline_wiki_inventory_sha256": wiki_inventory_sha256,
+        "baseline_helper_sha256": BASELINE_HELPER_SHA256,
+        "baseline_helper_map_sha256": BASELINE_HELPER_MAP_SHA256,
+    }
+    write_json(SETUP / "baseline-inputs.json", baseline_manifest)
+    write_json(SETUP / "projected-inputs.json", projected_manifest)
+    write_json(SETUP / "wiki-inputs.json", wiki_manifest)
+    write_json(SETUP / "baseline-artifacts.json", baseline_artifacts)
+    write_json(SETUP / "preparation.json", preparation)
+    print(json.dumps(preparation, indent=2))
+
+
+if __name__ == "__main__":
+    main()
