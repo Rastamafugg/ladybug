@@ -1,0 +1,54 @@
+{
+  "date": "2026-10-18",
+  "ticket": "FEAT-010",
+  "manual_result": {
+    "reported": "All prior corrections appear made; extra high-score entry between TOP and 2ND",
+    "expected": "Blank separator between TOP and 2ND",
+    "artifact_sha256": "6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f",
+    "score_and_name_entry_details": "not provided",
+    "layout_acceptance": "FAIL: extra entry"
+  },
+  "static_artifact_read": {
+    "helper_org_from_map": "AC40",
+    "schedule_start": "B41D",
+    "schedule_end_exclusive": "B4A9",
+    "first_two_jobs_hex": "0100af843940010120af84396c00",
+    "last_two_jobs_hex": "0340af843440010360af84346c00",
+    "duplicate_source": "AF84",
+    "separator_name_score_destinations": [
+      "3940",
+      "396C"
+    ],
+    "top_name_score_destinations": [
+      "3440",
+      "346C"
+    ],
+    "coordinate_rule": "base2000 + tile_row*1280 + tile_column*4",
+    "authored_separator_tile_row": 5,
+    "authored_separator_branding_and_logo_cells": "empty",
+    "ranked_label_rows": [
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13
+    ]
+  },
+  "confirmed_static_cause": "Built schedule contains record-zero name/score jobs at empty separator row5 in addition to intended TOP row4 jobs. Earlier expected-schedule oracle explicitly accepted both.",
+  "limits": [
+    "User manual observation supplies runtime symptom; no live bytes or screen capture taken",
+    "No production, setup, test, build or runtime action in this diagnosis",
+    "Initial exploratory binary read used an incorrect assumed origin and was discarded; only map-proven AC40 decode retained"
+  ],
+  "next": "Bounded proposal review; no repair approved",
+  "file_sha256": {
+    "candidate/src/shared_text_stage.inc": "e396cd3f26524a69dcda3035abbe54c4b9fd613324412850260ef5954c67ada3",
+    "candidate/scripts/build_presentation.py": "1044377b4f73f7f219401b12464dd270442275c082e94ee73c4c180a509b3a92",
+    "candidate/tiled/coco-high-score-screen.tmx": "98a8cd5c9b17dc3bb999e37ff221368bbf60a2e76c123d9979f1a3fc4c3cb425",
+    "candidate/build/ladybug-highscore-helper.bin": "5f5c026d0cddb3115821fceb633e3b53ae869cc14e0e0ea401ffefb0e8aa434d",
+    "candidate/build/ladybug-highscore-helper.map": "4c40333d77911892e6949f5699e1d66d2871878ac0706070e2574a950328bf27"
+  }
+}
