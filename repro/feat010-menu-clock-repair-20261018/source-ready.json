@@ -1,0 +1,31 @@
+{
+  "ticket": "FEAT-010",
+  "card": "MC-S",
+  "status": "Ready",
+  "approval": "User approved menu-clock repair and MC-S/B/P/M cards",
+  "observer_commit": "99a036d5040a292cda94dbfeab094d94b38983d1",
+  "observer_hashes": {
+    "clock-source-card.py.txt": "f32c1404bb0dc6088c7fa3b7ebbf1c869f88a24ae9eccca364291f08e021ba3f",
+    "clock-post-card.py.txt": "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95",
+    "build-once.py.txt": "ec8319d349f790ffd6ea27a8306e68207c2c5bfbc2c27b5512374d341d79fea0"
+  },
+  "parent_review": "Read-only draft defects corrected before execution; mixed EOL preserved, exact transform/byte control and bad fixtures reviewed. No earlier qualification attempt.",
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug",
+    "--exec",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "58s",
+    "python3",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/clock-source-card.py.txt"
+  ],
+  "limit_seconds": 60,
+  "attempts": 1,
+  "production_changes_before_qualification": false
+}
