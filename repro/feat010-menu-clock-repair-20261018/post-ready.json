@@ -1,0 +1,29 @@
+{
+  "ticket": "FEAT-010",
+  "card": "MC-P",
+  "status": "Ready",
+  "approval": "Previously approved MC-P unchanged",
+  "post_card_sha256": "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95",
+  "build_result_sha256": "e6df7f8b95d4e91dc4c0c7e434dc70be85515b67ef37bd7858e2bfbe5b113dc3",
+  "receipt_sha256": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+  "rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug",
+    "--exec",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "58s",
+    "python3",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/clock-post-card.py.txt"
+  ],
+  "attempts": 1,
+  "limit_seconds": 60,
+  "parser_qualification": "MC-S pure good/broken controls already PASS; unchanged hash",
+  "build": "PASS build323.584/600, guardian328.580/660; outer invocation within660"
+}
