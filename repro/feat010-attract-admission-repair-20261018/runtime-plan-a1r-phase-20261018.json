@@ -1,0 +1,337 @@
+{
+  "ticket": "FEAT-010",
+  "card": "A1-R",
+  "status": "offline plan; no target qualified",
+  "candidate": "repro/feat010-attract-admission-repair-20261018/candidate",
+  "source_parent_commit": "61c47f6a",
+  "profile": {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1"
+  },
+  "source_inputs": 266,
+  "wiki_files": 379,
+  "artifacts": {
+    "post_build_result_sha256": "f20ff7f9a5a1c60a956f69e95a7d0addb8c987ec681398892ba499bdb8cad353",
+    "receipt_sha256": "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc",
+    "rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
+    "rom_bytes": 65536,
+    "helper_source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "helper_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+    "helper_map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
+    "helper_listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b",
+    "presentation_source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "presentation_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "presentation_map_sha256": "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c",
+    "presentation_listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329",
+    "presentation_origin": "0x1900",
+    "presentation_bytes": 1280,
+    "presentation_entry_offset": "0x0356",
+    "presentation_entry_hex": "b600d48181",
+    "helper_bytes": 334,
+    "helper_range": "0x06b2-0x07ff",
+    "helper_exclusive_end": "0x0800",
+    "resident_free_minimum": 104,
+    "asset_used": 7667
+  },
+  "compiled_decoder": {
+    "helper_bytes": "0x014e",
+    "helper_end": "0x0800",
+    "overlay": "0x0786",
+    "bsr": "0x0786",
+    "bsr_target": "0x07e7",
+    "bsr_return": "0x0788",
+    "compare": "0x0788",
+    "guard_tst": "0x078c",
+    "guard_bne": "0x078e",
+    "pao_done": "0x07e3",
+    "phase_change": "0x0790",
+    "prepare_call": "0x0792",
+    "prepare_target": "0x0ddf",
+    "normal_phase_rts": "0x07f5",
+    "zero_phase_rts": "0x07f7"
+  },
+  "source_staged_phase_function": {
+    "source": "src/perimeter_reset_helper.s",
+    "source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "routine": "presentation_attract_phase",
+    "compiled_rows": [
+      {
+        "address": "0x07e7",
+        "statement": "ldd pres_timer",
+        "bytes": "dcb0"
+      },
+      {
+        "address": "0x07e9",
+        "statement": "subd #6",
+        "bytes": "830006"
+      },
+      {
+        "address": "0x07ec",
+        "statement": "blo presentation_phase_zero",
+        "bytes": "2508"
+      },
+      {
+        "address": "0x07ee",
+        "statement": "tfr b,a",
+        "bytes": "1f98"
+      },
+      {
+        "address": "0x07f0",
+        "statement": "lsra",
+        "bytes": "44"
+      },
+      {
+        "address": "0x07f1",
+        "statement": "lsra",
+        "bytes": "44"
+      },
+      {
+        "address": "0x07f2",
+        "statement": "lsra",
+        "bytes": "44"
+      },
+      {
+        "address": "0x07f3",
+        "statement": "anda #3",
+        "bytes": "8403"
+      },
+      {
+        "address": "0x07f5",
+        "statement": "rts",
+        "bytes": "39"
+      },
+      {
+        "address": "0x07f6",
+        "statement": "clra",
+        "bytes": "4f"
+      },
+      {
+        "address": "0x07f7",
+        "statement": "rts",
+        "bytes": "39"
+      }
+    ],
+    "timer": "unsigned 16-bit PRES_TIMER at $00B0-$00B1",
+    "function": "timer < 6 ? 0 : ((((timer - 6) & 255) >> 3) & 3)",
+    "zero_path": "SUBD #6 sets borrow; BLO reaches CLRA; RTS",
+    "normal_path": "TFR B,A; LSRA x3; ANDA #3; RTS"
+  },
+  "presentation_entry": {
+    "id": "attract_tick_entry",
+    "address": "0x1c56",
+    "length": 5,
+    "expected_hex": "b600d48181",
+    "description": "lda PRES_HOLD_STATE; cmpa #PRES_HOLD_FINAL",
+    "source": "src/presentation_runtime.s",
+    "source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "module": "ladybug-presentation-runtime.bin",
+    "module_origin": "0x1900",
+    "module_offset": "0x0356",
+    "module_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "map_sha256": "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c",
+    "listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329"
+  },
+  "code_spans": [
+    {
+      "id": "attract_tick_entry",
+      "address": "0x1c56",
+      "length": 5,
+      "expected_hex": "b600d48181",
+      "description": "lda PRES_HOLD_STATE; cmpa #PRES_HOLD_FINAL",
+      "source": "src/presentation_runtime.s",
+      "source_sha256": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+      "module": "ladybug-presentation-runtime.bin",
+      "module_origin": "0x1900",
+      "module_offset": "0x0356",
+      "module_sha256": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+      "map_sha256": "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c",
+      "listing_sha256": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329"
+    },
+    {
+      "id": "admission_tst_and_bne",
+      "address": "0x078c",
+      "length": 4,
+      "expected_hex": "0d912653",
+      "description": "tst PENDING; bne pao_done",
+      "source": "src/perimeter_reset_helper.s",
+      "source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+      "module": "ladybug-perimeter-reset-helper.bin",
+      "module_origin": "0x06b2",
+      "module_offset": "0x00da",
+      "module_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+      "map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
+      "listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b"
+    },
+    {
+      "id": "pao_done_rts",
+      "address": "0x07e3",
+      "length": 1,
+      "expected_hex": "39",
+      "description": "rts",
+      "source": "src/perimeter_reset_helper.s",
+      "source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+      "module": "ladybug-perimeter-reset-helper.bin",
+      "module_origin": "0x06b2",
+      "module_offset": "0x0131",
+      "module_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+      "map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
+      "listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b"
+    },
+    {
+      "id": "prepare_jsr",
+      "address": "0x0792",
+      "length": 3,
+      "expected_hex": "bd0ddf",
+      "description": "jsr PRES_MAIN_FB_PREPARE",
+      "source": "src/perimeter_reset_helper.s",
+      "source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+      "module": "ladybug-perimeter-reset-helper.bin",
+      "module_origin": "0x06b2",
+      "module_offset": "0x00e0",
+      "module_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+      "map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
+      "listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b"
+    }
+  ],
+  "state_read": {
+    "command": "x/231xb 0x0002",
+    "start": "0x0002",
+    "length": 231,
+    "report_fields": [
+      "FRAMES 0002-0003",
+      "FB_FRONT_ID 008F",
+      "FB_BACK_ID 0090",
+      "PENDING 0091",
+      "FB_COMMIT_SEQ 0092-0093",
+      "FB_SIM_SEQ 0094-0095",
+      "FB_MISSED_COMMIT 0096-0097",
+      "FB_RENDER_ACTIVE 0098",
+      "FB_WRITE_FRONT_FAULT 0099",
+      "PRES_MODE 00A5",
+      "PRES_SCREEN 00A6",
+      "PRES_EVENT 00A9",
+      "PRES_TIMER 00B0-00B1",
+      "MENU_EVENT 00D0",
+      "logo cache A 00D2",
+      "PRES_ACTOR_PHASE 00D3",
+      "MENU_PREV 00DF",
+      "MENU_SELECT 00E0",
+      "MENU_DIRTY 00E1",
+      "logo cache B 00E3",
+      "desired logo phase 00E8"
+    ]
+  },
+  "execution_recipe": {
+    "session_source": "parent injects currently idle local-only m6809/qSupported-off GDB-MCP session",
+    "initial_attach_commands": [
+      "target remote :65521",
+      "show architecture",
+      "printf \"attach_pc=%04x attach_dp=%02x\\n\",$pc,$dp"
+    ],
+    "stops": [
+      {
+        "address": "0x1c56",
+        "expected_pc": "0x1c56",
+        "expected_dp": "0x00",
+        "span_id": "attract_tick_entry",
+        "code_command": "x/5xb 0x1c56",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "assertion": "MODE=2; SCREEN=0; MENU_EVENT=0; MENU_SELECT=0; no PENDING/timer/phase requirement"
+      },
+      {
+        "address": "0x078e",
+        "expected_pc": "0x078e",
+        "expected_dp": "0x00",
+        "span_id": "admission_tst_and_bne",
+        "code_command": "x/4xb 0x078c",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "cc_command": "info registers pc dp cc",
+        "cc_z_mask": "0x04",
+        "cc_requirement": "Z=0 after the byte-matched TST PENDING; captures P0 from state"
+      },
+      {
+        "address": "0x07e3",
+        "expected_pc": "0x07e3",
+        "expected_dp": "0x00",
+        "span_id": "pao_done_rts",
+        "code_command": "x/1xb 0x07e3",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "assertion": "byte-qualified RTS destination reached and PRES_ACTOR_PHASE equals captured P0"
+      },
+      {
+        "address": "0x0792",
+        "expected_pc": "0x0792",
+        "expected_dp": "0x00",
+        "span_id": "prepare_jsr",
+        "code_command": "x/3xb 0x0792",
+        "raw_pc_dp_command": "printf \"stop_pc=%04x stop_dp=%02x\\n\",$pc,$dp",
+        "assertion": "PENDING=0; phase equals the compiled PRES_TIMER function; unchanged JSR target is $0DDF"
+      }
+    ],
+    "breakpoint": "one unconditional tbreak per address; one continue per address; no retries",
+    "continue_timeout_seconds": 5,
+    "read_command_timeout_seconds": 1,
+    "whole_phase_deadline_seconds": 45,
+    "cleanup_begins_by_seconds": 37,
+    "cleanup_reserve_seconds": 8,
+    "prompt_recovery_reserve_seconds": 5,
+    "call_local_overhead_reserve_seconds": 1,
+    "admission_rule": "Before each GDB call, sum its per-command timeouts plus 5 s recovery, 8 s cleanup, and 1 s local overhead; dispatch only if the sum fits the remaining 45 s whole-phase deadline. Also stop before cleanup would begin after 37 s.",
+    "state_reads": "one separate x/231xb 0x0002 call after live bytes and PC/DP qualify at each stop"
+  },
+  "launch": {
+    "executable": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "executable_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+    "cwd": "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate",
+    "argv": [
+      "-ui",
+      "gtk3",
+      "-ao",
+      "pulse",
+      "-machine",
+      "coco3",
+      "-machine-cpu",
+      "6809",
+      "-ram",
+      "512",
+      "-ram-init",
+      "random",
+      "-cart-type",
+      "gmc",
+      "-cart-rom",
+      "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate/build/ladybug.rom",
+      "-cart-autorun",
+      "-tv-input",
+      "rgb",
+      "-joy-right",
+      "",
+      "-joy-left",
+      "",
+      "-gdb",
+      "-gdb-ip",
+      "127.0.0.1",
+      "-gdb-port",
+      "65521"
+    ],
+    "port": "127.0.0.1:65521; parent rechecks unused immediately before launch",
+    "ram_and_input": "512 KiB; random RAM; keyboard configured; empty joystick mappings; no input during A1-R"
+  },
+  "gdb_tool_control_hashes": {
+    "gdb_py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "gdb_mcp_server_py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "m6809_gdb": "b26d0c76b4f73109ef3c0dfd54360805f7056dc2d80a1ab9080374446ba3168c"
+  },
+  "boundaries": [
+    "A1-R no-input branch diagnostic only; A2 selection rollback is separate.",
+    "First byte-match source/staged/live code; only then interpret stopped PC, DP, or CC.",
+    "Only the Attract entry span and three helper spans above, info registers pc dp cc at the guard stop, and x/231xb 0x0002 are authorized live reads.",
+    "Require MODE_ATTRACT=2 and SCREEN=0 at all four stops; require MENU_EVENT=0 and MENU_SELECT=0 only at the Attract entry. Do not constrain entry PENDING, timer, or phase.",
+    "No stack, MMIO, guest writes, input, extra stop, occurrence search, retry, user-window routing, or owner matrix.",
+    "PENDING=1 is not required at the post-TST state dump; CC.Z=0 proves the matched TST observed nonzero PENDING before a possible IRQ clear.",
+    "The stop at $07E3 plus matched branch target and RTS bytes proves the guarded path reached pao_done; no live stack return-target claim.",
+    "The changed-ROM four-stop runtime is unmeasured. Prior current-ROM one-stop and historical old-ROM timings are not a guarantee."
+  ],
+  "target_path_qualified": false
+}

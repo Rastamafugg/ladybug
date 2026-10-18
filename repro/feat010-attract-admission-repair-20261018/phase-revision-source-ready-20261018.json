@@ -1,0 +1,55 @@
+{
+  "ticket": "FEAT-010",
+  "class": "High-risk verification revision",
+  "user_approval": "Approve the four-stop A1-R phase revision, 2026-10-18",
+  "owned_observer_files": [
+    "runtime-plan-builder.py.txt",
+    "runtime-command.js.txt",
+    "runtime-launch-guard.py.txt",
+    "runtime-parser-controls.js.txt"
+  ],
+  "baseline_sha256": {
+    "runtime-plan-builder.py.txt": "d4c2fa7d4e9f0d537e91a2d5dcd412751af36f90ab6a23cab7b1986d506e80f1",
+    "runtime-command.js.txt": "34d13e481d7c9007d22637c8fc97a9fed6ae5e0d1ee11e3b62cf7c464a4269ce",
+    "runtime-launch-guard.py.txt": "313713e941d6ca46b6841a65b214e2af2bfe7c59ec63068810c3d583fffea174",
+    "runtime-parser-controls.js.txt": "1a50ccd174c5189b917c9e95bc571b5bfa8cc83c1944eacd2eaad6e00e4289fc"
+  },
+  "plan_output": "runtime-plan-a1r-phase-20261018.json",
+  "new_output_namespace": "a1r-phase-20261018",
+  "ordered_qualification_commands": [
+    [
+      "python",
+      "-B",
+      "repro/feat010-attract-admission-repair-20261018/runtime-plan-builder.py.txt"
+    ],
+    [
+      "functions.exec pure JavaScript",
+      "new Function(text, runtime-parser-controls.js.txt)(result collector)"
+    ],
+    [
+      "wsl",
+      "-d",
+      "Ubuntu",
+      "--exec",
+      "python3",
+      "-B",
+      "-c",
+      "import sys,json,hashlib,subprocess\nfrom unittest.mock import patch\ndata=json.loads(sys.stdin.read()); assert sys.version_info[:3]==(3,8,10)\ndef forbidden(*args,**kwargs): raise AssertionError('Process action forbidden in non-main import qualification')\nwith patch.object(subprocess,'Popen',forbidden),patch.object(subprocess,'run',forbidden):\n    try: exec(compile(data['bad_guard'],data['guard_filename'],'exec'),{'__name__':'observer_import_preflight','__file__':data['guard_filename']})\n    except TypeError as error: assert str(error)==\"'type' object is not subscriptable\"\n    else: raise AssertionError('Known-bad guard unexpectedly imported')\n    for key,filename in [('good_guard',data['guard_filename']),('builder',data['builder_filename'])]:\n        namespace={'__name__':'observer_import_preflight','__file__':filename}\n        exec(compile(data[key],filename,'exec'),namespace)\n        assert callable(namespace['main'])\nprint(json.dumps({'outcome':'PASS','python':sys.version.split()[0],'bad_guard_rejected':True,'corrected_guard_and_builder_import':True,'main_called':False,'guest_access':False}))\n"
+    ]
+  ],
+  "qualification_stdin": "JSON with original10adce56 guard as bad_guard; current guard/builder strings and exact WSL filenames; no main execution.",
+  "qualification_whole_phase_limit_seconds": 60,
+  "runtime_stop_addresses": [
+    "0x1c56",
+    "0x078e",
+    "0x07e3",
+    "0x0792"
+  ],
+  "runtime_whole_phase_limit_seconds": 45,
+  "cleanup_by_seconds": 37,
+  "continue_limit_each_seconds": 5,
+  "runtime_attempts": 1,
+  "read_authority": "Existing231-byte RAM span and named fields; exact5-byte entry code plus existing4/1/3helper spans; rawPC/DP, CC at guard only",
+  "stop": "First failure or missing coverage; no retries/extra stops/input/guest writes; no production/build/integration",
+  "next_role": "QA-reviewer after bounded observer implementation"
+}
