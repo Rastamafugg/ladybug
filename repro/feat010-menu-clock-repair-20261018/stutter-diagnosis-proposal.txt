@@ -14,7 +14,8 @@ Evidence baseline
 The frozen isolated candidate is the complete keyboard/adaptive/6809 ROM with
 SHA-256 2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c,
 receipt 6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4,
-and source repair commit 50c75644. MC-P passes compiled-source and fit checks.
+and source repair commit 50c75644. Its explicit profile is complete,
+keyboard-input, adaptive, CPU 6809. MC-P passes compiled-source and fit checks.
 The MC-M witness manual-witness-mcm-20261018.json confirms no-input stutter;
 it leaves input-correlated effects uncertain and does not report Options return
 or idle handoff. It is inconclusive for continuity and does not establish a
@@ -24,10 +25,12 @@ physical-CoCo evidence.
 Source supports several independent guest observations. FRAMES ($0002) is
 incremented by each Vbord in framebuffer_irq_impl. PRES_TIMER ($00B0) is the
 logical presentation timer. The Attract actor phase derives from
-(PRES_TIMER-6)>>3 modulo four; its natural visual sequence is 0,1,2,1, so
-phase 1 and phase 3 are pixel-identical and must not be counted as a skipped
-phase from image equality alone. The shared logo clock advances from FRAMES
-after 31 fields. At Vbord, FB_RENDER_PENDING means a back image is ready; only
+(PRES_TIMER-6)>>3 modulo four, with subphase (PRES_TIMER-6)&7. Normalize
+observations to this phase and subphase rather than comparing raw timer values.
+The natural visual sequence is 0,1,2,1, so phase 1 and phase 3 are
+pixel-identical and must not be counted as a skipped phase from image equality
+alone. The shared logo clock advances from FRAMES after 31 fields. At Vbord,
+FB_RENDER_PENDING means a back image is ready; only
 the IRQ publication path changes GIME_VOFF1 and FRONT/BACK ownership, clears
 PENDING, and increments FB_COMMIT_SEQ. FB_MISSED_COMMIT can increment when no
 ready back image exists during an otherwise idle interval; that counter alone
@@ -37,16 +40,24 @@ pixels that the display output presented.
 Recommended first stage: one no-input native trace
 
 Use the existing XRoar trace path, with no GDB and no -monitor in the same
-process. The first work is source/parser preparation only: resolve one
-Attract-update entry PC from the receipt-bound listing/map; specify how the
-trace lines identify FRAMES, PRES_TIMER-derived actor phase and IRQ publication;
-and establish from the exact compiled path whether the hard 32,768-instruction
-cap can contain a complete 32-logical-tick cycle. Do not guess an address or
-use a symbol until its current live instruction bytes match the current ROM.
-Do not increase the cap if the source path cannot establish this coverage. If
-the exact trigger and complete-cycle coverage cannot be established in this
-preparation, limit any later work to capability qualification; do not claim a
-phase-skip result. Runtime design is not Ready on current evidence.
+process. The first work is source/parser preparation only: bind the authored
+and staged source to the receipt; identify the Attract-update entry PC from the
+receipt-bound listing/map; and specify how trace lines identify FRAMES,
+PRES_TIMER-derived actor phase/subphase and IRQ publication. The exact method
+for collecting and comparing authored, staged and live instruction bytes is
+unresolved. A live-byte comparison is required before interpreting runtime
+symbols, but it cannot be a prelaunch check and no collection method is assumed
+here. Do not claim a trigger PC is qualified until that method and its result
+are recorded.
+
+The trace must contain at least 33 consecutive timer observations spanning 32
+timer advances, with the first observed timer t>=6, to cover a full normalized
+actor phase/subphase cycle. Whether that sample fits within the fixed
+32,768-instruction cap is a projection, not statically guaranteed. Do not
+increase the cap if it falls short. If source/parser preparation cannot
+establish the exact trigger, live-byte comparison method and sample extraction,
+limit any later work to capability qualification; do not claim a phase-skip
+result. Runtime design is not Ready on current evidence.
 
 Only after that preparation qualifies the trace boundary, the candidate runtime
 probe would start one trace at that PC, cap it at 32,768 guest instructions,
@@ -59,34 +70,39 @@ flush on every instruction perturbs host pacing, so its wall time and any
 frontend FPS are not pacing evidence.
 
 Provisional command form, not executable until the source/parser gate above
-passes; run from the frozen candidate directory:
+passes; run from the frozen candidate directory. The ROM remains the explicit
+complete/keyboard/adaptive/6809 artifact identified above; do not rebuild or
+change XRoar for this proposal:
 
-    timeout --signal=TERM --kill-after=2s 58s /usr/local/bin/xroar -ui null -ao null -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -trace-timing -trap pc=<receipt-mapped-Attract-update-PC> -trap-range 1 -trap-trace-n 32768 -trap-timeout 2 > /tmp/feat010-attract-stutter-noinput.trace 2>&1
+    timeout --signal=TERM --kill-after=2s 58s /mnt/e/projects/ladybug/docs/reference/xroar/src/xroar -ui null -ao null -machine coco3 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -cart-autorun -trace-timing -trap pc=<receipt-mapped-Attract-update-PC> -trap-range 1 -trap-trace-n 32768 -trap-timeout 2 > /tmp/feat010-attract-stutter-noinput.trace 2>&1
 
-Prerequisites are the exact ROM/receipt above, a verified current XRoar binary
-with the documented trap and trace options, a receipt-mapped trigger address,
-and a prelaunch source/staged/live byte comparison for the trapped code span.
-The 58-second host limit plus 2-second termination grace bounds this entire
-phase, including launch and cleanup. The trigger PC and trace boundary must be
-statically qualified before dispatch; this proposal does not claim they have
-been operationally qualified.
+The specified XRoar executable has expected SHA-256
+bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf. Verify
+that identity; no binary replacement or change is assumed. Other prerequisites
+are the exact ROM/receipt above, a receipt-mapped trigger address, and a
+qualified postlaunch method to collect and compare live bytes before symbol
+interpretation. The 58-second host limit plus 2-second termination grace
+bounds this entire phase, including launch and cleanup.
 
 Interpretation and stop rules
 
 The trace can establish guest-side relationships among elapsed event ticks,
 FRAMES, PRES_TIMER stores and derived actor phase, and IRQ publication events.
-It can show a guest logical-phase skip or a publication gap if a complete
-32-logical-tick sequence and its relevant IRQ work are present. It cannot
+It can show a guest logical-phase skip or a publication gap if at least 33
+consecutive timer observations spanning 32 advances, starting at t>=6, and the
+relevant IRQ work are present. It cannot
 establish frontend/display pacing or stale displayed-pixel replay: neither
 FRONT owner, PENDING, nor COMMIT_SEQ proves which pixels the host presented,
-and the existing screen_capture method belongs to the deferred private monitor
-stack. Do not add that method or use a GDB-stopped FRONT memory sample as a
-time-correlated display capture. If stale pixels remain plausible after this
-stage, report that classification unsupported and propose a separately
-approved, nonintrusive video/pixel observation.
+and this proposal has no qualified frontend pixel capture channel. Do not
+interpret a GDB-stopped FRONT memory sample as time-correlated display output.
+If stale pixels remain plausible after this stage, report that classification
+unsupported and propose a separately approved, nonintrusive video/pixel
+observation.
 
-Success marker for the diagnostic is a byte-qualified trace containing a full
-32-tick actor phase sequence plus the associated FRAMES and commit events.
+Success marker for the diagnostic is a byte-qualified trace containing at
+least 33 consecutive timer observations spanning 32 advances, starting at
+t>=6, normalized phase and subphase, plus the associated FRAMES and commit
+events.
 Anything shorter, an unexpected PC/byte span, trace truncation, wrong profile,
 missing marker, setup/observer error, or the 58+2-second timeout is missing
 coverage or observer failure, not a product failure and not evidence of slow
