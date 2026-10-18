@@ -1,0 +1,340 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import sys
+import time
+from pathlib import Path
+
+
+CASE = Path(__file__).resolve().parent
+REPO = CASE.parents[1]
+CANDIDATE = CASE / "candidate"
+BUILD = CANDIDATE / "build"
+BASELINE_A1 = REPO / "repro/feat010-attract-admission-repair-20261018/candidate"
+SOURCE_CARD = CASE / "clock-source-card.py.txt"
+POST_CARD = CASE / "clock-post-card.py.txt"
+RESULT = CASE / "post-relocation-qualification-result.json"
+LEGACY_POST_CARD_SHA256 = "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95"
+BASELINE_RECEIPT_SHA256 = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
+BASELINE_ROM_SHA256 = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
+OLD_PERIMETER_HELPER_SHA256 = "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde"
+CURRENT_PERIMETER_HELPER_SHA256 = "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"
+CURRENT_ROM_SHA256 = "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c"
+CURRENT_RECEIPT_SHA256 = "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4"
+LIMIT_SECONDS = 60
+STARTED = time.monotonic()
+
+PINNED_FILES = {
+    "clock-source-card.py.txt": "f32c1404bb0dc6088c7fa3b7ebbf1c869f88a24ae9eccca364291f08e021ba3f",
+    "source-card-result.json": "03a940d70e3d449a4e8a8996fb87e10f76cc13762a2ebec33b11b0f788bb308d",
+    "build-once.py.txt": "f4b6cdcf36ca7b79cc623e84aa4efadc68614b729dd763eb75582c26e3a2521e",
+    "build-result.json": "e6df7f8b95d4e91dc4c0c7e434dc70be85515b67ef37bd7858e2bfbe5b113dc3",
+    "build-attempt.json": "fdb655aad6429e7a075f9327423c81bba992a5df516c47e888a09c47687a0c6a",
+    "candidate-inputs.json": "562ff8969e885ddf389da93e637dab0ef73fcb49d209cf8e947e616d7db0407b",
+    "wiki-inputs.json": "a83a19ee66c0237d459e36f946501959e74ef53fc778b6a4fef63b5c5738f5b8",
+    "candidate/src/presentation_runtime.s": "10cdd089e0f993b474fdc08256ca4d1265d8052160d1d60904c21399b45b9506",
+    "candidate/src/shared_text_stage.inc": "d7f8474b06f86f98cccdfb6bc6f5370b49774cd7413dad099bae46587ef85633",
+    "candidate/src/perimeter_reset_helper.s": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "candidate/build/ladybug.rom": CURRENT_ROM_SHA256,
+    "candidate/build/source-build-receipt.json": CURRENT_RECEIPT_SHA256,
+    "post-execution-summary.json": "b200ef9a66db1b39847d1632b2ee495e0312985cfe0f23d7be6a357fdb51bbe2",
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise ValueError(message)
+
+
+def load_module(name: str, path: Path):
+    loader = importlib.machinery.SourceFileLoader(name, str(path))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    require(spec is not None, "could not create SourceFileLoader spec for " + name)
+    module = importlib.util.module_from_spec(spec)
+    previous = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous
+    return module
+
+
+def pinned_bytes(relative: str) -> bytes:
+    data = (CASE / relative).read_bytes()
+    require(sha(data) == PINNED_FILES[relative], "frozen artifact hash changed: " + relative)
+    return data
+
+
+def receipt_bound_bytes(root: Path, receipt: dict, name: str) -> bytes:
+    path = root / name
+    data = path.read_bytes()
+    require(receipt.get("artifacts", {}).get(name) == sha(data),
+            "compiled artifact is not receipt-bound: " + name)
+    return data
+
+
+def rejected(post_module, name: str, *args) -> bool:
+    try:
+        post_module.verify_perimeter_relocation(*args)
+    except (AssertionError, ValueError):
+        return True
+    return False
+
+
+def replace_listing_code(rows, address: int, code: bytes):
+    changed = []
+    matches = 0
+    for row_address, row_code, statement in rows:
+        if row_address == address:
+            changed.append((row_address, code, statement))
+            matches += 1
+        else:
+            changed.append((row_address, row_code, statement))
+    require(matches == 1, "fixture cannot find one unique perimeter JSR listing row")
+    return changed
+
+
+def qualify() -> dict:
+    post_module = load_module("feat010_post_relocation_card", POST_CARD)
+    source_module = load_module("feat010_clock_source_card", SOURCE_CARD)
+    post_hash = sha(POST_CARD.read_bytes())
+    source_hash = sha(pinned_bytes("clock-source-card.py.txt"))
+    source_result_bytes = pinned_bytes("source-card-result.json")
+    source_result = json.loads(source_result_bytes.decode("utf-8"))
+    wrapper_bytes = pinned_bytes("build-once.py.txt")
+    wrapper_hash = sha(wrapper_bytes)
+    build_result_bytes = pinned_bytes("build-result.json")
+    build_result = json.loads(build_result_bytes.decode("utf-8"))
+    build_attempt_bytes = pinned_bytes("build-attempt.json")
+    build_attempt = json.loads(build_attempt_bytes.decode("utf-8"))
+    projected_bytes = pinned_bytes("candidate-inputs.json")
+    wiki_bytes = pinned_bytes("wiki-inputs.json")
+    source_helper_bytes = pinned_bytes("candidate/src/perimeter_reset_helper.s")
+    rom = pinned_bytes("candidate/build/ladybug.rom")
+    receipt_bytes = pinned_bytes("candidate/build/source-build-receipt.json")
+    execution_summary_bytes = pinned_bytes("post-execution-summary.json")
+    current_receipt = json.loads(receipt_bytes.decode("utf-8"))
+
+    require(sha(SOURCE_CARD.read_bytes()) == source_hash
+            and source_result.get("card") == "MC-S"
+            and source_result.get("status") == "PASS SOURCE/ARITHMETIC; TARGET PENDING"
+            and source_result.get("source_card_sha256") == source_hash,
+            "frozen MC-S source/result binding is invalid")
+    require(source_result.get("parser_controls", {}).get("post_card_sha256")
+            == LEGACY_POST_CARD_SHA256,
+            "MC-S does not retain the original qualified post-card hash")
+    require(build_result.get("card") == "MC-B" and build_result.get("returncode") == 0
+            and build_result.get("timed_out") is False
+            and build_result.get("outcome") == "BUILD RETURNED ZERO; MC-P PENDING"
+            and build_result.get("post_card_sha256") == LEGACY_POST_CARD_SHA256
+            and build_result.get("wrapper_sha256") == wrapper_hash
+            and build_result.get("receipt_sha256") == sha(receipt_bytes)
+            and build_result.get("rom_sha256") == sha(rom)
+            and build_result.get("whole_phase_deadline_seconds") == 600
+            and build_result.get("child_deadline_seconds") == 595
+            and build_result.get("kill_grace_seconds") == 2
+            and 0 <= build_result.get("total_elapsed_seconds", 661) <= 660,
+            "frozen build result does not qualify the legacy post/source/guardian chain")
+    require(build_attempt.get("card") == "MC-B" and build_attempt.get("attempt") == 1
+            and build_attempt.get("wrapper_sha256") == wrapper_hash
+            and build_attempt.get("post_card_sha256") == LEGACY_POST_CARD_SHA256
+            and build_attempt.get("result_sha256") == sha(build_result_bytes),
+            "frozen build attempt does not bind the legacy post and build result")
+    require(current_receipt.get("state") == "complete"
+            and current_receipt.get("profile") == "complete"
+            and len(rom) == 65536
+            and sha(rom) == CURRENT_ROM_SHA256
+            and sha(receipt_bytes) == CURRENT_RECEIPT_SHA256,
+            "current ROM/receipt is not the approved complete build")
+    require(len(source_helper_bytes) > 0
+            and sha(projected_bytes) == PINNED_FILES["candidate-inputs.json"]
+            and sha(wiki_bytes) == PINNED_FILES["wiki-inputs.json"]
+            and len(execution_summary_bytes) > 0,
+            "frozen source/manifests or retained build summary changed")
+
+    baseline_receipt_path = BASELINE_A1 / "build" / "source-build-receipt.json"
+    baseline_receipt_bytes = baseline_receipt_path.read_bytes()
+    require(sha(baseline_receipt_bytes) == BASELINE_RECEIPT_SHA256,
+            "pinned A1 source-build receipt changed")
+    baseline_receipt = json.loads(baseline_receipt_bytes.decode("utf-8"))
+    require(baseline_receipt.get("state") == "complete"
+            and baseline_receipt.get("profile") == "complete",
+            "pinned A1 receipt is incomplete or wrong-profile")
+    old_helper = receipt_bound_bytes(
+        BASELINE_A1 / "build", baseline_receipt, "ladybug-perimeter-reset-helper.bin",
+    )
+    old_helper_map = receipt_bound_bytes(
+        BASELINE_A1 / "build", baseline_receipt, "ladybug-perimeter-reset-helper.map",
+    )
+    old_helper_listing = receipt_bound_bytes(
+        BASELINE_A1 / "build", baseline_receipt, "ladybug-perimeter-reset-helper.lst",
+    )
+    old_runtime_map = receipt_bound_bytes(
+        BASELINE_A1 / "build", baseline_receipt, "ladybug-presentation-runtime.map",
+    )
+    current_helper = receipt_bound_bytes(
+        BUILD, current_receipt, "ladybug-perimeter-reset-helper.bin",
+    )
+    current_helper_map = receipt_bound_bytes(
+        BUILD, current_receipt, "ladybug-perimeter-reset-helper.map",
+    )
+    current_helper_listing = receipt_bound_bytes(
+        BUILD, current_receipt, "ladybug-perimeter-reset-helper.lst",
+    )
+    current_runtime_map = receipt_bound_bytes(
+        BUILD, current_receipt, "ladybug-presentation-runtime.map",
+    )
+    require(len(old_helper) == len(current_helper) == 334
+            and sha(old_helper) == OLD_PERIMETER_HELPER_SHA256
+            and sha(current_helper) == CURRENT_PERIMETER_HELPER_SHA256,
+            "old/current perimeter helper byte pair differs from the diagnosed receipt-bound images")
+
+    old_helper_symbols = post_module.parse_symbols(old_helper_map.decode("utf-8"))
+    current_helper_symbols = post_module.parse_symbols(current_helper_map.decode("utf-8"))
+    old_runtime_symbols = post_module.parse_symbols(old_runtime_map.decode("utf-8"))
+    current_runtime_symbols = post_module.parse_symbols(current_runtime_map.decode("utf-8"))
+    old_rows = post_module.parse_listing(old_helper_listing.decode("utf-8"))
+    current_rows = post_module.parse_listing(current_helper_listing.decode("utf-8"))
+    relocation = post_module.verify_perimeter_relocation(
+        current_helper, old_helper,
+        current_helper_symbols, old_helper_symbols,
+        current_runtime_symbols, old_runtime_symbols,
+        current_rows, old_rows,
+    )
+    require(relocation.get("changed_binary_offsets") == [210]
+            and relocation.get("changed_cpu_addresses") == [0x0784]
+            and relocation.get("old_call_bytes") == "BD1C2A"
+            and relocation.get("current_call_bytes") == "BD1C2E",
+            "receipt-qualified pair differs from the approved exact relocation")
+
+    offset = post_module.PERIMETER_MAP_BACK_CALL - post_module.PERIMETER_HELPER_BASE
+    old_against_new = rejected(
+        post_module, "old operand against new target",
+        old_helper, old_helper,
+        current_helper_symbols, old_helper_symbols,
+        current_runtime_symbols, old_runtime_symbols,
+        current_rows, old_rows,
+    )
+    wrong_operand = bytearray(current_helper)
+    wrong_operand[offset + 2] ^= 1
+    wrong_target_rejected = rejected(
+        post_module, "wrong map-back target",
+        bytes(wrong_operand), old_helper,
+        current_helper_symbols, old_helper_symbols,
+        current_runtime_symbols, old_runtime_symbols,
+        current_rows, old_rows,
+    )
+    bad_opcode = bytearray(current_helper)
+    bad_opcode[offset] ^= 1
+    bad_opcode_rows = replace_listing_code(
+        current_rows, post_module.PERIMETER_MAP_BACK_CALL,
+        bytes(bad_opcode[offset:offset + 3]),
+    )
+    bad_opcode_rejected = rejected(
+        post_module, "changed JSR opcode",
+        bytes(bad_opcode), old_helper,
+        current_helper_symbols, old_helper_symbols,
+        current_runtime_symbols, old_runtime_symbols,
+        bad_opcode_rows, old_rows,
+    )
+    changed_nonoperand = bytearray(current_helper)
+    changed_nonoperand[0] ^= 1
+    nonoperand_rejected = rejected(
+        post_module, "changed non-operand byte",
+        bytes(changed_nonoperand), old_helper,
+        current_helper_symbols, old_helper_symbols,
+        current_runtime_symbols, old_runtime_symbols,
+        current_rows, old_rows,
+    )
+
+    parser_controls = source_module.parser_control_fixture()
+    parser_passed = (
+        parser_controls.get("post_card_sha256") == post_hash
+        and parser_controls.get("bad_origin_operand_rejected") is True
+        and parser_controls.get("bad_instruction_address_rejected") is True
+        and parser_controls.get("helper_over_cap_rejected") is True
+    )
+    menu_good = parser_controls.get("good_menu_fixture")
+    controls = {
+        "receipt_bound_current_pair_accepted": True,
+        "old_unrelocated_operand_rejected": old_against_new,
+        "wrong_target_rejected": wrong_target_rejected,
+        "changed_jsr_opcode_rejected": bad_opcode_rejected,
+        "changed_nonoperand_rejected": nonoperand_rejected,
+        "menu_parser_good_fixture_accepted": menu_good is not None,
+        "menu_parser_opcode_negative_rejected": parser_controls.get("bad_origin_operand_rejected") is True,
+        "menu_parser_address_negative_rejected": parser_controls.get("bad_instruction_address_rejected") is True,
+        "menu_parser_over_cap_negative_rejected": parser_controls.get("helper_over_cap_rejected") is True,
+    }
+    require(parser_passed and all(controls.values()),
+            "one or more exact-relocation/parser controls failed")
+    elapsed = round(time.monotonic() - STARTED, 3)
+    require(elapsed <= LIMIT_SECONDS, "post-relocation qualification exceeded its 60-second bound")
+
+    return {
+        "card": "MC-P-RELOCATION-QUAL",
+        "outcome": "PASS EXACT RELOCATION CONTROLS",
+        "legacy_post_card_sha256": LEGACY_POST_CARD_SHA256,
+        "current_post_card_sha256": post_hash,
+        "source_card_sha256": source_hash,
+        "source_result_sha256": sha(source_result_bytes),
+        "build_wrapper_sha256": wrapper_hash,
+        "build_attempt_sha256": sha(build_attempt_bytes),
+        "build_result_sha256": sha(build_result_bytes),
+        "candidate_manifest_sha256": sha(projected_bytes),
+        "wiki_manifest_sha256": sha(wiki_bytes),
+        "perimeter_helper_source_sha256": sha(source_helper_bytes),
+        "rom_sha256": sha(rom),
+        "receipt_sha256": sha(receipt_bytes),
+        "baseline_receipt_sha256": sha(baseline_receipt_bytes),
+        "baseline_perimeter_helper_sha256": sha(old_helper),
+        "current_perimeter_helper_sha256": sha(current_helper),
+        "perimeter_relocation": relocation,
+        "menu_parser_controls": {
+            "post_card_sha256": parser_controls["post_card_sha256"],
+            "good_menu_fixture": menu_good,
+            "bad_origin_operand_rejected": parser_controls["bad_origin_operand_rejected"],
+            "bad_instruction_address_rejected": parser_controls["bad_instruction_address_rejected"],
+            "helper_over_cap_rejected": parser_controls["helper_over_cap_rejected"],
+        },
+        "controls": controls,
+        "pure_controls_only": True,
+        "process_build_or_guest_invoked": False,
+        "duration_seconds": elapsed,
+        "whole_phase_limit_seconds": LIMIT_SECONDS,
+    }
+
+
+def main() -> None:
+    result = {
+        "card": "MC-P-RELOCATION-QUAL",
+        "outcome": "FAIL; STOP",
+        "pure_controls_only": True,
+        "process_build_or_guest_invoked": False,
+    }
+    try:
+        require(not RESULT.exists(),
+                "post-relocation qualification result already exists; reruns are prohibited")
+        result.update(qualify())
+    except Exception as error:
+        result["failure"] = "%s: %s" % (type(error).__name__, error)
+        result["duration_seconds"] = round(time.monotonic() - STARTED, 3)
+    if not RESULT.exists():
+        with RESULT.open("x", encoding="utf-8", newline="\n") as handle:
+            json.dump(result, handle, indent=2, sort_keys=True)
+            handle.write("\n")
+    print(json.dumps(result, indent=2, sort_keys=True))
+    if result.get("outcome") != "PASS EXACT RELOCATION CONTROLS":
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

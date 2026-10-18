@@ -19,10 +19,12 @@ SOURCE_RESULT = CASE / "source-card-result.json"
 ATTEMPT = CASE / "build-attempt.json"
 BUILD_RESULT = CASE / "build-result.json"
 BUILD_LOG = CASE / "build-first.log"
-RESULT = CASE / "post-card-result.json"
+RESULT = CASE / "post-relocation-result.json"
+QUALIFICATION_RESULT = CASE / "post-relocation-qualification-result.json"
 SOURCE_CARD = CASE / "clock-source-card.py.txt"
 BUILD_WRAPPER = CASE / "build-once.py.txt"
 BASELINE_A1 = REPO / "repro/feat010-attract-admission-repair-20261018/candidate"
+LEGACY_POST_CARD_SHA256 = "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95"
 BASELINE_MANIFEST_SHA256 = "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43"
 BASELINE_RECEIPT_SHA256 = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
 BASELINE_ROM_SHA256 = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
@@ -32,6 +34,9 @@ HELPER_BASE = 0xAC40
 HELPER_CAPACITY = 3136
 PERIMETER_HELPER_BASE = 0x06B2
 PERIMETER_HELPER_BYTES = 334
+PERIMETER_MAP_BACK_CALL = 0x0782
+BASELINE_MAP_BACK_ADDRESS = 0x1C2A
+CURRENT_MAP_BACK_ADDRESS = 0x1C2E
 PRESENTATION_BASE = 0x1900
 PRESENTATION_CAPACITY = 1280
 RESIDENT_LIMIT = 8160
@@ -357,6 +362,71 @@ def verify_runtime(rows: List[Tuple[int, bytes, str]], symbols: Dict[str, int], 
     }
 
 
+def verify_perimeter_relocation(
+        current: bytes, baseline: bytes,
+        current_helper_symbols: Dict[str, int], baseline_helper_symbols: Dict[str, int],
+        current_runtime_symbols: Dict[str, int], baseline_runtime_symbols: Dict[str, int],
+        current_rows: List[Tuple[int, bytes, str]],
+        baseline_rows: List[Tuple[int, bytes, str]]) -> Dict[str, object]:
+    require(len(current) == PERIMETER_HELPER_BYTES
+            and len(baseline) == PERIMETER_HELPER_BYTES,
+            "perimeter reset helper size differs from the receipt-qualified 334-byte pair")
+    old_targets = (
+        baseline_runtime_symbols.get("map_back"),
+        baseline_runtime_symbols.get("PRES_MODULE_MAP_BACK"),
+        baseline_helper_symbols.get("PRES_MODULE_MAP_BACK"),
+        baseline_helper_symbols.get("PRESENTATION_MODULE_MAP_BACK"),
+    )
+    new_targets = (
+        current_runtime_symbols.get("map_back"),
+        current_runtime_symbols.get("PRES_MODULE_MAP_BACK"),
+        current_helper_symbols.get("PRES_MODULE_MAP_BACK"),
+        current_helper_symbols.get("PRESENTATION_MODULE_MAP_BACK"),
+    )
+    require(all(value == BASELINE_MAP_BACK_ADDRESS for value in old_targets),
+            "receipt-qualified A1 presentation/helper map-back aliases disagree")
+    require(all(value == CURRENT_MAP_BACK_ADDRESS for value in new_targets),
+            "receipt-qualified current presentation/helper map-back aliases disagree")
+
+    offset = PERIMETER_MAP_BACK_CALL - PERIMETER_HELPER_BASE
+    require(offset >= 0 and offset + 3 <= len(current),
+            "map-back JSR lies outside the packaged perimeter helper")
+    old_call = baseline[offset:offset + 3]
+    new_call = current[offset:offset + 3]
+    old_row = row_at(baseline_rows, PERIMETER_MAP_BACK_CALL, "jsr PRESENTATION_MODULE_MAP_BACK")
+    new_row = row_at(current_rows, PERIMETER_MAP_BACK_CALL, "jsr PRESENTATION_MODULE_MAP_BACK")
+    old_operand = BASELINE_MAP_BACK_ADDRESS.to_bytes(2, "big")
+    new_operand = CURRENT_MAP_BACK_ADDRESS.to_bytes(2, "big")
+    require(old_call[0] == 0xBD and old_call[1:] == old_operand,
+            "A1 perimeter JSR opcode/operand differs from its qualified map target")
+    require(new_call[0] == 0xBD and new_call[1:] == new_operand,
+            "current perimeter JSR opcode/operand differs from its qualified map target")
+    require(old_row[1] == old_call and new_row[1] == new_call,
+            "receipt-qualified perimeter listings differ from helper bytes")
+
+    rebound = bytearray(baseline)
+    rebound[offset + 1:offset + 3] = new_operand
+    require(bytes(rebound) == current,
+            "perimeter helper differs outside the approved map-back JSR operand")
+    changed_offsets = [index for index, pair in enumerate(zip(baseline, current))
+                       if pair[0] != pair[1]]
+    require(changed_offsets == [offset + 2],
+            "perimeter helper changed outside the exact $0784 low-byte fixup")
+    return {
+        "baseline_bytes": len(baseline),
+        "current_bytes": len(current),
+        "call_address": PERIMETER_MAP_BACK_CALL,
+        "call_offset": offset,
+        "old_target": BASELINE_MAP_BACK_ADDRESS,
+        "current_target": CURRENT_MAP_BACK_ADDRESS,
+        "old_call_bytes": old_call.hex().upper(),
+        "current_call_bytes": new_call.hex().upper(),
+        "changed_binary_offsets": changed_offsets,
+        "changed_cpu_addresses": [PERIMETER_HELPER_BASE + item for item in changed_offsets],
+        "only_two_byte_operand_rebound": True,
+    }
+
+
 def main() -> None:
     result = {"card": "MC-P", "outcome": "FAILED; STOP"}
     try:
@@ -371,17 +441,52 @@ def main() -> None:
         source_hash = sha(SOURCE_CARD.read_bytes())
         post_hash = sha(Path(__file__).read_bytes())
         wrapper_hash = sha(BUILD_WRAPPER.read_bytes())
+        qualification_bytes = QUALIFICATION_RESULT.read_bytes()
+        qualification = json.loads(qualification_bytes.decode("utf-8"))
+        qualification_controls = qualification.get("controls", {})
+        required_qualification_controls = (
+            "receipt_bound_current_pair_accepted",
+            "old_unrelocated_operand_rejected",
+            "wrong_target_rejected",
+            "changed_jsr_opcode_rejected",
+            "changed_nonoperand_rejected",
+            "menu_parser_good_fixture_accepted",
+            "menu_parser_opcode_negative_rejected",
+            "menu_parser_address_negative_rejected",
+            "menu_parser_over_cap_negative_rejected",
+        )
+        menu_controls = qualification.get("menu_parser_controls", {})
+
+        require(qualification.get("card") == "MC-P-RELOCATION-QUAL"
+                and qualification.get("outcome") == "PASS EXACT RELOCATION CONTROLS"
+                and all(qualification_controls.get(name) is True
+                        for name in required_qualification_controls)
+                and menu_controls.get("post_card_sha256") == post_hash
+                and menu_controls.get("good_menu_fixture") is not None
+                and menu_controls.get("bad_origin_operand_rejected") is True
+                and menu_controls.get("bad_instruction_address_rejected") is True
+                and menu_controls.get("helper_over_cap_rejected") is True
+                and qualification.get("legacy_post_card_sha256") == LEGACY_POST_CARD_SHA256
+                and qualification.get("current_post_card_sha256") == post_hash
+                and qualification.get("source_card_sha256") == source_hash
+                and qualification.get("source_result_sha256") == sha(source_bytes)
+                and qualification.get("build_wrapper_sha256") == wrapper_hash
+                and qualification.get("candidate_manifest_sha256") == sha(PROJECTED.read_bytes())
+                and qualification.get("wiki_manifest_sha256") == sha(WIKI.read_bytes())
+                and qualification.get("perimeter_helper_source_sha256")
+                == sha((CANDIDATE / "src" / "perimeter_reset_helper.s").read_bytes()),
+                "post-relocation qualification does not bridge the frozen legacy/source/guardian hashes")
 
         require(source_result.get("card") == "MC-S"
                 and source_result.get("status") == "PASS SOURCE/ARITHMETIC; TARGET PENDING"
                 and source_result.get("source_card_sha256") == source_hash,
                 "passing MC-S result does not bind the current source card")
         controls = source_result.get("parser_controls", {})
-        require(controls.get("post_card_sha256") == post_hash
+        require(controls.get("post_card_sha256") == LEGACY_POST_CARD_SHA256
                 and controls.get("bad_origin_operand_rejected") is True
                 and controls.get("bad_instruction_address_rejected") is True
                 and controls.get("helper_over_cap_rejected") is True,
-                "MC-S did not qualify current MC-P parser controls before the build")
+                "legacy MC-S result does not retain its qualified predecessor parser controls")
         require(source_result.get("baseline_manifest_sha256") == BASELINE_MANIFEST_SHA256
                 and source_result.get("baseline_receipt_sha256") == BASELINE_RECEIPT_SHA256
                 and source_result.get("baseline_rom_sha256") == BASELINE_ROM_SHA256,
@@ -419,8 +524,12 @@ def main() -> None:
                 and attempt.get("source_card_sha256") == source_hash == build_result.get("source_card_sha256")
                 and attempt.get("source_result_sha256") == sha(source_bytes)
                 == build_result.get("source_result_sha256")
-                and attempt.get("post_card_sha256") == post_hash == build_result.get("post_card_sha256"),
-                "MC-B source, MC-S result, post-card, or wrapper hash chain is incomplete")
+                and attempt.get("post_card_sha256") == LEGACY_POST_CARD_SHA256
+                == build_result.get("post_card_sha256"),
+                "MC-B source, MC-S result, legacy post-card, or wrapper hash chain is incomplete")
+        require(qualification.get("build_attempt_sha256") == sha(attempt_bytes)
+                and qualification.get("build_result_sha256") == sha(build_bytes),
+                "post-relocation qualification does not bind the frozen build records")
         require(attempt.get("profile") == PROFILE == build_result.get("profile")
                 and attempt.get("candidate_input_count") == SOURCE_COUNT
                 and attempt.get("candidate_wiki_inventory_sha256") == wiki_hash
@@ -443,11 +552,15 @@ def main() -> None:
                 and receipt.get("state") == "complete" and receipt.get("profile") == "complete"
                 and receipt.get("inputs") == actual_inputs,
                 "compiled receipt is incomplete, wrong-profile, or stale against candidate sources")
+        require(qualification.get("receipt_sha256") == sha(receipt_bytes),
+                "post-relocation qualification receipt hash differs from the completed build")
         artifacts = receipt.get("artifacts", {})
 
         baseline_receipt_bytes = (BASELINE_A1 / "build" / "source-build-receipt.json").read_bytes()
         require(sha(baseline_receipt_bytes) == BASELINE_RECEIPT_SHA256,
                 "pinned A1 source-build receipt changed")
+        require(qualification.get("baseline_receipt_sha256") == sha(baseline_receipt_bytes),
+                "post-relocation qualification baseline receipt hash differs from A1")
         baseline_receipt = json.loads(baseline_receipt_bytes.decode("utf-8"))
         baseline_helper = (BASELINE_A1 / "build" / "ladybug-highscore-helper.bin").read_bytes()
         baseline_runtime = (BASELINE_A1 / "build" / "ladybug-presentation-runtime.bin").read_bytes()
@@ -461,6 +574,8 @@ def main() -> None:
         require(len(rom) == 65536 and artifacts.get(rom_path.name) == sha(rom)
                 and build_result.get("rom_sha256") == sha(rom),
                 "packaged 64-KiB ROM differs from receipt/build result")
+        require(qualification.get("rom_sha256") == sha(rom),
+                "post-relocation qualification ROM hash differs from the completed build")
 
         helper_path = BUILD / "ladybug-highscore-helper.bin"
         helper_map_path = BUILD / "ladybug-highscore-helper.map"
@@ -484,25 +599,58 @@ def main() -> None:
         verify_image_rows(helper, HELPER_BASE, helper_rows, menu_selected)
         perimeter_path = BUILD / "ladybug-perimeter-reset-helper.bin"
         perimeter = perimeter_path.read_bytes()
-        baseline_perimeter = (BASELINE_A1 / "build" / perimeter_path.name).read_bytes()
-        require(len(perimeter) == PERIMETER_HELPER_BYTES
-                and sha(perimeter) == sha(baseline_perimeter)
-                and artifacts.get(perimeter_path.name) == sha(perimeter),
-                "unchanged actor reset helper differs from receipt-bound A1 334-byte image")
+        perimeter_map_path = BUILD / "ladybug-perimeter-reset-helper.map"
+        perimeter_listing_path = BUILD / "ladybug-perimeter-reset-helper.lst"
+        perimeter_map_bytes = perimeter_map_path.read_bytes()
+        perimeter_listing_bytes = perimeter_listing_path.read_bytes()
+        require(artifacts.get(perimeter_path.name) == sha(perimeter)
+                and artifacts.get(perimeter_map_path.name) == sha(perimeter_map_bytes)
+                and artifacts.get(perimeter_listing_path.name) == sha(perimeter_listing_bytes),
+                "current perimeter helper binary/map/listing are not receipt-bound")
+        baseline_build = BASELINE_A1 / "build"
+        baseline_perimeter = (baseline_build / perimeter_path.name).read_bytes()
+        baseline_perimeter_map_path = baseline_build / perimeter_map_path.name
+        baseline_perimeter_listing_path = baseline_build / perimeter_listing_path.name
+        baseline_perimeter_map_bytes = baseline_perimeter_map_path.read_bytes()
+        baseline_perimeter_listing_bytes = baseline_perimeter_listing_path.read_bytes()
+        baseline_artifacts = baseline_receipt.get("artifacts", {})
+        require(baseline_artifacts.get(perimeter_path.name) == sha(baseline_perimeter)
+                and baseline_artifacts.get(perimeter_map_path.name) == sha(baseline_perimeter_map_bytes)
+                and baseline_artifacts.get(perimeter_listing_path.name) == sha(baseline_perimeter_listing_bytes),
+                "A1 perimeter helper binary/map/listing are not baseline-receipt-bound")
 
         runtime_path = BUILD / "ladybug-presentation-runtime.bin"
         runtime_map_path = BUILD / "ladybug-presentation-runtime.map"
         runtime_listing_path = BUILD / "ladybug-presentation-runtime.lst"
-        runtime, runtime_map_bytes, runtime_listing_bytes = (runtime_path.read_bytes(), runtime_map_path.read_bytes(),
-                                                              runtime_listing_path.read_bytes())
+        runtime = runtime_path.read_bytes()
+        runtime_map_bytes = runtime_map_path.read_bytes()
+        runtime_listing_bytes = runtime_listing_path.read_bytes()
+        baseline_runtime_map_path = baseline_build / runtime_map_path.name
+        baseline_runtime_map_bytes = baseline_runtime_map_path.read_bytes()
         require(0 < len(runtime) <= PRESENTATION_CAPACITY
                 and artifacts.get(runtime_path.name) == sha(runtime)
                 and artifacts.get(runtime_map_path.name) == sha(runtime_map_bytes)
-                and artifacts.get(runtime_listing_path.name) == sha(runtime_listing_bytes),
+                and artifacts.get(runtime_listing_path.name) == sha(runtime_listing_bytes)
+                and baseline_artifacts.get(runtime_map_path.name) == sha(baseline_runtime_map_bytes),
                 "presentation runtime differs from projected 1,279/1,280-byte fit")
         runtime_symbols = parse_symbols(runtime_map_bytes.decode("utf-8"))
+        baseline_runtime_symbols = parse_symbols(baseline_runtime_map_bytes.decode("utf-8"))
         runtime_rows = parse_listing(runtime_listing_bytes.decode("utf-8"))
         runtime_result = verify_runtime(runtime_rows, runtime_symbols, runtime)
+        perimeter_symbols = parse_symbols(perimeter_map_bytes.decode("utf-8"))
+        baseline_perimeter_symbols = parse_symbols(baseline_perimeter_map_bytes.decode("utf-8"))
+        perimeter_rows = parse_listing(perimeter_listing_bytes.decode("utf-8"))
+        baseline_perimeter_rows = parse_listing(baseline_perimeter_listing_bytes.decode("utf-8"))
+        perimeter_relocation = verify_perimeter_relocation(
+            perimeter, baseline_perimeter,
+            perimeter_symbols, baseline_perimeter_symbols,
+            runtime_symbols, baseline_runtime_symbols,
+            perimeter_rows, baseline_perimeter_rows,
+        )
+        require(qualification.get("current_perimeter_helper_sha256") == sha(perimeter)
+                and qualification.get("baseline_perimeter_helper_sha256") == sha(baseline_perimeter)
+                and qualification.get("perimeter_relocation") == perimeter_relocation,
+                "post-relocation qualification does not match the receipt-bound exact helper fixup")
 
         main_map_bytes = (BUILD / "ladybug.map").read_bytes()
         main_symbols = parse_symbols(main_map_bytes.decode("utf-8"))
@@ -532,6 +680,8 @@ def main() -> None:
             "source_card_sha256": source_hash,
             "source_result_sha256": sha(source_bytes),
             "post_card_sha256": post_hash,
+            "legacy_post_card_sha256": LEGACY_POST_CARD_SHA256,
+            "post_relocation_qualification_sha256": sha(qualification_bytes),
             "build_wrapper_sha256": wrapper_hash,
             "build_result_sha256": sha(build_bytes),
             "receipt_sha256": sha(receipt_bytes),
@@ -546,7 +696,8 @@ def main() -> None:
             "page23_helper_projection_delta": len(helper) - 3085,
             "page23_menu": menu,
             "perimeter_actor_helper_bytes": len(perimeter),
-            "perimeter_actor_helper_matches_a1": True,
+            "perimeter_actor_helper_matches_a1_except_exact_map_fixup": True,
+            "perimeter_actor_helper_relocation": perimeter_relocation,
             "presentation_runtime_bytes_of_cap": "%d/%d" % (len(runtime), PRESENTATION_CAPACITY),
             "presentation_runtime_baseline_bytes": len(baseline_runtime),
             "presentation_runtime_size_delta": len(runtime) - len(baseline_runtime),
