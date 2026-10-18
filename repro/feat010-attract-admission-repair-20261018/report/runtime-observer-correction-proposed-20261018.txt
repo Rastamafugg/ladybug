@@ -1,0 +1,49 @@
+FEAT-010 A1-R pre-launch observer correction
+Date: 2026-10-18
+Status: bounded approval brief; no correction or execution performed by this worker
+Cost class: Compact for this observer-only correction because the import failure is confirmed, future annotations are an existing compatibility pattern, the change is limited to two observer files, and no runtime ownership is added. The enclosing FEAT-010 persistent-publication diagnosis remains High-risk.
+
+Decision requested
+
+Approve one compatibility-only correction to the two A1-R observer files, one bounded observer-compatibility preflight, and one corrected attempt under the existing A1-R card. This is a deterministic rerun after a mechanically identified pre-launch setup failure; the ROM, retained plan, live-read authority, A1-R assertions, 45-second deadline, three stops, and no-input condition remain unchanged. Parent review and user approval precede any correction or rerun.
+
+Observed failure and classification
+
+The retained A1-R result is runtime-result.json. The controller records launch_attempted=true, zero stops, zero GDB calls, no target result, and a launch command exit code of 1 after 4.429 seconds. WSL Python 3.8.10 raises TypeError while defining verify_inputs because it evaluates tuple[dict, dict, list[str]] at module import. The failure occurs before the guard's main function, preflight, port check, child creation, XRoar launch, GDB attach, or guest access.
+
+Parent records that no probe-attempt, probe-launch, probe-driver, or XRoar log was created; the only probe-named file created was probe-cleanup-request. Port 65521 had no listener after the attempt, and the GDB session was stopped. The raw controller label “CLEANUP INCOMPLETE; STOP” is misleading for this evidence. Classify this result as “PRE-LAUNCH OBSERVER/SETUP FAILURE; STOP”: the target was not entered, no product assertion was evaluated, and no cleanup of an XRoar process was required. Preserve runtime-result.json and probe-cleanup-request unchanged as failed-attempt evidence.
+
+The compatibility failure escaped the earlier Windows ast.parse check because parsing does not evaluate the annotation under the actual WSL interpreter. The supported target for the preflight is the installed WSL Python 3.8.10.
+
+Bounded correction
+
+Change only runtime-launch-guard.py.txt and runtime-command.js.txt. In the guard, add from __future__ import annotations after its module docstring and before other imports, so Python 3.8 does not evaluate the built-in generic alias at function definition. In the controller and guard, bind all renewed-attempt output paths to the following new literal names; do not delete, overwrite, or reuse prior attempt artifacts:
+
+- probe-attempt-a1r-correction-20261018.json
+- probe-launch-a1r-correction-20261018.json
+- probe-cleanup-a1r-correction-20261018.json
+- probe-cleanup-request-a1r-correction-20261018
+- probe-driver-a1r-correction-20261018.log
+- probe-xroar-a1r-correction-20261018.log
+
+The child preflight must allow only its new exclusively-created driver log to exist when it revalidates inputs. It must continue rejecting stale attempt, launch, cleanup, cleanup-request, and XRoar-log artifacts with the new names. The parent records the next audit separately as runtime-result-a1r-correction-20261018.json. Do not change the plan builder, runtime plan, parser, ROM, receipt, source, source-card, production tree, or wiki. Do not add a transport, runner framework, new live read, retry path, or broader cleanup ownership.
+
+Observer compatibility preflight
+
+Before a target attempt, run one actual-WSL-Python 3.8.10 import-only qualification with a 60-second whole-phase cap. Use the previous observer source at commit 10adce56 as the known-bad fixture: module definition/import must reject it with the Python 3.8 TypeError. The corrected good source is held in memory for the positive fixture and must import successfully with __name__ set to a non-__main__ value. The fixture must not call main, verify_inputs, port inspection, or any XRoar/GDB function; it must not launch processes or access guest memory. This is observer setup qualification, not a product gate or target observation. The parent freezes the exact one-line WSL command and retains only concise pass/fail output and hashes.
+
+Expected outcome: the known-bad fixture rejects, the in-memory corrected module imports under the actual interpreter, and no external process/session/port interaction occurs. Any unexpected import result, module side effect, or timeout stops the sequence; no retry.
+
+One corrected A1-R attempt
+
+Only after parent review of the two-file correction and a passing compatibility preflight, the parent may dispatch exactly one corrected attempt against the same A1-P ROM and retained plan SHA-256 951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b. No plan regeneration or target/read-authority change is included.
+
+The existing card remains controlling: one natural no-input run, three unconditional one-shot stops at $078E, $07E3, and $0792; at most three continues of five seconds each; 45 seconds for the entire phase including session and owned-process cleanup, with cleanup beginning by second 37. Use only the already approved code spans, raw PC/DP and first-stop CC, and fixed x/231xb 0x0002 state span. Match source/staged/live bytes before interpreting PC/DP/CC. Require first-stop CC.Z=0 and capture P0; require phase=P0 at the byte-qualified RTS destination; require PENDING=0 and the compiled timer-derived phase at the prepare JSR. The existing per-call timeout admission, exact-PID/executable/argv/start-time cleanup, and preservation of manual PID 861 remain in force.
+
+Success measurement: all three approved stop assertions pass and owned cleanup is recorded within the 45-second phase, with cleanup initiated by second 37. First mismatch, command/import error, identity mismatch, missing marker, timeout, occupied port, or exhausted call budget ends the single attempt at the last proven marker. A missing marker is incomplete coverage, not a product pass. No second attempt is authorized here.
+
+Scope and dependencies
+
+The baseline is the unchanged A1-P ROM and plan described above. The correction target is Python 3.8 guard import compatibility plus attempt-artifact isolation; it is not a game-code change. Expected outcome is that the already-approved observer can reach the same three-stop card without changing what it measures. The added correction risk is a remaining setup incompatibility or mismatched output path; the compatibility preflight and one-shot filenames are intended to expose those before target observation. Existing product and runtime-path risks are unchanged: the target path remains unmeasured, A1-R assertions may fail or lack coverage, and this observer correction does not establish or reduce the broader persistent-publication risk.
+
+A1-M manual observation, the separate A2 selection-rollback cause, any shared-cause diagnosis, production changes, rebuild, parser/builder changes, and broader integration are excluded. Parent owns correction review, compatibility-preflight command freeze and execution, Ready metadata, any permitted runtime dispatch, evidence retention, and integration. This brief authorizes no implementation or execution by its writer.
