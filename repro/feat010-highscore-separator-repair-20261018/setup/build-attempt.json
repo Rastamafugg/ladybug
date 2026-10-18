@@ -1,0 +1,42 @@
+{
+  "card": "SEP-B",
+  "attempt": 1,
+  "started_utc": "2026-10-18T09:50:37.481438+00:00",
+  "candidate": "repro/feat010-highscore-separator-repair-20261018/candidate-clean",
+  "baseline_rom_sha256": "6ad54f6a7b784909591b507651e87a609475ce4f0a4987783194f275db07d33f",
+  "projected_source_sha256": "28e1ec3d30275d45aecee5597af1cab97633741ed5cae5678567df47c88a3375",
+  "candidate_input_count": 266,
+  "candidate_wiki_inventory_sha256": "c702a3fcea325cacef347117ee2b5eb5fe8ef0fab043c7eb69226c6fe4acf0ce",
+  "wrapper_sha256": "94b9aeb4931cd2b666c4c3ad5975595c0d03f8344cfc1c2db9f27f89c94df184",
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug/repro/feat010-highscore-separator-repair-20261018/candidate-clean",
+    "--exec",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "595s",
+    "env",
+    "LADYBUG_PROFILE=complete",
+    "LADYBUG_INPUT=keyboard",
+    "LADYBUG_CPU=6809",
+    "LADYBUG_ADAPTIVE=1",
+    "bash",
+    "scripts/build.sh",
+    "build"
+  ],
+  "profile": {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1"
+  },
+  "child_deadline_seconds": 595,
+  "kill_grace_seconds": 2,
+  "whole_phase_deadline_seconds": 600,
+  "result": "BUILD RETURNED ZERO; SEP-P PENDING",
+  "result_sha256": "bf91f89f78745295d184892bb3bb1b8d7a2f2907e3612d04da1febcd18efd4fd"
+}

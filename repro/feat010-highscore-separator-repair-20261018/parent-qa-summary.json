@@ -1,0 +1,64 @@
+{
+  "ticket": "FEAT-010",
+  "step": "approved one-file blank-separator repair",
+  "class": "High-risk",
+  "source_commit": "5d088e92bae3546f4084df9bf325dde2bd3c81ba",
+  "setup_commit": "9de49f1b4cd74afb6f131a36a3d2cb632cb2a926",
+  "qa_verdict": "Isolated source/build/compiled acceptance pass; natural manual acceptance pending; no root/combined integration",
+  "revision_artifacts": {
+    "rom_sha256": "591e8e520dc356dfdd6c71b5e3b0f283a97b321591edb33187c23de0fa666af6",
+    "receipt_sha256": "b95bb8de0d67398a23f8b5c437549c7152209daa00b2407f750696922cc81ea4",
+    "source_sha256": "28e1ec3d30275d45aecee5597af1cab97633741ed5cae5678567df47c88a3375"
+  },
+  "measured_seconds": {
+    "SEP-S": 0.7629515999997238,
+    "SEP-B": 340.156,
+    "SEP-P": 0.44282370000019
+  },
+  "maximum_seconds": {
+    "SEP-S": 60,
+    "SEP-B": 600,
+    "SEP-P": 60
+  },
+  "measured_schedule": {
+    "jobs": 18,
+    "separator_row5_jobs": 0,
+    "unique_records": 9,
+    "all_remaining_thresholds_and_rank_fields": "unchanged"
+  },
+  "measured_capacity_bytes": {
+    "helper_used": 3070,
+    "helper_limit": 3136,
+    "helper_free": 66,
+    "helper_baseline_used": 3084,
+    "helper_recovered": 14,
+    "resident_used": 8088,
+    "resident_limit": 8192,
+    "resident_free": 104,
+    "resident_free_target_minimum": 32,
+    "assets_used": 7649,
+    "assets_limit": 7680,
+    "presentation_used": 1280,
+    "presentation_limit": 1280
+  },
+  "manual": {
+    "card": "SEP-M",
+    "launched_pid": 675,
+    "rom_sha256": "591e8e520dc356dfdd6c71b5e3b0f283a97b321591edb33187c23de0fa666af6",
+    "debugger": false,
+    "automatic_closure": false,
+    "result": "pending user report"
+  },
+  "rejected_runtime_probes": 0,
+  "failed_gating_attempts": 0,
+  "setup_findings": [
+    "Tree copy included18generated caches; two deletion actions blocked by automatic review with no specific reason beyond blocked by policy; prior copy retained, no further deletion. Clean manifest-only fixture used.",
+    "Independent pre-build source review initially used a CRLF literal; raw LF source inspected and exact84-byte deletion confirmed. No gate ran or production source changed during that correction."
+  ],
+  "residual_risks": [
+    "Natural manual separator and prior corrections not yet reported on newROM",
+    "Generator/test-profile duplicated-layout discrepancy explicitly excluded",
+    "Root and combined joystick integration not performed",
+    "Attract stutter and selection rollback separate and unresolved"
+  ]
+}
