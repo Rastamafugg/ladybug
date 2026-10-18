@@ -1,0 +1,37 @@
+FEAT-010 A1 source-only implementation
+Date: 2026-10-18
+Status: approved one-file source edit applied; one-build review pending
+
+Prerequisite
+
+The canonical FEAT-010 implementation-ready record authorizes this one-file
+source step. Parent A1-S evidence records one attempt, return code 0, no timeout,
+PASS in 0.1987477 seconds against the 60-second limit. The frozen known-bad
+source/helper and both guard-order negative controls were rejected. The exact
+source projection and 334-byte in-memory helper passed through the shared
+decoder.
+
+Change
+
+Applied setup/source-card.py.txt's projected_source function to
+candidate/src/perimeter_reset_helper.s. The edit changes the overlay call from
+LBSR to BSR and inserts the adjacent TST PENDING / BNE pao_done guard before
+pao_phase_change, the PRES_ACTOR_PHASE store, and the framebuffer prepare call.
+The candidate helper SHA-256 is
+a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c, matching the
+approved projected-input manifest exactly.
+
+Source closure verification found 266/266 candidate inputs equal the projected
+manifest, all other 265 source-input hashes unchanged from the frozen baseline,
+and all 379 wiki-file hashes unchanged. The candidate still has no build/ or
+.git directory. No build, assembler, gate rerun, GDB, emulator or runtime was
+run. No production-tree source or wiki file was changed.
+
+The source retains the frozen file's mixed CRLF/LF bytes. Git diff --check
+reports the CR terminators as trailing whitespace because candidate/** is
+marked -text; the file is kept byte-exact to preserve the approved projection
+hash. No source whitespace was normalized.
+
+Parent owns the single approved 600-second build and A1-P review. This report
+does not claim compiled or runtime acceptance. The implementation commit
+contains only this report and the candidate helper source file.
