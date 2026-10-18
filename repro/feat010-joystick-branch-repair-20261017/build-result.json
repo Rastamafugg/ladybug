@@ -1,0 +1,41 @@
+{
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug/repro/feat010-joystick-branch-repair-20261017/candidate",
+    "--exec",
+    "timeout",
+    "--kill-after=2s",
+    "595s",
+    "env",
+    "LADYBUG_PROFILE=complete",
+    "LADYBUG_INPUT=joystick",
+    "LADYBUG_CPU=6809",
+    "LADYBUG_ADAPTIVE=1",
+    "bash",
+    "scripts/build.sh",
+    "build"
+  ],
+  "limit_seconds": 600,
+  "deadline_terminates_build_seconds": 595,
+  "kill_grace_seconds": 2,
+  "attempt_count": 1,
+  "outcome": "BUILD RETURNED ZERO; PARENT ACCEPTANCE PENDING",
+  "returncode": 0,
+  "elapsed_seconds": 397.6484689000001,
+  "log_sha256": "20da272eedf059fc03f74d60d8cc7e1c03b27ab4c1a5892577e1a77096e15cbb",
+  "ladybug.rom": {
+    "sha256": "c4a496e029dc9a1ed4f96fc25c35da642c28312e76b70b386c653862e05fdc29",
+    "bytes": 65536
+  },
+  "source-build-receipt.json": {
+    "sha256": "8e515c6591058fc18396ef540c329ab4692ff510744ddff13a07b9b03fa61944",
+    "bytes": 56669
+  },
+  "ladybug-keybinding-runtime.lst": {
+    "sha256": "7e037247e930582e842ab0330c042b322c91869d9534497204ad4f92d784a40d",
+    "bytes": 81913
+  }
+}

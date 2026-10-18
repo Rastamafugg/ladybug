@@ -1,0 +1,110 @@
+const plan = load('attractPlan');
+const session = '2d9a4588';
+const work = 'E:/projects/ladybug/repro/feat010-attract-next-diagnosis-20261017';
+const audit = {card: 'Approved Attract pending-admission diagnostic', stops: [], last_proven_marker: 'none', target_path_prequalified: false};
+const started = Date.now();
+function fail(message, kind = 'OBSERVER FAILURE; STOP') {
+  const error = new Error(message); error.kind = kind; throw error;
+}
+function outputs(result) {
+  if (result.isError) { audit.failure_tool_result = result; fail('GDB tool error'); }
+  const rows = result.structuredContent?.result ?? result.content.filter(c => c.type === 'text').map(c => JSON.parse(c.text));
+  if (!Array.isArray(rows) || rows.some(r => r.error)) { audit.failure_tool_result = result; fail('GDB command error'); }
+  return rows;
+}
+function memory(output, start, length) {
+  const found = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s*0x([0-9a-f]+)(?:\s+<[^>]*>)?:\s*(.*)$/i);
+    if (!match) continue;
+    if (parseInt(match[1], 16) !== start + found.length) fail('Noncontiguous memory dump');
+    found.push(...[...match[2].matchAll(/\b0x([0-9a-f]{2})\b/gi)].map(m => parseInt(m[1], 16)));
+  }
+  if (found.length !== length) fail('Memory dump length differs from approved span');
+  return found;
+}
+function fields(bytes) {
+  const values = {};
+  for (const field of plan.state_read.report_fields) {
+    const match = field.match(/^(.*) ([0-9a-f]{4})(?:-([0-9a-f]{4}))?$/i);
+    if (!match) fail('Malformed frozen state field');
+    const first = parseInt(match[2], 16), last = parseInt(match[3] ?? match[2], 16);
+    if (first < 2 || last > 0xe8 || last < first) fail('State field outside approved RAM span');
+    let value = 0;
+    for (let address = first; address <= last; address++) value = value * 256 + bytes[address - 2];
+    values[match[1]] = value;
+  }
+  if (![0, 1].includes(values.FB_BACK_ID)) fail('Unexpected framebuffer ID');
+  values.selected_BACK_logo_cache = values.FB_BACK_ID === 0 ? values['logo cache A'] : values['logo cache B'];
+  return values;
+}
+async function batch(commands) {
+  // A first command timeout may add five seconds of native prompt recovery.
+  if (Date.now() - started > 27000) fail('Insufficient time for next bounded call and cleanup', 'INCOMPLETE DEADLINE BOUNDARY; STOP');
+  const result = await tools.mcp__gdb_mcp__batch_commands({session_id: session, commands, timeout: 5, stop_on_error: true});
+  audit.last_tool_result = result;
+  return outputs(result);
+}
+try {
+  const launch = await tools.exec_command({cmd: 'wsl -d Ubuntu --exec python3 -B /mnt/e/projects/ladybug/repro/feat010-attract-next-diagnosis-20261017/runtime-launch-guard.py.txt --start', max_output_tokens: 1800});
+  audit.launch_tool = launch;
+  if (launch.exit_code !== 0) fail('Owned launch did not qualify');
+  audit.launch = JSON.parse(launch.output);
+  if (!audit.launch.pid || audit.launch.plan_sha256 !== load('attractReady').read_plan_sha256 || audit.launch.launch_guard_sha256 !== load('attractReady').launch_guard_sha256) fail('Launch identity or frozen setup hash differs');
+  audit.attach = await batch(plan.execution_recipe.initial_attach_commands);
+  for (let index = 0; index < plan.execution_recipe.stops.length; index++) {
+    const stop = plan.execution_recipe.stops[index];
+    const rows = await batch(stop.commands);
+    const evidence = {requested_address: stop.address, matched_spans: []};
+    audit.stops.push(evidence);
+    for (const command of stop.code_commands) {
+      const match = command.match(/^x\/(\d+)xb (0x[0-9a-f]+)$/i);
+      if (!match) fail('Unexpected frozen code-read command');
+      const length = Number(match[1]), address = parseInt(match[2], 16);
+      const span = plan.code_spans.find(s => parseInt(s.address, 16) === address && s.length === length);
+      const row = rows.find(r => r.command === command);
+      if (!span || !row) fail('Missing approved span or GDB response');
+      const actual = memory(row.output, address, length).map(b => b.toString(16).padStart(2, '0')).join('');
+      if (actual !== span.expected_hex) {
+        audit.failure_span = {id: span.id, actual_hex: actual, expected_hex: span.expected_hex};
+        fail('Live/staged instruction identity mismatch', 'BYTE IDENTITY MISMATCH; STOP');
+      }
+      evidence.matched_spans.push({id: span.id, address, bytes: length});
+    }
+    const raw = rows.find(r => r.command === stop.raw_pc_dp_command)?.output ?? '';
+    const registers = raw.match(/stop_pc=([0-9a-f]+) stop_dp=([0-9a-f]+)/i);
+    if (!registers || parseInt(registers[1], 16) !== parseInt(stop.expected_pc, 16) || parseInt(registers[2], 16) !== 0) fail('Stopped PC/DP differs from the card');
+    evidence.pc = parseInt(registers[1], 16); evidence.dp = 0;
+    audit.last_proven_marker = stop.address;
+    const stateRows = await batch([plan.state_read.command]);
+    evidence.fields = fields(memory(stateRows[0].output, 2, 231));
+    evidence.elapsed_ms = Date.now() - started;
+    const state = evidence.fields;
+    if (state.PRES_MODE !== 2 || state.PRES_SCREEN !== 0) fail('Attract mode/screen control differs', 'NON-DISCRIMINATING CONTROL; STOP');
+    if (index < 2 && (state.PENDING !== 0 || state.MENU_EVENT !== 0 || state.MENU_DIRTY !== 0 || state.MENU_SELECT !== 0 || state.PRES_EVENT !== 0)) fail('Initial queue/menu control differs', 'NON-DISCRIMINATING CONTROL; STOP');
+    notify({qualified_stop: stop.address, pending: state.PENDING, frames: state.FRAMES, timer: state.PRES_TIMER});
+  }
+  audit.outcome = audit.stops[2].fields.PENDING === 1 ? 'QUEUED ADMISSION OPPORTUNITY OBSERVED' : 'INCONCLUSIVE: PENDING CLEAR AT THE ONE ACTOR STOP';
+  audit.interpretation_limit = 'No same-callback producer, later prepare/IRQ execution, FRONT write, visual cause or selection-rollback proof.';
+} catch (error) {
+  audit.outcome = error.kind ?? 'OBSERVER FAILURE; STOP';
+  audit.error = String(error);
+} finally {
+  try {
+    if (audit.launch) {
+      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request\n+Approved probe ended.\n*** End Patch');
+    }
+    audit.gdb_cleanup = await tools.mcp__gdb_mcp__stop_session({session_id: session});
+    const cleanup = await tools.exec_command({cmd: "@'\nfrom pathlib import Path\nimport time\np=Path('E:/projects/ladybug/repro/feat010-attract-next-diagnosis-20261017/probe-cleanup.json')\nuntil=time.monotonic()+2\nwhile not p.exists() and time.monotonic()<until: time.sleep(0.02)\nprint(p.read_text() if p.exists() else '{}')\n'@ | python -", max_output_tokens: 1200});
+    audit.process_cleanup = JSON.parse(cleanup.output);
+    if (!audit.process_cleanup.owned_process_exited || !audit.process_cleanup.within_45_seconds || audit.gdb_cleanup.isError) audit.outcome = 'CLEANUP INCOMPLETE; STOP';
+  } catch (error) {
+    audit.cleanup_error = String(error); audit.outcome = 'CLEANUP INCOMPLETE; STOP';
+  }
+  audit.elapsed_ms = Date.now() - started;
+  audit.within_45_seconds = audit.elapsed_ms <= 45000;
+  if (!audit.within_45_seconds) audit.outcome = 'WHOLE PHASE DEADLINE MISSED; STOP';
+  if (audit.outcome === 'QUEUED ADMISSION OPPORTUNITY OBSERVED' || audit.outcome.startsWith('INCONCLUSIVE:')) delete audit.last_tool_result;
+  store('attractRuntimeAudit', audit);
+  text({outcome: audit.outcome, last_proven_marker: audit.last_proven_marker, stops: audit.stops.length, elapsed_ms: audit.elapsed_ms});
+}

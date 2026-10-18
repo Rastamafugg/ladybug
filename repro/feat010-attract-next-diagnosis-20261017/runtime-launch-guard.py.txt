@@ -1,0 +1,101 @@
+"""One approved Attract probe: native launch and identity-checked cleanup only."""
+from pathlib import Path
+import datetime
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+
+WORK = Path(__file__).resolve().parent
+PLAN = json.loads((WORK / 'read-plan.json').read_text())
+SPEC = PLAN['execution_recipe']['launch_identity_cleanup']
+ROOT = WORK.parents[1]
+BASE = ROOT / 'repro/feat010-frontend-dispatch-repair-20261016/candidate'
+
+if sys.argv[1:] == ['--start']:
+    with (WORK / 'probe-driver.log').open('xb') as driver_log:
+        guard = subprocess.Popen([sys.executable, '-B', __file__, '--guard'],
+                                 stdin=subprocess.DEVNULL, stdout=driver_log,
+                                 stderr=subprocess.STDOUT, start_new_session=True)
+    until = time.monotonic() + 3
+    while time.monotonic() < until:
+        if (WORK / 'probe-launch.json').exists():
+            print((WORK / 'probe-launch.json').read_text(), flush=True)
+            sys.exit(0)
+        if guard.poll() is not None:
+            break
+        time.sleep(0.02)
+    (WORK / 'probe-cleanup-request').touch(exist_ok=False)
+    print(json.dumps({'outcome': 'No launch identity; stop', 'guard_pid': guard.pid}), flush=True)
+    sys.exit(1)
+
+assert sys.argv[1:] == ['--guard'], 'Use --start for the one approved launch'
+
+def digest(path):
+    return hashlib.sha256(Path(path).read_bytes()).hexdigest()
+
+assert digest(SPEC['executable']) == PLAN['pinned_xroar']['sha256']
+assert digest(BASE / 'build/ladybug.rom') == PLAN['pinned_rom_sha256']
+assert digest(BASE / 'build/source-build-receipt.json') == PLAN['pinned_receipt_sha256']
+port = subprocess.run(['ss', '-H', '-ltn', 'sport = :65521'], capture_output=True, timeout=2, check=True)
+assert not port.stdout.strip(), 'Diagnostic port already has a listener'
+for name in ('probe-attempt.json', 'probe-launch.json', 'probe-cleanup.json', 'probe-cleanup-request'):
+    assert not (WORK / name).exists(), 'A probe artifact already exists: ' + name
+with (WORK / 'probe-attempt.json').open('x') as handle:
+    json.dump({'card': 'Attract pending admission', 'limit_seconds': 45, 'cleanup_begins_seconds': 37}, handle)
+
+command = [SPEC['executable']] + SPEC['argv']
+log = (WORK / 'probe-xroar.log').open('xb')
+started = time.monotonic()
+started_epoch_ms = time.time_ns() // 1_000_000
+process = subprocess.Popen(command, cwd=SPEC['cwd'], stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+
+def identity():
+    proc = Path('/proc') / str(process.pid)
+    tail = (proc / 'stat').read_text().rsplit(')', 1)[1].split()
+    return {'pid': process.pid, 'exe': os.readlink(proc / 'exe'),
+            'argv': (proc / 'cmdline').read_bytes().split(b'\0')[:-1], 'start_ticks': tail[19]}
+
+expected = None
+result = {'scope': 'Only this verified diagnostic child; existing emulators untouched', 'signals': []}
+try:
+    expected = identity()
+    assert expected['exe'] == str(Path(SPEC['executable']).resolve())
+    assert expected['argv'] == [os.fsencode(value) for value in command]
+    record = {**expected, 'argv': command, 'started_epoch_ms': started_epoch_ms,
+              'plan_sha256': digest(WORK / 'read-plan.json'),
+              'launch_guard_sha256': digest(__file__), 'total_limit_seconds': 45,
+              'utc': datetime.datetime.now(datetime.timezone.utc).isoformat()}
+    (WORK / 'probe-launch.json').write_bytes((json.dumps(record, indent=2) + '\n').encode())
+    print(json.dumps(record), flush=True)
+    while time.monotonic() - started < 37:
+        if process.poll() is not None or (WORK / 'probe-cleanup-request').exists():
+            break
+        time.sleep(0.02)
+finally:
+    if process.poll() is None:
+        if expected is None or identity() != expected:
+            result['outcome'] = 'Identity mismatch; no signal sent'
+        else:
+            process.send_signal(signal.SIGTERM)
+            result['signals'].append('TERM')
+            try:
+                process.wait(timeout=1)
+            except subprocess.TimeoutExpired:
+                if identity() == expected:
+                    process.send_signal(signal.SIGKILL)
+                    result['signals'].append('KILL')
+                    process.wait(timeout=1)
+                else:
+                    result['outcome'] = 'Identity changed before KILL; no KILL sent'
+    result['returncode'] = process.poll()
+    result['elapsed_seconds'] = time.monotonic() - started
+    result['owned_process_exited'] = process.poll() is not None
+    result.setdefault('outcome', 'Owned process exited' if result['owned_process_exited'] else 'Cleanup failed')
+    result['within_45_seconds'] = result['elapsed_seconds'] <= 45
+    (WORK / 'probe-cleanup.json').write_bytes((json.dumps(result, indent=2) + '\n').encode())
+    log.close()
+    print(json.dumps(result), flush=True)
