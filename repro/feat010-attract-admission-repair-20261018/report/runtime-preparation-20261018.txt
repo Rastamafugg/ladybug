@@ -1,0 +1,44 @@
+FEAT-010 A1-R offline observer preparation
+Date: 2026-10-18
+Owner: runtime observer preparation
+Status: frozen for parent review; no runtime attempt by this worker
+
+Scope and evidence
+
+Prepared the offline A1-R plan builder, parser controls, controller, and exact-process launch/cleanup guard. This step made no production, candidate-source, setup, or wiki changes and made no emulator, GDB, guest-memory, input, or target-port call. The parent executed the frozen plan builder once: PASS, 0.233 seconds of 60. The parent also executed the pure offline parser controls once: PASS, six controls, 0.024 seconds of 60; no real tool was called. The retained plan remains explicitly unqualified for the target path.
+
+The plan is bound to A1-P PASS artifacts: packaged ROM 2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b; build receipt 55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc; staged helper 791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde; map 1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d; listing e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b; candidate source a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c. The compiled helper is 334/334 bytes, exclusive end $0800, with 104 bytes minimum resident free space, 7,667 asset bytes, and the 1,280-byte presentation module.
+
+The frozen source/staged decoder places the BSR at $0786, its target at $07E7 and return at $0788; the byte-matched admission TST/BNE span is $078C-$078F, with branch destination $07E3; phase-cache store is $0790 and prepare JSR is $0792 to $0DDF. The compiled phase routine at $07E7 implements timer < 6 ? 0 : ((((timer - 6) & 255) >> 3) & 3). This establishes source/staged expectations only. The target bytes remain unqualified until matched live at each approved stop.
+
+Approved live sequence
+
+1. At $078E, match the four bytes 0d912653 at $078C before interpreting stopped PC/DP/CC. Require PC=$078E and DP=$00, then capture CC and fixed state. CC.Z=0 is positive branch coverage and captures phase P0; CC.Z=1 is missing positive coverage and stops the attempt.
+2. At $07E3, match byte 39 before interpreting PC/DP or state. Require PC=$07E3, DP=$00, and PRES_ACTOR_PHASE=P0. This is the byte-qualified pao_done RTS destination; it makes no live stack-return assertion.
+3. At $0792, match bd0ddf before interpreting PC/DP or state. Require PC=$0792, DP=$00, PENDING=0, and PRES_ACTOR_PHASE equal to the compiled PRES_TIMER function above.
+
+Only these three code spans, the first stop's info registers pc/dp/cc, raw stopped PC/DP after byte identity, and the fixed x/231xb 0x0002 state span are authorized. The attach-time PC/DP print is retained as raw attach output and is not interpreted. No stack, MMIO, guest writes, keyboard input, extra stop, retry, or user-window routing is included. This remains an A1-R no-input admission diagnostic. It cannot establish the visible cause, actor producer, IRQ publication, or any A2 relationship.
+
+Deadline and ownership
+
+The entire A1-R phase is capped at 45 seconds, with three unconditional one-shot breakpoints and at most three continues of at most five seconds. Before every GDB-MCP batch call, the controller checks elapsed time plus that call's per-command timeout budget, five seconds prompt recovery, eight seconds cleanup, and one second local overhead. It also rejects a call that could push cleanup beyond second 37. Insufficient budget stops at the last proven marker without retry. Each read command has a one-second timeout; continue commands have a five-second timeout. Initial attach is one batch of three one-second commands.
+
+The parent must inject the exact retained plan-file SHA-256 (951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b) into both runtime-only plan.plan_sha256 and ready.plan_sha256 before invoking the controller. The controller also requires parent_review_ready=true, the currently idle local-only m6809/qSupported-off session, target_attached=false, matching GDB control hashes, and the A1-P ROM pin. The historical setup session ID is not hardcoded; the parent supplies the current session.
+
+The launch guard revalidates the plan, A1-P result, receipt, packaged ROM, helper source/bin/map/listing, executable hash, exact argv, and unused local port immediately before launch. Its start wrapper creates probe-driver.log before the detached child revalidates inputs; the child deliberately does not treat this authorized driver log as stale output. The wrapper creates it exclusively, so a repeat attempt is rejected. The guard starts cleanup by second 36 to preserve the approved second-37 boundary, signals only the recorded PID after checking executable, argv, and start ticks, then rechecks identity before any KILL. Cleanup is recorded with exact PID ownership and elapsed-time fields. Only this run's XRoar process and the prepared GDB session are eligible for cleanup; the known manual-game PID 861 and native windows are excluded.
+
+Cost projection and limits
+
+A historical old-ROM diagnostic took 7.797 seconds within its 45-second phase. Roughly eight seconds is only a planning reference for this changed-ROM probe, not a measured or guaranteed duration. The current target path is unmeasured. Per-call admission and the absolute phase deadline remain controlling; timeout or budget exhaustion means incomplete observer coverage, not a product pass or proof of slow target code.
+
+Frozen artifact hashes
+
+runtime-plan-builder.py.txt d4c2fa7d4e9f0d537e91a2d5dcd412751af36f90ab6a23cab7b1986d506e80f1
+runtime-plan.json 951ec5f294b8ae00c7cfbccd838f2b253a77a60aa7ac2100cd7465b8d515db9b
+runtime-command.js.txt e3d9711fa9e648d0e2fea16e55a7cd3b6f62238b35a66b6e830fd56a6327c072
+runtime-launch-guard.py.txt c7bc9e92ccf80156eb4de45a2570ad658796a2841e925d1d19d46d1b44133c7b
+runtime-parser-controls.js.txt 1a50ccd174c5189b917c9e95bc571b5bfa8cc83c1944eacd2eaad6e00e4289fc
+runtime-plan-preparation-result.json 42710220b4987abf35da284738e306239e307665963d7eef408f6e557e5ff510
+runtime-parser-result.json 21638a130326e17189281895bf3659ca0c072239218359f8308da9b5ced8e512
+
+Parent owns final source review, runtime Ready metadata injection, and any approved target attempt. No target observation is claimed here.

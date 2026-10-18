@@ -1,0 +1,195 @@
+const plan = load('attractA1RPlan');
+const session = load('attractA1RSession');
+const ready = load('attractA1RReady');
+const work = 'E:/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
+const wslWork = '/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
+const audit = {card: 'A1-R', outcome: 'NOT STARTED', stops: [], gdb_calls: [], last_proven_marker: 'none', launch_attempted: false};
+const started = Date.now();
+const phaseStartedEpochMs = started;
+function fail(message, kind = 'OBSERVER FAILURE; STOP') {
+  const error = new Error(message); error.kind = kind; throw error;
+}
+function requireReady() {
+  if (!plan || plan.card !== 'A1-R' || plan.status !== 'offline plan; no target qualified') fail('Missing or unexpected frozen A1-R plan');
+  if (!ready || !ready.parent_review_ready || ready.plan_sha256 !== plan.plan_sha256) fail('Parent Ready metadata does not bind the frozen runtime-plan.json');
+  if (!session || !ready.local_only || ready.architecture !== 'm6809' || ready.qSupported !== 'off' || ready.target_attached !== false) fail('Parent GDB session is not the reviewed idle local-only m6809 setup');
+  const readyHashes = ready.gdb_tool_control_hashes ?? {};
+  const planHashes = plan.gdb_tool_control_hashes ?? {};
+  const hashNames = Object.keys(planHashes).sort();
+  if (JSON.stringify(Object.keys(readyHashes).sort()) !== JSON.stringify(hashNames)
+      || hashNames.some(name => readyHashes[name] !== planHashes[name])) fail('Current GDB tool hashes differ from the frozen plan');
+  if (plan.target_path_qualified !== false || plan.artifacts.rom_sha256 !== '2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b') fail('Plan is not bound to the current A1-P artifact');
+}
+function outputs(result) {
+  if (result.isError) { audit.last_tool_error = result; fail('GDB-MCP call returned an error'); }
+  const rows = result.structuredContent?.result ?? result.content.filter(c => c.type === 'text').map(c => JSON.parse(c.text));
+  if (!Array.isArray(rows) || rows.some(row => row.error)) { audit.last_tool_error = result; fail('GDB command failed; no retry'); }
+  return rows;
+}
+async function batch(commands, timeout) {
+  const elapsed = (Date.now() - started) / 1000;
+  const commandBudget = commands.length * timeout;
+  const recovery = plan.execution_recipe.prompt_recovery_reserve_seconds;
+  const cleanup = plan.execution_recipe.cleanup_reserve_seconds;
+  const overhead = plan.execution_recipe.call_local_overhead_reserve_seconds;
+  const admittedSeconds = commandBudget + recovery + cleanup + overhead;
+  if (elapsed + admittedSeconds > plan.execution_recipe.whole_phase_deadline_seconds
+      || elapsed + commandBudget + recovery + overhead > plan.execution_recipe.cleanup_begins_by_seconds) {
+    fail('Insufficient remaining deadline for this GDB call and cleanup reserve', 'INCOMPLETE DEADLINE BOUNDARY; STOP');
+  }
+  const before = Date.now();
+  const result = await tools.mcp__gdb_mcp__batch_commands({session_id: session, commands, timeout, stop_on_error: true});
+  const rows = outputs(result);
+  audit.gdb_calls.push({commands, timeout_seconds_per_command: timeout,
+                        command_timeout_budget_seconds: commandBudget,
+                        elapsed_ms: Date.now() - before,
+                        outputs: rows.map(row => ({command: row.command, output: row.output}))});
+  return rows;
+}
+function memory(output, start, length) {
+  const found = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s*0x([0-9a-f]+)(?:\s+<[^>]*>)?:\s*(.*)$/i);
+    if (!match) continue;
+    if (parseInt(match[1], 16) !== start + found.length) fail('Noncontiguous live memory dump');
+    found.push(...[...match[2].matchAll(/\b0x([0-9a-f]{2})\b/gi)].map(m => parseInt(m[1], 16)));
+  }
+  if (found.length !== length) fail('Live memory dump length differs from the approved span');
+  return found;
+}
+function stateFields(bytes) {
+  const values = {};
+  for (const field of plan.state_read.report_fields) {
+    const match = field.match(/^(.*) ([0-9a-f]{4})(?:-([0-9a-f]{4}))?$/i);
+    if (!match) fail('Malformed frozen state field');
+    const first = parseInt(match[2], 16), last = parseInt(match[3] ?? match[2], 16);
+    if (first < 2 || last > 0xe8 || last < first) fail('State field lies outside the approved RAM dump');
+    let value = 0;
+    for (let address = first; address <= last; address++) value = value * 256 + bytes[address - 2];
+    values[match[1]] = value;
+  }
+  return values;
+}
+function pcDp(output) {
+  const match = output.match(/stop_pc=([0-9a-f]+)\s+stop_dp=([0-9a-f]+)/i);
+  if (!match) fail('Raw stopped PC/DP print is missing');
+  return {pc: parseInt(match[1], 16), dp: parseInt(match[2], 16)};
+}
+function registerValue(output, name) {
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const line = output.split(/\r?\n/).find(row => new RegExp('^\\s*' + escaped + '(?:\\s|:|=)', 'i').test(row));
+  if (!line) fail('`info registers pc dp cc` omitted register ' + name);
+  const tail = line.replace(new RegExp('^\\s*' + escaped + '\\s*(?:[:=]\\s*)?', 'i'), '');
+  const match = tail.match(/(?:0x)?([0-9a-f]+)/i);
+  if (!match) fail('Cannot parse register ' + name + ' from raw GDB output');
+  return parseInt(match[1], 16);
+}
+function qualifySpan(stop, rows) {
+  const span = plan.code_spans.find(item => item.id === stop.span_id);
+  const row = rows.find(item => item.command === stop.code_command);
+  if (!span || !row) fail('Frozen live span or matching GDB response is missing');
+  const start = parseInt(span.address, 16);
+  const actual = memory(row.output, start, span.length).map(value => value.toString(16).padStart(2, '0')).join('');
+  if (actual !== span.expected_hex) {
+    audit.failure_span = {id: span.id, address: span.address, expected_hex: span.expected_hex, actual_hex: actual};
+    fail('Live helper bytes differ from receipt-bound source/staged bytes', 'BYTE IDENTITY MISMATCH; STOP');
+  }
+  return {span, actual};
+}
+function phaseFromTimer(timer) {
+  return timer < 6 ? 0 : ((((timer - 6) & 0xff) >> 3) & 3);
+}
+try {
+  requireReady();
+  const launchCommand = `wsl -d Ubuntu --exec python3 -B ${wslWork}/runtime-launch-guard.py.txt --start ${ready.plan_sha256} ${phaseStartedEpochMs}`;
+  audit.launch_attempted = true;
+  const launch = await tools.exec_command({cmd: launchCommand, yield_time_ms: 5000, max_output_tokens: 1800});
+  audit.launch_tool = {exit_code: launch.exit_code, output: launch.output, session_id: launch.session_id};
+  if (launch.exit_code !== 0 || launch.session_id) fail('Owned A1-R launch did not return its frozen process identity');
+  audit.launch = JSON.parse(launch.output.trim());
+  if (!audit.launch.pid || audit.launch.plan_sha256 !== ready.plan_sha256
+      || audit.launch.rom_sha256 !== plan.artifacts.rom_sha256) fail('Owned launch identity or plan/artifact hash differs');
+
+  const attachRows = await batch(plan.execution_recipe.initial_attach_commands, 1);
+  audit.attach = attachRows.map(row => ({command: row.command, output: row.output}));
+  for (let index = 0; index < plan.execution_recipe.stops.length; index++) {
+    const stop = plan.execution_recipe.stops[index];
+    await batch([`tbreak *${stop.address}`], 1);
+    await batch(['continue'], plan.execution_recipe.continue_timeout_seconds);
+    const commands = [stop.code_command, stop.raw_pc_dp_command];
+    if (stop.cc_command) commands.push(stop.cc_command);
+    const rows = await batch(commands, plan.execution_recipe.read_command_timeout_seconds);
+    const qualified = qualifySpan(stop, rows);
+    const raw = rows.find(row => row.command === stop.raw_pc_dp_command)?.output ?? '';
+    const registers = pcDp(raw);
+    if (registers.pc !== parseInt(stop.expected_pc, 16) || registers.dp !== parseInt(stop.expected_dp, 16)) fail('Stopped PC/DP differs from the approved card');
+    const evidence = {address: stop.address, span_id: qualified.span.id, live_hex: qualified.actual,
+                      pc: registers.pc, dp: registers.dp};
+    audit.stops.push(evidence);
+    audit.last_proven_marker = stop.address;
+    if (index === 0) {
+      const ccOutput = rows.find(row => row.command === stop.cc_command)?.output ?? '';
+      const regPc = registerValue(ccOutput, 'pc'), regDp = registerValue(ccOutput, 'dp');
+      const cc = registerValue(ccOutput, 'cc');
+      if (regPc !== registers.pc || regDp !== registers.dp) fail('Info-register PC/DP disagree with the raw stop print');
+      evidence.cc = cc;
+      const bne = memory(rows.find(row => row.command === stop.code_command).output, 0x078c, 4);
+      let displacement = bne[3]; if (displacement & 0x80) displacement -= 0x100;
+      const branchTarget = 0x078e + 2 + displacement;
+      if (branchTarget !== parseInt(plan.compiled_decoder.pao_done, 16)) fail('Live byte-qualified BNE target differs from pao_done');
+    }
+    const stateRows = await batch([plan.state_read.command], 1);
+    const stateRow = stateRows[0];
+    evidence.fields = stateFields(memory(stateRow.output, 2, 231));
+    evidence.elapsed_ms = Date.now() - started;
+    audit.last_proven_marker = stop.address + ' qualified state';
+    if (index === 0) {
+      audit.p0 = evidence.fields.PRES_ACTOR_PHASE;
+      if ((evidence.cc & 0x04) !== 0) {
+        audit.outcome = 'INCOMPLETE POSITIVE COVERAGE; STOP';
+        audit.interpretation = 'The byte-matched TST did not produce CC.Z=0 at the BNE stop; no admission assertion is made.';
+        break;
+      }
+    } else if (index === 1) {
+      if (qualified.actual !== '39') fail('pao_done destination is not the byte-qualified RTS', 'PRODUCT ASSERTION FAILURE; STOP');
+      if (evidence.fields.PRES_ACTOR_PHASE !== audit.p0) fail('Actor phase cache changed on the pending path', 'PRODUCT ASSERTION FAILURE; STOP');
+      evidence.p0_preserved = true;
+    } else {
+      const expectedPhase = phaseFromTimer(evidence.fields.PRES_TIMER);
+      evidence.expected_phase_from_timer = expectedPhase;
+      if (evidence.fields.PENDING !== 0 || evidence.fields.PRES_ACTOR_PHASE !== expectedPhase) {
+        fail('Qualified prepare-entry state contradicts PENDING-clear/timer-phase assertion', 'PRODUCT ASSERTION FAILURE; STOP');
+      }
+      const call = memory(rows.find(row => row.command === stop.code_command).output, 0x0792, 3);
+      const target = (call[1] << 8) | call[2];
+      if (call[0] !== 0xbd || target !== parseInt(plan.compiled_decoder.prepare_target, 16)) fail('Prepare-entry JSR target differs from the compiled target', 'BYTE IDENTITY MISMATCH; STOP');
+      audit.outcome = 'A1-R PASS: deferred phase preserved and later admitted before prepare';
+      audit.interpretation = 'This establishes the approved no-input admission sequence only; it does not prove a visible cause, actor producer, IRQ publication, or A2 relationship.';
+    }
+  }
+  if (audit.outcome === 'NOT STARTED') audit.outcome = 'INCOMPLETE COVERAGE; STOP';
+} catch (error) {
+  audit.outcome = error.kind ?? 'OBSERVER FAILURE; STOP';
+  audit.error = String(error);
+} finally {
+  try {
+    if (audit.launch_attempted) {
+      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request\n+Approved A1-R probe ended.\n*** End Patch');
+    }
+    if (audit.launch_attempted) {
+      audit.gdb_cleanup = await tools.mcp__gdb_mcp__stop_session({session_id: session});
+      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
+      audit.process_cleanup = JSON.parse(cleanup.output.trim() || '{}');
+      if (!audit.process_cleanup.owned_process_exited || !audit.process_cleanup.cleanup_started_by_37_seconds
+          || !audit.process_cleanup.within_45_seconds || audit.gdb_cleanup.isError) audit.outcome = 'CLEANUP INCOMPLETE; STOP';
+    }
+  } catch (error) {
+    audit.cleanup_error = String(error); audit.outcome = 'CLEANUP INCOMPLETE; STOP';
+  }
+  audit.elapsed_ms = Date.now() - started;
+  audit.within_45_seconds = audit.elapsed_ms <= 45000;
+  if (!audit.within_45_seconds) audit.outcome = 'WHOLE PHASE DEADLINE MISSED; STOP';
+  store('attractA1RAudit', audit);
+  text({outcome: audit.outcome, last_proven_marker: audit.last_proven_marker,
+        stops: audit.stops.length, elapsed_ms: audit.elapsed_ms});
+}

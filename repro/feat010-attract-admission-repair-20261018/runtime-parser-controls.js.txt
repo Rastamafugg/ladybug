@@ -1,0 +1,123 @@
+// Offline controls for the A1-R parser. The runtime controller uses the same rules.
+function readMemory(output, start, length) {
+  const found = [];
+  for (const line of output.split(/\r?\n/)) {
+    const match = line.match(/^\s*0x([0-9a-f]+)(?:\s+<[^>]*>)?:\s*(.*)$/i);
+    if (!match) continue;
+    if (parseInt(match[1], 16) !== start + found.length) throw new Error('noncontiguous memory');
+    found.push(...[...match[2].matchAll(/\b0x([0-9a-f]{2})\b/gi)].map(m => parseInt(m[1], 16)));
+  }
+  if (found.length !== length) throw new Error('wrong memory length');
+  return found;
+}
+function readState(bytes, fields) {
+  const values = {};
+  for (const field of fields) {
+    const match = field.match(/^(.*) ([0-9a-f]{4})(?:-([0-9a-f]{4}))?$/i);
+    if (!match) throw new Error('malformed state field');
+    const first = parseInt(match[2], 16), last = parseInt(match[3] ?? match[2], 16);
+    if (first < 2 || last > 0xe8 || last < first) throw new Error('state outside approved span');
+    let value = 0;
+    for (let address = first; address <= last; address++) value = value * 256 + bytes[address - 2];
+    values[match[1]] = value;
+  }
+  return values;
+}
+function readPcDp(output) {
+  const match = output.match(/stop_pc=([0-9a-f]+)\s+stop_dp=([0-9a-f]+)/i);
+  if (!match) throw new Error('missing raw PC/DP');
+  return {pc: parseInt(match[1], 16), dp: parseInt(match[2], 16)};
+}
+function readRegister(output, name) {
+  const line = output.split(/\r?\n/).find(row => new RegExp('^\\s*' + name + '(?:\\s|:|=)', 'i').test(row));
+  if (!line) throw new Error('missing register ' + name);
+  const tail = line.replace(new RegExp('^\\s*' + name + '\\s*(?:[:=]\\s*)?', 'i'), '');
+  const match = tail.match(/(?:0x)?([0-9a-f]+)/i);
+  if (!match) throw new Error('unparseable register ' + name);
+  return parseInt(match[1], 16);
+}
+function checkSpan(output, start, expectedHex) {
+  const actual = readMemory(output, start, expectedHex.length / 2)
+    .map(value => value.toString(16).padStart(2, '0')).join('');
+  if (actual !== expectedHex) throw new Error('live bytes differ');
+  return actual;
+}
+function phaseForTimer(timer) {
+  return timer < 6 ? 0 : ((((timer - 6) & 0xff) >> 3) & 3);
+}
+function stateBytes(values) {
+  const bytes = new Uint8Array(231);
+  const set = (address, value, length = 1) => {
+    for (let offset = 0; offset < length; offset++) {
+      bytes[address - 2 + length - offset - 1] = value & 0xff;
+      value >>>= 8;
+    }
+  };
+  set(0x0091, values.PENDING ?? 0);
+  set(0x00b0, values.PRES_TIMER ?? 0, 2);
+  set(0x00d3, values.PRES_ACTOR_PHASE ?? 0);
+  return bytes;
+}
+function dump(bytes, start = 2) {
+  const lines = [];
+  for (let offset = 0; offset < bytes.length; offset += 8) {
+    const chunk = [...bytes.slice(offset, offset + 8)].map(value => '0x' + value.toString(16).padStart(2, '0')).join(' ');
+    lines.push('0x' + (start + offset).toString(16).padStart(4, '0') + ': ' + chunk);
+  }
+  return lines.join('\n');
+}
+function checkFirstStop(codeOutput, registerOutput, rawOutput, p0Fields) {
+  const bytes = readMemory(codeOutput, 0x078c, 4);
+  const actual = bytes.map(value => value.toString(16).padStart(2, '0')).join('');
+  if (actual !== '0d912653') throw new Error('guard span mismatch');
+  const regs = readPcDp(rawOutput);
+  if (regs.pc !== 0x078e || regs.dp !== 0) throw new Error('wrong first stop PC/DP');
+  if (readRegister(registerOutput, 'pc') !== regs.pc || readRegister(registerOutput, 'dp') !== regs.dp) throw new Error('register and raw PC/DP differ');
+  const cc = readRegister(registerOutput, 'cc');
+  const displacement = bytes[3] & 0x80 ? bytes[3] - 0x100 : bytes[3];
+  if (0x078e + 2 + displacement !== 0x07e3) throw new Error('BNE target differs from pao_done');
+  if ((cc & 0x04) !== 0) return {coverage: 'missing-positive', p0: p0Fields.PRES_ACTOR_PHASE, cc};
+  return {coverage: 'qualified', p0: p0Fields.PRES_ACTOR_PHASE, cc};
+}
+function checkSecondStop(codeOutput, rawOutput, fields, p0) {
+  checkSpan(codeOutput, 0x07e3, '39');
+  const regs = readPcDp(rawOutput);
+  if (regs.pc !== 0x07e3 || regs.dp !== 0) throw new Error('wrong pao_done stop PC/DP');
+  if (fields.PRES_ACTOR_PHASE !== p0) throw new Error('actor phase cache changed on guarded path');
+  return true;
+}
+function checkThirdStop(codeOutput, rawOutput, fields) {
+  checkSpan(codeOutput, 0x0792, 'bd0ddf');
+  const regs = readPcDp(rawOutput);
+  if (regs.pc !== 0x0792 || regs.dp !== 0) throw new Error('wrong prepare-entry PC/DP');
+  if (fields.PENDING !== 0) throw new Error('PENDING is not clear before prepare');
+  if (fields.PRES_ACTOR_PHASE !== phaseForTimer(fields.PRES_TIMER)) throw new Error('phase differs from timer function');
+  return true;
+}
+
+// Offline parser controls only. These synthetic byte streams are not an A1-R fixture or product result.
+const fields = ["PENDING 0091", "PRES_TIMER 00B0-00B1", "PRES_ACTOR_PHASE 00D3"];
+const p0Bytes = stateBytes({PENDING: 0, PRES_TIMER: 7, PRES_ACTOR_PHASE: 3});
+const p0 = readState(p0Bytes, fields);
+const pass1 = checkFirstStop(dump(Uint8Array.from([0x0d, 0x91, 0x26, 0x53]), 0x078c),
+  'pc 0x078e\ndp 0x00\ncc 0x00', 'stop_pc=078e stop_dp=00', p0);
+if (pass1.coverage !== 'qualified' || pass1.p0 !== 3) throw new Error('positive stop-1 parser control failed');
+let rejectedWrongSpan = false;
+try { checkSpan(dump(Uint8Array.from([0x0d, 0x91, 0x26, 0x52]), 0x078c), 0x078c, '0d912653'); }
+catch (_) { rejectedWrongSpan = true; }
+if (!rejectedWrongSpan) throw new Error('negative live-byte mismatch was accepted');
+const noPositive = checkFirstStop(dump(Uint8Array.from([0x0d, 0x91, 0x26, 0x53]), 0x078c),
+  'pc 0x078e\ndp 0x00\ncc 0x04', 'stop_pc=078e stop_dp=00', p0);
+if (noPositive.coverage !== 'missing-positive') throw new Error('CC.Z=1 did not map to missing coverage');
+if (!checkSecondStop(dump(Uint8Array.from([0x39]), 0x07e3), 'stop_pc=07e3 stop_dp=00', p0, 3)) throw new Error('positive stop-2 parser control failed');
+let rejectedChangedPhase = false;
+try { checkSecondStop(dump(Uint8Array.from([0x39]), 0x07e3), 'stop_pc=07e3 stop_dp=00', {...p0, PRES_ACTOR_PHASE: 2}, 3); }
+catch (_) { rejectedChangedPhase = true; }
+if (!rejectedChangedPhase) throw new Error('phase-cache change was accepted');
+const finalFields = readState(stateBytes({PENDING: 0, PRES_TIMER: 13, PRES_ACTOR_PHASE: 0}), fields);
+if (!checkThirdStop(dump(Uint8Array.from([0xbd, 0x0d, 0xdf]), 0x0792), 'stop_pc=0792 stop_dp=00', finalFields)) throw new Error('positive stop-3 parser control failed');
+let rejectedPending = false;
+try { checkThirdStop(dump(Uint8Array.from([0xbd, 0x0d, 0xdf]), 0x0792), 'stop_pc=0792 stop_dp=00', {...finalFields, PENDING: 1}); }
+catch (_) { rejectedPending = true; }
+if (!rejectedPending) throw new Error('PENDING=1 at prepare entry was accepted');
+text({offline_a1r_parser_controls: 'PASS', controls: 6, real_tools_called: false});

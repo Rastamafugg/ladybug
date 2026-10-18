@@ -1,0 +1,268 @@
+"""Emit the parent-reviewed, offline A1-R plan after the current A1-P pass."""
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import re
+import time
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parent
+CANDIDATE = WORK / "candidate"
+SETUP = WORK / "setup"
+BUILD = CANDIDATE / "build"
+STARTED = time.monotonic()
+ROM_SHA = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
+RECEIPT_SHA = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
+HELPER_SHA = "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde"
+HELPER_MAP_SHA = "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d"
+HELPER_LISTING_SHA = "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b"
+SOURCE_SHA = "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c"
+XROAR = "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar"
+XROAR_SHA = "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+GDB_TOOL_HASHES = {
+    "gdb_py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "gdb_mcp_server_py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "m6809_gdb": "b26d0c76b4f73109ef3c0dfd54360805f7056dc2d80a1ab9080374446ba3168c",
+}
+PROFILE = {
+    "LADYBUG_PROFILE": "complete", "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809", "LADYBUG_ADAPTIVE": "1",
+}
+STATE_FIELDS = [
+    "FRAMES 0002-0003", "FB_FRONT_ID 008F", "FB_BACK_ID 0090", "PENDING 0091",
+    "FB_COMMIT_SEQ 0092-0093", "FB_SIM_SEQ 0094-0095", "FB_MISSED_COMMIT 0096-0097",
+    "FB_RENDER_ACTIVE 0098", "FB_WRITE_FRONT_FAULT 0099", "PRES_MODE 00A5",
+    "PRES_SCREEN 00A6", "PRES_EVENT 00A9", "PRES_TIMER 00B0-00B1", "MENU_EVENT 00D0",
+    "logo cache A 00D2", "PRES_ACTOR_PHASE 00D3", "MENU_PREV 00DF", "MENU_SELECT 00E0",
+    "MENU_DIRTY 00E1", "logo cache B 00E3", "desired logo phase 00E8",
+]
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise ValueError(message)
+
+
+def read(path: Path) -> bytes:
+    require(path.is_file(), f"required A1-P artifact is missing: {path}")
+    return path.read_bytes()
+
+
+def require_digest(path: Path, expected: str, label: str) -> bytes:
+    data = read(path)
+    require(sha(data) == expected, f"{label} SHA-256 differs from the approved A1-P result")
+    return data
+
+
+def listing_row(rows, address: int, statement: str) -> bytes:
+    matches = [code for pc, code, text in rows if pc == address and text == statement.lower()]
+    require(len(matches) == 1, f"compiled listing lacks unique {statement} at ${address:04X}")
+    return matches[0]
+
+
+def branch_target(address: int, code: bytes, opcode: int) -> int:
+    require(len(code) == 2 and code[0] == opcode, f"unexpected branch bytes at ${address:04X}")
+    displacement = code[1] - 0x100 if code[1] & 0x80 else code[1]
+    return address + 2 + displacement
+
+
+def main() -> None:
+    decoder_path = SETUP / "helper_byte_decoder.py"
+    spec = importlib.util.spec_from_file_location("a1_runtime_plan_decoder", decoder_path)
+    require(spec is not None and spec.loader is not None, "qualified A1-P decoder is unavailable")
+    decoder = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(decoder)
+
+    post_path = SETUP / "post-build-result.json"
+    post_bytes = read(post_path)
+    post = json.loads(post_bytes)
+    require(post.get("card") == "A1-P" and post.get("outcome") == "PASS",
+            "runtime planning requires the current A1-P PASS")
+    require(post.get("profile") == PROFILE and post.get("source_inputs") == 266
+            and post.get("wiki_files") == 379 and post.get("stock_provenance_validation") == "PASS",
+            "A1-P profile, source closure, wiki closure, or provenance differs")
+    for field, expected in (("rom_sha256", ROM_SHA), ("receipt_sha256", RECEIPT_SHA),
+                            ("helper_sha256", HELPER_SHA), ("helper_map_sha256", HELPER_MAP_SHA),
+                            ("helper_listing_sha256", HELPER_LISTING_SHA),
+                            ("helper_source_sha256", SOURCE_SHA)):
+        require(post.get(field) == expected, f"A1-P {field} differs from the reviewed result")
+
+    receipt_path = BUILD / "source-build-receipt.json"
+    receipt_bytes = require_digest(receipt_path, RECEIPT_SHA, "complete source-build receipt")
+    receipt = json.loads(receipt_bytes)
+    require(receipt.get("state") == "complete" and receipt.get("profile") == "complete",
+            "build receipt is not complete-profile")
+    source_path = CANDIDATE / "src/perimeter_reset_helper.s"
+    source_bytes = require_digest(source_path, SOURCE_SHA, "candidate helper source")
+    require(receipt.get("inputs", {}).get("src/perimeter_reset_helper.s") == SOURCE_SHA,
+            "candidate helper source is not receipt-bound")
+
+    rom_path = BUILD / "ladybug.rom"
+    rom_bytes = require_digest(rom_path, ROM_SHA, "packaged GMC ROM")
+    require(len(rom_bytes) == 65536 and receipt.get("artifacts", {}).get(rom_path.name) == ROM_SHA,
+            "packaged ROM size or receipt identity differs")
+    helper_path = BUILD / "ladybug-perimeter-reset-helper.bin"
+    map_path = BUILD / "ladybug-perimeter-reset-helper.map"
+    listing_path = BUILD / "ladybug-perimeter-reset-helper.lst"
+    helper = require_digest(helper_path, HELPER_SHA, "staged perimeter helper")
+    map_bytes = require_digest(map_path, HELPER_MAP_SHA, "helper map")
+    listing_bytes = require_digest(listing_path, HELPER_LISTING_SHA, "helper listing")
+    for path, digest in ((helper_path, HELPER_SHA), (map_path, HELPER_MAP_SHA),
+                         (listing_path, HELPER_LISTING_SHA)):
+        require(receipt.get("artifacts", {}).get(path.name) == digest,
+                f"{path.name} is not bound by the complete receipt")
+
+    symbols = decoder.parse_symbols(map_bytes.decode("utf-8"))
+    rows = decoder.parse_listing(listing_bytes.decode("utf-8"))
+    decoded = decoder.verify_helper_contract(helper, symbols, rows)
+    require(decoded["helper_bytes"] == 334 and decoded["helper_end"] == 0x0800,
+            "actual compiled helper no longer fills the approved 334-byte allocation")
+    expected_symbols = {
+        "overlay": 0x0786, "guard_tst": 0x078C, "guard_bne": 0x078E,
+        "pao_done": 0x07E3, "phase_change": 0x0790, "prepare_call": 0x0792,
+        "prepare_target": 0x0DDF, "bsr": 0x0786, "bsr_target": 0x07E7,
+        "bsr_return": 0x0788,
+    }
+    require(all(decoded.get(name) == value for name, value in expected_symbols.items()),
+            "actual map/listing helper addresses differ from the approved A1-R stops")
+
+    phase_rows = [
+        (0x07E7, "ldd pres_timer", bytes.fromhex("dcb0")),
+        (0x07E9, "subd #6", bytes.fromhex("830006")),
+        (0x07EC, "blo presentation_phase_zero", bytes.fromhex("2508")),
+        (0x07EE, "tfr b,a", bytes.fromhex("1f98")),
+        (0x07F0, "lsra", bytes.fromhex("44")),
+        (0x07F1, "lsra", bytes.fromhex("44")),
+        (0x07F2, "lsra", bytes.fromhex("44")),
+        (0x07F3, "anda #3", bytes.fromhex("8403")),
+        (0x07F5, "rts", bytes.fromhex("39")),
+        (0x07F6, "clra", bytes.fromhex("4f")),
+        (0x07F7, "rts", bytes.fromhex("39")),
+    ]
+    verified_phase = []
+    for address, statement, expected in phase_rows:
+        actual = listing_row(rows, address, statement)
+        offset = address - 0x06B2
+        require(actual == expected and helper[offset:offset + len(expected)] == expected,
+                f"phase-function listing/module mismatch at ${address:04X}")
+        verified_phase.append({"address": f"0x{address:04x}", "statement": statement,
+                               "bytes": actual.hex()})
+    require(branch_target(0x07EC, bytes.fromhex("2508"), 0x25) == 0x07F6,
+            "compiled timer-underflow branch no longer targets phase zero")
+
+    spans = []
+    for span_id, address, length, statement in (
+        ("admission_tst_and_bne", 0x078C, 4, "tst PENDING; bne pao_done"),
+        ("pao_done_rts", 0x07E3, 1, "rts"),
+        ("prepare_jsr", 0x0792, 3, "jsr PRES_MAIN_FB_PREPARE"),
+    ):
+        offset = address - 0x06B2
+        actual = helper[offset:offset + length]
+        require(len(actual) == length, f"approved live span {span_id} lies outside the staged helper")
+        spans.append({"id": span_id, "address": f"0x{address:04x}", "length": length,
+                      "expected_hex": actual.hex(), "description": statement,
+                      "source": "src/perimeter_reset_helper.s", "source_sha256": SOURCE_SHA,
+                      "module": helper_path.name, "module_origin": "0x06b2",
+                      "module_offset": f"0x{offset:04x}", "module_sha256": HELPER_SHA,
+                      "map_sha256": HELPER_MAP_SHA, "listing_sha256": HELPER_LISTING_SHA})
+    require(spans[0]["expected_hex"] == "0d912653" and spans[1]["expected_hex"] == "39"
+            and spans[2]["expected_hex"] == "bd0ddf",
+            "actual compiled live spans differ from the approved A1-R byte plan")
+    require(branch_target(0x078E, helper[0x078E - 0x06B2:0x0790 - 0x06B2], 0x26) == 0x07E3,
+            "compiled admission BNE no longer targets byte-qualified pao_done RTS")
+    require(helper[0x0792 - 0x06B2:0x0795 - 0x06B2] == bytes.fromhex("bd0ddf"),
+            "compiled pre-prepare JSR is not unchanged target $0DDF")
+
+    candidate_wsl = "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate"
+    plan = {
+        "ticket": "FEAT-010", "card": "A1-R", "status": "offline plan; no target qualified",
+        "candidate": "repro/feat010-attract-admission-repair-20261018/candidate",
+        "source_parent_commit": "61c47f6a", "profile": PROFILE,
+        "source_inputs": 266, "wiki_files": 379,
+        "artifacts": {
+            "post_build_result_sha256": sha(post_bytes), "receipt_sha256": RECEIPT_SHA,
+            "rom_sha256": ROM_SHA, "rom_bytes": len(rom_bytes),
+            "helper_source_sha256": SOURCE_SHA, "helper_sha256": HELPER_SHA,
+            "helper_map_sha256": HELPER_MAP_SHA, "helper_listing_sha256": HELPER_LISTING_SHA,
+            "helper_bytes": len(helper), "helper_range": "0x06b2-0x07ff",
+            "helper_exclusive_end": "0x0800", "resident_free_minimum": 104,
+            "asset_used": 7667, "presentation_bytes": 1280,
+        },
+        "compiled_decoder": {key: (f"0x{value:04x}" if isinstance(value, int) else value)
+                             for key, value in decoded.items()},
+        "source_staged_phase_function": {
+            "source": "src/perimeter_reset_helper.s", "source_sha256": SOURCE_SHA,
+            "routine": "presentation_attract_phase", "compiled_rows": verified_phase,
+            "timer": "unsigned 16-bit PRES_TIMER at $00B0-$00B1",
+            "function": "timer < 6 ? 0 : ((((timer - 6) & 255) >> 3) & 3)",
+            "zero_path": "SUBD #6 sets borrow; BLO reaches CLRA; RTS",
+            "normal_path": "TFR B,A; LSRA x3; ANDA #3; RTS",
+        },
+        "code_spans": spans,
+        "state_read": {"command": "x/231xb 0x0002", "start": "0x0002", "length": 231,
+                       "report_fields": STATE_FIELDS},
+        "execution_recipe": {
+            "session_source": "parent injects currently idle local-only m6809/qSupported-off GDB-MCP session",
+            "initial_attach_commands": [
+                "target remote :65521", "show architecture",
+                'printf "attach_pc=%04x attach_dp=%02x\\n",$pc,$dp',
+            ],
+            "stops": [
+                {"address": "0x078e", "expected_pc": "0x078e", "expected_dp": "0x00",
+                 "span_id": "admission_tst_and_bne", "code_command": "x/4xb 0x078c",
+                 "raw_pc_dp_command": 'printf "stop_pc=%04x stop_dp=%02x\\n",$pc,$dp',
+                 "cc_command": "info registers pc dp cc", "cc_z_mask": "0x04",
+                 "cc_requirement": "Z=0 after the byte-matched TST PENDING; captures P0 from state"},
+                {"address": "0x07e3", "expected_pc": "0x07e3", "expected_dp": "0x00",
+                 "span_id": "pao_done_rts", "code_command": "x/1xb 0x07e3",
+                 "raw_pc_dp_command": 'printf "stop_pc=%04x stop_dp=%02x\\n",$pc,$dp',
+                 "assertion": "byte-qualified RTS destination reached and PRES_ACTOR_PHASE equals captured P0"},
+                {"address": "0x0792", "expected_pc": "0x0792", "expected_dp": "0x00",
+                 "span_id": "prepare_jsr", "code_command": "x/3xb 0x0792",
+                 "raw_pc_dp_command": 'printf "stop_pc=%04x stop_dp=%02x\\n",$pc,$dp',
+                 "assertion": "PENDING=0; phase equals the compiled PRES_TIMER function; unchanged JSR target is $0DDF"},
+            ],
+            "breakpoint": "one unconditional tbreak per address; one continue per address; no retries",
+            "continue_timeout_seconds": 5, "read_command_timeout_seconds": 1,
+            "whole_phase_deadline_seconds": 45, "cleanup_begins_by_seconds": 37,
+            "cleanup_reserve_seconds": 8, "prompt_recovery_reserve_seconds": 5,
+            "call_local_overhead_reserve_seconds": 1,
+            "admission_rule": "Before each GDB call, sum its per-command timeouts plus 5 s recovery, 8 s cleanup, and 1 s local overhead; dispatch only if the sum fits the remaining 45 s whole-phase deadline. Also stop before cleanup would begin after 37 s.",
+            "state_reads": "one separate x/231xb 0x0002 call after live bytes and PC/DP qualify at each stop",
+        },
+        "launch": {
+            "executable": XROAR, "executable_sha256": XROAR_SHA,
+            "cwd": candidate_wsl,
+            "argv": ["-ui", "gtk3", "-ao", "pulse", "-machine", "coco3",
+                     "-machine-cpu", "6809", "-ram", "512", "-ram-init", "random",
+                     "-cart-type", "gmc", "-cart-rom", candidate_wsl + "/build/ladybug.rom",
+                     "-cart-autorun", "-tv-input", "rgb", "-joy-right", "", "-joy-left", "",
+                     "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", "65521"],
+            "port": "127.0.0.1:65521; parent rechecks unused immediately before launch",
+            "ram_and_input": "512 KiB; random RAM; keyboard configured; empty joystick mappings; no input during A1-R",
+        },
+        "gdb_tool_control_hashes": GDB_TOOL_HASHES,
+        "boundaries": [
+            "A1-R no-input branch diagnostic only; A2 selection rollback is separate.",
+            "First byte-match source/staged/live code; only then interpret stopped PC, DP, or CC.",
+            "Only the three helper code spans above, info registers pc dp cc at stop 1, and x/231xb 0x0002 are authorized live reads.",
+            "No stack, MMIO, guest writes, input, successor stop, retry, user-window routing, or owner matrix.",
+            "PENDING=1 is not required at the post-TST state dump; CC.Z=0 proves the matched TST observed nonzero PENDING before a possible IRQ clear.",
+            "The stop at $07E3 plus matched branch target and RTS bytes proves the guarded path reached pao_done; no live stack return-target claim.",
+            "The changed-ROM runtime is unmeasured. Prior old-ROM result 7.797/45 is historical evidence, not a guarantee.",
+        ],
+        "target_path_qualified": False,
+    }
+    require(time.monotonic() - STARTED <= 60, "offline A1-R plan builder exceeded 60 seconds")
+    print(json.dumps(plan, indent=2, ensure_ascii=False))
+
+
+if __name__ == "__main__":
+    main()

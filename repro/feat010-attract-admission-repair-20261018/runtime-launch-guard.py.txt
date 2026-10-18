@@ -1,0 +1,224 @@
+"""One-shot A1-R child launch and exact-PID cleanup guard."""
+from pathlib import Path
+import datetime
+import hashlib
+import json
+import os
+import signal
+import subprocess
+import sys
+import time
+
+
+WORK = Path(__file__).resolve().parent
+PLAN_PATH = WORK / "runtime-plan.json"
+EXPECTED = {
+    "rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
+    "receipt_sha256": "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc",
+    "helper_sha256": "791834d2610c39a305dc78cb1575dde6ed4395d286e1084ba3f8cd9ff2927dde",
+    "helper_map_sha256": "1af379cac2ecea5857b705485250046c279c1c383bbb1a7084a3a3a7c3d4d25d",
+    "helper_listing_sha256": "e749a2ca0500de0dbeaad67e29a0cf5e67acd58ac134a4575dca34fc57b27a4b",
+    "helper_source_sha256": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "xroar_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+}
+
+
+def digest(path: Path) -> str:
+    return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise RuntimeError(message)
+
+
+def load_pinned_plan(expected_plan_sha: str) -> dict:
+    raw = PLAN_PATH.read_bytes()
+    require(digest(PLAN_PATH) == expected_plan_sha, "retained runtime-plan.json SHA differs")
+    plan = json.loads(raw)
+    require(plan.get("card") == "A1-R" and plan.get("target_path_qualified") is False,
+            "retained plan is not the reviewed offline A1-R plan")
+    artifacts = plan.get("artifacts", {})
+    for key, value in EXPECTED.items():
+        if key == "xroar_sha256":
+            require(plan.get("launch", {}).get("executable_sha256") == value,
+                    "plan executable_sha256 differs from the pinned XRoar")
+        else:
+            require(artifacts.get(key) == value, f"plan {key} differs from the current A1-P pin")
+    return plan
+
+
+def verify_inputs(plan_sha: str) -> tuple[dict, dict, list[str]]:
+    plan = load_pinned_plan(plan_sha)
+    candidate = WORK / "candidate"
+    setup = WORK / "setup"
+    build = candidate / "build"
+    post_bytes = (setup / "post-build-result.json").read_bytes()
+    post = json.loads(post_bytes)
+    require(post.get("card") == "A1-P" and post.get("outcome") == "PASS",
+            "current A1-P result is not PASS")
+    require(post.get("rom_sha256") == EXPECTED["rom_sha256"]
+            and post.get("receipt_sha256") == EXPECTED["receipt_sha256"]
+            and digest(setup / "post-build-result.json") == plan["artifacts"]["post_build_result_sha256"],
+            "current A1-P result differs from the frozen plan")
+    receipt = build / "source-build-receipt.json"
+    require(digest(receipt) == EXPECTED["receipt_sha256"], "complete build receipt SHA differs")
+    require(digest(build / "ladybug.rom") == EXPECTED["rom_sha256"], "packaged ROM SHA differs")
+    require(digest(build / "ladybug-perimeter-reset-helper.bin") == EXPECTED["helper_sha256"],
+            "staged helper SHA differs")
+    require(digest(build / "ladybug-perimeter-reset-helper.map") == EXPECTED["helper_map_sha256"],
+            "helper map SHA differs")
+    require(digest(build / "ladybug-perimeter-reset-helper.lst") == EXPECTED["helper_listing_sha256"],
+            "helper listing SHA differs")
+    require(digest(candidate / "src/perimeter_reset_helper.s") == EXPECTED["helper_source_sha256"],
+            "candidate helper source SHA differs")
+    launch = plan["launch"]
+    executable = Path(launch["executable"])
+    require(str(executable) == "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar"
+            and digest(executable) == EXPECTED["xroar_sha256"], "pinned XRoar executable differs")
+    cwd = launch["cwd"]
+    rom = cwd + "/build/ladybug.rom"
+    require(rom == "/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018/candidate/build/ladybug.rom",
+            "frozen launch ROM path differs")
+    argv = list(launch["argv"])
+    require(argv == [
+        "-ui", "gtk3", "-ao", "pulse", "-machine", "coco3", "-machine-cpu", "6809",
+        "-ram", "512", "-ram-init", "random", "-cart-type", "gmc", "-cart-rom", rom,
+        "-cart-autorun", "-tv-input", "rgb", "-joy-right", "", "-joy-left", "",
+        "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", "65521",
+    ], "frozen A1-R XRoar argv differs")
+    port = subprocess.run(["ss", "-H", "-ltn", "sport = :65521"], capture_output=True,
+                          timeout=2, check=True)
+    require(not port.stdout.strip(), "approved diagnostic port already has a listener")
+    for name in ("probe-attempt.json", "probe-launch.json", "probe-cleanup.json",
+                 "probe-cleanup-request", "probe-xroar.log"):
+        require(not (WORK / name).exists(), f"one-shot A1-R output already exists: {name}")
+    return plan, launch, [str(executable), *argv]
+
+
+def identity(pid: int) -> dict:
+    proc = Path("/proc") / str(pid)
+    stat = (proc / "stat").read_text().rsplit(")", 1)[1].split()
+    return {"pid": pid, "exe": os.readlink(proc / "exe"),
+            "argv_bytes": (proc / "cmdline").read_bytes().split(b"\0")[:-1],
+            "start_ticks": stat[19]}
+
+
+def guard(plan_sha: str, phase_start_ms: int) -> None:
+    plan, spec, command = verify_inputs(plan_sha)
+    require(phase_start_ms <= int(time.time() * 1000), "phase start timestamp is in the future")
+    deadline_ms = phase_start_ms + 36000
+    require(int(time.time() * 1000) < deadline_ms, "whole-phase cleanup deadline has already arrived")
+    (WORK / "probe-attempt.json").write_text(json.dumps({
+        "card": "A1-R", "attempt": 1, "plan_sha256": plan_sha,
+        "phase_started_epoch_ms": phase_start_ms, "whole_phase_limit_seconds": 45,
+        "cleanup_begins_by_seconds": 37,
+    }, indent=2) + "\n", encoding="utf-8")
+    log = (WORK / "probe-xroar.log").open("xb")
+    process = subprocess.Popen(command, cwd=spec["cwd"], stdin=subprocess.DEVNULL,
+                               stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+    expected = None
+    started_epoch_ms = time.time_ns() // 1_000_000
+    outcome = "Owned process exited"
+    signals = []
+    cleanup_started_ms = None
+    try:
+        expected = identity(process.pid)
+        require(expected["exe"] == str(Path(spec["executable"]).resolve()),
+                "child executable path differs from the pinned identity")
+        require(expected["argv_bytes"] == [os.fsencode(value) for value in command],
+                "child argv differs from the exact frozen launch")
+        launch_record = {
+            "pid": expected["pid"], "exe": expected["exe"], "argv": command,
+            "start_ticks": expected["start_ticks"], "started_epoch_ms": started_epoch_ms,
+            "plan_sha256": plan_sha, "rom_sha256": EXPECTED["rom_sha256"],
+            "launch_guard_sha256": digest(Path(__file__)), "phase_started_epoch_ms": phase_start_ms,
+            "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
+        }
+        (WORK / "probe-launch.json").write_text(json.dumps(launch_record, indent=2) + "\n", encoding="utf-8")
+        print(json.dumps(launch_record), flush=True)
+        while int(time.time() * 1000) < deadline_ms:
+            if process.poll() is not None or (WORK / "probe-cleanup-request").exists():
+                break
+            time.sleep(0.02)
+    finally:
+        cleanup_started_ms = int(time.time() * 1000)
+        if process.poll() is None:
+            try:
+                same = expected is not None and identity(process.pid) == expected
+            except (FileNotFoundError, ProcessLookupError):
+                same = False
+            if not same:
+                outcome = "Identity mismatch; no signal sent"
+            else:
+                try:
+                    process.send_signal(signal.SIGTERM)
+                    signals.append("TERM")
+                except ProcessLookupError:
+                    outcome = "Owned process exited before TERM"
+                try:
+                    process.wait(timeout=1)
+                except subprocess.TimeoutExpired:
+                    try:
+                        same = identity(process.pid) == expected
+                    except (FileNotFoundError, ProcessLookupError):
+                        same = False
+                    if same:
+                        try:
+                            process.send_signal(signal.SIGKILL)
+                            signals.append("KILL")
+                        except ProcessLookupError:
+                            outcome = "Owned process exited before KILL"
+                        try:
+                            process.wait(timeout=1)
+                        except subprocess.TimeoutExpired:
+                            outcome = "Owned process did not exit after KILL"
+                    else:
+                        outcome = "Identity changed before KILL; no KILL sent"
+        elapsed_ms = int(time.time() * 1000) - phase_start_ms
+        cleanup_record = {
+            "outcome": outcome, "signals": signals, "returncode": process.poll(),
+            "owned_process_exited": process.poll() is not None,
+            "cleanup_started_epoch_ms": cleanup_started_ms,
+            "cleanup_started_by_37_seconds": cleanup_started_ms <= phase_start_ms + 37000,
+            "elapsed_seconds": round(elapsed_ms / 1000, 3), "within_45_seconds": elapsed_ms <= 45000,
+            "plan_sha256": plan_sha,
+        }
+        (WORK / "probe-cleanup.json").write_text(json.dumps(cleanup_record, indent=2) + "\n", encoding="utf-8")
+        log.close()
+        print(json.dumps(cleanup_record), flush=True)
+
+
+def main() -> None:
+    args = sys.argv[1:]
+    if len(args) == 3 and args[0] == "--start":
+        plan_sha, phase_start_ms = args[1], int(args[2])
+        require(len(plan_sha) == 64 and all(char in "0123456789abcdef" for char in plan_sha),
+                "invalid frozen plan SHA")
+        # Validate before starting the detached guard and before any target launch.
+        verify_inputs(plan_sha)
+        with (WORK / "probe-driver.log").open("xb") as driver_log:
+            child = subprocess.Popen([sys.executable, "-B", __file__, "--guard", plan_sha,
+                                      str(phase_start_ms)], stdin=subprocess.DEVNULL,
+                                     stdout=driver_log, stderr=subprocess.STDOUT, start_new_session=True)
+        until = min(time.monotonic() + 3, time.monotonic() + max(0, (phase_start_ms + 36000 - int(time.time() * 1000)) / 1000))
+        while time.monotonic() < until:
+            identity_path = WORK / "probe-launch.json"
+            if identity_path.exists():
+                print(identity_path.read_text(), flush=True)
+                return
+            if child.poll() is not None:
+                break
+            time.sleep(0.02)
+        if not (WORK / "probe-cleanup-request").exists():
+            (WORK / "probe-cleanup-request").touch(exist_ok=True)
+        print(json.dumps({"outcome": "No launch identity; stop", "guard_pid": child.pid}), flush=True)
+        raise SystemExit(1)
+    if len(args) == 3 and args[0] == "--guard":
+        guard(args[1], int(args[2]))
+        return
+    raise SystemExit("Use --start PLAN_SHA PHASE_START_EPOCH_MS")
+
+
+if __name__ == "__main__":
+    main()
