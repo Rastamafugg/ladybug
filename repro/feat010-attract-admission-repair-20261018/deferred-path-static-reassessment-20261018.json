@@ -1,0 +1,31 @@
+{
+  "scope": "Static reassessment only; no probe/qualification/session/execution",
+  "current_artifact_rom_sha256": "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b",
+  "current_receipt_sha256": "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc",
+  "receipt_bound_files": {
+    "src/presentation_runtime.s": "6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123",
+    "src/perimeter_reset_helper.s": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "build/ladybug-presentation-runtime.bin": "53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2",
+    "build/ladybug-presentation-runtime.map": "7a52ebeb75c22f146e6ebb6748388685b4c27773bf88cbcf7d7a1d871103991c",
+    "build/ladybug-presentation-runtime.lst": "7c2c7f93e3531c233ff0c1d1b3e0e197d0d10d833abd2d807178228975531329"
+  },
+  "last_live_marker": {
+    "pc": "0x078e",
+    "code_hex": "0d912653",
+    "mode": 1,
+    "phase_cache": 255,
+    "pending": 0,
+    "cc": 197
+  },
+  "source_supported_phase": "MODE1 is initial LOAD; load completion sets phaseFF before helper call; MODE2 is Attract update",
+  "historical_old_rom_observation": "MODE2 at attract_tick1C56 and old helper078D; pending1 observed only at latter. This is not current-ROM positive coverage.",
+  "mechanical_cause_of_wrong_phase": "The first unconditional helper breakpoint is reachable during loading as well as the intended Attract update.",
+  "unproven": "Adding one Attract-entry marker does not guarantee a later guard will observe nonzero pending; IRQ timing/phase compare remain natural.",
+  "attempt_history": {
+    "prelaunch_observer_failure": 1,
+    "valid_runtime_with_missing_positive_coverage": 1,
+    "observation_tool_timeouts": 0,
+    "automatic_retries": 0
+  },
+  "reassessment": "No further runtime before revised card approval. Prefer one fixed phase marker over unbounded/conditional search or guest writes, subject to reviewed source/card."
+}
