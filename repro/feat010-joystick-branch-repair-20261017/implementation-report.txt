@@ -1,0 +1,11 @@
+FEAT-010 cumulative joystick branch implementation
+
+Applied the approved cumulative source transformation to the fresh candidate only. The change retains the guarded exporter in scripts/build.sh and changes the MODE_NAME short conditional branch to LBNE in src/keybinding_runtime.s. Prepared source patch reference: preparation commit 5b5d1ec0; production.patch SHA-256 fbb51883914e89e58b984a6e31bf9f6a4147b2ee8b81e2c87cc32b950661917d.
+
+Source qualification was performed by the parent after the observer correction: PASS in 3.9449106 seconds, raw log SHA-256 bb9ef7d965a61a65d2dd417831f0fc4c648689b588acb22b04f6cf6e3f93eea3.
+
+The prepared patch's keybinding hunk did not apply to the CRLF candidate with git apply. The two already-qualified transform functions were called without invoking qualifier main; both output hashes matched the approved targets exactly:
+- scripts/build.sh: 37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30
+- src/keybinding_runtime.s: bec27f7756ef1e3c569abb087385558dd207b003ffbc075472b8ea501f01809b
+
+Actual candidate input review: all 266 expected input hashes match; exactly the two approved files differ from the baseline, and the other 264 hashes are unchanged. No build, assembler, runtime, or emulator was run by this implementation step. Fit limits and compiled LBNE evidence remain for the parent-owned single build and focused postcheck.
