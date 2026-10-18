@@ -1,0 +1,15 @@
+{
+  "ticket": "FEAT-010",
+  "step": "MC observer preparation",
+  "status": "Ready",
+  "approval": "User explicitly approved menu-clock repair scope and verification cards",
+  "scope": "Prepare only case-local clock-source-card.py.txt, clock-post-card.py.txt, build-once.py.txt and preparation-report.txt. No source edit, build, runtime, test execution or new gate. Parent qualifies/executes once after source review.",
+  "baseline_manifest_sha256": "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43",
+  "commands": {
+    "source": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug --exec timeout --signal=TERM --kill-after=2s 58s python3 -B repro/feat010-menu-clock-repair-20261018/clock-source-card.py.txt",
+    "build": "python -B repro/feat010-menu-clock-repair-20261018/build-once.py.txt",
+    "post": "wsl -d Ubuntu --cd /mnt/e/projects/ladybug --exec timeout --signal=TERM --kill-after=2s 58s python3 -B repro/feat010-menu-clock-repair-20261018/clock-post-card.py.txt"
+  },
+  "bounds": "MC-S60s; MC-B600s nested595+2; MC-P60s; one execution each, first failure stops",
+  "ownership": "Luna only four named case-local observer/preparation files; parent all manifests/wiki/qualification/execution. Separate commit."
+}
