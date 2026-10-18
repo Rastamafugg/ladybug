@@ -1,0 +1,48 @@
+FEAT-010 menu-clock repair design — 2026-10-18
+Status: Proposed repair; source/listing-backed storage and positive-fit projection. No assembly or runtime executed.
+Parent architecture review with Luna Extra High menu_clock_storage and menu_clock_design.
+
+Authority: user asks to resolve storage/fit and prepare repair approval brief. Menu work precedes separate no-input diagnosis. Implementation is not approved by this request.
+
+Baseline identity: supplied A1 candidate, not Git commit shorthand alone.
+ROM 2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b
+receipt 55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc
+presentation source 6c7525fbc98e349128e58310e805aca6fd8b3a209f252445dba9e7bfcad85123
+shared_text_stage source 60b33f849da180bdb87930da076d895c23abb55dfcc8f8f98b6f1f65616ebda7
+helper source a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c
+presentation bin 53720dd325f3db6c74259d67a987b672f2f3b277a0313ac0214073a8a9da04f2
+highscore-helper bin 6e63f97f0337a5f1bd71802c358b42b07f70e267fb6cbdb876980c96105b6382
+Source edit commit61c47f6a does not identify all supplied closure blobs. The current receipt contains the exact presentation/shared hashes above. Treat receipt and file hashes as authoritative.
+
+Storage: reclaim unused $00CC-$00CD, formerly PRES_ACTOR_X/Y definitions, as PRES_IDLE_ORIGIN. Candidate src symbolic uses are declarations only; literal CC/CD hits are immediate constants/data, not accesses. Existing maps show no competing label at these addresses. Luna checked adjacent operations: $CB name length is byte-only, $CE frame/$CF highlight are byte-only, and no named pointer copy/DP initializer spans $CC-$CD. This closes the storage overlap question in the supplied source. Root src also has only the old equates. Declare origin before use in both changed modules; retain obsolete equates as documented aliases or remove only the unused declarations consistently. Do not use DB/DC (demo route coordinates and test-profile name pointer), E8/E9 (active logo state), B2 (input history), or A8FD-FF (owned logo clock).
+Initialization: at common load_timer_reset immediately after TIMER clears, CLR <origin; CLR <origin+1. All cold/wake/submenu/retained starts set MODE_LOAD and hydrate before returning through this reset. The retained start branch skips dirty seeding only; it does not bypass loading. A loading-time stamp cannot survive final reset. No extra origin reset in wake path is needed. Two unconditionally reset unused bytes cause no competing current-profile lifetime.
+
+Design: leave helper timer derivation unchanged. For menu event t<6 retain t; otherwise normalize t to 6+((t-6)&31). Store normalized t both as TIMER and origin. Current phase floor((t-6)/8) mod4 and low-three-bit cadence are preserved. Initial t<6 uses subtract-borrow/addback and is unchanged. Idle age=current TIMER-origin; preserve threshold558. Origin range0..37; normal exit at age558 bounds TIMER by595. Every new event normalizes again, preventing 16-bit wrap and repeated startup hold during prolonged navigation.
+
+Exact local 19-byte event replacement (current two CLRs occupy4):
+ LDD <PRES_TIMER          ; DC B0
+ SUBD #6                 ; 83 00 06
+ BLO menu_clock_addback  ; 25 03
+ CLRA                    ; 4F
+ ANDB #31                ; C4 1F
+menu_clock_addback
+ ADDD #6                 ; C3 00 06
+ STD <PRES_TIMER          ; DD B0
+ STD <PRES_IDLE_ORIGIN    ; DD CC
+ LDA <MENU_EVENT          ; 96 D0
+Follow with existing BITA #32. Reloading A preserves the input event; no X change. BITA supplies the next branch's tested Z. Following dispatch recomputes flags before any carry-dependent operation; no new calling protocol.
+
+Projected highscore-helper growth15:3070->3085 /3136, free66->51. Existing local branch reach remains below128; compiled listing must confirm.
+Presentation add4bytes reset plus2bytes SUBD <origin before CMPD558. Recover7bytes with only these explicit extended->direct changes in affected timer/Attract path, listed by BASELINE address:
+1C4C FC00B0 -> DCB0 (LDD TIMER)
+1C52 FD00B0 -> DDB0 (STD TIMER)
+1C56 B600D4 -> 96D4 (LDA HOLD_STATE)
+1C61 7F00D4 -> 0FD4 (CLR HOLD_STATE)
+1C69 FD00E4 -> DDE4 (STD NAME_PTR)
+1C74 B600A5 -> 96A5 (LDA MODE)
+1C7B FC00B0 -> DCB0 (LDD TIMER)
+DP=$00 is existing runtime contract and SETDP00; all addresses are page00. New addresses after edits are not the baseline addresses. +6-7=-1 => presentation1279/1280, free1. Actor helper334/334 unchanged. Resident8088/8192 free104 and assets7667/7680 unchanged projections; assembler/receipt must confirm. No cap/MMU/loader/API changes, no global DP pass.
+
+Rejected alternatives: separate per-tick counter adds work; simply removing reset breaks idle semantics; raw FRAMES changes timebase/start phase; changing full actor helper adds third-file pressure; unsafe aliases conflict with owners. Timestamp without normalization exposes actor startup branch on eventual wrap. 19-byte normalization replaces the earlier size-neutral LDX/STX-only sketch.
+
+See canonical ticket #attract-menu-clock-repair-proposed-20261018 for approval cards, attempts/deadlines, exact future commands and acceptance. No-input stutter, A2 acceptance and cumulative integration excluded.
