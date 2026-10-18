@@ -1,0 +1,18 @@
+FEAT-010 cumulative joystick branch repair patch specification
+
+Approved production changes, exactly two files:
+
+1. candidate/scripts/build.sh is the previously approved consumer-scoped presentation-symbol export patch, byte-identical to the reviewed one-file candidate at SHA-256 37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30. Preserve all old exports and the intentional high-score module alias. The four map-derived equates remain guarded by IFDEF KEYBINDING_SYMBOL_CONSTANTS / ENDC, and the selector remains only on the keybinding assembler invocation.
+
+2. candidate/src/keybinding_runtime.s changes exactly the BNE following `cmpa #MODE_NAME` in `ks_joy_rank_mode` from `bne ks_joy_done` to `lbne ks_joy_done`. Condition and destination stay the same. This is the existing 6809 long conditional-branch form and increases the joystick-only assembled module by two bytes. Do not widen any other branch or alter source logic.
+
+Frozen baseline: complete cumulative frontend-repaired source at repro/feat010-frontend-dispatch-repair-20261016/candidate. Its receipt SHA-256 is cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0, ROM SHA-256 is 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08, and base-inputs.json pins 266 source inputs.
+
+Expected cumulative hashes:
+- scripts/build.sh baseline c3beb3400479144c5ed639f8f60aca8f7f1ddaac76d4d296c9a1d2ce19d85fa3; candidate 37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30.
+- src/keybinding_runtime.s baseline ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be; candidate bec27f7756ef1e3c569abb087385558dd207b003ffbc075472b8ea501f01809b.
+- The complete expected 266-input receipt is setup-independent and stored in expected-inputs.json.
+
+Capacity and build targets: one fresh complete/joystick/adaptive/6809 build exits zero and writes a complete receipt and ROM. Keep resident use at or below 8160/8192 bytes (at least 32 bytes free), assets at or below 7680 bytes, presentation at or below 1280 bytes, page-23 high-score helper at or below 3136 bytes, keybinding at or below 1536 bytes, and audio at or below 6656 bytes. The approved long branch adds two joystick-only bytes; final fit remains unmeasured until the one authorized build.
+
+The fresh candidate remains unmodified by this preparation. production.patch is a reviewable cumulative diff; do not apply it before the parent reviews and completes the approved 60-second source qualification. The known-bad fixture is the retained prior candidate with the guarded exporter and original short branch; its one build failed at keybinding_runtime.s:169 with Byte overflow after 200.928632800002 seconds. The in-memory corrected source fixture changes only the approved BNE to LBNE and is qualified without assembly. After parent release, run exactly one build, then the 60-second postcheck. No runtime joystick scenario is approved.

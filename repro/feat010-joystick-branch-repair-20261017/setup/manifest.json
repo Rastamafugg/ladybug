@@ -1,0 +1,111 @@
+{
+  "schema_version": 1,
+  "ticket": "FEAT-010",
+  "phase": "approved cumulative joystick branch repair preparation",
+  "status": "prepared; parent source qualification and implementation release remain required",
+  "cost_class": "Standard",
+  "approval": "User approved the one-instruction BNE-to-LBNE follow-up and source/build/post cards recorded in FEAT-010 on 2026-10-17.",
+  "owner_scope": "repro/feat010-joystick-branch-repair-20261017/ only",
+  "baseline": {
+    "root": "repro/feat010-frontend-dispatch-repair-20261016/candidate",
+    "receipt_sha256": "cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0",
+    "rom_sha256": "6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08",
+    "input_manifest": "repro/feat010-joystick-branch-repair-20261017/base-inputs.json",
+    "input_count": 266
+  },
+  "candidate": {
+    "root": "repro/feat010-joystick-branch-repair-20261017/candidate",
+    "preparation_record": "repro/feat010-joystick-branch-repair-20261017/candidate-preparation.json",
+    "state": "fresh source copy; no build directory; production files remain unchanged",
+    "expected_input_manifest": "repro/feat010-joystick-branch-repair-20261017/expected-inputs.json",
+    "expected_input_count": 266
+  },
+  "production_changes": {
+    "scripts/build.sh": {
+      "baseline_sha256": "c3beb3400479144c5ed639f8f60aca8f7f1ddaac76d4d296c9a1d2ce19d85fa3",
+      "candidate_sha256": "37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30",
+      "scope": "Retain the reviewed consumer-scoped exporter patch, old export lines and intentional alias; emit the four map-derived equates only under KEYBINDING_SYMBOL_CONSTANTS and define the selector only for the keybinding assembly."
+    },
+    "src/keybinding_runtime.s": {
+      "baseline_sha256": "ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be",
+      "candidate_sha256": "bec27f7756ef1e3c569abb087385558dd207b003ffbc075472b8ea501f01809b",
+      "scope": "Inside ks_joy_rank_mode only, change the BNE after cmpa #MODE_NAME to LBNE ks_joy_done."
+    }
+  },
+  "known_bad_fixture": {
+    "root": "repro/feat010-joystick-symbol-repair-20261017",
+    "log_sha256": "dd5b610bde1b19d09ef0837de9ca1b455d5a01cb3b4253d2fb6e779512686264",
+    "result_sha256": "1bcb756a3a653ad5e52a57c3dd08ccc1e767c060803d85bb42dafe339037ece4",
+    "observed_failure": "The single prior build failed with Byte overflow at keybinding_runtime.s:169, bne ks_joy_done, after 200.928632800002 seconds. It produced no final ROM."
+  },
+  "verification": {
+    "source_setup": {
+      "command_from_repository_root": "python -B repro/feat010-joystick-branch-repair-20261017/setup/qualifier.py.txt",
+      "whole_phase_deadline_seconds": 60,
+      "scope": [
+        "Verify the immutable complete baseline receipt, ROM and all 266 source hashes.",
+        "Require the fresh candidate to remain unmodified and unbuilt before qualification.",
+        "Retain the missing-export and flat-export controls, guarded writer output checks and old export alias behavior.",
+        "Bind the retained failed short-branch build as the known-bad fixture.",
+        "Create the corrected branch fixture in memory and require exactly one source-form BNE-to-LBNE delta.",
+        "Compare the exact cumulative two-file result with expected-inputs.json."
+      ],
+      "execution_state": "not executed by the preparer; parent qualification is required before the source-only implementation release"
+    },
+    "single_build": {
+      "command_from_repository_root": "python -B repro/feat010-joystick-branch-repair-20261017/build-once.py.txt",
+      "working_directory": "repro/feat010-joystick-branch-repair-20261017/candidate",
+      "inner_command": [
+        "wsl", "-d", "Ubuntu", "--cd", "/mnt/e/projects/ladybug/repro/feat010-joystick-branch-repair-20261017/candidate",
+        "--exec", "timeout", "--kill-after=2s", "595s", "env",
+        "LADYBUG_PROFILE=complete", "LADYBUG_INPUT=joystick", "LADYBUG_CPU=6809", "LADYBUG_ADAPTIVE=1",
+        "bash", "scripts/build.sh", "build"
+      ],
+      "whole_phase_deadline_seconds": 600,
+      "attempt_limit": 1,
+      "precondition": "Parent must review and approve source qualification, apply the exact patch to the isolated candidate, and write parent-build-ready.json with the expected 266 hashes and reviewed wrapper hash.",
+      "outputs": [
+        "repro/feat010-joystick-branch-repair-20261017/build-attempt.json",
+        "repro/feat010-joystick-branch-repair-20261017/build-first.log",
+        "repro/feat010-joystick-branch-repair-20261017/build-result.json"
+      ]
+    },
+    "focused_post": {
+      "command_from_repository_root": "python -B repro/feat010-joystick-branch-repair-20261017/setup/post.py.txt",
+      "whole_phase_deadline_seconds": 60,
+      "precondition": "Run only after the one build returns zero and writes a complete receipt.",
+      "scope": [
+        "Verify the cumulative 266-input receipt, complete joystick/adaptive/6809 profile, exporter values, guarded header and all stock caps.",
+        "Verify LBNE bytes 10 26 dd dd in the listing and at the corresponding offset in ladybug-keybinding-runtime.bin.",
+        "Decode the listing displacement and require its destination to equal ks_joy_done from the generated keybinding map; require source ORG and mapped key_service origin to agree."
+      ]
+    }
+  },
+  "acceptance_limits": {
+    "resident_bytes_maximum": 8160,
+    "resident_capacity_bytes": 8192,
+    "resident_free_bytes_minimum": 32,
+    "assets_bytes_maximum": 7680,
+    "presentation_bytes_maximum": 1280,
+    "page23_highscore_helper_bytes_maximum": 3136,
+    "keybinding_bytes_maximum": 1536,
+    "audio_bytes_maximum": 6656
+  },
+  "scope_exclusions": [
+    "No source qualifier execution, build, assembler, source checker, runtime or emulator launch during preparation.",
+    "No candidate production edit before parent review and source qualification.",
+    "No other branch widening, logic change, limit change, allocator recovery, root integration, wiki edit, runtime joystick claim or other profile build."
+  ],
+  "prepared_artifact_sha256": {
+    ".gitattributes": "705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da",
+    "production.patch": "fbb51883914e89e58b984a6e31bf9f6a4147b2ee8b81e2c87cc32b950661917d",
+    "expected-inputs.json": "b6ab7cfc90f1b453f3b95828e72664414ee66b419b291d5accc3c2b2709fe6f8",
+    "base-inputs.json": "a453a45368ef97bf6f63a3f765b62f83e9043d23b982580164746be818c0c393",
+    "candidate-preparation.json": "b1e2ef563008a273e26ac62576907650bce00dc4b720e3e6dbfb7f4d1c4347e7",
+    "setup/qualifier.py.txt": "ea6774ab4bbafbcfa9498e21d92a142651a970175c1a130f33296451d2fe378f",
+    "setup/post.py.txt": "1056f34907892376244282f9123c8a47355f3ed434ff47b51cc6f4aea9823734",
+    "setup/fixtures.json": "c0b5fb06cd78908b29ab13b3e02c6e404f7bcd8a92e019034902268e25e8af2b",
+    "build-once.py.txt": "8b4c561410f7f8e2ffa13df50c032f9b79129e5f13fb83ee5f04a566ce51e376",
+    "setup/patchspec.txt": "93d126ceb41364a2a2155cd7e16794e87f242f075e4418ec832a016e06725f82"
+  }
+}

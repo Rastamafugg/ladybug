@@ -1,0 +1,75 @@
+#!/usr/bin/env python3
+"""Run the one approved fresh FEAT-010 joystick build after parent release."""
+from pathlib import Path
+import hashlib
+import json
+import subprocess
+import time
+
+started = time.monotonic()
+root = Path(__file__).resolve().parent
+ready = json.loads((root / 'parent-build-ready.json').read_text(encoding='utf-8'))
+expected = json.loads((root / 'expected-inputs.json').read_text(encoding='utf-8'))
+assert ready['status'] == 'READY FOR ONE BUILD'
+assert hashlib.sha256(Path(__file__).read_bytes()).hexdigest() == ready['build_driver_sha256']
+assert ready['candidate_inputs'] == expected['inputs']
+candidate = root / 'candidate'
+for relative, expected_hash in ready['candidate_inputs'].items():
+    actual_hash = hashlib.sha256((candidate / relative).read_bytes()).hexdigest()
+    assert actual_hash == expected_hash, relative
+assert not (candidate / 'build/source-build-receipt.json').exists(), 'Fresh build required'
+
+for name in ('build-attempt.json', 'build-first.log', 'build-result.json'):
+    assert not (root / name).exists(), 'One-build output already exists: ' + name
+
+command = [
+    'wsl', '-d', 'Ubuntu', '--cd',
+    '/mnt/e/projects/ladybug/repro/feat010-joystick-branch-repair-20261017/candidate',
+    '--exec', 'timeout', '--kill-after=2s', '595s', 'env',
+    'LADYBUG_PROFILE=complete', 'LADYBUG_INPUT=joystick', 'LADYBUG_CPU=6809',
+    'LADYBUG_ADAPTIVE=1', 'bash', 'scripts/build.sh', 'build',
+]
+attempt = {
+    'status': 'STARTED',
+    'limit_seconds': 600,
+    'inner_timeout_seconds': 595,
+    'kill_grace_seconds': 2,
+    'source_qualification_sha256': ready['source_qualification_sha256'],
+    'build_driver_sha256': ready['build_driver_sha256'],
+    'expected_input_count': 266,
+}
+with (root / 'build-attempt.json').open('x', encoding='utf-8') as handle:
+    json.dump(attempt, handle, indent=2)
+
+result = {
+    'command': command,
+    'limit_seconds': 600,
+    'deadline_terminates_build_seconds': 595,
+    'kill_grace_seconds': 2,
+    'attempt_count': 1,
+    'outcome': 'INCOMPLETE',
+}
+try:
+    with (root / 'build-first.log').open('xb') as log:
+        completed = subprocess.run(command, stdout=log, stderr=subprocess.STDOUT, timeout=598)
+    result.update(
+        returncode=completed.returncode,
+        outcome='BUILD RETURNED ZERO; PARENT ACCEPTANCE PENDING' if completed.returncode == 0 else 'BUILD FAILED; STOP',
+    )
+except subprocess.TimeoutExpired as error:
+    result.update(outcome='BUILD TIMEOUT; STOP', error=str(error))
+except Exception as error:
+    result.update(outcome='BUILD SETUP OR OBSERVER FAILURE; STOP', error=str(error))
+
+result['elapsed_seconds'] = time.monotonic() - started
+if result['elapsed_seconds'] > 600:
+    result['outcome'] = 'INCOMPLETE: WHOLE BUILD DEADLINE MISSED'
+result['log_sha256'] = hashlib.sha256((root / 'build-first.log').read_bytes()).hexdigest() if (root / 'build-first.log').exists() else None
+for name in ('ladybug.rom', 'source-build-receipt.json', 'ladybug-keybinding-runtime.lst'):
+    artifact = candidate / 'build' / name
+    result[name] = {
+        'sha256': hashlib.sha256(artifact.read_bytes()).hexdigest(),
+        'bytes': artifact.stat().st_size,
+    } if artifact.exists() else None
+(root / 'build-result.json').write_text(json.dumps(result, indent=2) + '\n', encoding='utf-8')
+print(json.dumps(result))

@@ -1,0 +1,430 @@
+#!/usr/bin/env python3
+"""FEAT-010 J source-only qualification. Reads pinned sources; writes nothing."""
+import ast
+import hashlib
+import io
+import json
+import re
+import sys
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[3]
+BASELINE = ROOT / 'repro/feat010-frontend-dispatch-repair-20261016/candidate'
+TICKET = ROOT / 'repro/feat010-joystick-branch-repair-20261017'
+MANIFEST = TICKET / 'base-inputs.json'
+EXPECTED_INPUTS = TICKET / 'expected-inputs.json'
+FIXTURES = TICKET / 'setup/fixtures.json'
+FAILED_FIXTURE = ROOT / 'repro/feat010-joystick-symbol-repair-20261017'
+CANDIDATE = TICKET / 'candidate'
+PREPARATION = TICKET / 'candidate-preparation.json'
+sys.path.insert(0, str(BASELINE / 'scripts'))
+from source_reference.provenance import digest, inputs, validate
+
+EXPORTS = {
+    'PRESENTATION_MAP_INSTRUCTIONS': 'PRESENTATION_MAP_INSTRUCTIONS',
+    'PRESENTATION_MAP_HIGH_SCORE': 'PRESENTATION_MAP_HIGH_SCORE',
+    'PRESENTATION_MAP_LEVEL_START': 'PRESENTATION_MAP_LEVEL_START',
+    'MODE_LEVEL': 'MODE_LEVEL',
+}
+EXPORT_NAMES = tuple(EXPORTS)
+MODULE_MAP = 'python3 - "$PRESENTATION_MODULE_MAP" "$PRESENTATION_SYMBOLS" <<\'PY\''
+MODULE_RE = re.compile(
+    r"python3 - \"\$PRESENTATION_MODULE_MAP\" \"\$PRESENTATION_SYMBOLS\" <<'PY'\r?\n(.*?)\r?\nPY",
+    re.S,
+)
+
+
+def require(ok, message):
+    if not ok:
+        raise SystemExit('FAIL: ' + message)
+
+
+def module_match(text):
+    found = list(MODULE_RE.finditer(text))
+    require(len(found) == 1, 'expected one presentation module-map Python heredoc')
+    return found[0]
+
+
+def assignments(code):
+    tree = ast.parse(code)
+    found = {}
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Assign):
+            for target in node.targets:
+                if isinstance(target, ast.Name) and target.id in ('wanted', 'required'):
+                    require(target.id not in found, 'duplicate exporter assignment: ' + target.id)
+                    found[target.id] = ast.literal_eval(node.value)
+    require(set(found) == {'wanted', 'required'}, 'exporter wanted/required assignments missing')
+    return found['wanted'], found['required']
+
+
+def replace_once(text, old, new, label):
+    count = text.count(old)
+    require(count == 1, f'{label} anchor count is {count}, expected one')
+    return text.replace(old, new, 1)
+
+
+def transform_keybinding(baseline_bytes):
+    text = baseline_bytes.decode('utf-8')
+    nl = '\r\n' if '\r\n' in text else '\n'
+    start_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_rank_mode[ \t]*$', text))
+    end_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_credit_screen[ \t]*$', text))
+    require(len(start_labels) == 1 and len(end_labels) == 1,
+            'joystick rank-mode block labels are missing or repeated')
+    start = start_labels[0].start()
+    end = end_labels[0].start()
+    require(end > start, 'joystick rank-mode block boundary order changed')
+    lines = text.splitlines()
+    start_line = text.count('\n', 0, start)
+    done_labels = list(re.finditer(r'(?m)^[ \t]*ks_joy_done[ \t]*$', text))
+    require(len(done_labels) == 1, 'joystick branch destination label is missing or repeated')
+    done_line = text.count('\n', 0, done_labels[0].start())
+    stack = []
+    for index, line in enumerate(lines[:done_line + 1]):
+        directive = line.strip().lower()
+        if re.match(r'^if[a-z]*\b', directive):
+            stack.append(directive)
+        elif directive == 'endc':
+            require(stack, 'unexpected ENDC before the joystick branch destination')
+            stack.pop()
+        if index in (start_line, done_line):
+            require('ifne input_joystick' in stack,
+                    'joystick rank-mode branch is outside the INPUT_JOYSTICK conditional block')
+    old = '        cmpa #MODE_NAME' + nl + '        bne ks_joy_done'
+    new = '        cmpa #MODE_NAME' + nl + '        lbne ks_joy_done'
+    require(text[start:end].count(old) == 1, 'short branch is not unique in the joystick rank-mode block')
+    transformed = replace_once(text, old, new, 'joystick MODE_NAME branch')
+    require(transformed.count('lbne ks_joy_done') == 1, 'long branch target is not unique')
+    return transformed.encode('utf-8')
+
+
+def scoped_writer(nl):
+    rows = [
+        '        if name in (',
+        "            'PRESENTATION_MAP_INSTRUCTIONS',",
+        "            'PRESENTATION_MAP_HIGH_SCORE',",
+        "            'PRESENTATION_MAP_LEVEL_START',",
+        "            'MODE_LEVEL',",
+        '        ):',
+        "            handle.write('        ifdef KEYBINDING_SYMBOL_CONSTANTS\\n')",
+        "            handle.write(f'{name} equ ${value}\\n')",
+        "            handle.write('        endc\\n')",
+        '        else:',
+        "            handle.write(f'{name} equ ${value}\\n')",
+    ]
+    return nl.join(rows)
+
+
+def transform_build(baseline_bytes):
+    text = baseline_bytes.decode('utf-8')
+    nl = '\r\n' if '\r\n' in text else '\n'
+    match = module_match(text)
+    body = match.group(1)
+    base_wanted, base_required = assignments(body)
+    require(not (set(base_wanted) & set(EXPORT_NAMES)), 'baseline already exports one of the four names')
+    require(not (set(base_required) & set(EXPORT_NAMES)), 'baseline already requires one of the four names')
+
+    wanted_tail = "    'start_screen': 'PRES_MODULE_START_SCREEN'," + nl + '}'
+    wanted_add = ''.join(f"    '{name}': '{name}'," + nl for name in EXPORT_NAMES)
+    body = replace_once(body, wanted_tail, wanted_tail[:-1] + wanted_add + '}', 'wanted map')
+
+    required_tail = "    'PRES_MODULE_START_SCREEN'," + nl + '}'
+    required_add = ''.join(f"    '{name}'," + nl for name in EXPORT_NAMES)
+    body = replace_once(body, required_tail, required_tail[:-1] + required_add + '}', 'required set')
+
+    old_write = "        handle.write(f'{name} equ ${value}\\n')"
+    body = replace_once(body, old_write, scoped_writer(nl), 'module exporter write')
+    text = text[:match.start(1)] + body + text[match.end(1):]
+
+    key_output = '--output="$BUILD_DIR/ladybug-keybinding-runtime.bin"'
+    at = text.find(key_output)
+    require(at >= 0 and text.find(key_output, at + 1) < 0, 'keybinding invocation anchor missing or repeated')
+    start = text.rfind('        lwasm', 0, at)
+    end_anchor = '"$ROOT/src/keybinding_runtime.s"'
+    end_at = text.find(end_anchor, at)
+    require(start >= 0 and end_at >= 0, 'keybinding assembler invocation is incomplete')
+    end = end_at + len(end_anchor)
+    block = text[start:end]
+    input_line = '            -DINPUT_JOYSTICK="$INPUT_JOYSTICK" \\' + nl
+    marker_line = '            -DKEYBINDING_SYMBOL_CONSTANTS=1 \\' + nl
+    block = replace_once(block, input_line, input_line + marker_line, 'keybinding-only selector')
+    text = text[:start] + block + text[end:]
+    return text.encode('utf-8')
+
+
+def scoped_transform(text, base_wanted, base_required):
+    try:
+        body = module_match(text).group(1)
+        wanted, required = assignments(body)
+    except (SystemExit, SyntaxError, ValueError):
+        return False
+    expected_wanted = dict(base_wanted)
+    expected_wanted.update(EXPORTS)
+    expected_required = set(base_required) | set(EXPORT_NAMES)
+    if wanted != expected_wanted or required != expected_required:
+        return False
+    nl = '\r\n' if '\r\n' in text else '\n'
+    if scoped_writer(nl) not in body:
+        return False
+    if text.count('-DKEYBINDING_SYMBOL_CONSTANTS=1') != 1:
+        return False
+    key_output = '--output="$BUILD_DIR/ladybug-keybinding-runtime.bin"'
+    at = text.find(key_output)
+    start = text.rfind('        lwasm', 0, at)
+    end_at = text.find('"$ROOT/src/keybinding_runtime.s"', at)
+    if at < 0 or start < 0 or end_at < 0:
+        return False
+    block = text[start:end_at]
+    return block.count('-DKEYBINDING_SYMBOL_CONSTANTS=1') == 1
+
+
+def map_symbols(path, names):
+    result = {}
+    pattern = re.compile(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$')
+    for line in path.read_text(encoding='utf-8').splitlines():
+        match = pattern.match(line)
+        if match and match.group(1) in names:
+            require(match.group(1) not in result, 'duplicate map entry: ' + match.group(1))
+            result[match.group(1)] = int(match.group(2), 16)
+    require(set(result) == set(names), f'map symbols missing: {sorted(set(names) - set(result))}')
+    return result
+
+
+def check_known_collisions(values):
+    data_header = BASELINE / 'build/ladybug_presentation.inc'
+    collisions = set()
+    for name in ('PRESENTATION_MAP_INSTRUCTIONS', 'PRESENTATION_MAP_HIGH_SCORE', 'PRESENTATION_MAP_LEVEL_START'):
+        matches = re.findall(rf'^{name}\s+equ\s+(\$?[0-9A-Fa-f]+)$', data_header.read_text(encoding='utf-8'), re.M)
+        require(len(matches) == 1 and int(matches[0].lstrip('$'), 16 if matches[0].startswith('$') else 10) == values[name],
+                'generated presentation data header does not own ' + name)
+        collisions.add(name)
+    for source in ('src/demo_runtime.s', 'src/instruction_runtime.s', 'src/presentation_runtime.s'):
+        text = (BASELINE / source).read_text(encoding='utf-8')
+        data_at = text.find('include "ladybug_presentation.inc"')
+        symbol_at = text.find('include "ladybug_presentation_symbols.inc"')
+        require(data_at >= 0 and symbol_at > data_at, 'shared-header include order changed: ' + source)
+    presentation = (BASELINE / 'src/presentation_runtime.s').read_text(encoding='utf-8')
+    symbol_at = presentation.find('include "ladybug_presentation_symbols.inc"')
+    mode_at = presentation.find('MODE_LEVEL equ 6', symbol_at)
+    require(mode_at > symbol_at, 'presentation-local MODE_LEVEL definition not found after shared header')
+    collisions.add('MODE_LEVEL')
+    return collisions
+
+
+def source_map_symbols(path):
+    found = {}
+    pattern = re.compile(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$')
+    for line in path.read_text(encoding='utf-8').splitlines():
+        match = pattern.match(line)
+        if match:
+            require(match.group(1) not in found, 'duplicate source-map symbol: ' + match.group(1))
+            found[match.group(1)] = match.group(2).upper()
+    return found
+
+
+def exporter_loop(body):
+    tree = ast.parse(body)
+    found = []
+    for node in ast.walk(tree):
+        target = node.target if isinstance(node, ast.For) else None
+        iterator = node.iter if isinstance(node, ast.For) else None
+        if (isinstance(target, ast.Tuple) and [getattr(x, 'id', None) for x in target.elts] == ['name', 'value']
+                and isinstance(iterator, ast.Call) and isinstance(iterator.func, ast.Attribute)
+                and isinstance(iterator.func.value, ast.Name) and iterator.func.value.id == 'symbols'
+                and iterator.func.attr == 'items'):
+            found.append(node)
+    require(len(found) == 1, 'exporter writer loop is missing or ambiguous')
+    module = ast.fix_missing_locations(ast.Module(body=[found[0]], type_ignores=[]))
+    return compile(module, '<presentation-export-writer>', 'exec')
+
+
+def emit_exported_lines(body, symbols, output_header):
+    handle = io.StringIO()
+    exec(exporter_loop(body), {'symbols': symbols, 'handle': handle, 'output': str(output_header), 're': re})
+    return handle.getvalue()
+
+
+def visible_equates(text, selector_enabled):
+    active = True
+    guarded = False
+    values = {}
+    for line in text.splitlines():
+        stripped = line.strip()
+        if stripped.lower() == 'ifdef keybinding_symbol_constants':
+            require(not guarded, 'nested selector guard in generated exporter output')
+            guarded = True
+            active = selector_enabled
+            continue
+        if stripped.lower() == 'endc':
+            require(guarded, 'unmatched ENDC in generated exporter output')
+            guarded = False
+            active = True
+            continue
+        match = re.fullmatch(r'([A-Za-z_]\w*)\s+equ\s+\$([0-9A-Fa-f]+)', stripped)
+        require(match is not None, 'unexpected line from presentation exporter writer: ' + stripped)
+        if active:
+            name, value = match.group(1), int(match.group(2), 16)
+            require(name not in values, 'duplicate EQU emitted by presentation exporter: ' + name)
+            values[name] = value
+    require(not guarded, 'selector guard was not closed by ENDC')
+    return values
+
+
+def main():
+    manifest = json.loads(MANIFEST.read_text(encoding='utf-8'))
+    fixtures = json.loads(FIXTURES.read_text(encoding='utf-8'))
+    require(manifest['base_root'] == 'repro/feat010-frontend-dispatch-repair-20261016/candidate', 'baseline root changed')
+    pinned = manifest['inputs']
+    require(manifest['input_count'] == 266 and len(pinned) == 266, 'baseline manifest is not the pinned 266-input set')
+    require(digest(BASELINE / 'build/source-build-receipt.json') == manifest['receipt_sha256'], 'baseline receipt changed')
+    require(digest(BASELINE / 'build/ladybug.rom') == manifest['rom_sha256'], 'reviewed baseline ROM changed')
+    receipt = json.loads((BASELINE / 'build/source-build-receipt.json').read_text(encoding='utf-8'))
+    require(receipt.get('state') == 'complete' and receipt.get('profile') == 'complete', 'baseline receipt is not complete')
+    require(receipt.get('inputs') == pinned and inputs(BASELINE) == pinned, 'baseline source inputs differ from pinned manifest')
+
+    preparation = json.loads(PREPARATION.read_text(encoding='utf-8'))
+    require(preparation['candidate'] == 'repro/feat010-joystick-branch-repair-20261017/candidate', 'candidate preparation identity changed')
+    require(preparation['baseline_input_count'] == 266 and not preparation['production_changes'], 'candidate preparation record is not source-only')
+    require(not (CANDIDATE / 'build').exists() and not (CANDIDATE / '.git').exists(), 'candidate is not a fresh source-only copy')
+    dirs = {p.name for p in CANDIDATE.iterdir() if p.is_dir()}
+    files = {p.name for p in CANDIDATE.iterdir() if p.is_file()}
+    require(dirs == set(preparation['copied_directories']) and not files, 'candidate contains files outside the frozen source copy')
+    candidate_inputs = inputs(CANDIDATE)
+    require(len(candidate_inputs) == 266 and candidate_inputs == pinned, 'candidate does not match all 266 baseline input hashes')
+
+    base_bytes = (BASELINE / 'scripts/build.sh').read_bytes()
+    require(digest(BASELINE / 'scripts/build.sh') == pinned['scripts/build.sh'], 'baseline build.sh hash mismatch')
+    candidate_bytes = (CANDIDATE / 'scripts/build.sh').read_bytes()
+    require(candidate_bytes == base_bytes, 'candidate was modified before in-memory qualification')
+    base_keybinding = (BASELINE / 'src/keybinding_runtime.s').read_bytes()
+    require(digest(BASELINE / 'src/keybinding_runtime.s') == pinned['src/keybinding_runtime.s'], 'baseline keybinding source hash mismatch')
+    require((CANDIDATE / 'src/keybinding_runtime.s').read_bytes() == base_keybinding,
+            'candidate keybinding source changed before in-memory qualification')
+    corrected_keybinding = transform_keybinding(base_keybinding)
+    corrected_text = corrected_keybinding.decode('utf-8')
+    nl = '\r\n' if '\r\n' in corrected_text else '\n'
+    restored_text = replace_once(
+        corrected_text,
+        '        cmpa #MODE_NAME' + nl + '        lbne ks_joy_done',
+        '        cmpa #MODE_NAME' + nl + '        bne ks_joy_done',
+        'in-memory branch restoration',
+    )
+    require(restored_text.encode('utf-8') == base_keybinding,
+            'in-memory long-branch fixture does not reverse to the exact baseline source')
+    corrected_fixture = fixtures['corrected_control']
+    require(corrected_fixture['source_bytes'] == 'in-memory transform from the pinned baseline source; no candidate edit'
+            and corrected_fixture['source_sha256'] == hashlib.sha256(corrected_keybinding).hexdigest()
+            and corrected_fixture['exact_delta'] == 'one bne ks_joy_done to lbne ks_joy_done after cmpa #MODE_NAME in ks_joy_rank_mode'
+            and corrected_fixture['assembly_or_build_performed'] is False,
+            'in-memory corrected branch fixture identity or scope changed')
+    baseline_text = base_bytes.decode('utf-8')
+    base_body = module_match(baseline_text).group(1)
+    base_wanted, base_required = assignments(base_body)
+    require(not (set(base_wanted) & set(EXPORT_NAMES)) and not (set(base_required) & set(EXPORT_NAMES)), 'baseline control unexpectedly has exports')
+
+    map_names = ('PRESENTATION_MAP_INSTRUCTIONS', 'PRESENTATION_MAP_HIGH_SCORE', 'PRESENTATION_MAP_LEVEL_START', 'MODE_LEVEL')
+    authoritative = map_symbols(BASELINE / 'build/ladybug-presentation-runtime.map', map_names)
+    require(authoritative == {
+        'PRESENTATION_MAP_INSTRUCTIONS': 1,
+        'PRESENTATION_MAP_HIGH_SCORE': 3,
+        'PRESENTATION_MAP_LEVEL_START': 2,
+        'MODE_LEVEL': 6,
+    }, 'baseline presentation map values changed')
+    collisions = check_known_collisions(authoritative)
+    map_entries = source_map_symbols(BASELINE / 'build/ladybug-presentation-runtime.map')
+    old_values = {}
+    for map_name, export_name in base_wanted.items():
+        require(map_name in map_entries, 'existing exporter source symbol missing from authority map: ' + map_name)
+        old_values[export_name] = map_entries[map_name]
+    baseline_header = BASELINE / 'build/ladybug_presentation_symbols.inc'
+    require(baseline_header.is_file(), 'reviewed baseline shared-symbol header is missing')
+
+    marked = transform_build(base_bytes)
+    require(scoped_transform(marked.decode('utf-8'), base_wanted, base_required), 'in-memory guarded transform failed static contract')
+    transformed_body = module_match(marked.decode('utf-8')).group(1)
+    old_lines = emit_exported_lines(base_body, old_values, baseline_header)
+    require(emit_exported_lines(transformed_body, old_values, baseline_header) == old_lines,
+            'transformed writer changes existing export lines')
+    expected_old = visible_equates(old_lines, False)
+    all_values = dict(old_values)
+    all_values.update({name: f'{authoritative[name]:04X}' for name in EXPORT_NAMES})
+    emitted = emit_exported_lines(transformed_body, all_values, baseline_header)
+    unmarked_view = visible_equates(emitted, False)
+    marked_view = visible_equates(emitted, True)
+    expected_new = dict(expected_old)
+    expected_new.update(authoritative)
+    require(unmarked_view == expected_old, 'unmarked shared consumer receives new equates or loses an existing export')
+    require(marked_view == expected_new, 'marked keybinding consumer does not receive exactly four map-derived equates')
+    require(not (set(unmarked_view) & collisions), 'unmarked shared consumer sees duplicate same-name EQU definitions')
+    flat = marked.decode('utf-8')
+    flat = replace_once(flat, "            handle.write('        ifdef KEYBINDING_SYMBOL_CONSTANTS\\n')", "            handle.write('')", 'flat negative control ifdef')
+    flat = replace_once(flat, "            handle.write('        endc\\n')", "            handle.write('')", 'flat negative control endc')
+    require(not scoped_transform(flat, base_wanted, base_required), 'unconditional flat-export negative control was not rejected')
+    flat_output = emit_exported_lines(module_match(flat).group(1), all_values, baseline_header)
+    flat_unmarked_view = visible_equates(flat_output, False)
+    require(set(flat_unmarked_view) & collisions == set(EXPORT_NAMES),
+            'flat negative control did not reproduce all four shared-consumer duplicate EQU hazards')
+    require(not scoped_transform(base_bytes.decode('utf-8'), base_wanted, base_required), 'missing-export baseline negative control was not rejected')
+
+    expected_inputs = dict(pinned)
+    expected_inputs['scripts/build.sh'] = hashlib.sha256(marked).hexdigest()
+    expected_inputs['src/keybinding_runtime.s'] = hashlib.sha256(corrected_keybinding).hexdigest()
+    require(len(expected_inputs) == 266, 'expected source manifest cardinality changed')
+    expected_manifest = json.loads(EXPECTED_INPUTS.read_text(encoding='utf-8'))
+    require(expected_manifest['baseline_root'] == manifest['base_root'], 'expected-input manifest baseline root changed')
+    require(expected_manifest['baseline_receipt_sha256'] == manifest['receipt_sha256']
+            and expected_manifest['baseline_rom_sha256'] == manifest['rom_sha256'],
+            'expected-input manifest baseline artifact identities changed')
+    require(expected_manifest['input_count'] == 266 and expected_manifest['inputs'] == expected_inputs,
+            'expected cumulative input manifest differs from the two approved in-memory edits')
+    require(expected_manifest['changes'] == {
+        'scripts/build.sh': {
+            'baseline_sha256': pinned['scripts/build.sh'],
+            'candidate_sha256': expected_inputs['scripts/build.sh'],
+        },
+        'src/keybinding_runtime.s': {
+            'baseline_sha256': pinned['src/keybinding_runtime.s'],
+            'candidate_sha256': expected_inputs['src/keybinding_runtime.s'],
+        },
+    }, 'expected input manifest includes a missing or unrelated changed source')
+
+    failed_candidate = FAILED_FIXTURE / 'candidate'
+    failed_log = FAILED_FIXTURE / 'build-first.log'
+    failed_result_path = FAILED_FIXTURE / 'build-result.json'
+    known_bad = fixtures['known_bad']
+    require(known_bad['candidate_root'] == 'repro/feat010-joystick-symbol-repair-20261017/candidate',
+            'known-bad fixture root changed')
+    require(digest(failed_candidate / 'src/keybinding_runtime.s') == pinned['src/keybinding_runtime.s'],
+            'retained failed candidate source differs from the short-branch baseline fixture')
+    require(known_bad['keybinding_sha256'] == pinned['src/keybinding_runtime.s'],
+            'known-bad fixture source hash differs from the pinned short-branch source')
+    require(digest(failed_candidate / 'scripts/build.sh') == expected_inputs['scripts/build.sh'],
+            'retained failed candidate does not contain the approved guarded-export transform')
+    require(known_bad['guarded_build_script_sha256'] == expected_inputs['scripts/build.sh'],
+            'known-bad fixture build-script hash differs from the approved guarded export')
+    require(digest(failed_log) == known_bad['log_sha256'], 'retained known-bad build log identity changed')
+    require(digest(failed_result_path) == known_bad['result_sha256'], 'retained known-bad build result identity changed')
+    failed_text = failed_log.read_text(encoding='utf-8')
+    require(known_bad['assembler_failure'] in failed_text and known_bad['short_branch_line'] in failed_text,
+            'retained failure does not identify the approved short-branch overflow')
+    failed_result = json.loads(failed_result_path.read_text(encoding='utf-8'))
+    require(failed_result.get('returncode') == 1 and failed_result.get('outcome') == 'BUILD FAILED; STOP'
+            and failed_result.get('log_sha256') == known_bad['log_sha256'],
+            'retained known-bad build result does not match its failure evidence')
+    require(abs(failed_result.get('elapsed_seconds', 0) - known_bad['elapsed_seconds']) < 0.000001,
+            'retained known-bad build elapsed observation changed')
+    require(failed_result.get('ladybug.rom') is None, 'known-bad fixture unexpectedly contains a final ROM')
+
+    print('PASS baseline: reviewed ROM/receipt and 266 source hashes match pinned identities')
+    print('PASS controls: missing-export baseline and flat exporter rejected; flat output reproduces duplicate EQU names')
+    print('PASS in-memory writer: actual transformed exporter preserves old lines, hides new equates from unmarked consumers, and emits all four for marked keybinding')
+    print('PASS known-bad fixture: retained failed build stops at the short BNE in keybinding_runtime.s:169')
+    print('PASS corrected fixture: the only joystick branch source delta is BNE to LBNE at ks_joy_rank_mode')
+    print('PASS candidate: fresh source copy unchanged; cumulative frontend repair inputs preserved')
+    print('EXPECTED scripts/build.sh SHA-256 ' + expected_inputs['scripts/build.sh'])
+    print('EXPECTED src/keybinding_runtime.s SHA-256 ' + expected_inputs['src/keybinding_runtime.s'])
+    print('Source-only qualification complete; parent review and Ready transition remain required.')
+
+
+if __name__ == '__main__':
+    main()

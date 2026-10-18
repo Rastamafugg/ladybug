@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "ticket": "FEAT-010",
+  "known_bad": {
+    "candidate_root": "repro/feat010-joystick-symbol-repair-20261017/candidate",
+    "keybinding_sha256": "ce9cbeeeef52db30f8444f3779042dfc24f38fc44f7bdfb219deb45248e649be",
+    "guarded_build_script_sha256": "37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30",
+    "result_path": "repro/feat010-joystick-symbol-repair-20261017/build-result.json",
+    "result_sha256": "1bcb756a3a653ad5e52a57c3dd08ccc1e767c060803d85bb42dafe339037ece4",
+    "log_path": "repro/feat010-joystick-symbol-repair-20261017/build-first.log",
+    "log_sha256": "dd5b610bde1b19d09ef0837de9ca1b455d5a01cb3b4253d2fb6e779512686264",
+    "returncode": 1,
+    "outcome": "BUILD FAILED; STOP",
+    "elapsed_seconds": 200.92863280000165,
+    "assembler_failure": "keybinding_runtime.s(169) : ERROR : Byte overflow",
+    "short_branch_line": "keybinding_runtime.s:00169         bne ks_joy_done",
+    "final_rom_present": false
+  },
+  "corrected_control": {
+    "source_bytes": "in-memory transform from the pinned baseline source; no candidate edit",
+    "source_sha256": "bec27f7756ef1e3c569abb087385558dd207b003ffbc075472b8ea501f01809b",
+    "exact_delta": "one bne ks_joy_done to lbne ks_joy_done after cmpa #MODE_NAME in ks_joy_rank_mode",
+    "assembly_or_build_performed": false
+  },
+  "compiled_branch_oracle": {
+    "source_line": 169,
+    "long_branch_opcode_hex": "1026",
+    "instruction_length_bytes": 4,
+    "branch_target_symbol": "ks_joy_done",
+    "origin_source_directive": "org $BA00",
+    "origin_map_symbol": "key_service",
+    "binary_offset_rule": "listing instruction address minus matching source/map module origin",
+    "target_rule": "instruction address plus four plus signed 16-bit displacement equals ks_joy_done in the generated keybinding map; listing bytes equal the built keybinding binary slice"
+  }
+}

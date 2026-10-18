@@ -1,0 +1,34 @@
+FEAT-010 cumulative joystick branch repair preparation report
+
+Status: preparation artifacts are complete for parent review. The production candidate remains untouched and unbuilt. This preparer did not run the source qualifier, source checker, assembler, build, runtime, or emulator. The directory-local .gitattributes rule preserves exact artifact bytes so the reported hashes remain stable in Git checkouts.
+
+Classification: Standard. The approved source failure is a single short conditional branch overflow in the joystick keybinding module. The change crosses the existing module-fit boundary, so the existing stock capacity guards remain acceptance criteria.
+
+Owned scope: repro/feat010-joystick-branch-repair-20261017/ only. No wiki, ticket, root source, shared artifact, or other branch was edited.
+
+Frozen baseline: repro/feat010-frontend-dispatch-repair-20261016/candidate, complete receipt SHA-256 cf861fcaeb95c1c905d758d0d7a191a128dd4c56ecf2a6a00e4e643db464c0e0, reviewed ROM SHA-256 6b2181bfba91869fcfe304524ecdd965d30c7b5ad6c560c0b00da67439282b08. base-inputs.json pins 266 inputs. The expected cumulative receipt preserves all 266 paths and changes only scripts/build.sh and src/keybinding_runtime.s.
+
+Exact cumulative patch: production.patch, SHA-256 fbb51883914e89e58b984a6e31bf9f6a4147b2ee8b81e2c87cc32b950661917d. It retains the guarded consumer-scoped exporter at scripts/build.sh SHA-256 37a5d142152fda1665d55f92696a71edffb055d05d66191c132e97f5d6482e30, including old exports and the intentional alias. It changes only `bne ks_joy_done` to `lbne ks_joy_done` after `cmpa #MODE_NAME` in `ks_joy_rank_mode`. The source delta is SHA-256 bec27f7756ef1e3c569abb087385558dd207b003ffbc075472b8ea501f01809b. Projected assembled growth is two joystick-only bytes. This projection is not final fit evidence.
+
+Fixture binding: setup/fixtures.json identifies the prior failed candidate and its log/result hashes. The retained build returned 1 after 200.928632800002 seconds at `keybinding_runtime.s:169` with `Byte overflow`; no final ROM was produced. The corrected fixture is generated in memory during parent source qualification and must differ from the pinned source only at the approved BNE-to-LBNE instruction. No assembler smoke test is added.
+
+Prepared commands, not executed here:
+- Source/setup qualification: `python -B repro/feat010-joystick-branch-repair-20261017/setup/qualifier.py.txt`, entire phase at most 60 seconds. It checks the full baseline and candidate input identities, retained exporter controls and alias, the known-bad fixture, the in-memory corrected branch and exact two-file expected manifest.
+- One build: `python -B repro/feat010-joystick-branch-repair-20261017/build-once.py.txt`, entire phase at most 600 seconds, one attempt. Parent must review and complete source qualification, apply only production.patch to the isolated candidate and provide parent-build-ready.json first. The inner build uses complete/joystick/adaptive/6809 with a 595-second timeout and 2-second kill grace.
+- Focused postcheck: `python -B repro/feat010-joystick-branch-repair-20261017/setup/post.py.txt`, entire phase at most 60 seconds and only after a zero-exit build. It checks the complete 266-input receipt, profile and stock caps; it decodes the listing LBNE, matches its four bytes to the keybinding binary at address minus the source/map origin, and checks the destination against `ks_joy_done` in the generated keybinding map.
+
+Acceptance limits remain resident use <=8160/8192 bytes (at least 32 bytes free), assets <=7680, presentation <=1280, page-23 high-score helper <=3136, keybinding <=1536, and audio <=6656. Historical partial resident use 8124/8192 and presentation use 1280/1280 are not final-fit acceptance evidence. The two-byte source projection leaves full-build resident fit and the keybinding cap unresolved until the authorized build.
+
+Artifact SHA-256 values:
+- .gitattributes: 705fd4d6451a31d36b3df7de96f83f30ac976c9b4a6d1e51671d8e2f33e2d0da
+- base-inputs.json: a453a45368ef97bf6f63a3f765b62f83e9043d23b982580164746be818c0c393
+- expected-inputs.json: b6ab7cfc90f1b453f3b95828e72664414ee66b419b291d5accc3c2b2709fe6f8
+- candidate-preparation.json: b1e2ef563008a273e26ac62576907650bce00dc4b720e3e6dbfb7f4d1c4347e7
+- setup/manifest.json: 576b586d1d59f24afa18dfa3b0c88bb281d1c73a0c3e66845125c711d2217bfe
+- setup/qualifier.py.txt: ea6774ab4bbafbcfa9498e21d92a142651a970175c1a130f33296451d2fe378f
+- setup/post.py.txt: 1056f34907892376244282f9123c8a47355f3ed434ff47b51cc6f4aea9823734
+- build-once.py.txt: 8b4c561410f7f8e2ffa13df50c032f9b79129e5f13fb83ee5f04a566ce51e376
+- setup/fixtures.json: c0b5fb06cd78908b29ab13b3e02c6e404f7bcd8a92e019034902268e25e8af2b
+- setup/patchspec.txt: 93d126ceb41364a2a2155cd7e16794e87f242f075e4418ec832a016e06725f82
+
+No target failure beyond the retained branch overflow was observed during this preparation. The current candidate has not been qualified. Parent review and the approved 60-second source/setup qualification remain the next lifecycle gate.
