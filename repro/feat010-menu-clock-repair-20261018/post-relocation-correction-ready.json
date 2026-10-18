@@ -1,0 +1,53 @@
+{
+  "ticket": "FEAT-010",
+  "step": "exact-relocation postcheck correction",
+  "status": "Ready",
+  "class": "Standard observer repair within High-risk FEAT-010",
+  "approval": "User explicitly approved exact-relocation correction and one renewed postcheck",
+  "owned_files": [
+    "clock-post-card.py.txt",
+    "post-relocation-qualification.py.txt"
+  ],
+  "legacy_post_sha256": "12896500f405a35476c9192d8e285c0b364006c59d27542d83147da515600c95",
+  "protected_sha256": {
+    "clock-source-card.py.txt": "f32c1404bb0dc6088c7fa3b7ebbf1c869f88a24ae9eccca364291f08e021ba3f",
+    "source-card-result.json": "03a940d70e3d449a4e8a8996fb87e10f76cc13762a2ebec33b11b0f788bb308d",
+    "build-once.py.txt": "f4b6cdcf36ca7b79cc623e84aa4efadc68614b729dd763eb75582c26e3a2521e",
+    "build-result.json": "e6df7f8b95d4e91dc4c0c7e434dc70be85515b67ef37bd7858e2bfbe5b113dc3",
+    "build-attempt.json": "fdb655aad6429e7a075f9327423c81bba992a5df516c47e888a09c47687a0c6a",
+    "candidate-inputs.json": "562ff8969e885ddf389da93e637dab0ef73fcb49d209cf8e947e616d7db0407b",
+    "wiki-inputs.json": "a83a19ee66c0237d459e36f946501959e74ef53fc778b6a4fef63b5c5738f5b8",
+    "candidate/src/presentation_runtime.s": "10cdd089e0f993b474fdc08256ca4d1265d8052160d1d60904c21399b45b9506",
+    "candidate/src/shared_text_stage.inc": "d7f8474b06f86f98cccdfb6bc6f5370b49774cd7413dad099bae46587ef85633",
+    "candidate/src/perimeter_reset_helper.s": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "candidate/build/ladybug.rom": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+    "candidate/build/source-build-receipt.json": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+    "post-execution-summary.json": "b200ef9a66db1b39847d1632b2ee495e0312985cfe0f23d7be6a357fdb51bbe2"
+  },
+  "qualification_command": [
+    "python",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/post-relocation-qualification.py.txt"
+  ],
+  "post_command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug",
+    "--exec",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "58s",
+    "python3",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/clock-post-card.py.txt"
+  ],
+  "limits": {
+    "pure_qualification_seconds": 60,
+    "post_seconds": 60,
+    "attempts_each": 1
+  },
+  "contract": "Exact one-byte fixup at0784 for JSR0782 map_back1C2A->1C2E; qualify full334bytes against baseline with only that two-byte operand rebound from receipt-qualified old/new maps/aliases. Source unchanged; no broadmask. New qualification bridge preserves legacy MC-S/build hashes and binds new observer/frozen artifacts. Requalify old parser controls plus exact-fixup negatives. Unique new evidence. Executor no test/build/runtime execution; parent review and one pure qualification then one post. All other assertions unchanged. Stopfirstfailure. Separatecommitonly2files."
+}
