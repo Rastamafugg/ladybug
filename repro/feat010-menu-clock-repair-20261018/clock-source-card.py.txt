@@ -1,0 +1,495 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.machinery
+import importlib.util
+import json
+import re
+import sys
+import time
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+
+CASE = Path(__file__).resolve().parent
+REPO = CASE.parents[1]
+CANDIDATE = CASE / "candidate"
+BASELINE = CASE / "baseline-inputs.json"
+READY = CASE / "observer-preparation-ready.json"
+A1 = REPO / "repro/feat010-attract-admission-repair-20261018/candidate"
+BASELINE_MANIFEST_SHA256 = "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43"
+BASELINE_RECEIPT_SHA256 = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
+BASELINE_ROM_SHA256 = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
+SOURCE_COUNT = 266
+WIKI_COUNT = 379
+LIMIT_SECONDS = 55
+STARTED = time.monotonic()
+ALLOWED = ("src/presentation_runtime.s", "src/shared_text_stage.inc")
+POST_CARD = CASE / "clock-post-card.py.txt"
+SOURCE_RESULT = CASE / "source-card-result.json"
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise AssertionError(message)
+
+
+def split_source(text: str) -> List[Tuple[str, str]]:
+    result = []
+    for raw in text.splitlines(keepends=True):
+        if raw.endswith("\r\n"):
+            result.append((raw[:-2], "\r\n"))
+        elif raw.endswith("\n") or raw.endswith("\r"):
+            result.append((raw[:-1], raw[-1:]))
+        else:
+            result.append((raw, ""))
+    return result
+
+
+def replace_line_block(text: str, old: List[str], new: List[str], count: int, label: str) -> str:
+    lines = split_source(text)
+    contents = [line for line, _ in lines]
+    matches = [index for index in range(len(lines) - len(old) + 1)
+               if contents[index:index + len(old)] == old]
+    require(len(matches) == count, "%s block occurrence count %d, expected %d"
+            % (label, len(matches), count))
+    for start in reversed(matches):
+        old_eols = [eol for _, eol in lines[start:start + len(old)]]
+        replacement = []
+        for offset, content in enumerate(new):
+            eol = old_eols[offset] if offset < len(old_eols) else old_eols[-1]
+            replacement.append((content, eol))
+        lines[start:start + len(old)] = replacement
+    return "".join(content + eol for content, eol in lines)
+
+
+def actor_state(timer: int) -> Tuple[str, int, int]:
+    if timer < 6:
+        return ("startup", timer, 0)
+    elapsed = timer - 6
+    return ("cycle", (elapsed >> 3) & 3, elapsed & 7)
+
+
+def normalize(timer: int, mask: int = 31) -> int:
+    if timer < 6:
+        return timer
+    return 6 + ((timer - 6) & mask)
+
+
+def expired(current: int, origin: int, threshold: int) -> bool:
+    return ((current - origin) & 0xFFFF) >= threshold
+
+
+def arithmetic_violations(mask: int, threshold: int) -> List[str]:
+    failures = []
+    for timer in range(65536):
+        normalized = normalize(timer, mask)
+        if not (0 <= normalized <= 37):
+            failures.append("normalized range at t=%d gives %d" % (timer, normalized))
+            break
+        if timer < 6 and normalized != timer:
+            failures.append("initial startup value changed at t=%d" % timer)
+            break
+        if timer >= 6 and actor_state(timer) != actor_state(normalized):
+            failures.append("phase/subphase changed at t=%d to %d" % (timer, normalized))
+            break
+    for origin in range(38):
+        before = origin + 557
+        at = origin + 558
+        if before > 0xFFFF or at > 0xFFFF:
+            failures.append("reachable origin %d wrapped during the idle boundary" % origin)
+            break
+        if expired(before, origin, threshold):
+            failures.append("early idle expiry at origin=%d age=557 threshold=%d" % (origin, threshold))
+            break
+        if not expired(at, origin, threshold):
+            failures.append("missed idle expiry at origin=%d age=558 threshold=%d" % (origin, threshold))
+            break
+    return failures
+
+
+def source_inventory() -> Dict[str, str]:
+    result = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        for path in (CANDIDATE / folder).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result[path.relative_to(CANDIDATE).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def wiki_inventory() -> Dict[str, str]:
+    result = {}
+    root = CANDIDATE / "wiki"
+    for path in root.rglob("*"):
+        if path.is_file():
+            result[path.relative_to(root).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def transform_runtime(raw: bytes) -> bytes:
+    text = raw.decode("utf-8")
+    original_lines = [line for line, _ in split_source(text)]
+    require(original_lines.count("PRES_ACTOR_X equ $00CC") == 2,
+            "expected the two unused actor-X declarations")
+    require(original_lines.count("PRES_ACTOR_Y equ $00CD") == 2,
+            "expected the two unused actor-Y declarations")
+    text = replace_line_block(text,
+        ["PRES_NAME_LEN equ $00CB", "PRES_ACTOR_X equ $00CC", "PRES_ACTOR_Y equ $00CD"],
+        ["PRES_NAME_LEN equ $00CB", "PRES_IDLE_ORIGIN equ $00CC"], 2,
+        "idle-origin alias definitions")
+
+    text = replace_line_block(text,
+        ["load_timer_reset", "        clr     <PRES_TIMER", "        clr     <PRES_TIMER+1"],
+        ["load_timer_reset", "        clr     <PRES_TIMER", "        clr     <PRES_TIMER+1",
+         "        clr     <PRES_IDLE_ORIGIN", "        clr     <PRES_IDLE_ORIGIN+1"],
+        1, "active COMPLETE final loader reset")
+    text = replace_line_block(text,
+        ["load_timer_reset", "        clr     PRES_TIMER", "        clr     PRES_TIMER+1"],
+        ["load_timer_reset", "        clr     PRES_TIMER", "        clr     PRES_TIMER+1",
+         "        clr     <PRES_IDLE_ORIGIN", "        clr     <PRES_IDLE_ORIGIN+1"],
+        1, "mirror final loader reset")
+
+    lines = split_source(text)
+    contents = [line for line, _ in lines]
+    timer_labels = [index for index, line in enumerate(contents) if line == "timer"]
+    require(len(timer_labels) == 2, "expected active and mirror timer blocks")
+    start_line = timer_labels[0]
+    end_line = next((index for index in range(start_line + 1, len(contents))
+                     if contents[index] == "attract_menu_transition"), None)
+    require(end_line is not None, "active COMPLETE Attract block has no transition boundary")
+    offsets = []
+    cursor = 0
+    for content, eol in lines:
+        offsets.append(cursor)
+        cursor += len(content) + len(eol)
+    offsets.append(cursor)
+    start, end = offsets[start_line], offsets[end_line]
+    active = text[start:end]
+    active = replace_line_block(active, ["        ldd     PRES_TIMER"], ["        ldd     <PRES_TIMER"], 2,
+                           "active timer and idle-test loads")
+    active = replace_line_block(active, ["        std     PRES_TIMER"], ["        std     <PRES_TIMER"], 1,
+                           "active timer store")
+    active = replace_line_block(active, ["        lda     PRES_HOLD_STATE"], ["        lda     <PRES_HOLD_STATE"], 1,
+                           "active hold-state load")
+    active = replace_line_block(active, ["        clr     PRES_HOLD_STATE"], ["        clr     <PRES_HOLD_STATE"], 1,
+                           "active hold-state clear")
+    active = replace_line_block(active, ["        std     PRES_NAME_PTR"], ["        std     <PRES_NAME_PTR"], 1,
+                           "active name-pointer store")
+    active = replace_line_block(active, ["        lda     PRES_MODE"], ["        lda     <PRES_MODE"], 1,
+                           "active mode load")
+    active = replace_line_block(active, ["        ldd     <PRES_TIMER", "        cmpd    #558"],
+        ["        ldd     <PRES_TIMER", "        subd    <PRES_IDLE_ORIGIN", "        cmpd    #558"],
+        1, "active idle-age subtraction")
+    projected = text[:start] + active + text[end:]
+    projected_lines = [line for line, _ in split_source(projected)]
+    require(projected_lines.count("PRES_IDLE_ORIGIN equ $00CC") == 2,
+            "runtime idle-origin alias must exist in both definitions")
+    require(not any("PRES_ACTOR_X" in line or "PRES_ACTOR_Y" in line for line in projected_lines),
+            "unused actor-coordinate aliases remain after projection")
+    return projected.encode("utf-8")
+
+
+def transform_shared(raw: bytes) -> bytes:
+    text = raw.decode("utf-8")
+    text = replace_line_block(text, ["PRES_TIMER equ $00B0"],
+        ["PRES_TIMER equ $00B0", "PRES_IDLE_ORIGIN equ $00CC"], 1,
+        "page-$23 idle-origin alias")
+    old_event = ["        clr     PRES_TIMER", "        clr     PRES_TIMER+1", "        bita    #32"]
+    new_event = [
+        "        ldd     <PRES_TIMER",
+        "        subd    #6",
+        "        blo     menu_clock_addback",
+        "        clra",
+        "        andb    #31",
+        "menu_clock_addback",
+        "        addd    #6",
+        "        std     <PRES_TIMER",
+        "        std     <PRES_IDLE_ORIGIN",
+        "        lda     <MENU_EVENT",
+        "        bita    #32",
+    ]
+    text = replace_line_block(text, old_event, new_event, 1, "Attract menu-event reset")
+    return text.encode("utf-8")
+
+
+def normalized_code_block(source: str) -> List[str]:
+    contents = [line for line, _ in split_source(source)]
+    marker = next((index for index, line in enumerate(contents)
+                   if line == "menu_tick_not_keybinding"), None)
+    require(marker is not None, "menu_tick_not_keybinding label is absent")
+    start = next((index for index in range(marker + 1, len(contents))
+                  if contents[index].strip() == "cmpa    #PRESENTATION_MAP_ATTRACT"), None)
+    end = next((index for index in range((start + 1) if start is not None else 0, len(contents))
+                if contents[index] == "menu_non_attract_event"), None)
+    require(start is not None and end is not None and start < end,
+            "Attract menu event block boundaries are absent or ambiguous")
+    block = contents[start:end]
+    result = []
+    for raw in block:
+        code = raw.partition(";")[0].strip()
+        if not code or code.lower() == "menu_clock_addback":
+            continue
+        result.append(" ".join(code.lower().split()))
+    return result
+
+
+def verify_source_proof(runtime: bytes, shared: bytes) -> None:
+    runtime_text = runtime.decode("utf-8")
+    shared_text = shared.decode("utf-8")
+    expected_event = [
+        "cmpa #presentation_map_attract",
+        "bne menu_non_attract_event",
+        "lda menu_event",
+        "lbeq menu_idle",
+        "ldd <pres_timer",
+        "subd #6",
+        "blo menu_clock_addback",
+        "clra",
+        "andb #31",
+        "addd #6",
+        "std <pres_timer",
+        "std <pres_idle_origin",
+        "lda <menu_event",
+        "bita #32",
+        "lbne menu_hold",
+        "bra menu_event_ready",
+    ]
+    require(normalized_code_block(shared_text) == expected_event,
+            "projected page-$23 event block differs from the approved source sequence")
+    runtime_lines = [line for line, _ in split_source(runtime_text)]
+    shared_lines = [line for line, _ in split_source(shared_text)]
+    require(runtime_lines.count("PRES_IDLE_ORIGIN equ $00CC") == 2,
+            "runtime must define the alias in both existing DP definition branches")
+    require(shared_lines.count("PRES_IDLE_ORIGIN equ $00CC") == 1,
+            "page-$23 helper must define its local direct-page alias")
+    require(runtime_lines.count("        clr     <PRES_IDLE_ORIGIN") == 2
+            and runtime_lines.count("        clr     <PRES_IDLE_ORIGIN+1") == 2,
+            "both final loader reset branches must initialize the 16-bit origin")
+    require("        subd    <PRES_IDLE_ORIGIN" in runtime_lines,
+            "active Attract test does not subtract the last-activity origin")
+    require("        cmpd    #558" in runtime_lines,
+            "the existing 558-count idle threshold changed")
+    require(runtime_lines.count("        ldd     <PRES_TIMER") >= 2
+            and "        std     <PRES_TIMER" in runtime_lines,
+            "active actor timer is not kept continuous")
+
+
+def parser_control_fixture() -> Dict[str, object]:
+    loader = importlib.machinery.SourceFileLoader("feat010_clock_post_card", str(POST_CARD))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    require(spec is not None, "MC-P source loader spec is unavailable")
+    module = importlib.util.module_from_spec(spec)
+    previous_bytecode_setting = sys.dont_write_bytecode
+    sys.dont_write_bytecode = True
+    try:
+        loader.exec_module(module)
+    finally:
+        sys.dont_write_bytecode = previous_bytecode_setting
+    rows, symbols = module.synthetic_menu_fixture()
+    good = module.verify_menu_sequence(rows, symbols)
+    bad_opcode = list(rows)
+    origin_row = next(index for index, row in enumerate(bad_opcode)
+                      if row[2] == "std <pres_idle_origin")
+    address, code, statement = bad_opcode[origin_row]
+    bad_opcode[origin_row] = (address, code[:-1] + bytes((code[-1] ^ 1,)), statement)
+    try:
+        module.verify_menu_sequence(bad_opcode, symbols)
+    except (AssertionError, ValueError):
+        opcode_rejected = True
+    else:
+        opcode_rejected = False
+    require(opcode_rejected, "MC-P direct-page operand negative fixture was accepted")
+
+    bad_address = list(rows)
+    address, code, statement = bad_address[origin_row]
+    bad_address[origin_row] = (address + 1, code, statement)
+    try:
+        module.verify_menu_sequence(bad_address, symbols)
+    except (AssertionError, ValueError):
+        address_rejected = True
+    else:
+        address_rejected = False
+    require(address_rejected, "MC-P instruction-address negative fixture was accepted")
+
+    module.require_helper_capacity(3085, 3136)
+    try:
+        module.require_helper_capacity(3137, 3136)
+    except (AssertionError, ValueError):
+        cap_rejected = True
+    else:
+        cap_rejected = False
+    require(cap_rejected, "MC-P helper over-cap negative fixture was accepted")
+    return {
+        "post_card_sha256": sha(POST_CARD.read_bytes()),
+        "good_menu_fixture": good,
+        "bad_origin_operand_rejected": opcode_rejected,
+        "bad_instruction_address_rejected": address_rejected,
+        "helper_over_cap_rejected": cap_rejected,
+    }
+
+
+def write_source_result(value: Dict[str, object]) -> None:
+    with SOURCE_RESULT.open("x", encoding="utf-8", newline="\n") as handle:
+        json.dump(value, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def main() -> None:
+    result = {"card": "MC-S", "status": "FAILED; STOP", "target_status": "target_pending"}
+    try:
+        require(not SOURCE_RESULT.exists(), "MC-S result already exists; qualification reruns are prohibited")
+        manifest_bytes = BASELINE.read_bytes()
+        require(sha(manifest_bytes) == BASELINE_MANIFEST_SHA256,
+                "frozen baseline-inputs.json hash changed")
+        manifest = json.loads(manifest_bytes.decode("utf-8"))
+        ready = json.loads(READY.read_text(encoding="utf-8"))
+        require(ready.get("status") == "Ready" and ready.get("ticket") == "FEAT-010",
+                "observer preparation is not the approved FEAT-010 Ready step")
+        require(ready.get("baseline_manifest_sha256") == BASELINE_MANIFEST_SHA256,
+                "Ready record and baseline manifest identity differ")
+        require(manifest.get("allowed_changes") == list(ALLOWED),
+                "baseline allowed-change list differs from the approved two-file scope")
+        require(manifest.get("baseline_receipt_sha256") == BASELINE_RECEIPT_SHA256
+                and manifest.get("baseline_rom_sha256") == BASELINE_ROM_SHA256,
+                "baseline manifest is not bound to the approved A1 artifact")
+        require(len(manifest.get("inputs", {})) == SOURCE_COUNT,
+                "baseline source-input count changed")
+        require(len(manifest.get("wiki", {})) == WIKI_COUNT,
+                "baseline frozen-wiki count changed")
+        require(not (CANDIDATE / "build").exists(),
+                "candidate already has build output; source-only qualification stops")
+
+        receipt_path = A1 / "build" / "source-build-receipt.json"
+        rom_path = A1 / "build" / "ladybug.rom"
+        require(sha(receipt_path.read_bytes()) == BASELINE_RECEIPT_SHA256,
+                "receipt-bound A1 build receipt changed")
+        require(sha(rom_path.read_bytes()) == BASELINE_ROM_SHA256,
+                "receipt-bound A1 ROM changed")
+
+        actual = source_inventory()
+        require(set(actual) == set(manifest["inputs"]),
+                "candidate source inventory differs from the frozen 266-input closure")
+        require(actual == manifest["inputs"],
+                "candidate source hashes differ from the frozen baseline")
+        actual_wiki = wiki_inventory()
+        expected_wiki = {name[5:]: value for name, value in manifest["wiki"].items()
+                         if name.startswith("wiki/")}
+        require(len(expected_wiki) == WIKI_COUNT and actual_wiki == expected_wiki,
+                "candidate wiki differs from the frozen 379-file baseline")
+
+        source_root = CANDIDATE / "src"
+        coordinate_refs = []
+        for path in source_root.rglob("*"):
+            if path.is_file() and path.suffix.lower() in (".s", ".inc"):
+                contents = path.read_text(encoding="utf-8")
+                for number, line in enumerate(contents.splitlines(), 1):
+                    if "PRES_ACTOR_X" in line or "PRES_ACTOR_Y" in line:
+                        coordinate_refs.append((path.relative_to(CANDIDATE).as_posix(), number, line.strip()))
+        require(len(coordinate_refs) == 4
+                and all(item[0] == "src/presentation_runtime.s"
+                        and (" equ $00CC" in item[2] or " equ $00CD" in item[2])
+                        for item in coordinate_refs),
+                "$CC-$CD coordinate aliases have a non-declaration source owner")
+
+        runtime_path = CANDIDATE / ALLOWED[0]
+        shared_path = CANDIDATE / ALLOWED[1]
+        base_runtime = runtime_path.read_bytes()
+        base_shared = shared_path.read_bytes()
+        runtime_projection = transform_runtime(base_runtime)
+        shared_projection = transform_shared(base_shared)
+        verify_source_proof(runtime_projection, shared_projection)
+
+        good_failures = arithmetic_violations(31, 558)
+        require(not good_failures,
+                "good arithmetic fixture failed: " + (good_failures[0] if good_failures else "no detail"))
+        legacy_state = actor_state(0)
+        expected_state = actor_state(22)
+        require(expected_state != legacy_state,
+                "legacy clear negative control does not expose the t=22 phase reset")
+        bad_mask = normalize(22, 15)
+        require(actor_state(bad_mask) != expected_state,
+                "mask-15 negative control did not alter t=22 actor phase")
+        bad_threshold = expired(557, 0, 557)
+        require(bad_threshold,
+                "threshold-557 negative control did not expire at age 557")
+        projected = dict(manifest["inputs"])
+        projected[ALLOWED[0]] = sha(runtime_projection)
+        projected[ALLOWED[1]] = sha(shared_projection)
+        changed = sorted(name for name in projected if projected[name] != manifest["inputs"][name])
+        require(changed == sorted(ALLOWED),
+                "in-memory projection changes files outside the two approved sources")
+        candidate_inputs = {
+            "projection_only": True,
+            "input_count": SOURCE_COUNT,
+            "inputs": projected,
+        }
+        wiki_files = expected_wiki
+        wiki_inventory_hash = sha(json.dumps(wiki_files, sort_keys=True,
+                                             separators=(",", ":")).encode("utf-8"))
+        wiki_inputs = {
+            "file_count": WIKI_COUNT,
+            "inventory_sha256": wiki_inventory_hash,
+            "files": wiki_files,
+        }
+        parser_controls = parser_control_fixture()
+        elapsed = round(time.monotonic() - STARTED, 3)
+        require(elapsed <= LIMIT_SECONDS, "MC-S exceeded its 55-second child budget")
+        result.update({
+            "status": "PASS SOURCE/ARITHMETIC; TARGET PENDING",
+            "baseline_manifest_sha256": BASELINE_MANIFEST_SHA256,
+            "baseline_receipt_sha256": BASELINE_RECEIPT_SHA256,
+            "baseline_rom_sha256": BASELINE_ROM_SHA256,
+            "candidate_source_count": SOURCE_COUNT,
+            "candidate_wiki_count": WIKI_COUNT,
+            "baseline_target_sha256": {
+                ALLOWED[0]: sha(base_runtime),
+                ALLOWED[1]: sha(base_shared),
+            },
+            "projected_target_sha256": {
+                ALLOWED[0]: sha(runtime_projection),
+                ALLOWED[1]: sha(shared_projection),
+            },
+            "arithmetic": {
+                "timers_exhausted": 65536,
+                "reachable_origins_checked": 38,
+                "idle_557_expires": False,
+                "idle_558_expires": True,
+                "legacy_clear_t22_rejected": True,
+                "mask15_t22_rejected": True,
+                "threshold557_rejected": True,
+                "menu_event_reload": "exact projected source sequence; no input-state execution",
+                "t22": {
+                    "continuous_actor_state": expected_state,
+                    "legacy_clear_state": legacy_state,
+                    "mask15_state": actor_state(bad_mask),
+                },
+                "threshold_controls": {"age_557_threshold_557": bad_threshold,
+                                        "age_557_threshold_558": expired(557, 0, 558),
+                                        "age_558_threshold_558": expired(558, 0, 558)},
+            },
+            "projected_candidate_inputs": candidate_inputs,
+            "projected_wiki_inputs": wiki_inputs,
+            "source_card_sha256": sha(Path(__file__).read_bytes()),
+            "parser_controls": parser_controls,
+            "duration_seconds": elapsed,
+        })
+    except Exception as error:
+        result["failure"] = "%s: %s" % (type(error).__name__, error)
+        result["duration_seconds"] = round(time.monotonic() - STARTED, 3)
+        if not SOURCE_RESULT.exists():
+            result["source_card_sha256"] = sha(Path(__file__).read_bytes())
+            with SOURCE_RESULT.open("x", encoding="utf-8", newline="\n") as handle:
+                json.dump(result, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+        print(json.dumps(result, indent=2, sort_keys=True))
+        raise SystemExit(1)
+    write_source_result(result)
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

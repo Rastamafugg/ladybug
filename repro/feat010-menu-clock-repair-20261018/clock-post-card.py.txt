@@ -1,0 +1,579 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import re
+import time
+from pathlib import Path
+from typing import Dict, List, Tuple
+
+
+CASE = Path(__file__).resolve().parent
+REPO = CASE.parents[1]
+CANDIDATE = CASE / "candidate"
+BUILD = CANDIDATE / "build"
+BASELINE = CASE / "baseline-inputs.json"
+PROJECTED = CASE / "candidate-inputs.json"
+WIKI = CASE / "wiki-inputs.json"
+SOURCE_RESULT = CASE / "source-card-result.json"
+ATTEMPT = CASE / "build-attempt.json"
+BUILD_RESULT = CASE / "build-result.json"
+BUILD_LOG = CASE / "build-first.log"
+RESULT = CASE / "post-card-result.json"
+SOURCE_CARD = CASE / "clock-source-card.py.txt"
+BUILD_WRAPPER = CASE / "build-once.py.txt"
+BASELINE_A1 = REPO / "repro/feat010-attract-admission-repair-20261018/candidate"
+BASELINE_MANIFEST_SHA256 = "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43"
+BASELINE_RECEIPT_SHA256 = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
+BASELINE_ROM_SHA256 = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
+SOURCE_COUNT = 266
+WIKI_COUNT = 379
+HELPER_BASE = 0xAC40
+HELPER_CAPACITY = 3136
+PERIMETER_HELPER_BASE = 0x06B2
+PERIMETER_HELPER_BYTES = 334
+PRESENTATION_BASE = 0x1900
+PRESENTATION_CAPACITY = 1280
+RESIDENT_LIMIT = 8160
+RESIDENT_CAPACITY = 8192
+RESIDENT_MIN_FREE = 32
+ASSET_CAPACITY = 7680
+STARTED = time.monotonic()
+LIMIT_SECONDS = 55
+PROFILE = {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1",
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise ValueError(message)
+
+
+def source_inventory() -> Dict[str, str]:
+    result = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        for path in (CANDIDATE / folder).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result[path.relative_to(CANDIDATE).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def wiki_inventory() -> Dict[str, str]:
+    root = CANDIDATE / "wiki"
+    return {path.relative_to(root).as_posix(): sha(path.read_bytes())
+            for path in root.rglob("*") if path.is_file()}
+
+
+def parse_symbols(text: str) -> Dict[str, int]:
+    symbols = {}
+    for line in text.splitlines():
+        match = re.match(r"^Symbol: (\S+)\s+.* = ([0-9A-Fa-f]+)$", line)
+        if match:
+            name, address = match.group(1), int(match.group(2), 16)
+            require(name not in symbols, "map symbol is ambiguous: " + name)
+            symbols[name] = address
+    return symbols
+
+
+def parse_listing(text: str) -> List[Tuple[int, bytes, str]]:
+    rows = []
+    pattern = re.compile(r"^\s*([0-9A-Fa-f]{4})\s+([0-9A-Fa-f]{2,16})\s+\([^)]*\):\d+\s+(.*?)\s*$")
+    for line in text.splitlines():
+        match = pattern.match(line)
+        if match:
+            statement = re.sub(r"\s+", " ", match.group(3).strip().lower())
+            rows.append((int(match.group(1), 16), bytes.fromhex(match.group(2)), statement))
+    return rows
+
+
+def require_helper_capacity(size: int, capacity: int) -> None:
+    require(0 <= size <= capacity, "page-$23 helper exceeds its fixed binary capacity")
+
+
+def signed8(value: int) -> int:
+    return value - 256 if value & 0x80 else value
+
+
+def signed16(value: int) -> int:
+    return value - 65536 if value & 0x8000 else value
+
+
+def row_at(rows: List[Tuple[int, bytes, str]], address: int, statement: str):
+    wanted = re.sub(r"\s+", " ", statement.strip().lower())
+    matches = [row for row in rows if row[0] == address]
+    require(len(matches) == 1, "listing lacks unique instruction at $%04X" % address)
+    require(matches[0][2] == wanted,
+            "statement mismatch at $%04X: expected %s, got %s" % (address, wanted, matches[0][2]))
+    return matches[0]
+
+
+def branch_target(row: Tuple[int, bytes, str], opcode: int, size: int) -> int:
+    address, code, statement = row
+    require(len(code) == size, "wrong branch length for " + statement)
+    if size == 2:
+        require(code[0] == opcode, "wrong short-branch opcode for " + statement)
+        return address + 2 + signed8(code[1])
+    require(size == 4 and code[:2] == bytes((0x10, opcode)),
+            "wrong long-branch opcode for " + statement)
+    return address + 4 + signed16(int.from_bytes(code[2:], "big"))
+
+
+def synthetic_menu_fixture():
+    start = 0x1000
+    symbols = {
+        "menu_tick_not_keybinding": start - 6,
+        "menu_non_attract_event": start + 37,
+        "menu_clock_addback": start + 20,
+        "menu_idle": 0x1100,
+        "menu_hold": 0x1110,
+        "menu_event_ready": start + 45,
+        "highscore_logo_tick": 0x1120,
+    }
+    specs = [
+        ("cmpa #presentation_map_attract", b"\x81\x00"),
+        ("bne menu_non_attract_event", None),
+        ("lda menu_event", b"\x96\xd0"),
+        ("lbeq menu_idle", None),
+        ("ldd <pres_timer", b"\xdc\xb0"),
+        ("subd #6", b"\x83\x00\x06"),
+        ("blo menu_clock_addback", b"\x25\x03"),
+        ("clra", b"\x4f"),
+        ("andb #31", b"\xc4\x1f"),
+        ("addd #6", b"\xc3\x00\x06"),
+        ("std <pres_timer", b"\xdd\xb0"),
+        ("std <pres_idle_origin", b"\xdd\xcc"),
+        ("lda <menu_event", b"\x96\xd0"),
+        ("bita #32", b"\x85\x20"),
+        ("lbne menu_hold", None),
+        ("bra menu_event_ready", None),
+    ]
+    lengths = [len(code) if code is not None else (4 if statement.startswith("l") else 2)
+               for statement, code in specs]
+    end = start + sum(lengths)
+    symbols["menu_non_attract_event"] = end
+    rows = []
+    address = start
+    for (statement, code), size in zip(specs, lengths):
+        if code is None:
+            if statement.startswith("bne "):
+                target = symbols["menu_non_attract_event"]
+            elif statement.startswith("lbeq "):
+                target = symbols["menu_idle"]
+            elif statement.startswith("lbne "):
+                target = symbols["menu_hold"]
+            else:
+                target = symbols["menu_event_ready"]
+            displacement = target - (address + size)
+            if size == 2:
+                opcode = 0x20 if statement.startswith("bra ") else 0x26
+                code = bytes((opcode, displacement & 0xFF))
+            else:
+                opcode = 0x27 if statement.startswith("lbeq ") else 0x26
+                code = bytes((0x10, opcode, (displacement >> 8) & 0xFF, displacement & 0xFF))
+        rows.append((address, code, statement))
+        address += len(code)
+    return rows, symbols
+
+
+def verify_menu_sequence(rows: List[Tuple[int, bytes, str]], symbols: Dict[str, int]) -> Dict[str, object]:
+    required_symbols = ("menu_tick_not_keybinding", "menu_non_attract_event", "menu_clock_addback",
+                        "menu_idle", "menu_hold", "menu_event_ready")
+    for name in required_symbols:
+        require(name in symbols, "menu map symbol is missing: " + name)
+    event_candidates = [row for row in rows if symbols["menu_tick_not_keybinding"] <= row[0]
+                        < symbols["menu_non_attract_event"]
+                        and row[2] == "cmpa #presentation_map_attract"]
+    require(len(event_candidates) == 1, "compiled Attract comparison is missing or ambiguous")
+    start = event_candidates[0][0]
+    specs = [
+        ("cmpa #presentation_map_attract", bytes((0x81, 0x00))),
+        ("bne menu_non_attract_event", None),
+        ("lda menu_event", bytes((0x96, 0xD0))),
+        ("lbeq menu_idle", None),
+        ("ldd <pres_timer", bytes((0xDC, 0xB0))),
+        ("subd #6", bytes((0x83, 0x00, 0x06))),
+        ("blo menu_clock_addback", bytes((0x25, 0x03))),
+        ("clra", bytes((0x4F,))),
+        ("andb #31", bytes((0xC4, 0x1F))),
+        ("addd #6", bytes((0xC3, 0x00, 0x06))),
+        ("std <pres_timer", bytes((0xDD, 0xB0))),
+        ("std <pres_idle_origin", bytes((0xDD, 0xCC))),
+        ("lda <menu_event", bytes((0x96, 0xD0))),
+        ("bita #32", bytes((0x85, 0x20))),
+        ("lbne menu_hold", None),
+        ("bra menu_event_ready", None),
+    ]
+    address = start
+    checked = []
+    for statement, expected in specs:
+        row = row_at(rows, address, statement)
+        if expected is not None:
+            require(row[1] == expected,
+                    "compiled bytes at $%04X differ for %s: %s" % (address, statement, row[1].hex()))
+        checked.append(row)
+        address += len(row[1])
+    require(symbols["menu_clock_addback"] == checked[9][0],
+            "BLO/menu_clock_addback label does not target the add-back instruction")
+    require(symbols["menu_non_attract_event"] == address,
+            "outer BNE destination does not follow the complete event block")
+    require(branch_target(checked[1], 0x26, 2) == symbols["menu_non_attract_event"],
+            "outer BNE target differs from menu_non_attract_event")
+    require(-128 <= symbols["menu_non_attract_event"] - (checked[1][0] + 2) <= 127,
+            "outer BNE is outside short-branch range")
+    require(branch_target(checked[3], 0x27, 4) == symbols["menu_idle"],
+            "LBEQ destination differs from menu_idle")
+    require(branch_target(checked[6], 0x25, 2) == symbols["menu_clock_addback"],
+            "BLO destination differs from menu_clock_addback")
+    require(branch_target(checked[14], 0x26, 4) == symbols["menu_hold"],
+            "LBNE destination differs from menu_hold")
+    require(branch_target(checked[15], 0x20, 2) == symbols["menu_event_ready"],
+            "BRA destination differs from menu_event_ready")
+    clock_block_bytes = sum(len(row[1]) for row in checked[4:13])
+    require(clock_block_bytes == 19, "compiled menu clock transform is not 19 bytes")
+    return {
+        "event_block_start": start,
+        "event_block_end": address,
+        "outer_bne_bytes": checked[1][1].hex(),
+        "outer_bne_displacement": signed8(checked[1][1][1]),
+        "outer_bne_target": symbols["menu_non_attract_event"],
+        "clock_transform_bytes": clock_block_bytes,
+        "menu_event_reloaded": True,
+        "instruction_rows": len(checked),
+    }
+
+
+def verify_image_rows(image: bytes, base: int, rows: List[Tuple[int, bytes, str]],
+                      selected: List[Tuple[int, bytes, str]]) -> None:
+    for address, code, statement in selected:
+        offset = address - base
+        require(0 <= offset <= len(image) - len(code),
+                "compiled instruction outside packaged module: " + statement)
+        require(image[offset:offset + len(code)] == code,
+                "listing bytes differ from packaged module at $%04X" % address)
+
+
+def verify_runtime(rows: List[Tuple[int, bytes, str]], symbols: Dict[str, int], image: bytes) -> Dict[str, object]:
+    required = ("timer", "attract_menu_transition", "attract_tick", "attract_next", "hold", "load_timer_reset",
+                "PRES_TIMER", "PRES_IDLE_ORIGIN", "PRES_HOLD_STATE", "PRES_NAME_PTR", "PRES_MODE")
+    for name in required:
+        require(name in symbols, "presentation map symbol is missing: " + name)
+    require(symbols["PRES_IDLE_ORIGIN"] == 0x00CC, "origin alias is not at the approved $CC-$CD address")
+    start, end = symbols["timer"], symbols["attract_menu_transition"]
+    active = [row for row in rows if start <= row[0] < end]
+    expectations = {
+        "ldd <pres_timer": (2, bytes((0xDC, 0xB0))),
+        "std <pres_timer": (1, bytes((0xDD, 0xB0))),
+        "lda <pres_hold_state": (1, bytes((0x96, 0xD4))),
+        "clr <pres_hold_state": (1, bytes((0x0F, 0xD4))),
+        "std <pres_name_ptr": (1, bytes((0xDD, 0xE4))),
+        "lda <pres_mode": (1, bytes((0x96, 0xA5))),
+        "subd <pres_idle_origin": (1, bytes((0x93, 0xCC))),
+        "cmpd #558": (1, bytes((0x10, 0x83, 0x02, 0x2E))),
+    }
+    selected = []
+    counts = {}
+    for statement, (count, code) in expectations.items():
+        matches = [row for row in active if row[2] == statement]
+        require(len(matches) == count, "active COMPLETE instruction count differs for " + statement)
+        require(all(row[1] == code for row in matches), "active COMPLETE opcode differs for " + statement)
+        selected.extend(matches)
+        counts[statement] = count
+
+    timer_rows = [
+        row_at(rows, start, "ldd <pres_timer"),
+        row_at(rows, start + 2, "addd #1"),
+        row_at(rows, start + 5, "std <pres_timer"),
+        row_at(rows, start + 7, "rts"),
+    ]
+    require([row[1] for row in timer_rows] == [bytes((0xDC, 0xB0)), bytes((0xC3, 0, 1)),
+                                                   bytes((0xDD, 0xB0)), bytes((0x39,))],
+            "compiled timer routine does not increment and store continuous PRES_TIMER")
+    selected.extend(timer_rows)
+
+    calls = [row for row in active if row[2] == "bsr timer"]
+    require(len(calls) == 1 and branch_target(calls[0], 0x8D, 2) == start,
+            "active Attract path does not call the continuous actor timer")
+    selected.extend(calls)
+
+    mode_row = row_at(rows, next(row[0] for row in active if row[2] == "lda <pres_mode"),
+                      "lda <pres_mode")
+    gate_specs = [
+        ("lda <pres_mode", bytes((0x96, 0xA5))),
+        ("cmpa #mode_attract", bytes((0x81, 0x02))),
+        ("bne attract_menu_transition", None),
+        ("ldd <pres_timer", bytes((0xDC, 0xB0))),
+        ("subd <pres_idle_origin", bytes((0x93, 0xCC))),
+        ("cmpd #558", bytes((0x10, 0x83, 0x02, 0x2E))),
+        ("bhs attract_next", None),
+    ]
+    gate_rows = []
+    address = mode_row[0]
+    for statement, expected in gate_specs:
+        row = row_at(rows, address, statement)
+        if expected is not None:
+            require(row[1] == expected, "compiled Attract gate opcode differs for " + statement)
+        gate_rows.append(row)
+        address += len(row[1])
+    require(branch_target(gate_rows[2], 0x26, 2) == symbols["attract_menu_transition"]
+            and branch_target(gate_rows[6], 0x24, 2) == symbols["attract_next"],
+            "compiled idle gate branches do not reach their map-qualified targets")
+    require(gate_rows[4][0] < gate_rows[5][0] < gate_rows[6][0],
+            "idle-origin subtraction does not precede the unchanged threshold branch")
+    selected.extend(gate_rows)
+
+    reset = symbols["load_timer_reset"]
+    reset_specs = [
+        ("clr <pres_timer", bytes((0x0F, 0xB0))),
+        ("clr <pres_timer+1", bytes((0x0F, 0xB1))),
+        ("clr <pres_idle_origin", bytes((0x0F, 0xCC))),
+        ("clr <pres_idle_origin+1", bytes((0x0F, 0xCD))),
+    ]
+    address = reset
+    reset_rows = []
+    for statement, code in reset_specs:
+        row = row_at(rows, address, statement)
+        require(row[1] == code, "final loader reset opcode differs for " + statement)
+        reset_rows.append(row)
+        address += len(code)
+    selected.extend(reset_rows)
+    verify_image_rows(image, PRESENTATION_BASE, rows, selected)
+    return {
+        "active_timer_range": [start, end],
+        "active_instruction_counts": counts,
+        "origin_address": symbols["PRES_IDLE_ORIGIN"],
+        "final_loader_reset_range": [reset, address],
+        "actor_timer_continuous": True,
+        "actor_timer_increment_stored": True,
+        "attract_tick_calls_timer": True,
+        "idle_origin_subtracted_before_558": True,
+    }
+
+
+def main() -> None:
+    result = {"card": "MC-P", "outcome": "FAILED; STOP"}
+    try:
+        require(not RESULT.exists(), "MC-P result already exists; post-card reruns are prohibited")
+        baseline_bytes = BASELINE.read_bytes()
+        require(sha(baseline_bytes) == BASELINE_MANIFEST_SHA256, "frozen baseline manifest hash changed")
+        baseline = json.loads(baseline_bytes.decode("utf-8"))
+        projected = json.loads(PROJECTED.read_text(encoding="utf-8"))
+        wiki_manifest = json.loads(WIKI.read_text(encoding="utf-8"))
+        source_bytes = SOURCE_RESULT.read_bytes()
+        source_result = json.loads(source_bytes.decode("utf-8"))
+        source_hash = sha(SOURCE_CARD.read_bytes())
+        post_hash = sha(Path(__file__).read_bytes())
+        wrapper_hash = sha(BUILD_WRAPPER.read_bytes())
+
+        require(source_result.get("card") == "MC-S"
+                and source_result.get("status") == "PASS SOURCE/ARITHMETIC; TARGET PENDING"
+                and source_result.get("source_card_sha256") == source_hash,
+                "passing MC-S result does not bind the current source card")
+        controls = source_result.get("parser_controls", {})
+        require(controls.get("post_card_sha256") == post_hash
+                and controls.get("bad_origin_operand_rejected") is True
+                and controls.get("bad_instruction_address_rejected") is True
+                and controls.get("helper_over_cap_rejected") is True,
+                "MC-S did not qualify current MC-P parser controls before the build")
+        require(source_result.get("baseline_manifest_sha256") == BASELINE_MANIFEST_SHA256
+                and source_result.get("baseline_receipt_sha256") == BASELINE_RECEIPT_SHA256
+                and source_result.get("baseline_rom_sha256") == BASELINE_ROM_SHA256,
+                "MC-S baseline identity differs from the approved A1 fixture")
+
+        expected_inputs = projected.get("inputs", {})
+        require(projected.get("projection_only") is True and projected.get("input_count") == SOURCE_COUNT
+                and len(expected_inputs) == SOURCE_COUNT
+                and sorted(name for name in expected_inputs
+                           if expected_inputs[name] != baseline["inputs"].get(name))
+                == ["src/presentation_runtime.s", "src/shared_text_stage.inc"],
+                "parent-frozen source projection differs from the approved two-file scope")
+        require(expected_inputs == source_result["projected_candidate_inputs"]["inputs"],
+                "projected source manifest differs from MC-S in-memory projection")
+        expected_wiki = wiki_manifest.get("files", {})
+        require(wiki_manifest.get("file_count") == WIKI_COUNT and len(expected_wiki) == WIKI_COUNT
+                and expected_wiki == source_result["projected_wiki_inputs"]["files"],
+                "parent-frozen wiki inventory differs from MC-S source result")
+        wiki_hash = sha(json.dumps(expected_wiki, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+        require(wiki_hash == wiki_manifest.get("inventory_sha256"), "frozen wiki inventory hash is invalid")
+        actual_inputs = source_inventory()
+        require(actual_inputs == expected_inputs and len(actual_inputs) == SOURCE_COUNT,
+                "candidate source closure differs from projected source manifest")
+        actual_wiki = wiki_inventory()
+        require(actual_wiki == expected_wiki and len(actual_wiki) == WIKI_COUNT,
+                "candidate wiki differs from frozen inventory")
+
+        attempt_bytes, build_bytes, log_bytes = ATTEMPT.read_bytes(), BUILD_RESULT.read_bytes(), BUILD_LOG.read_bytes()
+        attempt = json.loads(attempt_bytes.decode("utf-8"))
+        build_result = json.loads(build_bytes.decode("utf-8"))
+        require(attempt.get("card") == "MC-B" and attempt.get("attempt") == 1
+                and attempt.get("candidate") == "repro/feat010-menu-clock-repair-20261018/candidate",
+                "MC-B attempt marker differs from the one approved build")
+        require(attempt.get("wrapper_sha256") == wrapper_hash == build_result.get("wrapper_sha256")
+                and attempt.get("source_card_sha256") == source_hash == build_result.get("source_card_sha256")
+                and attempt.get("source_result_sha256") == sha(source_bytes)
+                == build_result.get("source_result_sha256")
+                and attempt.get("post_card_sha256") == post_hash == build_result.get("post_card_sha256"),
+                "MC-B source, MC-S result, post-card, or wrapper hash chain is incomplete")
+        require(attempt.get("profile") == PROFILE == build_result.get("profile")
+                and attempt.get("candidate_input_count") == SOURCE_COUNT
+                and attempt.get("candidate_wiki_inventory_sha256") == wiki_hash
+                and build_result.get("returncode") == 0 and build_result.get("timed_out") is False
+                and build_result.get("outcome") == "BUILD RETURNED ZERO; MC-P PENDING"
+                and build_result.get("elapsed_seconds", 601) <= 600
+                and build_result.get("whole_phase_deadline_seconds") == 600
+                and build_result.get("child_deadline_seconds") == 595
+                and build_result.get("kill_grace_seconds") == 2,
+                "MC-B did not complete the approved one-attempt bounded profile/build")
+        require(attempt.get("result_sha256") == sha(build_bytes)
+                and build_result.get("log") == BUILD_LOG.name
+                and build_result.get("log_sha256") == sha(log_bytes),
+                "MC-B result/log hashes do not match the attempt record")
+
+        receipt_path = BUILD / "source-build-receipt.json"
+        receipt_bytes = receipt_path.read_bytes()
+        receipt = json.loads(receipt_bytes.decode("utf-8"))
+        require(build_result.get("receipt_sha256") == sha(receipt_bytes)
+                and receipt.get("state") == "complete" and receipt.get("profile") == "complete"
+                and receipt.get("inputs") == actual_inputs,
+                "compiled receipt is incomplete, wrong-profile, or stale against candidate sources")
+        artifacts = receipt.get("artifacts", {})
+
+        baseline_receipt_bytes = (BASELINE_A1 / "build" / "source-build-receipt.json").read_bytes()
+        require(sha(baseline_receipt_bytes) == BASELINE_RECEIPT_SHA256,
+                "pinned A1 source-build receipt changed")
+        baseline_receipt = json.loads(baseline_receipt_bytes.decode("utf-8"))
+        baseline_helper = (BASELINE_A1 / "build" / "ladybug-highscore-helper.bin").read_bytes()
+        baseline_runtime = (BASELINE_A1 / "build" / "ladybug-presentation-runtime.bin").read_bytes()
+        require(len(baseline_helper) == 3070 and len(baseline_runtime) == 1280
+                and baseline_receipt.get("artifacts", {}).get("ladybug-highscore-helper.bin") == sha(baseline_helper)
+                and baseline_receipt.get("artifacts", {}).get("ladybug-presentation-runtime.bin") == sha(baseline_runtime),
+                "pinned A1 helper/runtime byte baselines differ from their receipt")
+
+        rom_path = BUILD / "ladybug.rom"
+        rom = rom_path.read_bytes()
+        require(len(rom) == 65536 and artifacts.get(rom_path.name) == sha(rom)
+                and build_result.get("rom_sha256") == sha(rom),
+                "packaged 64-KiB ROM differs from receipt/build result")
+
+        helper_path = BUILD / "ladybug-highscore-helper.bin"
+        helper_map_path = BUILD / "ladybug-highscore-helper.map"
+        helper_listing_path = BUILD / "ladybug-highscore-helper.lst"
+        helper, helper_map_bytes, helper_listing_bytes = (helper_path.read_bytes(), helper_map_path.read_bytes(),
+                                                          helper_listing_path.read_bytes())
+        require(artifacts.get(helper_path.name) == sha(helper)
+                and artifacts.get(helper_map_path.name) == sha(helper_map_bytes)
+                and artifacts.get(helper_listing_path.name) == sha(helper_listing_bytes),
+                "page-$23 helper binary/map/listing are not receipt-bound")
+        require_helper_capacity(len(helper), HELPER_CAPACITY)
+        helper_symbols = parse_symbols(helper_map_bytes.decode("utf-8"))
+        helper_rows = parse_listing(helper_listing_bytes.decode("utf-8"))
+        require(helper_symbols.get("HIGHSCORE_PHASE_HELPER_ADDRESS") == HELPER_BASE
+                and helper_symbols.get("highscore_phase_helper_end") == HELPER_BASE + len(helper),
+                "page-$23 helper map boundaries differ from its packaged image")
+        menu = verify_menu_sequence(helper_rows, helper_symbols)
+        menu_start = menu["event_block_start"]
+        menu_selected = [row for row in helper_rows
+                         if menu_start <= row[0] < menu["event_block_end"]]
+        verify_image_rows(helper, HELPER_BASE, helper_rows, menu_selected)
+        perimeter_path = BUILD / "ladybug-perimeter-reset-helper.bin"
+        perimeter = perimeter_path.read_bytes()
+        baseline_perimeter = (BASELINE_A1 / "build" / perimeter_path.name).read_bytes()
+        require(len(perimeter) == PERIMETER_HELPER_BYTES
+                and sha(perimeter) == sha(baseline_perimeter)
+                and artifacts.get(perimeter_path.name) == sha(perimeter),
+                "unchanged actor reset helper differs from receipt-bound A1 334-byte image")
+
+        runtime_path = BUILD / "ladybug-presentation-runtime.bin"
+        runtime_map_path = BUILD / "ladybug-presentation-runtime.map"
+        runtime_listing_path = BUILD / "ladybug-presentation-runtime.lst"
+        runtime, runtime_map_bytes, runtime_listing_bytes = (runtime_path.read_bytes(), runtime_map_path.read_bytes(),
+                                                              runtime_listing_path.read_bytes())
+        require(0 < len(runtime) <= PRESENTATION_CAPACITY
+                and artifacts.get(runtime_path.name) == sha(runtime)
+                and artifacts.get(runtime_map_path.name) == sha(runtime_map_bytes)
+                and artifacts.get(runtime_listing_path.name) == sha(runtime_listing_bytes),
+                "presentation runtime differs from projected 1,279/1,280-byte fit")
+        runtime_symbols = parse_symbols(runtime_map_bytes.decode("utf-8"))
+        runtime_rows = parse_listing(runtime_listing_bytes.decode("utf-8"))
+        runtime_result = verify_runtime(runtime_rows, runtime_symbols, runtime)
+
+        main_map_bytes = (BUILD / "ladybug.map").read_bytes()
+        main_symbols = parse_symbols(main_map_bytes.decode("utf-8"))
+        resident_end, asset_start, asset_end = (main_symbols[name]
+                                                for name in ("resident_end", "asset_start", "asset_end"))
+        resident_used = resident_end - 0xC000
+        asset_used = asset_end - asset_start
+        require(asset_start == 0xE000 and resident_used <= RESIDENT_LIMIT
+                and RESIDENT_CAPACITY - resident_used >= RESIDENT_MIN_FREE
+                and asset_used <= ASSET_CAPACITY,
+                "resident minimum-free or fixed asset-capacity constraint failed")
+        log_text = log_bytes.decode("utf-8", errors="replace")
+        capacity_rows = [tuple(map(int, row)) for row in re.findall(
+            r"^build: resident (\d+)/8192 bytes; assets (\d+)/7680 bytes\r?$", log_text, re.M)]
+        require(capacity_rows and capacity_rows[-1] == (resident_used, asset_used)
+                and all(resident <= RESIDENT_LIMIT and assets <= ASSET_CAPACITY
+                        for resident, assets in capacity_rows),
+                "build capacity summaries differ from map or contain a cap miss")
+        elapsed = round(time.monotonic() - STARTED, 3)
+        require(elapsed <= LIMIT_SECONDS, "MC-P exceeded its 55-second child budget")
+
+        result.update({
+            "outcome": "PASS COMPILED SOURCE/FIT; VISIBLE CONTINUITY PENDING",
+            "baseline_manifest_sha256": BASELINE_MANIFEST_SHA256,
+            "baseline_receipt_sha256": BASELINE_RECEIPT_SHA256,
+            "baseline_rom_sha256": BASELINE_ROM_SHA256,
+            "source_card_sha256": source_hash,
+            "source_result_sha256": sha(source_bytes),
+            "post_card_sha256": post_hash,
+            "build_wrapper_sha256": wrapper_hash,
+            "build_result_sha256": sha(build_bytes),
+            "receipt_sha256": sha(receipt_bytes),
+            "rom_sha256": sha(rom),
+            "profile": PROFILE,
+            "source_inputs": len(actual_inputs),
+            "wiki_files": len(actual_wiki),
+            "page23_helper_bytes_of_cap": "%d/%d" % (len(helper), HELPER_CAPACITY),
+            "page23_helper_baseline_bytes": len(baseline_helper),
+            "page23_helper_size_delta": len(helper) - len(baseline_helper),
+            "page23_helper_projected_bytes": 3085,
+            "page23_helper_projection_delta": len(helper) - 3085,
+            "page23_menu": menu,
+            "perimeter_actor_helper_bytes": len(perimeter),
+            "perimeter_actor_helper_matches_a1": True,
+            "presentation_runtime_bytes_of_cap": "%d/%d" % (len(runtime), PRESENTATION_CAPACITY),
+            "presentation_runtime_baseline_bytes": len(baseline_runtime),
+            "presentation_runtime_size_delta": len(runtime) - len(baseline_runtime),
+            "presentation_runtime_projected_bytes": 1279,
+            "presentation_runtime_projection_delta": len(runtime) - 1279,
+            "presentation_runtime": runtime_result,
+            "resident_used_of_capacity": [resident_used, RESIDENT_CAPACITY],
+            "resident_free_minimum": RESIDENT_CAPACITY - resident_used,
+            "asset_used_of_capacity": [asset_used, ASSET_CAPACITY],
+            "capacity_rows": len(capacity_rows),
+            "duration_seconds": elapsed,
+            "whole_phase_limit_seconds": 60,
+        })
+    except Exception as error:
+        result["failure"] = "%s: %s" % (type(error).__name__, error)
+        result["duration_seconds"] = round(time.monotonic() - STARTED, 3)
+        if not RESULT.exists():
+            with RESULT.open("x", encoding="utf-8", newline="\n") as handle:
+                json.dump(result, handle, indent=2, sort_keys=True)
+                handle.write("\n")
+        print(json.dumps(result, indent=2, sort_keys=True))
+        raise SystemExit(1)
+    with RESULT.open("x", encoding="utf-8", newline="\n") as handle:
+        json.dump(result, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+    print(json.dumps(result, indent=2, sort_keys=True))
+
+
+if __name__ == "__main__":
+    main()

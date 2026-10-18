@@ -1,0 +1,235 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+CASE = Path(__file__).resolve().parent
+REPO = CASE.parents[1]
+CANDIDATE = CASE / "candidate"
+BASELINE = CASE / "baseline-inputs.json"
+PROJECTED = CASE / "candidate-inputs.json"
+WIKI = CASE / "wiki-inputs.json"
+SOURCE_RESULT = CASE / "source-card-result.json"
+SOURCE_CARD = CASE / "clock-source-card.py.txt"
+POST_CARD = CASE / "clock-post-card.py.txt"
+ATTEMPT = CASE / "build-attempt.json"
+RESULT = CASE / "build-result.json"
+LOG = CASE / "build-first.log"
+BASELINE_MANIFEST_SHA256 = "2f008a55f38ac9176a59236a76d5383d77e06c4ed74f6a4eb67405c855edfb43"
+BASELINE_RECEIPT_SHA256 = "55f1f399c7944e6d28d4febdfa788ef04f2baeb7b343c3b61509d50447f64dfc"
+BASELINE_ROM_SHA256 = "2dcb1d4e8c1d08903e7474ede6e4051ecf211a31512d8e42d0a8c5fb86df7c2b"
+TOTAL_BUDGET_SECONDS = 600
+CHILD_DEADLINE_SECONDS = 595
+KILL_GRACE_SECONDS = 2
+PROFILE = {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1",
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(ok: bool, message: str) -> None:
+    if not ok:
+        raise AssertionError(message)
+
+
+def source_inventory() -> dict:
+    result = {}
+    for folder in ("src", "scripts", "assets", "tiled"):
+        for path in (CANDIDATE / folder).rglob("*"):
+            if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc":
+                result[path.relative_to(CANDIDATE).as_posix()] = sha(path.read_bytes())
+    return result
+
+
+def wiki_inventory() -> dict:
+    root = CANDIDATE / "wiki"
+    return {path.relative_to(root).as_posix(): sha(path.read_bytes())
+            for path in root.rglob("*") if path.is_file()}
+
+
+def verify_projected_inputs() -> tuple:
+    baseline_bytes = BASELINE.read_bytes()
+    require(sha(baseline_bytes) == BASELINE_MANIFEST_SHA256,
+            "frozen baseline manifest changed")
+    baseline = json.loads(baseline_bytes.decode("utf-8"))
+    projected = json.loads(PROJECTED.read_text(encoding="utf-8"))
+    wiki = json.loads(WIKI.read_text(encoding="utf-8"))
+    source_bytes = SOURCE_RESULT.read_bytes()
+    source_result = json.loads(source_bytes.decode("utf-8"))
+    source_card_hash = sha(SOURCE_CARD.read_bytes())
+    post_card_hash = sha(POST_CARD.read_bytes())
+    require(source_result.get("card") == "MC-S"
+            and source_result.get("status") == "PASS SOURCE/ARITHMETIC; TARGET PENDING"
+            and source_result.get("target_status") == "target_pending"
+            and source_result.get("source_card_sha256") == source_card_hash
+            and source_result.get("baseline_manifest_sha256") == BASELINE_MANIFEST_SHA256
+            and source_result.get("baseline_receipt_sha256") == BASELINE_RECEIPT_SHA256
+            and source_result.get("baseline_rom_sha256") == BASELINE_ROM_SHA256,
+            "passing MC-S result does not bind the current source card")
+    arithmetic = source_result.get("arithmetic", {})
+    require(arithmetic.get("timers_exhausted") == 65536
+            and arithmetic.get("reachable_origins_checked") == 38
+            and arithmetic.get("idle_557_expires") is False
+            and arithmetic.get("idle_558_expires") is True
+            and arithmetic.get("legacy_clear_t22_rejected") is True
+            and arithmetic.get("mask15_t22_rejected") is True
+            and arithmetic.get("threshold557_rejected") is True,
+            "MC-S arithmetic boundary or negative controls did not pass")
+    controls = source_result.get("parser_controls", {})
+    require(controls.get("post_card_sha256") == post_card_hash
+            and controls.get("bad_origin_operand_rejected") is True
+            and controls.get("bad_instruction_address_rejected") is True
+            and controls.get("helper_over_cap_rejected") is True,
+            "MC-S did not qualify the current MC-P parser before the build")
+    require(projected.get("projection_only") is True and projected.get("input_count") == 266,
+            "parent-frozen projected source manifest is invalid")
+    expected = projected.get("inputs", {})
+    require(len(expected) == 266 and len(baseline.get("inputs", {})) == 266,
+            "projected or baseline source manifest does not contain 266 inputs")
+    changed = sorted(name for name in expected if expected[name] != baseline["inputs"].get(name))
+    require(changed == ["src/presentation_runtime.s", "src/shared_text_stage.inc"],
+            "projected manifest changes files outside the approved two-source scope")
+    require(source_result.get("projected_candidate_inputs", {}).get("inputs") == expected,
+            "parent-frozen source manifest differs from MC-S in-memory projection")
+    actual = source_inventory()
+    require(set(actual) == set(expected), "candidate source inventory changed")
+    for relative, digest in expected.items():
+        require(actual.get(relative) == digest, "candidate source hash mismatch: " + relative)
+    expected_wiki = wiki.get("files", {})
+    require(wiki.get("file_count") == 379 and len(expected_wiki) == 379,
+            "parent-frozen wiki inventory is invalid")
+    wiki_hash = sha(json.dumps(expected_wiki, sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    require(wiki_hash == wiki.get("inventory_sha256"), "frozen wiki inventory hash is invalid")
+    require(source_result.get("projected_wiki_inputs", {}).get("files") == expected_wiki,
+            "parent-frozen wiki manifest differs from MC-S source result")
+    require(wiki_inventory() == expected_wiki, "candidate wiki differs from its frozen inventory")
+    require(not (CANDIDATE / "build").exists(), "candidate already has build output; refusing retry")
+    return len(expected), wiki_hash, source_card_hash, sha(source_bytes), post_card_hash
+
+
+def wsl_candidate_path() -> str:
+    absolute = str(CANDIDATE.resolve())
+    require(absolute.lower().startswith("e:\\"), "MC-B requires candidate on E: drive")
+    return "/mnt/e/" + absolute[3:].replace("\\", "/")
+
+
+def expected_command() -> list:
+    return [
+        "wsl", "-d", "Ubuntu", "--cd", wsl_candidate_path(), "--exec",
+        "timeout", "--signal=TERM", "--kill-after=%ds" % KILL_GRACE_SECONDS,
+        "%ds" % CHILD_DEADLINE_SECONDS, "env",
+        *("%s=%s" % item for item in PROFILE.items()),
+        "bash", "scripts/build.sh", "build",
+    ]
+
+
+def write_json(path: Path, value: dict, exclusive: bool = False) -> None:
+    mode = "x" if exclusive else "w"
+    with path.open(mode, encoding="utf-8", newline="\n") as handle:
+        json.dump(value, handle, indent=2, sort_keys=True)
+        handle.write("\n")
+
+
+def main() -> None:
+    started = time.monotonic()
+    if os.name != "nt":
+        raise SystemExit("MC-B wrapper must run once from Windows and launch the approved WSL build")
+    if shutil.which("wsl") is None:
+        raise SystemExit("MC-B prerequisite unavailable: wsl")
+    try:
+        input_count, wiki_hash, source_card_hash, source_result_hash, post_card_hash = verify_projected_inputs()
+        command = expected_command()
+        wrapper_hash = sha(Path(__file__).read_bytes())
+        require(not ATTEMPT.exists() and not RESULT.exists() and not LOG.exists(),
+                "MC-B has prior output; retries are prohibited")
+        remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - started)
+        wrapper_wait = min(598, int(remaining - 1))
+        require(wrapper_wait >= CHILD_DEADLINE_SECONDS + KILL_GRACE_SECONDS,
+                "MC-B preflight used the bounded build and cleanup allowance")
+    except Exception as error:
+        print(json.dumps({"card": "MC-B", "outcome": "PREFLIGHT FAILED; STOP",
+                          "failure": "%s: %s" % (type(error).__name__, error)}, indent=2))
+        raise SystemExit(1)
+
+    attempt = {
+        "card": "MC-B", "attempt": 1,
+        "started_utc": datetime.now(timezone.utc).isoformat(),
+        "candidate": "repro/feat010-menu-clock-repair-20261018/candidate",
+        "candidate_input_count": input_count,
+        "candidate_wiki_inventory_sha256": wiki_hash,
+        "source_card_sha256": source_card_hash,
+        "source_result_sha256": source_result_hash,
+        "post_card_sha256": post_card_hash,
+        "wrapper_sha256": wrapper_hash,
+        "command": command, "profile": PROFILE,
+        "child_deadline_seconds": CHILD_DEADLINE_SECONDS,
+        "kill_grace_seconds": KILL_GRACE_SECONDS,
+        "whole_phase_deadline_seconds": TOTAL_BUDGET_SECONDS,
+        "result": "started",
+    }
+    write_json(ATTEMPT, attempt, exclusive=True)
+    return_code = None
+    timed_out = False
+    try:
+        with LOG.open("xb") as log_handle:
+            try:
+                completed = subprocess.run(command, cwd=str(REPO), stdout=log_handle,
+                                           stderr=subprocess.STDOUT, timeout=wrapper_wait, check=False)
+                return_code = completed.returncode
+            except subprocess.TimeoutExpired:
+                timed_out = True
+    except BaseException as error:
+        attempt["result"] = "wrapper error; no retry"
+        attempt["error"] = "%s: %s" % (type(error).__name__, error)
+        attempt["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        write_json(ATTEMPT, attempt)
+        raise
+
+    log_hash = sha(LOG.read_bytes()) if LOG.exists() else None
+    receipt_path = CANDIDATE / "build" / "source-build-receipt.json"
+    rom_path = CANDIDATE / "build" / "ladybug.rom"
+    receipt_hash = sha(receipt_path.read_bytes()) if receipt_path.is_file() else None
+    rom_hash = sha(rom_path.read_bytes()) if rom_path.is_file() else None
+    elapsed = round(time.monotonic() - started, 3)
+    success = (return_code == 0 and not timed_out and elapsed <= TOTAL_BUDGET_SECONDS
+               and log_hash is not None and receipt_hash is not None and rom_hash is not None)
+    result = {
+        "card": "MC-B", "attempt": 1,
+        "wrapper_sha256": wrapper_hash, "command": command, "profile": PROFILE,
+        "child_deadline_seconds": CHILD_DEADLINE_SECONDS,
+        "kill_grace_seconds": KILL_GRACE_SECONDS,
+        "whole_phase_deadline_seconds": TOTAL_BUDGET_SECONDS,
+        "candidate_input_count": input_count,
+        "candidate_wiki_inventory_sha256": wiki_hash,
+        "source_card_sha256": source_card_hash,
+        "source_result_sha256": source_result_hash,
+        "post_card_sha256": post_card_hash,
+        "returncode": return_code, "timed_out": timed_out,
+        "elapsed_seconds": elapsed, "log": LOG.name, "log_sha256": log_hash,
+        "receipt_sha256": receipt_hash, "rom_sha256": rom_hash,
+        "outcome": "BUILD RETURNED ZERO; MC-P PENDING" if success
+                   else "BUILD FAILED OR DEADLINE MISSED; STOP",
+    }
+    write_json(RESULT, result)
+    attempt.update({"result": result["outcome"], "result_sha256": sha(RESULT.read_bytes())})
+    write_json(ATTEMPT, attempt)
+    print(json.dumps(result, indent=2, sort_keys=True))
+    if not success:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()
