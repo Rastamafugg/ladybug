@@ -1,0 +1,12 @@
+        fdb $6128,$344D
+        fdb $6148,$348D
+        fdb $615C,$34CD
+        fdb $6B34,$350D
+        fdb $6B40,$354D
+        fdb $6B48,$358D
+        fdb $6B50,$35CD
+        fdb $6B64,$360D
+        fdb $6B6C,$364D
+        fdb $6B74,$368D
+        fdb $7A44,$36CD
+        fdb $7A6C,$370D

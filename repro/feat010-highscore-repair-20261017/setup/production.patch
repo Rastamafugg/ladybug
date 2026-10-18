@@ -1,0 +1,98 @@
+--- a/src/shared_text_stage.inc
++++ b/src/shared_text_stage.inc
+@@ -839,41 +839,45 @@
+         ldb 6,u
+         jmp PRES_RANKING_SLICE
+ ranking_schedule_data
+-        fdb 128,$AF84,$3940
++        fdb 256,$AF84,$3940
+         fcb 1
+-        fdb 160,$AF84,$396C
++        fdb 288,$AF84,$396C
+         fcb 0
+-        fdb 192,$AF8E,$3E40
++        fdb 320,$AF8E,$3E40
+         fcb 1
+-        fdb 224,$AF8E,$3E6C
++        fdb 352,$AF8E,$3E6C
+         fcb 0
+-        fdb 256,$AF98,$4340
++        fdb 384,$AF98,$4340
+         fcb 1
+-        fdb 288,$AF98,$436C
++        fdb 416,$AF98,$436C
+         fcb 0
+-        fdb 320,$AFA2,$4840
++        fdb 448,$AFA2,$4840
+         fcb 1
+-        fdb 352,$AFA2,$486C
++        fdb 480,$AFA2,$486C
+         fcb 0
+-        fdb 384,$AFAC,$4D40
++        fdb 512,$AFAC,$4D40
+         fcb 1
+-        fdb 416,$AFAC,$4D6C
++        fdb 544,$AFAC,$4D6C
+         fcb 0
+-        fdb 448,$AFB6,$5240
++        fdb 576,$AFB6,$5240
+         fcb 1
+-        fdb 480,$AFB6,$526C
++        fdb 608,$AFB6,$526C
+         fcb 0
+-        fdb 512,$AFC0,$5740
++        fdb 640,$AFC0,$5740
+         fcb 1
+-        fdb 544,$AFC0,$576C
++        fdb 672,$AFC0,$576C
+         fcb 0
+-        fdb 576,$AFCA,$5C40
++        fdb 704,$AFCA,$5C40
+         fcb 1
+-        fdb 608,$AFCA,$5C6C
++        fdb 736,$AFCA,$5C6C
+         fcb 0
+-        fdb 640,$AFD4,$6140
++        fdb 768,$AFD4,$6140
+         fcb 1
+-        fdb 672,$AFD4,$616C
++        fdb 800,$AFD4,$616C
++        fcb 0
++        fdb 832,$AF84,$3440
++        fcb 1
++        fdb 864,$AF84,$346C
+         fcb 0
+ ranking_schedule_end
+ 
+@@ -926,7 +930,7 @@
+         cmpa    #PRESENTATION_MAP_ATTRACT
+         bne     highscore_logo_record_source
+         tfr     y,d
+-        subd    #$1E00
++        subd    #$2800
+         tfr     d,y
+ highscore_logo_record_source
+         ldd     2,x
+--- a/scripts/build_presentation.py
++++ b/scripts/build_presentation.py
+@@ -797,9 +797,9 @@
+             return (BLACK, PINK, PINK, PINK)
+         return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
+     if role == "high-score" and source_layer == "High Score Table and Branding":
+-        if x in (30, 31) and y in (13, 14):
++        if x in (30, 31) and y in (15, 16):
+             return (BLACK, RED, RED, RED)
+-        if 13 <= y <= 18 and 9 <= x <= 30:
++        if 15 <= y <= 20 and 9 <= x <= 30:
+             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+         if x == 31 and y in (13, 14):
+             return (0, 1, 2, 3)  # authored red R, as on attract
+@@ -2430,7 +2430,7 @@
+                         payload.extend(bytes(PAGE_BYTES - len(payload) % PAGE_BYTES))
+                     pointers.append(len(payload))
+                     payload.extend(tile)
+-                logo_records.append((framebuffer_destination((x, y + 6)), *pointers))
++                logo_records.append((framebuffer_destination((x, y + 8)), *pointers))
+         assert len(logo_records) == 12, len(logo_records)
+         assert all(record[2] == record[1] + 32 for record in logo_records)
+         assert len(payload) <= effective_cold_limit

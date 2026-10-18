@@ -1,0 +1,311 @@
+from __future__ import annotations
+
+import ast
+import hashlib
+import json
+import re
+import time
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+REPO = Path(__file__).resolve().parents[3]
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+FIXTURE = SETUP / "fixtures/baseline"
+STARTED = time.monotonic()
+
+
+def digest(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def instructions(source: str) -> list[tuple[str, str]]:
+    parsed = []
+    for raw_line in source.splitlines():
+        code = raw_line.partition(";")[0].strip()
+        fields = code.split(None, 1)
+        if fields:
+            operand = " ".join(fields[1].split()).upper() if len(fields) == 2 else ""
+            parsed.append((fields[0].lower(), operand))
+    return parsed
+
+
+def check(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def parse_schedule(text: str) -> list[tuple[int, int, int, int]]:
+    lines = text.splitlines()
+    start = next(i for i, line in enumerate(lines) if line.strip() == "ranking_schedule_data")
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "ranking_schedule_end")
+    records = []
+    i = start + 1
+    while i < end:
+        fdb = re.fullmatch(r"\s*fdb\s+(\d+)\s*,\s*\$([0-9A-Fa-f]{4})\s*,\s*\$([0-9A-Fa-f]{4})\s*", lines[i])
+        check(fdb is not None, f"unexpected schedule row at source line {i + 1}")
+        check(i + 1 < end, f"missing schedule flags after line {i + 1}")
+        fcb = re.fullmatch(r"\s*fcb\s+([01])\s*", lines[i + 1])
+        check(fcb is not None, f"invalid schedule flag at source line {i + 2}")
+        records.append((int(fdb.group(1)), int(fdb.group(2), 16), int(fdb.group(3), 16), int(fcb.group(1))))
+        i += 2
+    return records
+
+
+def expected_schedule() -> list[tuple[int, int, int, int, int, int]]:
+    result = []
+    for i in range(9):
+        row = 5 + i
+        source = 0xAF84 + 10 * i
+        result.append((256 + 64 * i, source, 0x2000 + row * 1280 + 16 * 4, 1, row, 16))
+        result.append((288 + 64 * i, source, 0x2000 + row * 1280 + 27 * 4, 0, row, 27))
+    result.extend(((832, 0xAF84, 0x3440, 1, 4, 16), (864, 0xAF84, 0x346C, 0, 4, 27)))
+    return result
+
+
+def layers(tmx_path: Path) -> dict[str, tuple[int, int, list[list[int]]]]:
+    root = ET.parse(tmx_path).getroot()
+    parsed = {}
+    for layer in root.findall("layer"):
+        width, height = int(layer.get("width")), int(layer.get("height"))
+        flat = [int(v) for v in layer.find("data").text.replace("\n", "").split(",") if v.strip()]
+        check(len(flat) == width * height, f"TMX dimensions mismatch: {layer.get('name')}")
+        parsed[layer.get("name")] = (width, height, [flat[y * width:(y + 1) * width] for y in range(height)])
+    return parsed
+
+
+def logo_cells(parsed: dict[str, tuple[int, int, list[list[int]]]]) -> list[tuple[int, int]]:
+    cells = set()
+    for name in ("Logo Frame 1", "Logo Frame 2"):
+        width, height, rows = parsed[name]
+        cells.update((i % width, i // width) for i, value in enumerate(v for row in rows for v in row) if value)
+    return sorted(cells, key=lambda p: (p[1], p[0]))
+
+
+def compile_pen_map(source: str):
+    tree = ast.parse(source)
+    node = next(item for item in tree.body if isinstance(item, ast.FunctionDef) and item.name == "presentation_pen_map")
+    namespace = {
+        "BLACK": 0, "RED": 1, "YELLOW": 2, "WHITE": 6,
+        "LIGHT_BLUE": 11, "PINK": 13, "BLUE": 4,
+    }
+    exec(compile(ast.Module(body=[node], type_ignores=[]), "presentation_pen_map", "exec"), namespace)
+    return namespace["presentation_pen_map"]
+
+
+def logo_generator_ast(source: str):
+    tree = ast.parse(source)
+    destination_function = next(
+        item for item in tree.body
+        if isinstance(item, ast.FunctionDef) and item.name == "framebuffer_destination"
+    )
+    namespace = {}
+    exec(compile(ast.Module(body=[destination_function], type_ignores=[]), "framebuffer_destination", "exec"), namespace)
+    calls = []
+    for node in ast.walk(tree):
+        if (isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute)
+                and node.func.attr == "append" and isinstance(node.func.value, ast.Name)
+                and node.func.value.id == "logo_records" and node.args):
+            argument = node.args[0]
+            if isinstance(argument, ast.Tuple) and argument.elts:
+                expression = argument.elts[0]
+                if (isinstance(expression, ast.Call) and isinstance(expression.func, ast.Name)
+                        and expression.func.id == "framebuffer_destination"):
+                    calls.append(expression)
+    if len(calls) != 1:
+        raise AssertionError("expected one live logo_records.append destination expression")
+    return namespace["framebuffer_destination"], compile(ast.Expression(body=calls[0]), "logo_destination", "eval")
+
+
+def evaluate_logo_targets(source: str, frames: list[tuple[int, int]]) -> list[int]:
+    destination, expression = logo_generator_ast(source)
+    return [eval(expression, {"framebuffer_destination": destination, "x": x, "y": y - 8})
+            for x, y in frames]
+
+
+def changed_conditions(stage: str, generator: str, parsed: dict[str, tuple[int, int, list[list[int]]]],
+                       baseline_logo: str, baseline_stage: str, baseline_generator: str) -> dict[str, str]:
+    failures = {}
+    records = parse_schedule(stage)
+    want = expected_schedule()
+    if len(records) != len(want):
+        failures["H1"] = f"schedule has {len(records)} records; expected 20"
+    else:
+        for index, (actual, expected) in enumerate(zip(records, want)):
+            threshold, source, dest, flags = actual
+            exp_threshold, exp_source, exp_dest, exp_flags, row, x = expected
+            if (threshold, source, dest, flags) != (exp_threshold, exp_source, exp_dest, exp_flags):
+                failures["H1"] = f"schedule record {index} differs from independent 9-row plus TOP model"
+                break
+            width = 7 if flags == 1 else 6
+            last_cell_index = row * 40 + x + width - 1
+            if (not (0 <= row < 24 and 0 <= x and x + width <= 40)
+                    or threshold % 32 or threshold >= 960 or last_cell_index >= threshold):
+                failures["H1"] = f"schedule record {index} violates 32-cell hydration bound"
+                break
+            if any(not parsed["Background"][2][row][column] for column in range(x, x + width)):
+                failures["H1"] = f"schedule field lacks opaque authored background at row {row}, columns {x}-{x + width - 1}"
+                break
+        thresholds = [entry[0] for entry in records]
+        if len(set(thresholds)) != 20 or thresholds != sorted(thresholds):
+            failures["H1"] = "schedule thresholds are not 20 unique ordered slices"
+
+    frames = logo_cells(parsed)
+    expected_dests = [0x2000 + y * 1280 + x * 4 for x, y in frames]
+    old_dests = [int(v, 16) for v in re.findall(r"(?m)^[ \t]*fdb[ \t]+\$([0-9A-Fa-f]+)[ \t]*,[ \t]*\$[0-9A-Fa-f]+[ \t]*$", baseline_logo)]
+    try:
+        base_generated = evaluate_logo_targets(baseline_generator, frames)
+        current_generated = evaluate_logo_targets(generator, frames)
+    except (AssertionError, StopIteration, SyntaxError, NameError, TypeError) as error:
+        failures["H2"] = f"live logo destination expression could not be evaluated: {error}"
+        base_generated, current_generated = [], []
+    old_adjust = any(re.fullmatch(r"[ \t]*subd[ \t]+#\$1E00[ \t]*", line) for line in baseline_stage.splitlines())
+    new_adjust = any(re.fullmatch(r"[ \t]*subd[ \t]+#\$2800[ \t]*", line) for line in stage.splitlines())
+    if (len(frames) != 12 or old_dests != base_generated
+            or base_generated != [destination - 2 * 1280 for destination in expected_dests]
+            or current_generated != expected_dests or not old_adjust or not new_adjust
+            or "assert len(logo_records) == 12" not in generator):
+        failures["H2"] = "logo target does not reach the 12 authored TMX cells with the paired Attract compensation"
+    else:
+        if any(
+            (current - 0x2800) != (baseline - 0x1E00)
+            for current, baseline in zip(current_generated, base_generated)
+        ):
+            failures["H2"] = "projected Attract logo row does not preserve its original offset"
+
+    pen_map = compile_pen_map(generator)
+    mark = [(x, y) for y in (15, 16) for x in (30, 31) if parsed["High Score Table and Branding"][2][y][x]]
+    if len(mark) != 4 or any(pen_map("high-score", x, y, source_layer="High Score Table and Branding") != (0, 1, 1, 1) for x, y in mark):
+        failures["H3"] = "authored registered-mark cells are not red at columns 30-31, rows 15-16"
+
+    descenders = [(x, y) for y in (19, 20) for x in range(9, 31)
+                  if parsed["High Score Table and Branding"][2][y][x]]
+    if not descenders or any(pen_map("high-score", x, y, source_layer="High Score Table and Branding") != (0, 6, 11, 11) for x, y in descenders):
+        failures["H4"] = "authored y/g descenders through row 20 are not white/light-blue"
+    return failures
+
+
+def main() -> None:
+    base = json.loads((SETUP / "base-inputs.json").read_text(encoding="utf-8"))
+    prep = json.loads((SETUP / "candidate-preparation.json").read_text(encoding="utf-8"))
+    wiki = json.loads((SETUP / "wiki-inputs.json").read_text(encoding="utf-8"))
+    check(base["input_count"] == 266 and len(base["inputs"]) == 266, "pinned manifest count changed")
+    check(prep["candidate_is_baseline_only"] and not prep["candidate_build_directory_created"], "candidate was not pinned baseline-only")
+    candidate_files = {p.relative_to(CANDIDATE).as_posix() for p in CANDIDATE.rglob("*") if p.is_file()}
+    expected_candidate_files = set(base["inputs"]) | {f"wiki/{rel}" for rel in wiki["files"]}
+    check(candidate_files == expected_candidate_files,
+          "fresh candidate differs from 266 pinned source inputs plus frozen baseline wiki")
+    for rel, expected in base["inputs"].items():
+        actual = digest((CANDIDATE / rel).read_bytes())
+        check(actual == expected, f"candidate baseline hash mismatch: {rel}")
+    candidate_wiki = {
+        path.relative_to(CANDIDATE / "wiki").as_posix(): digest(path.read_bytes())
+        for path in (CANDIDATE / "wiki").rglob("*") if path.is_file()
+    }
+    check(candidate_wiki == wiki["files"] and len(candidate_wiki) == wiki["file_count"],
+          "candidate wiki is not the exact pinned baseline copy")
+    wiki_inventory_hash = digest(json.dumps(wiki["files"], sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    check(wiki_inventory_hash == wiki["inventory_sha256"]
+          and prep["baseline_wiki_inventory_sha256"] == wiki_inventory_hash
+          and prep["candidate_wiki_is_pinned_baseline_copy"],
+          "candidate wiki inventory identity differs from preparation record")
+
+    stage0 = (FIXTURE / "shared_text_stage.inc").read_bytes()
+    generator0 = (FIXTURE / "build_presentation.py").read_bytes()
+    stage_hash = digest(stage0)
+    generator_hash = digest(generator0)
+    check(stage_hash == prep["baseline_source_hashes"]["src/shared_text_stage.inc"], "baseline stage fixture hash mismatch")
+    check(generator_hash == prep["baseline_source_hashes"]["scripts/build_presentation.py"], "baseline generator fixture hash mismatch")
+    check(stage_hash == base["inputs"]["src/shared_text_stage.inc"]
+          and generator_hash == base["inputs"]["scripts/build_presentation.py"],
+          "known-bad fixtures are not the pinned 266-input source")
+
+    transformer = SETUP / "prepare_projection.py.txt"
+    projection = {"__file__": str(transformer), "__name__": "feat010_projection"}
+    exec(compile(transformer.read_text(encoding="utf-8"), str(transformer), "exec"), projection)
+    stage1 = projection["project_stage"](stage0.decode("utf-8"))
+    generator1 = projection["project_generator"](generator0.decode("utf-8"))
+    projected = json.loads((SETUP / "candidate-inputs.json").read_text(encoding="utf-8"))
+    changed = {rel for rel in base["inputs"] if base["inputs"][rel] != projected["inputs"].get(rel)}
+    check(set(projected["inputs"]) == set(base["inputs"])
+          and changed == {"src/shared_text_stage.inc", "scripts/build_presentation.py"},
+          "projected source scope differs from the approved two-file set")
+    check(digest(stage1.encode()) == projected["inputs"]["src/shared_text_stage.inc"], "projected stage hash differs from manifest")
+    check(digest(generator1.encode()) == projected["inputs"]["scripts/build_presentation.py"], "projected generator hash differs from manifest")
+    patch_bytes = (SETUP / "production.patch").read_bytes()
+    check(digest(patch_bytes) == prep["production_patch_sha256"], "projected patch hash differs from preparation record")
+    patch_names = re.findall(rb"(?m)^--- a/([^\r\n]+)$", patch_bytes)
+    check(patch_names == [b"src/shared_text_stage.inc", b"scripts/build_presentation.py"],
+          "unified patch does not contain exactly the two approved files")
+
+    tmx = layers(CANDIDATE / "tiled/coco-high-score-screen.tmx")
+    baseline_stage = stage0.decode("utf-8")
+    baseline_generator = generator0.decode("utf-8")
+    baseline_logo = (FIXTURE / "ladybug_highscore_logo.inc").read_text(encoding="utf-8")
+    bad = changed_conditions(baseline_stage, baseline_generator, tmx, baseline_logo,
+                             baseline_stage, baseline_generator)
+    check(set(bad) == {"H1", "H2", "H3", "H4"}, f"pinned known-bad fixture did not fail each defect independently: {bad}")
+    good = changed_conditions(stage1, generator1, tmx, baseline_logo, baseline_stage, baseline_generator)
+    check(not good, f"in-memory corrected fixture failed: {good}")
+
+    runtime = (CANDIDATE / "src/presentation_runtime.s").read_text(encoding="utf-8")
+    start_label = re.search(r"(?m)^start_screen[ \t]*$", runtime)
+    load_tick_label = re.search(r"(?m)^load_tick[ \t]*\r?$", runtime)
+    load_normal_label = re.search(r"(?m)^load_tick_normal[ \t]*\r?$", runtime)
+    load_start_label = re.search(r"(?m)^load_cells[ \t]*$", runtime)
+    load_end_label = re.search(r"(?m)^load_done[ \t]*\r?$", runtime)
+    map_label = re.search(r"(?m)^map_back[ \t]*$", runtime)
+    map_end_label = re.search(r"(?m)^hold[ \t]*$", runtime)
+    check(all((start_label, load_tick_label, load_normal_label, load_start_label, load_end_label, map_label, map_end_label)),
+          "load/reset boundary labels missing")
+    start_path = runtime[start_label.start():load_tick_label.start()]
+    check(all(token in start_path for token in (
+        "clr     <PRES_RUN", "lda     #MODE_LOAD", "sta     <PRES_MODE",
+        "std     <PRES_CELL", "std     <PRES_X", "ldd     #$2000",
+        "std     <PRES_DST", "lbsr    map_back"
+    )), "screen reset does not reinitialize the common loader and destination")
+    map_path = runtime[map_label.start():map_end_label.start()]
+    check(all(token in map_path for token in ("lda     BACK_ID", "lda     #$30", "lda     #$2C")),
+          "reset mapping path does not select both BACK owner mappings")
+    load_init = runtime[load_normal_label.start():load_start_label.start()]
+    init_ops = instructions(load_init)
+    check(("lda", "#32") in init_ops and ("sta", "<PRES_ROWS") in init_ops,
+          "normal loader path does not initialize the approved 32-cell slice before load_cells")
+    load_path = runtime[load_start_label.start():load_end_label.start()]
+    load_ops = instructions(load_path)
+    draw_calls = [i for i, op in enumerate(load_ops) if op == ("lbsr", "DRAW_CELL")]
+    stage_calls = [i for i, op in enumerate(load_ops) if op == ("jsr", "PRES_STAGE_SLICE")]
+    check(len(draw_calls) == 1 and len(stage_calls) == 1 and draw_calls[0] < stage_calls[0]
+          and ("dec", "<PRES_ROWS") in load_ops and ("bne", "LOAD_CELLS") in load_ops,
+          "common stage slice does not follow every completed 32-cell hydration loop")
+    stage_index = stage_calls[0]
+    profile_open = [i for i, op in enumerate(load_ops[:stage_index]) if op == ("ifne", "COMPLETE_PROFILE")]
+    profile_close = [i for i, op in enumerate(load_ops[stage_index + 1:], start=stage_index + 1)
+                     if op == ("endc", "")]
+    check(profile_open and profile_close and profile_open[-1] < stage_index < profile_close[0],
+          "common slice stage is not bound to the complete-profile loader boundary")
+    schedule_start_match = re.search(r"(?m)^ranking_schedule_tick[ \t]*\r?$", stage1)
+    schedule_end_match = re.search(r"(?m)^ranking_schedule_data[ \t]*\r?$", stage1)
+    check(schedule_start_match is not None and schedule_end_match is not None, "ranking schedule labels missing")
+    schedule_start = schedule_start_match.start()
+    schedule_end = schedule_end_match.start()
+    schedule_code = stage1[schedule_start:schedule_end]
+    check(not re.search(r"FB_(?:BACK|FRONT|OWNER)|owner", schedule_code, re.IGNORECASE),
+          "ranking schedule path branches on framebuffer owner")
+    check("PRESENTATION_HIGHSCORE_COUNT equ 9" in generator1,
+          "approved change unexpectedly altered the stored nine-record count")
+    check(time.monotonic() - STARTED < 55, "source card exceeded its 55-second child budget")
+    print(json.dumps({
+        "card": "HS-S",
+        "baseline_candidate_inputs": 266,
+        "known_bad_fixture": "rejected separately for H1/H2/H3/H4",
+        "corrected_fixture": "in-memory pass; no source file written",
+        "owner_equivalence": "common 32-cell hydration stage verified",
+        "duration_seconds": round(time.monotonic() - STARTED, 3),
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()

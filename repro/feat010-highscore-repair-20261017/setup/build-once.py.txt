@@ -1,0 +1,185 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import os
+import shutil
+import subprocess
+import time
+from datetime import datetime, timezone
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+MANIFEST = SETUP / "candidate-inputs.json"
+ATTEMPT = SETUP / "build-attempt.json"
+RESULT = SETUP / "build-result.json"
+LOG = SETUP / "build-first.log"
+TOTAL_BUDGET_SECONDS = 600
+CHILD_DEADLINE_SECONDS = 595
+KILL_GRACE_SECONDS = 2
+PROFILE = {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1",
+}
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def wsl_candidate_path() -> str:
+    absolute = str(CANDIDATE.resolve())
+    if not absolute.lower().startswith("e:\\"):
+        raise SystemExit(f"HS-B requires candidate on E: drive, got {absolute}")
+    return "/mnt/e/" + absolute[3:].replace("\\", "/")
+
+
+def expected_command() -> list[str]:
+    return [
+        "wsl", "-d", "Ubuntu", "--cd", wsl_candidate_path(), "--exec",
+        "timeout", "--signal=TERM", f"--kill-after={KILL_GRACE_SECONDS}s",
+        f"{CHILD_DEADLINE_SECONDS}s", "env",
+        *(f"{name}={value}" for name, value in PROFILE.items()),
+        "bash", "scripts/build.sh", "build",
+    ]
+
+
+def verify_projected_inputs() -> tuple[int, str]:
+    projected = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    wiki = json.loads((SETUP / "wiki-inputs.json").read_text(encoding="utf-8"))
+    if not projected.get("projection_only") or projected.get("input_count") != 266:
+        raise SystemExit("projected 266-input manifest is invalid")
+    expected = projected["inputs"]
+    actual_inputs = {
+        path.relative_to(CANDIDATE).as_posix()
+        for folder in ("src", "scripts", "assets", "tiled")
+        for path in (CANDIDATE / folder).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    actual_wiki = {
+        path.relative_to(CANDIDATE / "wiki").as_posix(): sha(path.read_bytes())
+        for path in (CANDIDATE / "wiki").rglob("*") if path.is_file()
+    }
+    if actual_inputs != set(expected) or actual_wiki != wiki.get("files"):
+        raise SystemExit("candidate source inputs or frozen wiki differ from their pinned manifests")
+    if len(actual_wiki) != wiki.get("file_count"):
+        raise SystemExit("candidate wiki file count differs from its frozen manifest")
+    for relative, expected_hash in expected.items():
+        if sha((CANDIDATE / relative).read_bytes()) != expected_hash:
+            raise SystemExit(f"projected source hash mismatch: {relative}")
+    wiki_hash = sha(json.dumps(wiki["files"], sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    if wiki_hash != wiki.get("inventory_sha256"):
+        raise SystemExit("frozen baseline wiki inventory hash is invalid")
+    if (CANDIDATE / "build").exists():
+        raise SystemExit("fresh candidate already contains build output; refusing another build")
+    return len(expected), wiki_hash
+
+
+def main() -> None:
+    started = time.monotonic()
+    if os.name != "nt":
+        raise SystemExit("HS-B wrapper must run once from Windows and launch the approved WSL build")
+    for executable in ("wsl",):
+        if shutil.which(executable) is None:
+            raise SystemExit(f"HS-B prerequisite unavailable: {executable}")
+    input_count, wiki_inventory_hash = verify_projected_inputs()
+    command = expected_command()
+    wrapper_hash = sha(Path(__file__).read_bytes())
+    if ATTEMPT.exists() or RESULT.exists() or LOG.exists():
+        raise SystemExit("HS-B has prior output; retries are prohibited")
+    phase_remaining = TOTAL_BUDGET_SECONDS - (time.monotonic() - started)
+    wrapper_wait_seconds = min(598, int(phase_remaining - 1))
+    if wrapper_wait_seconds < CHILD_DEADLINE_SECONDS + KILL_GRACE_SECONDS:
+        raise SystemExit("HS-B preflight consumed the time required for the bounded child and grace period")
+
+    attempt = {
+        "card": "HS-B",
+        "attempt": 1,
+        "started_utc": datetime.now(timezone.utc).isoformat(),
+        "candidate": "repro/feat010-highscore-repair-20261017/candidate",
+        "candidate_input_count": input_count,
+        "candidate_wiki_inventory_sha256": wiki_inventory_hash,
+        "wrapper_sha256": wrapper_hash,
+        "command": command,
+        "profile": PROFILE,
+        "child_deadline_seconds": CHILD_DEADLINE_SECONDS,
+        "kill_grace_seconds": KILL_GRACE_SECONDS,
+        "whole_phase_deadline_seconds": TOTAL_BUDGET_SECONDS,
+        "result": "started",
+    }
+    with ATTEMPT.open("x", encoding="utf-8", newline="\n") as handle:
+        json.dump(attempt, handle, indent=2)
+        handle.write("\n")
+
+    return_code = None
+    timed_out = False
+    try:
+        with LOG.open("xb") as log_handle:
+            try:
+                completed = subprocess.run(
+                    command,
+                    cwd=WORK.parents[1],
+                    stdout=log_handle,
+                    stderr=subprocess.STDOUT,
+                    timeout=wrapper_wait_seconds,
+                    check=False,
+                )
+                return_code = completed.returncode
+            except subprocess.TimeoutExpired:
+                timed_out = True
+    except BaseException as error:
+        attempt["result"] = "wrapper error; no retry"
+        attempt["error"] = f"{type(error).__name__}: {error}"
+        attempt["elapsed_seconds"] = round(time.monotonic() - started, 3)
+        ATTEMPT.write_text(json.dumps(attempt, indent=2) + "\n", encoding="utf-8")
+        raise
+
+    log_hash = sha(LOG.read_bytes()) if LOG.exists() else None
+    receipt_path = CANDIDATE / "build" / "source-build-receipt.json"
+    rom_path = CANDIDATE / "build" / "ladybug.rom"
+    receipt_hash = sha(receipt_path.read_bytes()) if receipt_path.is_file() else None
+    rom_hash = sha(rom_path.read_bytes()) if rom_path.is_file() else None
+    elapsed = round(time.monotonic() - started, 3)
+    success = (
+        return_code == 0
+        and not timed_out
+        and elapsed <= TOTAL_BUDGET_SECONDS
+        and log_hash is not None
+        and receipt_hash is not None
+        and rom_hash is not None
+    )
+    result = {
+        "card": "HS-B",
+        "attempt": 1,
+        "wrapper_sha256": wrapper_hash,
+        "command": command,
+        "profile": PROFILE,
+        "child_deadline_seconds": CHILD_DEADLINE_SECONDS,
+        "kill_grace_seconds": KILL_GRACE_SECONDS,
+        "whole_phase_deadline_seconds": TOTAL_BUDGET_SECONDS,
+        "candidate_input_count": input_count,
+        "candidate_wiki_inventory_sha256": wiki_inventory_hash,
+        "returncode": return_code,
+        "timed_out": timed_out,
+        "elapsed_seconds": elapsed,
+        "log": LOG.name,
+        "log_sha256": log_hash,
+        "receipt_sha256": receipt_hash,
+        "rom_sha256": rom_hash,
+        "outcome": "BUILD RETURNED ZERO; HS-P PENDING" if success else "BUILD FAILED OR DEADLINE MISSED; STOP",
+    }
+    RESULT.write_text(json.dumps(result, indent=2) + "\n", encoding="utf-8")
+    attempt.update({"result": result["outcome"], "result_sha256": sha(RESULT.read_bytes())})
+    ATTEMPT.write_text(json.dumps(attempt, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps(result, indent=2))
+    if not success:
+        raise SystemExit(1)
+
+
+if __name__ == "__main__":
+    main()

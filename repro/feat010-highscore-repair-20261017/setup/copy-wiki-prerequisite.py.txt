@@ -1,0 +1,83 @@
+from __future__ import annotations
+
+import hashlib
+import json
+import shutil
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+REPO = WORK.parents[1]
+BASELINE = REPO / "repro/feat010-frontend-dispatch-repair-20261016/candidate"
+CANDIDATE = WORK / "candidate"
+SETUP = WORK / "setup"
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def inventory(root: Path) -> dict[str, str]:
+    return {
+        path.relative_to(root).as_posix(): sha(path.read_bytes())
+        for path in sorted(root.rglob("*"))
+        if path.is_file()
+    }
+
+
+def main() -> None:
+    manifest = json.loads((SETUP / "base-inputs.json").read_text(encoding="utf-8"))
+    expected_sources = manifest["inputs"]
+    actual_sources = {
+        path.relative_to(CANDIDATE).as_posix(): sha(path.read_bytes())
+        for folder in ("src", "scripts", "assets", "tiled")
+        for path in (CANDIDATE / folder).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    if actual_sources != expected_sources or len(actual_sources) != 266:
+        raise SystemExit("refusing wiki copy because the 266 candidate inputs are not the pinned baseline")
+    if (CANDIDATE / "build").exists():
+        raise SystemExit("refusing wiki copy because a candidate build directory already exists")
+    source = BASELINE / "wiki"
+    destination = CANDIDATE / "wiki"
+    if not source.is_dir() or destination.exists():
+        raise SystemExit("pinned baseline wiki is absent or candidate wiki already exists")
+
+    baseline_files = inventory(source)
+    shutil.copytree(source, destination)
+    candidate_files = inventory(destination)
+    if candidate_files != baseline_files:
+        raise SystemExit("copied candidate wiki differs from pinned baseline wiki")
+    encoded = json.dumps(baseline_files, sort_keys=True, separators=(",", ":")).encode("utf-8")
+    manifest_sha = sha(encoded)
+    wiki_record = {
+        "baseline_root": "repro/feat010-frontend-dispatch-repair-20261016/candidate/wiki",
+        "candidate_root": "repro/feat010-highscore-repair-20261017/candidate/wiki",
+        "file_count": len(baseline_files),
+        "total_bytes": sum((source / relative).stat().st_size for relative in baseline_files),
+        "inventory_sha256": manifest_sha,
+        "files": baseline_files,
+    }
+    (SETUP / "wiki-inputs.json").write_text(json.dumps(wiki_record, indent=2) + "\n", encoding="utf-8")
+    prep_path = SETUP / "candidate-preparation.json"
+    preparation = json.loads(prep_path.read_text(encoding="utf-8"))
+    preparation.update({
+        "candidate_wiki_is_pinned_baseline_copy": True,
+        "baseline_wiki_file_count": len(baseline_files),
+        "baseline_wiki_total_bytes": wiki_record["total_bytes"],
+        "baseline_wiki_inventory_sha256": manifest_sha,
+        "candidate_wiki_inventory_sha256": sha(json.dumps(candidate_files, sort_keys=True, separators=(",", ":")).encode("utf-8")),
+    })
+    prep_path.write_text(json.dumps(preparation, indent=2) + "\n", encoding="utf-8")
+    print(json.dumps({
+        "candidate_source_inputs": len(actual_sources),
+        "candidate_wiki_files": len(candidate_files),
+        "candidate_wiki_total_bytes": wiki_record["total_bytes"],
+        "wiki_inventory_sha256": manifest_sha,
+        "candidate_build_directory_created": False,
+        "candidate_source_inputs_mutated": False,
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()

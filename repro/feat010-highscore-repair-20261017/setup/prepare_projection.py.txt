@@ -1,0 +1,211 @@
+from __future__ import annotations
+
+import difflib
+import hashlib
+import json
+import re
+import shutil
+from pathlib import Path
+
+
+REPO = Path(__file__).resolve().parents[3]
+WORK = Path(__file__).resolve().parents[1]
+BASE_MANIFEST = REPO / "repro/feat010-joystick-symbol-repair-20261017/base-inputs.json"
+BASE_ROOT_REL = "repro/feat010-frontend-dispatch-repair-20261016/candidate"
+BASE_ROOT = REPO / BASE_ROOT_REL
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+
+
+def sha256(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def project_stage(text: str) -> str:
+    lines = text.splitlines(keepends=True)
+    start = next(i for i, line in enumerate(lines) if line.strip() == "ranking_schedule_data")
+    end = next(i for i in range(start + 1, len(lines)) if lines[i].strip() == "ranking_schedule_end")
+    fdb_pattern = re.compile(r"^([ \t]*fdb[ \t]+)(\d+)(,\$AF[0-9A-F]{2},\$[0-9A-F]{4})[ \t]*$")
+    fcb_pattern = re.compile(r"^[ \t]*fcb[ \t]+[01][ \t]*$")
+    rows = []
+    i = start + 1
+    while i < end:
+        body = lines[i].rstrip("\r\n")
+        match = fdb_pattern.fullmatch(body)
+        if not match or i + 1 >= end or not fcb_pattern.fullmatch(lines[i + 1].rstrip("\r\n")):
+            raise SystemExit(f"unexpected baseline schedule content at line {i + 1}")
+        rows.append((i, match))
+        i += 2
+    if len(rows) != 18:
+        raise SystemExit(f"expected 18 baseline ranking records, found {len(rows)}")
+    for index, match in rows:
+        body = lines[index].rstrip("\r\n")
+        ending = lines[index][len(body):]
+        lines[index] = f"{match.group(1)}{int(match.group(2)) + 128}{match.group(3)}{ending}"
+    newline = "\r\n" if any(line.endswith("\r\n") for line in lines) else "\n"
+    lines[end:end] = [
+        f"        fdb 832,$AF84,$3440{newline}", f"        fcb 1{newline}",
+        f"        fdb 864,$AF84,$346C{newline}", f"        fcb 0{newline}",
+    ]
+    text = "".join(lines)
+    lines = text.splitlines(keepends=True)
+    sub_matches = []
+    for index, line in enumerate(lines):
+        body = line.rstrip("\r\n")
+        match = re.fullmatch(r"([ \t]*subd[ \t]+#\$)1E00([ \t]*)", body)
+        if match:
+            sub_matches.append((index, match, line[len(body):]))
+    if len(sub_matches) != 1:
+        raise SystemExit(f"expected one Attract logo subtraction, found {len(sub_matches)}")
+    index, match, ending = sub_matches[0]
+    lines[index] = f"{match.group(1)}2800{match.group(2)}{ending}"
+    return "".join(lines)
+
+
+def project_generator(text: str) -> str:
+    replacements = (
+        ("framebuffer_destination((x, y + 6))", "framebuffer_destination((x, y + 8))"),
+        ("if x in (30, 31) and y in (13, 14):", "if x in (30, 31) and y in (15, 16):"),
+        ("if 13 <= y <= 18 and 9 <= x <= 30:", "if 15 <= y <= 20 and 9 <= x <= 30:"),
+    )
+    for old, new in replacements:
+        if text.count(old) != 1:
+            raise SystemExit(f"expected one occurrence of {old!r}, found {text.count(old)}")
+        text = text.replace(old, new, 1)
+    return text
+
+
+def main() -> None:
+    if CANDIDATE.exists():
+        raise SystemExit(f"refusing to reuse existing candidate directory: {CANDIDATE}")
+    manifest = json.loads(BASE_MANIFEST.read_text(encoding="utf-8"))
+    if manifest.get("base_root") != BASE_ROOT_REL or len(manifest.get("inputs", {})) != 266:
+        raise SystemExit("pinned 266-input manifest identity/count mismatch")
+    if not BASE_ROOT.is_dir():
+        raise SystemExit(f"missing pinned baseline: {BASE_ROOT}")
+
+    CANDIDATE.mkdir(parents=True)
+    actual_baseline = {}
+    for rel, expected in sorted(manifest["inputs"].items()):
+        source = BASE_ROOT / rel
+        destination = CANDIDATE / rel
+        data = source.read_bytes()
+        actual = sha256(data)
+        if actual != expected:
+            raise SystemExit(f"pinned input mismatch: {rel}: {actual} != {expected}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        actual_baseline[rel] = actual
+    if len(actual_baseline) != 266:
+        raise SystemExit(f"copied {len(actual_baseline)} inputs, expected 266")
+
+    SETUP.mkdir(parents=True, exist_ok=True)
+    fixtures = SETUP / "fixtures" / "baseline"
+    fixtures.mkdir(parents=True, exist_ok=True)
+    stage_rel = "src/shared_text_stage.inc"
+    generator_rel = "scripts/build_presentation.py"
+    stage_bytes = (BASE_ROOT / stage_rel).read_bytes()
+    generator_bytes = (BASE_ROOT / generator_rel).read_bytes()
+    stage_text = stage_bytes.decode("utf-8")
+    generator_text = generator_bytes.decode("utf-8")
+    projected_stage = project_stage(stage_text).encode("utf-8")
+    projected_generator = project_generator(generator_text).encode("utf-8")
+
+    (SETUP / "base-inputs.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+    (fixtures / "shared_text_stage.inc").write_bytes(stage_bytes)
+    (fixtures / "build_presentation.py").write_bytes(generator_bytes)
+    (fixtures / "ladybug-highscore-helper.bin").write_bytes(
+        (BASE_ROOT / "build/ladybug-highscore-helper.bin").read_bytes()
+    )
+    (fixtures / "ladybug-highscore-helper.map").write_bytes(
+        (BASE_ROOT / "build/ladybug-highscore-helper.map").read_bytes()
+    )
+    (fixtures / "ladybug_highscore_logo.inc").write_bytes(
+        (BASE_ROOT / "build/ladybug_highscore_logo.inc").read_bytes()
+    )
+    (fixtures / "source-build-receipt.json").write_bytes(
+        (BASE_ROOT / "build/source-build-receipt.json").read_bytes()
+    )
+
+    projected = dict(manifest["inputs"])
+    projected[stage_rel] = sha256(projected_stage)
+    projected[generator_rel] = sha256(projected_generator)
+    projected_manifest = {
+        "base_root": "repro/feat010-highscore-repair-20261017/candidate",
+        "baseline_base_root": BASE_ROOT_REL,
+        "baseline_rom_sha256": manifest["rom_sha256"],
+        "baseline_receipt_sha256": manifest["receipt_sha256"],
+        "input_count": 266,
+        "inputs": dict(sorted(projected.items())),
+        "projection_only": True,
+    }
+    (SETUP / "candidate-inputs.json").write_text(
+        json.dumps(projected_manifest, indent=2) + "\n", encoding="utf-8"
+    )
+
+    diffs = []
+    for rel, old, new in (
+        (stage_rel, stage_text, projected_stage.decode("utf-8")),
+        (generator_rel, generator_text, projected_generator.decode("utf-8")),
+    ):
+        diffs.extend(difflib.unified_diff(
+            old.splitlines(keepends=True), new.splitlines(keepends=True),
+            fromfile=f"a/{rel}", tofile=f"b/{rel}", n=3,
+        ))
+    patch_bytes = "".join(diffs).encode("utf-8")
+    (SETUP / "production.patch").write_bytes(patch_bytes)
+
+    baseline_artifacts = {}
+    for rel in (
+        "build/ladybug.rom",
+        "build/source-build-receipt.json",
+        "build/ladybug-highscore-helper.bin",
+        "build/ladybug-highscore-helper.map",
+        "build/ladybug-presentation-runtime.bin",
+        "build/ladybug_highscore_logo.inc",
+        "build/ladybug.map",
+        "build/ladybug-presentation.json",
+    ):
+        data = (BASE_ROOT / rel).read_bytes()
+        baseline_artifacts[rel] = {"sha256": sha256(data), "bytes": len(data)}
+    preparation = {
+        "status": "source-only Ready preparation; no qualification or build run",
+        "baseline_root": BASE_ROOT_REL,
+        "fresh_candidate_root": "repro/feat010-highscore-repair-20261017/candidate",
+        "baseline_rom_sha256": manifest["rom_sha256"],
+        "baseline_receipt_sha256": manifest["receipt_sha256"],
+        "input_count": len(actual_baseline),
+        "candidate_is_baseline_only": True,
+        "candidate_build_directory_created": False,
+        "baseline_input_hashes": actual_baseline,
+        "projected_input_hashes": projected,
+        "production_patch_sha256": sha256(patch_bytes),
+        "projected_source_hashes": {
+            stage_rel: sha256(projected_stage),
+            generator_rel: sha256(projected_generator),
+        },
+        "baseline_source_hashes": {
+            stage_rel: sha256(stage_bytes), generator_rel: sha256(generator_bytes),
+        },
+        "baseline_artifacts": baseline_artifacts,
+    }
+    (SETUP / "candidate-preparation.json").write_text(
+        json.dumps(preparation, indent=2) + "\n", encoding="utf-8"
+    )
+
+    copied = {p.relative_to(CANDIDATE).as_posix() for p in CANDIDATE.rglob("*") if p.is_file()}
+    if copied != set(manifest["inputs"]):
+        raise SystemExit(f"fresh candidate file-set mismatch: {len(copied)} != 266")
+    if (CANDIDATE / "build").exists():
+        raise SystemExit("fresh baseline candidate unexpectedly contains a build directory")
+    print(json.dumps({
+        "candidate_inputs_copied_and_verified": len(copied),
+        "candidate_source_mutations": 0,
+        "candidate_build_directory_created": False,
+        "projected_files": 2,
+        "projected_patch_sha256": sha256(patch_bytes),
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()

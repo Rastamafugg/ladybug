@@ -1,0 +1,368 @@
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import re
+import sys
+import time
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+
+WORK = Path(__file__).resolve().parents[1]
+REPO = WORK.parents[1]
+SETUP = WORK / "setup"
+CANDIDATE = WORK / "candidate"
+BASELINE = REPO / "repro/feat010-frontend-dispatch-repair-20261016/candidate"
+FIXTURE = SETUP / "fixtures/baseline"
+STARTED = time.monotonic()
+PHASE_LIMIT_SECONDS = 55
+PROFILE = {
+    "LADYBUG_PROFILE": "complete",
+    "LADYBUG_INPUT": "keyboard",
+    "LADYBUG_CPU": "6809",
+    "LADYBUG_ADAPTIVE": "1",
+}
+EXPECTED_COMMAND = [
+    "wsl", "-d", "Ubuntu", "--cd",
+    "/mnt/e/projects/ladybug/repro/feat010-highscore-repair-20261017/candidate",
+    "--exec", "timeout", "--signal=TERM", "--kill-after=2s", "595s", "env",
+    "LADYBUG_PROFILE=complete", "LADYBUG_INPUT=keyboard", "LADYBUG_CPU=6809",
+    "LADYBUG_ADAPTIVE=1", "bash", "scripts/build.sh", "build",
+]
+
+
+def sha(data: bytes) -> str:
+    return hashlib.sha256(data).hexdigest()
+
+
+def require(condition: bool, message: str) -> None:
+    if not condition:
+        raise AssertionError(message)
+
+
+def symbol(text: str, name: str) -> int:
+    matches = re.findall(rf"(?m)^Symbol: {re.escape(name)}\s+.* = ([0-9A-Fa-f]+)$", text)
+    require(len(matches) == 1, f"map symbol {name} missing or ambiguous")
+    return int(matches[0], 16)
+
+
+def expected_schedule() -> list[tuple[int, int, int, int, int, int]]:
+    rows = []
+    for index in range(9):
+        y, source = 5 + index, 0xAF84 + index * 10
+        rows.extend((
+            (256 + index * 64, source, 0x2000 + y * 1280 + 16 * 4, 1, y, 16),
+            (288 + index * 64, source, 0x2000 + y * 1280 + 27 * 4, 0, y, 27),
+        ))
+    rows.extend(((832, 0xAF84, 0x3440, 1, 4, 16), (864, 0xAF84, 0x346C, 0, 4, 27)))
+    return rows
+
+
+def decode_schedule(data: bytes) -> list[tuple[int, int, int, int]]:
+    require(len(data) % 7 == 0, f"schedule byte length {len(data)} is not a multiple of 7")
+    return [
+        (int.from_bytes(data[i:i + 2], "big"), int.from_bytes(data[i + 2:i + 4], "big"),
+         int.from_bytes(data[i + 4:i + 6], "big"), data[i + 6])
+        for i in range(0, len(data), 7)
+    ]
+
+
+def expected_records() -> list[tuple[int, int, int, int]]:
+    return [(threshold, source, destination, flags)
+            for threshold, source, destination, flags, _, _ in expected_schedule()]
+
+
+def tmx_expectations(path: Path) -> tuple[list[tuple[int, int]], list[tuple[int, int]]]:
+    root = ET.parse(path).getroot()
+    frame_cells = set()
+    branding = None
+    for layer in root.findall("layer"):
+        name, width, height = layer.get("name"), int(layer.get("width")), int(layer.get("height"))
+        flat = [int(value) for value in layer.find("data").text.replace("\n", "").split(",") if value.strip()]
+        require(len(flat) == width * height, f"TMX dimensions mismatch: {name}")
+        grid = [flat[y * width:(y + 1) * width] for y in range(height)]
+        if name in ("Logo Frame 1", "Logo Frame 2"):
+            frame_cells.update((index % width, index // width) for index, value in enumerate(flat) if value)
+        if name == "Background":
+            for _, _, _, _, row, x in expected_schedule():
+                require(grid[row][x] != 0, f"scheduled field background is empty at {x},{row}")
+        if name == "High Score Table and Branding":
+            branding = (width, height, grid)
+    require(len(frame_cells) == 12, f"TMX animation frame union has {len(frame_cells)} cells")
+    require(branding is not None, "TMX branding layer missing")
+    width, height, grid = branding
+    require(width > 31 and height > 20, "TMX branding dimensions do not cover approved marks/descenders")
+    marks = [(x, y) for y in (15, 16) for x in (30, 31) if grid[y][x]]
+    descenders = [(x, y) for y in (19, 20) for x in range(9, 31) if grid[y][x]]
+    require(len(marks) == 4 and descenders, "TMX mark/descender fixture incomplete")
+    return sorted(frame_cells, key=lambda cell: (cell[1], cell[0])), marks
+
+
+def logo_records(text: str) -> list[tuple[int, int]]:
+    return [(int(first, 16), int(second, 16)) for first, second in re.findall(
+        r"(?m)^\s*fdb\s+\$([0-9A-Fa-f]{4})\s*,\s*\$([0-9A-Fa-f]{4})\s*$", text
+    )]
+
+
+def decode_logo_records(data: bytes) -> list[tuple[int, int]]:
+    require(len(data) == 48, f"compiled logo table is {len(data)} bytes, expected 12 four-byte records")
+    return [
+        (int.from_bytes(data[i:i + 2], "big"), int.from_bytes(data[i + 2:i + 4], "big"))
+        for i in range(0, len(data), 4)
+    ]
+
+
+def load_stock_provenance():
+    sys.dont_write_bytecode = True
+    source = CANDIDATE / "scripts/source_reference/provenance.py"
+    spec = importlib.util.spec_from_file_location("feat010_stock_provenance", source)
+    require(spec is not None and spec.loader is not None, "candidate stock provenance module cannot be loaded")
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def main() -> None:
+    expected = json.loads((SETUP / "candidate-inputs.json").read_text(encoding="utf-8"))
+    prep = json.loads((SETUP / "candidate-preparation.json").read_text(encoding="utf-8"))
+    wiki = json.loads((SETUP / "wiki-inputs.json").read_text(encoding="utf-8"))
+    require(expected["projection_only"] and expected["input_count"] == 266, "projected 266-input manifest identity/count invalid")
+    for relative, expected_hash in expected["inputs"].items():
+        require(sha((CANDIDATE / relative).read_bytes()) == expected_hash,
+                f"built source identity mismatch: {relative}")
+
+    build = CANDIDATE / "build"
+    result_path = SETUP / "build-result.json"
+    attempt_path = SETUP / "build-attempt.json"
+    log_path = SETUP / "build-first.log"
+    wrapper_path = SETUP / "build-once.py.txt"
+    result = json.loads(result_path.read_text(encoding="utf-8"))
+    attempt = json.loads(attempt_path.read_text(encoding="utf-8"))
+    require(result.get("card") == "HS-B" and result.get("attempt") == 1,
+            "HS-B result is missing or is not the single approved attempt")
+    require(result.get("wrapper_sha256") == sha(wrapper_path.read_bytes()),
+            "HS-B result does not bind the current reviewed wrapper")
+    require(result.get("command") == EXPECTED_COMMAND, "HS-B command differs from the approved complete keyboard adaptive 6809 build")
+    require(result.get("profile") == PROFILE, "HS-B profile differs from complete/keyboard/adaptive/6809")
+    require(result.get("child_deadline_seconds") == 595 and result.get("kill_grace_seconds") == 2
+            and result.get("whole_phase_deadline_seconds") == 600,
+            "HS-B child or whole-phase time bound differs from the approved card")
+    require(result.get("returncode") == 0 and not result.get("timed_out")
+            and result.get("outcome") == "BUILD RETURNED ZERO; HS-P PENDING",
+            "HS-B wrapper did not record one fresh zero-exit build")
+    require(isinstance(result.get("elapsed_seconds"), (int, float))
+            and 0 <= result["elapsed_seconds"] <= 600,
+            "HS-B whole-phase deadline exceeded or is unrecorded")
+    require(attempt.get("command") == EXPECTED_COMMAND and attempt.get("profile") == PROFILE
+            and attempt.get("wrapper_sha256") == result["wrapper_sha256"]
+            and attempt.get("attempt") == 1,
+            "HS-B start marker does not bind the same one-shot command/profile")
+    require(attempt.get("result") == result["outcome"]
+            and attempt.get("result_sha256") == sha(result_path.read_bytes()),
+            "HS-B attempt marker does not bind the final result record")
+    require(result.get("log") == log_path.name and log_path.is_file() and log_path.stat().st_size > 0,
+            "HS-B first build log is missing or empty")
+    log_bytes = log_path.read_bytes()
+    log_text = log_bytes.decode("utf-8", errors="replace")
+    require(result.get("log_sha256") == sha(log_bytes), "HS-B raw build log digest differs from wrapper result")
+
+    receipt_path = build / "source-build-receipt.json"
+    receipt_bytes = receipt_path.read_bytes()
+    receipt = json.loads(receipt_bytes)
+    require(sha(receipt_bytes) == result.get("receipt_sha256"), "HS-B receipt hash differs from wrapper result")
+    require(sha(receipt_bytes) != prep["baseline_receipt_sha256"], "fresh candidate receipt aliases baseline")
+    require(receipt.get("profile") == "complete" and receipt.get("state") == "complete",
+            "receipt is not a completed complete-profile build")
+    require(receipt.get("inputs") == expected["inputs"] and len(receipt["inputs"]) == 266,
+            "receipt input hashes do not bind the projected 266-input source")
+    input_files = {
+        path.relative_to(CANDIDATE).as_posix()
+        for folder in ("src", "scripts", "assets", "tiled")
+        for path in (CANDIDATE / folder).rglob("*")
+        if path.is_file() and "__pycache__" not in path.parts and path.suffix != ".pyc"
+    }
+    require(input_files == set(expected["inputs"]), "candidate source input inventory differs from projected 266-file manifest")
+    candidate_wiki = {
+        path.relative_to(CANDIDATE / "wiki").as_posix(): sha(path.read_bytes())
+        for path in (CANDIDATE / "wiki").rglob("*") if path.is_file()
+    }
+    wiki_hash = sha(json.dumps(wiki["files"], sort_keys=True, separators=(",", ":")).encode("utf-8"))
+    require(candidate_wiki == wiki["files"] and len(candidate_wiki) == wiki["file_count"]
+            and wiki_hash == wiki["inventory_sha256"]
+            and prep["candidate_wiki_inventory_sha256"] == wiki_hash,
+            "candidate documentation differs from the separately pinned baseline wiki")
+    require(result.get("candidate_wiki_inventory_sha256") == wiki_hash
+            and attempt.get("candidate_wiki_inventory_sha256") == wiki_hash,
+            "HS-B command/result does not bind the frozen build documentation")
+
+    config_path = build / "source-reference-adaptive.json"
+    require(config_path.is_file() and config_path.name in receipt.get("artifacts", {}),
+            "candidate adaptive source-reference config is missing from the build receipt")
+    config_bytes = config_path.read_bytes()
+    require(receipt["artifacts"][config_path.name] == sha(config_bytes),
+            "candidate source-reference config hash differs from receipt")
+    config = json.loads(config_bytes)
+    stock = load_stock_provenance()
+    validated = stock.validate(CANDIDATE, build, config)
+    require(validated.get("state") == "complete" and validated.get("profile") == "complete",
+            "candidate stock provenance validation did not pass")
+    require(validated == receipt, "stock provenance validator returned a different receipt")
+
+    rom_path = build / "ladybug.rom"
+    rom_bytes = rom_path.read_bytes()
+    baseline_rom = (BASELINE / "build/ladybug.rom").read_bytes()
+    require(sha(baseline_rom) == prep["baseline_rom_sha256"], "pinned 64 KiB baseline ROM identity changed")
+    require(len(baseline_rom) == 65536 and len(rom_bytes) == len(baseline_rom),
+            "delivered GMC ROM size differs from the pinned 64 KiB format")
+    rom_hash = sha(rom_bytes)
+    require(rom_hash != prep["baseline_rom_sha256"], "new build ROM is identical to pinned known-bad baseline")
+    require(receipt.get("artifacts", {}).get("ladybug.rom") == rom_hash
+            and result.get("rom_sha256") == rom_hash,
+            "padded delivered ROM identity differs from receipt or one-build wrapper")
+    runtime_path = build / "ladybug-runtime.rom"
+    baseline_runtime_path = BASELINE / "build/ladybug-runtime.rom"
+    runtime_size = runtime_path.stat().st_size
+    require(baseline_runtime_path.stat().st_size == 16384 and runtime_size == 16384,
+            "separate padded resident runtime is not the pinned 16 KiB format")
+    require(receipt["artifacts"].get("ladybug-runtime.rom") == sha(runtime_path.read_bytes()),
+            "separate padded resident runtime differs from receipt")
+
+    helper_path = build / "ladybug-highscore-helper.bin"
+    helper = helper_path.read_bytes()
+    helper_map = (build / "ladybug-highscore-helper.map").read_text(encoding="utf-8")
+    helper_start = symbol(helper_map, "highscore_phase_tick")
+    helper_end = symbol(helper_map, "highscore_phase_helper_end")
+    table_start = symbol(helper_map, "ranking_schedule_data")
+    table_end = symbol(helper_map, "ranking_schedule_end")
+    require(helper_end - helper_start == len(helper) <= 3136,
+            "helper span/file size exceeds 3,136-byte cap or map identity")
+    table_offset, table_bytes = table_start - helper_start, table_end - table_start
+    require(table_offset >= 0 and table_offset + table_bytes <= len(helper),
+            "schedule table lies outside helper image")
+    observed = decode_schedule(helper[table_offset:table_offset + table_bytes])
+    required = expected_records()
+
+    baseline_helper = (FIXTURE / "ladybug-highscore-helper.bin").read_bytes()
+    baseline_map = (FIXTURE / "ladybug-highscore-helper.map").read_text(encoding="utf-8")
+    for relative, path in (
+        ("build/ladybug-highscore-helper.bin", FIXTURE / "ladybug-highscore-helper.bin"),
+        ("build/ladybug-highscore-helper.map", FIXTURE / "ladybug-highscore-helper.map"),
+        ("build/ladybug_highscore_logo.inc", FIXTURE / "ladybug_highscore_logo.inc"),
+    ):
+        require(sha(path.read_bytes()) == prep["baseline_artifacts"][relative]["sha256"],
+                f"known-bad fixture hash mismatch: {relative}")
+    bad_start = symbol(baseline_map, "ranking_schedule_data") - symbol(baseline_map, "highscore_phase_tick")
+    bad_end = symbol(baseline_map, "ranking_schedule_end") - symbol(baseline_map, "highscore_phase_tick")
+    bad_schedule = decode_schedule(baseline_helper[bad_start:bad_end])
+    require(len(bad_schedule) == 18 and bad_schedule != required,
+            "known-bad 18-record fixture was not rejected")
+    corrected_fixture = b"".join(
+        threshold.to_bytes(2, "big") + source.to_bytes(2, "big")
+        + destination.to_bytes(2, "big") + bytes((flags,))
+        for threshold, source, destination, flags in required
+    )
+    require(decode_schedule(corrected_fixture) == required, "in-memory corrected schedule decoder fixture failed")
+    require(observed == required, "built 20-entry schedule differs from independent row/TMX model")
+    for threshold, _, _, _, row, x in expected_schedule():
+        width = 7 if x == 16 else 6
+        require(threshold % 32 == 0 and threshold < 960
+                and row * 40 + x + width - 1 < threshold,
+                f"full-field hydration timing bound failed for field {x},{row}")
+
+    record_source = symbol(helper_map, "highscore_logo_record_source")
+    opcode_offset = record_source - 5 - helper_start
+    require(opcode_offset >= 0 and helper[opcode_offset:opcode_offset + 3] == bytes.fromhex("83 28 00"),
+            "built Attract compensation is not SUBD #$2800")
+
+    frames, _ = tmx_expectations(CANDIDATE / "tiled/coco-high-score-screen.tmx")
+    expected_destinations = [0x2000 + y * 1280 + x * 4 for x, y in frames]
+    include_path = build / "ladybug_highscore_logo.inc"
+    generated_records = logo_records(include_path.read_text(encoding="ascii"))
+    require(len(generated_records) == 12, "built generated logo include does not contain 12 records")
+    require([destination for destination, _ in generated_records] == expected_destinations,
+            "built logo include destinations differ from authored TMX cells")
+    logo_table_start = symbol(helper_map, "highscore_logo_records")
+    logo_table_end = symbol(helper_map, "credit_panel_slice")
+    require(logo_table_end - logo_table_start == 48,
+            "compiled high-score logo table is not exactly 12 four-byte records")
+    logo_table_offset = logo_table_start - helper_start
+    require(logo_table_offset >= 0 and logo_table_offset + 48 <= len(helper),
+            "compiled high-score logo table lies outside helper image")
+    compiled_records = decode_logo_records(helper[logo_table_offset:logo_table_offset + 48])
+    require(compiled_records == generated_records,
+            "compiled helper logo records differ from the receipt-bound generated include")
+    require([destination for destination, _ in compiled_records] == expected_destinations,
+            "compiled helper logo destinations differ from authored TMX cells")
+
+    baseline_include_text = (FIXTURE / "ladybug_highscore_logo.inc").read_text(encoding="ascii")
+    baseline_records = logo_records(baseline_include_text)
+    baseline_logo_table = symbol(baseline_map, "highscore_logo_records") - symbol(baseline_map, "highscore_phase_tick")
+    baseline_logo_compiled = decode_logo_records(baseline_helper[baseline_logo_table:baseline_logo_table + 48])
+    require(len(baseline_records) == 12 and baseline_records == baseline_logo_compiled,
+            "known-bad generated include is not bound to its compiled logo table")
+    require([destination for destination, _ in baseline_records] != expected_destinations,
+            "known-bad compiled logo fixture was not rejected for its vertical offset")
+    corrected_logo_fixture = "\n".join(f"        fdb ${destination:04X},$0000"
+                                        for destination in expected_destinations)
+    require([destination for destination, _ in logo_records(corrected_logo_fixture)] == expected_destinations,
+            "in-memory corrected logo decoder fixture failed")
+
+    layout_map = (build / "ladybug.map").read_text(encoding="utf-8")
+    resident_end, asset_start, asset_end = (
+        symbol(layout_map, key) for key in ("resident_end", "asset_start", "asset_end")
+    )
+    resident_used, asset_used = resident_end - 0xC000, asset_end - asset_start
+    presentation_bytes = (build / "ladybug-presentation-runtime.bin").stat().st_size
+    capacity_lines = [
+        tuple(map(int, match.groups()))
+        for match in re.finditer(
+            r"^build: resident (\d+)/(\d+) bytes; assets (\d+)/(\d+) bytes$",
+            log_text, re.M,
+        )
+    ]
+    require(capacity_lines, "one-build log has no ordinary resident/assets guard summary")
+    for observed_resident, resident_limit, observed_assets, assets_limit in capacity_lines:
+        require(resident_limit == 8192 and assets_limit == 7680,
+                "ordinary build guard limits differ from stock limits")
+        require(observed_resident <= 8160 and observed_assets <= 7680,
+                "ordinary build guard missed resident headroom or asset cap")
+    require(capacity_lines[-1] == (resident_used, 8192, asset_used, 7680),
+            "last ordinary build guard summary differs from final linked layout map")
+    require(0 <= resident_used <= 8192 and 8192 - resident_used >= 32,
+            "resident cap/minimum 32-byte free-space guard failed")
+    require(asset_start == 0xE000 and 0 <= asset_used <= 7680,
+            "asset region cap failed")
+    require(presentation_bytes <= 1280,
+            "presentation module exceeds 1,280-byte cap")
+    require(runtime_size <= 16384 and len(rom_bytes) == 65536,
+            "runtime or delivered ROM exceeds its pinned format capacity")
+    for filename in ("ladybug-highscore-helper.bin", "ladybug-presentation-runtime.bin",
+                     "ladybug.rom", "ladybug-runtime.rom"):
+        require(receipt["artifacts"].get(filename) == sha((build / filename).read_bytes()),
+                f"receipt artifact hash mismatch: {filename}")
+    require(time.monotonic() - STARTED < PHASE_LIMIT_SECONDS,
+            "post card exceeded its 55-second child budget")
+    print(json.dumps({
+        "card": "HS-P",
+        "receipt_sha256": sha(receipt_bytes),
+        "rom_sha256": rom_hash,
+        "delivered_rom_bytes": len(rom_bytes),
+        "padded_resident_runtime_bytes": runtime_size,
+        "schedule_entries": len(observed),
+        "logo_destinations": len(compiled_records),
+        "stock_provenance": "complete",
+        "capacity_bytes": {
+            "resident_used_of_8192": resident_used,
+            "resident_free_minimum": 8192 - resident_used,
+            "assets_used_of_7680": asset_used,
+            "presentation_used_of_1280": presentation_bytes,
+            "helper_used_of_3136": len(helper),
+        },
+        "duration_seconds": round(time.monotonic() - STARTED, 3),
+    }, indent=2))
+
+
+if __name__ == "__main__":
+    main()

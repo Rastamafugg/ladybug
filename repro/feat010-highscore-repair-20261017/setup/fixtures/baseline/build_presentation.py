@@ -1,0 +1,2478 @@
+#!/usr/bin/env python3
+"""Compile the six authored presentation TMX maps into shared cold data."""
+
+from __future__ import annotations
+
+import argparse
+import hashlib
+import json
+import re
+import sys
+import xml.etree.ElementTree as ET
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from build_screen import (  # noqa: E402
+    BLACK,
+    BLUE,
+    DARK_RED,
+    DARK_GREEN,
+    FLIP_D,
+    FLIP_H,
+    FLIP_V,
+    GID_MASK,
+    GAMEPLAY_SPRITE_LOCATIONS,
+    GREEN,
+    GREY,
+    LIGHT_BLUE,
+    LIGHT_GREEN,
+    ORANGE,
+    PINK,
+    PURPLE,
+    RED,
+    SCREEN_HEIGHT,
+    SCREEN_WIDTH,
+    TILE_SIZE,
+    WHITE,
+    YELLOW,
+    char_sheet_code,
+    compile_death_sprites,
+    compile_screen,
+    encode_sparse_native,
+    expand_sprite,
+    load_chars,
+    pack_tile,
+    pack_sprite_2bpp,
+    parse_csv,
+    recolor,
+    rotate_ccw,
+    sheet_code,
+    tileset_ranges,
+    transform,
+)
+from gmc_lzss import compress as lzss_compress  # noqa: E402
+
+
+MAP_NAMES = (
+    "attract",
+    "instructions",
+    "level-start",
+    "high-score",
+    "game-over",
+    "enter-high-score",
+    "options",
+    "credits",
+    "keybind-options",
+)
+MAP_FILES = {
+    name: f"coco-{name}-screen.tmx" for name in MAP_NAMES
+}
+DEVELOPMENT_PLACEHOLDER_MAPS = ("game-over", "enter-high-score")
+RELEASE_PLACEHOLDER_MAPS = ("instructions",)
+# The historical FEAT-003 harness is being built once for BUG-113's startup
+# marker. Keep authored validation for non-marker maps, but do not add their
+# unrelated tiles to its shared one-byte presentation atlas.
+HIGHSCORE_TEST_PLACEHOLDER_MAPS = (
+    "instructions", "level-start", "game-over", "options", "credits",
+    "keybind-options",
+)
+PAGE_BYTES = 0x2000
+COLD_PAGE = 0x3A
+COLD_PAGE_COUNT = 4
+MAP_BYTES = SCREEN_WIDTH * SCREEN_HEIGHT
+TILE_BYTES = 32
+MAP_OUTPUT_OFFSET = 0x4000
+COLD_PAYLOAD_LIMIT = 10874
+ATTRACT_ACTOR_COLOURS = {
+    (11, 3): (WHITE, GREEN, PINK),
+    (20, 4): (YELLOW, GREEN, DARK_RED),
+    (35, 4): (WHITE, YELLOW, ORANGE),
+    (27, 5): (WHITE, GREEN, PURPLE),
+    (3, 9): (WHITE, YELLOW, ORANGE),
+    (10, 15): (YELLOW, GREEN, RED),
+    (33, 19): (WHITE, LIGHT_GREEN, GREEN),
+    (5, 20): (WHITE, YELLOW, ORANGE),
+}
+ATTRACT_ACTOR_EXPECTED_TILES = {
+    (11, 3): 98,
+    (20, 4): 101,
+    (35, 4): 5,
+    (27, 5): 65,
+    (3, 9): 68,
+    (10, 15): 32,
+    (33, 19): 35,
+    (5, 20): 2,
+}
+# The (11,3) family crosses to the preceding sheet column for its row-0
+# wrap frame. Keys use actor cell and stored phase; values are sheet row/column.
+ATTRACT_ACTOR_PHASE_OVERRIDES = {
+    ((11, 3), 0): (0, 1),
+    ((20, 4), 0): (0, 4),
+}
+ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
+ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
+ATTRACT_ACTOR_BYTES = 128
+ATTRACT_ACTOR_PHASES = (0, 1, 2)
+ATTRACT_COPY_COUNT = 20  # eight actors and twelve authored logo rectangles
+ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xA000 + 3 * ATTRACT_COPY_COUNT * 128
+ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = ATTRACT_ACTOR_DESTINATION_ADDRESS + ATTRACT_COPY_COUNT * 2
+INSTRUCTION_REFERENCE = (
+    Path(__file__).resolve().parents[1]
+    / "assets" / "arcade" / "instruction_reference.json"
+)
+INSTRUCTION_STATIC_LAYERS = (
+    "Background",
+    "Arcade Maze Border",
+    "CoCo Side HUD",
+    "Instructions Overlay",
+)
+INSTRUCTION_METADATA_LAYER = "Sprite Locations"
+ENTER_HIGH_SCORE_METADATA_LAYER = "Sprite Locations"
+ENTER_HIGH_SCORE_CURSOR_MARKER = {(19, 22): 545}
+ENTER_HIGH_SCORE_SPRITE_LOCATIONS = {**ENTER_HIGH_SCORE_CURSOR_MARKER, (32, 13): 633}
+ENTER_HIGH_SCORE_GRID_ROWS = (
+    ((16, 4), (20, 4), (24, 4)),
+    ((12, 6), (16, 6), (20, 6), (24, 6), (28, 6)),
+    ((12, 8), (16, 8), (20, 8), (24, 8), (28, 8)),
+    ((12, 10), (16, 10), (20, 10), (24, 10), (28, 10)),
+    ((12, 12), (16, 12), (20, 12), (24, 12), (28, 12)),
+    ((12, 14), (16, 14), (20, 14), (24, 14), (28, 14)),
+    ((12, 16), (16, 16), (20, 16), (24, 16), (28, 16)),
+    ((12, 18), (16, 18), (20, 18), (24, 18), (28, 18)),
+)
+ENTER_HIGH_SCORE_CL_CELLS = ((11, 4), (27, 4), (11, 20))
+ENTER_HIGH_SCORE_END_CELLS = ((27, 20),)
+ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
+ENTER_HIGH_SCORE_TIMER_FRAMES = 60
+ENTER_HIGH_SCORE_TIMER_COUNT = 92
+ENTER_HIGH_SCORE_PENDING_NAME_CELLS = tuple((1 + index, 19) for index in range(7))
+ENTER_HIGH_SCORE_TOP_NAME_CELLS = tuple((33 + index, 5) for index in range(7))
+ENTER_HIGH_SCORE_DEFAULT_CODES = (21, 10, 13, 34, 11, 30, 16)  # LADYBUG
+ENTER_HIGH_SCORE_SCORE_DESTINATIONS = tuple(
+    0x2000 + 2 * 1280 + (33 + index) * 4 for index in range(6)
+)
+ENTER_HIGH_SCORE_TOP_DESTINATIONS = tuple(
+    0x2000 + 13 * 1280 + (1 + index) * 4 for index in range(6)
+)
+ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
+    0x2000 + 6 * 1280 + (33 + index) * 4 for index in range(6)
+)
+HIGH_SCORE_RECORD_ROWS = (4, 5, 6, 7, 8, 9, 10, 11, 12, 13)
+HIGH_SCORE_NAME_COLUMN = 16
+HIGH_SCORE_SCORE_COLUMN = 27
+INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
+INSTRUCTION_LIFE_ROOT = (28, 7)
+INSTRUCTION_COIN_ROOT = (28, 10)
+INSTRUCTION_ANGEL_ROOT = (28, 14)
+INSTRUCTION_CUCUMBER_MARKER = (32, 13)
+INSTRUCTION_MULTIPLIER_ROOTS = ((27, 17), (27, 20))
+INSTRUCTION_TARGETS = (
+    ((13, 7), (1, 4)), ((15, 7), (2, 4)), ((17, 7), (3, 4)),
+    ((19, 7), (4, 4)), ((21, 7), (5, 4)),
+    ((13, 10), (1, 1)), ((15, 10), (2, 1)), ((17, 10), (3, 1)),
+    ((19, 10), (4, 1)), ((21, 10), (5, 1)), ((23, 10), (6, 1)),
+    ((25, 10), (7, 1)),
+    ((13, 13), (1, 7)), ((17, 13), (3, 7)), ((21, 13), (5, 7)),
+    ((28, 13), (0, 0)),
+)
+INSTRUCTION_EVENT_BYTES = 12
+INSTRUCTION_STOPS = (
+    (13, 8), (15, 8), (17, 8), (19, 8), (21, 8),
+    (13, 11), (15, 11), (17, 11), (19, 11), (21, 11), (23, 11),
+    (25, 11), (13, 14), (17, 14), (21, 14), INSTRUCTION_ANGEL_ROOT,
+)
+PRESENTATION_LAYER_CONTRACTS = {
+    "attract": {
+        "static": ("Background", "Attract Title and Prompts"),
+        "metadata": (),
+        "runtime": ("Sprite Animations", "Logo Frame 1", "Logo Frame 2"),
+        "deferred": (),
+    },
+    "instructions": {
+        "static": INSTRUCTION_STATIC_LAYERS,
+        "metadata": (INSTRUCTION_METADATA_LAYER,),
+        "runtime": (),
+        "deferred": (),
+    },
+    "level-start": {
+        "static": (
+            "Background", "Arcade Maze Border", "Level Start Panel",
+            "CoCo Side HUD",
+        ),
+        "metadata": ("Sprite Locations",),
+        "runtime": (),
+        "deferred": (),
+    },
+    "high-score": {
+        "static": ("Background", "High Score Table and Branding"),
+        "metadata": (),
+        "runtime": (),
+        "deferred": ("Logo Frame 1", "Logo Frame 2"),
+    },
+    "options": {"static": ("Options Screen",), "metadata": ("Selected Option",), "runtime": (), "deferred": ()},
+    "credits": {
+        "static": ("Background", "Credits Screen"),
+        "metadata": (),
+        "runtime": (),
+        "deferred": (),
+    },
+    "game-over": {
+        "static": (
+            "Background", "Arcade Maze Border", "CoCo Side HUD",
+            "Game Over Overlay",
+        ),
+        "metadata": ("Sprite Locations",),
+        "runtime": (),
+        "deferred": (),
+    },
+    "enter-high-score": {
+        "static": (
+            "Background", "Arcade Maze Border", "CoCo Side HUD",
+            "Enter High Score Overlay",
+        ),
+        "metadata": (ENTER_HIGH_SCORE_METADATA_LAYER,),
+        "runtime": (),
+        "deferred": (),
+    },
+}
+INSTRUCTION_CHARACTER_METADATA = {
+    (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
+    (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
+    (27, 17): 147, (28, 17): 417,
+    (27, 20): 147, (28, 20): 417,
+}
+INSTRUCTION_RAW_SPRITE_MARKERS = {
+    **{cell: 0xA0000221 for cell in INSTRUCTION_ANCHORS},
+    (13, 8): 593, (15, 8): 593, (17, 8): 593,
+    (19, 8): 593, (21, 8): 593,
+    (13, 11): 593, (15, 11): 593, (17, 11): 593,
+    (19, 11): 593, (21, 11): 593, (23, 11): 593, (25, 11): 593,
+    INSTRUCTION_CUCUMBER_MARKER: 633,
+    (13, 14): 593, (17, 14): 593, (21, 14): 593,
+    INSTRUCTION_ANGEL_ROOT: 636,
+}
+LEVEL_START_METADATA = {(16, 7): 633, (32, 13): 633}
+GAME_OVER_SPRITE_LOCATIONS = {(32, 13): 633}
+
+
+def sprite_transform(tile: list[list[int]], flags: int) -> list[list[int]]:
+    """Apply Tiled's orthogonal diagonal, horizontal, then vertical flags."""
+    rows = [row[:] for row in tile]
+    if flags & FLIP_D:
+        rows = [list(row) for row in zip(*rows)]
+    return transform(rows, bool(flags & FLIP_H), bool(flags & FLIP_V))
+
+
+def title_framebuffer(attract_map: bytes, tiles: list[bytes]) -> bytearray:
+    framebuffer = bytearray(0x7800)
+    for cell, tile_id in enumerate(attract_map):
+        row, column = divmod(cell, SCREEN_WIDTH)
+        tile = tiles[tile_id]
+        destination = row * TILE_SIZE * 160 + column * 4
+        for tile_row in range(8):
+            start = destination + tile_row * 160
+            framebuffer[start:start + 4] = tile[tile_row * 4:tile_row * 4 + 4]
+    return framebuffer
+
+
+def blend_native_surface(
+    framebuffer: bytearray, destination: int, surface: bytes,
+    width: int = 8, rows: int = 16,
+) -> None:
+    """Blend a packed native surface into a presentation framebuffer."""
+    offset = destination - 0x2000
+    for row in range(rows):
+        for column in range(width):
+            source = surface[row * width + column]
+            target = framebuffer[offset + row * 160 + column]
+            high = source & 0xF0 or target & 0xF0
+            low = source & 0x0F or target & 0x0F
+            framebuffer[offset + row * 160 + column] = high | low
+
+
+def parse_attract_actors(path: Path) -> list[dict[str, object]]:
+    root = ET.parse(path).getroot()
+    ranges = tileset_ranges(root, path)
+    layer = next((item for item in root.findall("layer")
+                  if item.get("name") == "Sprite Animations"), None)
+    if layer is None:
+        raise ValueError(f"{path}: missing Sprite Animations layer")
+    cells = parse_csv(layer.find("data"), layer.get("name", ""))
+    actors = []
+    for index, gid_with_flags in enumerate(cells):
+        gid = gid_with_flags & GID_MASK
+        if not gid:
+            continue
+        x, y = index % SCREEN_WIDTH, index // SCREEN_WIDTH
+        tileset = next((item for item in ranges
+                        if int(item["firstgid"]) <= gid <= int(item["lastgid"])), None)
+        if tileset is None or tileset["name"] != "sprites_raw2bpp":
+            raise ValueError(f"{path}: actor ({x},{y}) is not a raw sprite tile")
+        tile_id = gid - int(tileset["firstgid"])
+        expected = ATTRACT_ACTOR_EXPECTED_TILES.get((x, y))
+        if expected is None or tile_id != expected:
+            raise ValueError(f"{path}: unexpected actor tile {tile_id} at ({x},{y})")
+        actors.append({
+            "cell": [x, y],
+            "destination": 0x2000 + y * 1280 + x * 4,
+            "tile_id": tile_id,
+            "sheet_row": tile_id // 16,
+            "sheet_column": tile_id % 16,
+            "flags": gid_with_flags & ~GID_MASK,
+            "colours": list(ATTRACT_ACTOR_COLOURS[(x, y)]),
+        })
+    if len(actors) != len(ATTRACT_ACTOR_COLOURS):
+        raise ValueError(f"{path}: expected eight Sprite Animations cells")
+    rectangles = []
+    for actor in actors:
+        x, y = actor["cell"]
+        rect = (x * 8, y * 8, x * 8 + 16, y * 8 + 16)
+        if any(rect[0] < other[2] and other[0] < rect[2] and
+               rect[1] < other[3] and other[1] < rect[3]
+               for other in rectangles):
+            raise ValueError(f"{path}: overlapping actor at ({x},{y})")
+        rectangles.append(rect)
+    return actors
+
+
+def compile_attract_surfaces(
+        attract_map: bytes, tiles: list[bytes], sprites: list[list[list[int]]],
+        actors: list[dict[str, object]]) -> bytes:
+    framebuffer = title_framebuffer(attract_map, tiles)
+    logo_roots, logo_frames = compile_logo_frames(framebuffer)
+    surfaces = bytearray()
+    for phase in ATTRACT_ACTOR_PHASES:
+        for actor in actors:
+            row = int(actor["sheet_row"])
+            column = int(actor["sheet_column"])
+            phase_rows = ((row + 2) % 8, (row + 1) % 8, row)
+            phase_cell = ATTRACT_ACTOR_PHASE_OVERRIDES.get(
+                (tuple(actor["cell"]), phase), (phase_rows[phase], column)
+            )
+            code = sheet_code(*phase_cell)
+            sprite = sprite_transform(rotate_ccw(sprites[code]), int(actor["flags"]))
+            # Raw sprite pens are dark grey, light grey, white for 1, 2, 3.
+            # The authored triples are specified as white, light grey, dark grey.
+            colours = [BLACK, actor["colours"][2], actor["colours"][1],
+                       actor["colours"][0]]
+            destination = int(actor["destination"])
+            offset = destination - 0x2000
+            actor.setdefault("source_codes", []).append(code)
+            composed = bytearray()
+            for sprite_row in range(16):
+                for x in range(0, 16, 2):
+                    underlay = framebuffer[offset + sprite_row * 160 + x // 2]
+                    high = colours[sprite[sprite_row][x]] if sprite[sprite_row][x] else underlay >> 4
+                    low = colours[sprite[sprite_row][x + 1]] if sprite[sprite_row][x + 1] else underlay & 0x0F
+                    composed.append((high << 4) | low)
+            surfaces.extend(composed)
+        logo = logo_frames[phase & 1]
+        for x, y in logo_roots:
+            offset = y * 1280 + x * 4
+            for row in range(16):
+                surfaces.extend(logo[offset + row * 160:offset + row * 160 + 8])
+    return bytes(surfaces)
+
+
+def compile_logo_frames(base: bytes) -> tuple[list[tuple[int, int]], list[bytes]]:
+    path = Path(__file__).resolve().parents[1] / "tiled" / MAP_FILES["attract"]
+    root = ET.parse(path).getroot()
+    chars = load_chars(path.parents[1] / "assets/arcade/chars.json")
+    layers = [next(l for l in root.findall("layer") if l.get("name") == name)
+              for name in ("Logo Frame 1", "Logo Frame 2")]
+    records = [layer_records(layer) for layer in layers]
+    roots = sorted({(x // 2 * 2, y // 2 * 2) for record in records for x, y in record})
+    if len(roots) + len(ATTRACT_ACTOR_EXPECTED_TILES) != ATTRACT_COPY_COUNT:
+        raise ValueError("title copy allocation differs from authored logo rectangles")
+    frames = []
+    for record in records:
+        frame = bytearray(base)
+        for (x, y), gid in record.items():
+            tile = instruction_char_tile(root, path, gid, (x, y), chars,
+                                         (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE))
+            for row in range(8):
+                offset = y * 1280 + x * 4 + row * 160
+                frame[offset:offset + 4] = tile[row * 4:row * 4 + 4]
+        frames.append(bytes(frame))
+    return roots, frames
+
+
+def compose_attract_frames(
+        attract_map: bytes, tiles: list[bytes], surfaces: bytes,
+        actors: list[dict[str, object]]) -> list[bytes]:
+    base = title_framebuffer(attract_map, tiles)
+    frames = []
+    for phase in (0, 1, 2, 1):
+        frame = bytearray(base)
+        roots, _ = compile_logo_frames(base)
+        destinations = actors + [{"destination": framebuffer_destination(root)} for root in roots]
+        for actor_index, actor in enumerate(destinations):
+            source = (phase * ATTRACT_COPY_COUNT + actor_index) * ATTRACT_ACTOR_BYTES
+            destination = int(actor["destination"]) - 0x2000
+            for row in range(16):
+                frame[destination + row * 160:destination + row * 160 + 8] = (
+                    surfaces[source + row * 8:source + row * 8 + 8]
+                )
+        frames.append(bytes(frame))
+    return frames
+
+
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--tiled-dir", type=Path, required=True)
+    parser.add_argument("--shared-text", action="store_true")
+    parser.add_argument("--text-colours", type=Path, help="Shared text colour data; defaults to assets/arcade/text-colours.json")
+    parser.add_argument("--chars", type=Path, required=True)
+    parser.add_argument("--gameplay-map", type=Path, required=True)
+    parser.add_argument("--gameplay-maze", type=Path, required=True)
+    parser.add_argument("--gameplay-chars", type=Path, required=True)
+    parser.add_argument("--gameplay-sprites", type=Path, required=True)
+    parser.add_argument("--demo-route", type=Path, required=True)
+    parser.add_argument("--demo-walk", type=Path, required=True)
+    parser.add_argument("--output", type=Path, required=True)
+    parser.add_argument("--include-output", type=Path, required=True)
+    parser.add_argument("--manifest-output", type=Path, required=True)
+    parser.add_argument("--actor-record-output", type=Path, required=True)
+    parser.add_argument("--actor-underlay-output", type=Path, required=True)
+    parser.add_argument("--tile-patch-output", type=Path, required=True)
+    parser.add_argument("--timer-record-output", type=Path, required=True)
+    parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
+    parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
+    return parser.parse_args()
+
+
+def screen_role(root: ET.Element, path: Path) -> str:
+    return next(
+        (item.get("value") for item in root.findall("./properties/property")
+         if item.get("name") == "screen-role"),
+        path.stem,
+    )
+
+
+def layer_records(layer: ET.Element) -> dict[tuple[int, int], int]:
+    cells = parse_csv(layer.find("data"), layer.get("name", ""))
+    return {
+        (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
+        for index, gid in enumerate(cells) if gid & GID_MASK
+    }
+
+
+def perimeter_box_cells() -> tuple[tuple[int, int], ...]:
+    """Return screen cells for the documented 92-box clockwise circuit."""
+    cells: list[tuple[int, int]] = []
+    for maze_x in range(12, 24):
+        cells.append((8 + maze_x, 0))
+    for maze_y in range(1, 24):
+        cells.append((31, maze_y))
+    for maze_x in range(22, -1, -1):
+        cells.append((8 + maze_x, 23))
+    for maze_y in range(22, 0, -1):
+        cells.append((8, maze_y))
+    for maze_x in range(0, 12):
+        cells.append((8 + maze_x, 0))
+    if len(cells) != ENTER_HIGH_SCORE_TIMER_COUNT:
+        raise AssertionError("enter-high-score perimeter must contain 92 boxes")
+    return tuple(cells)
+
+
+def enter_high_score_edge_masks() -> bytes:
+    """Encode passable N/E/S/W edges for the 9x5 selectable-node grid."""
+    masks = bytearray()
+    for row in range(9):
+        for column in range(5):
+            mask = 0
+            if row and column in (0, 4):
+                mask |= 1
+            if column < 4:
+                mask |= 2
+            if row < 8 and column in (0, 4):
+                mask |= 4
+            if column:
+                mask |= 8
+            masks.append(mask)
+    return bytes(masks)
+
+
+def enter_high_score_full_edge_masks(path: Path) -> bytes:
+    """Encode passable N/E/S/W edges for the authored 24x24 maze window."""
+    root = ET.parse(path).getroot()
+    overlay = next(
+        layer for layer in root.findall("layer")
+        if layer.get("name") == "Enter High Score Overlay"
+    )
+    cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    wall_cells = {
+        (x - 8, y)
+        for y in range(SCREEN_HEIGHT)
+        for x in range(8, 32)
+        if cells[y * SCREEN_WIDTH + x] and
+        raw_char_code(root, path, cells[y * SCREEN_WIDTH + x])
+        == ENTER_HIGH_SCORE_INNER_WALL_CODE
+    }
+    # Each authored wall glyph occupies two adjacent cells.  The blank
+    # intervals between glyphs are deliberate vertical corridors used to
+    # reach the character columns; do not convert those corridors to walls.
+    wall_cells.update(
+        (x, y)
+        for y in range(24)
+        for x in range(24)
+        if x in (0, 23) or y in (0, 23)
+    )
+    masks = bytearray([0x0F] * (24 * 24))
+
+    def index(x: int, y: int) -> int:
+        return y * 24 + x
+
+    for y in range(24):
+        for x in range(24):
+            mask = 0 if (x, y) in wall_cells else 0x0F
+            if x == 0:
+                mask &= ~0x08
+            if y == 0:
+                mask &= ~0x01
+            if x == 23:
+                mask &= ~0x02
+            if y == 23:
+                mask &= ~0x04
+            masks[index(x, y)] = mask
+
+    # PLAYER_FB is the 16x16 sprite's top-left address while PLAYER_CELL is
+    # anchored one tile below that address.  The sprite therefore extends one
+    # logical tile right of PLAYER_CELL and one tile above it.  Exclude the
+    # otherwise-open top/right anchor lanes so opaque player pixels cannot
+    # overlap the authored perimeter.
+    blocked_cells = wall_cells | {
+        (x, y)
+        for y in range(24)
+        for x in range(24)
+        if x == 22 or y == 1
+    }
+
+    # A blocked cell is not a corridor. Clear both sides of every edge touching
+    # it so movement cannot enter, leave, or cross the blocked tile.
+    for wall_x, wall_y in blocked_cells:
+        for dx, dy, bit, opposite in (
+            (0, -1, 0x01, 0x04), (1, 0, 0x02, 0x08),
+            (0, 1, 0x04, 0x01), (-1, 0, 0x08, 0x02),
+        ):
+            other_x = wall_x + dx
+            other_y = wall_y + dy
+            if 0 <= other_x < 24 and 0 <= other_y < 24:
+                masks[index(other_x, other_y)] &= ~opposite
+        masks[index(wall_x, wall_y)] = 0
+    return bytes(masks)
+
+
+def raw_char_code(root: ET.Element, path: Path, gid: int) -> int:
+    ranges = tileset_ranges(root, path)
+    tileset = next(
+        (item for item in ranges
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "chars_raw2bpp":
+        return -1
+    sheet_index = gid - int(tileset["firstgid"])
+    return (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+
+
+def require_records(
+    path: Path, label: str, actual: dict[tuple[int, int], int],
+    expected: dict[tuple[int, int], int],
+) -> None:
+    if actual == expected:
+        return
+    missing = sorted(set(expected) - set(actual))
+    extra = sorted(set(actual) - set(expected))
+    wrong = sorted(cell for cell in set(actual) & set(expected)
+                   if actual[cell] != expected[cell])
+    raise ValueError(
+        f"{path}: {label} contract mismatch; "
+        f"missing={missing}, extra={extra}, wrong={wrong}"
+    )
+
+
+def validate_layer_tilesets(
+    path: Path, root: ET.Element, layer: ET.Element, allowed: tuple[str, ...],
+) -> None:
+    ranges = tileset_ranges(root, path)
+    for cell, gid_with_flags in layer_records(layer).items():
+        gid = gid_with_flags & GID_MASK
+        tileset = next(
+            (item for item in ranges
+             if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+            None,
+        )
+        name = None if tileset is None else str(tileset["name"])
+        if name not in allowed:
+            raise ValueError(
+                f"{path}: layer {layer.get('name')!r} cell {cell} uses "
+                f"unsupported tileset {name!r}; expected one of {allowed}"
+            )
+
+
+def validate_presentation_layers(
+    root: ET.Element, path: Path,
+) -> dict[str, object]:
+    role = screen_role(root, path)
+    contract = PRESENTATION_LAYER_CONTRACTS.get(role)
+    if contract is None:
+        raise ValueError(f"{path}: unsupported presentation screen role {role!r}")
+    if role == "options" and path.name == "coco-keybind-options-screen.tmx":
+        contract = {
+            **contract,
+            "static": ("Background", *contract["static"]),
+        }
+    layers = root.findall("layer")
+    names = [layer.get("name", "") for layer in layers]
+    required = tuple(name for owner in contract.values() for name in owner)
+    missing = [name for name in required if names.count(name) != 1]
+    unexpected = [name for name in names if name not in required]
+    if missing or unexpected:
+        raise ValueError(
+            f"{path}: {role} layer contract mismatch; "
+            f"missing/duplicate={missing}, unexpected={unexpected}"
+        )
+    by_name = {layer.get("name", ""): layer for layer in layers}
+    for name in contract["static"]:
+        validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
+    if "Background" in contract["static"]:
+        background = parse_csv(by_name["Background"].find("data"), "Background")
+        if len(background) != MAP_BYTES or any(gid != 8 for gid in background):
+            raise ValueError(
+                f"{path}: Background must contain exactly {MAP_BYTES} GID8 blank cells"
+            )
+    for name in contract["deferred"]:
+        validate_layer_tilesets(path, root, by_name[name], ("chars_raw2bpp",))
+    if role == "attract":
+        validate_layer_tilesets(
+            path, root, by_name["Sprite Animations"], ("sprites_raw2bpp",)
+        )
+    if role == "instructions":
+        records = layer_records(by_name[INSTRUCTION_METADATA_LAYER])
+        require_records(
+            path, "instruction character and raw-sprite metadata", records,
+            {**INSTRUCTION_CHARACTER_METADATA, **INSTRUCTION_RAW_SPRITE_MARKERS},
+        )
+        validate_layer_tilesets(
+            path, root, by_name[INSTRUCTION_METADATA_LAYER],
+            ("chars_raw2bpp", "sprites_raw2bpp"),
+        )
+    if role == "game-over":
+        metadata = by_name["Sprite Locations"]
+        require_records(
+            path, "game-over sprite locations", layer_records(metadata),
+            GAME_OVER_SPRITE_LOCATIONS,
+        )
+        validate_layer_tilesets(path, root, metadata, ("sprites_raw2bpp",))
+    if role == "level-start":
+        records = layer_records(by_name["Sprite Locations"])
+        require_records(path, "level-start sprite locations", records, LEVEL_START_METADATA)
+        validate_layer_tilesets(
+            path, root, by_name["Sprite Locations"],
+            ("sprites_raw2bpp",),
+        )
+    if role == "enter-high-score":
+        metadata_layer = by_name[ENTER_HIGH_SCORE_METADATA_LAYER]
+        records = layer_records(metadata_layer)
+        require_records(
+            path, "enter-high-score cursor metadata", records,
+            ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+        )
+        if metadata_layer.get("offsety") != "1":
+            raise ValueError(
+                f"{path}: {ENTER_HIGH_SCORE_METADATA_LAYER} must retain offsety=1"
+            )
+        validate_layer_tilesets(
+            path, root, metadata_layer, ("sprites_raw2bpp",)
+        )
+    return {
+        "role": role,
+        "static_layers": list(contract["static"]),
+        "metadata_layers": list(contract["metadata"]),
+        "runtime_layers": list(contract["runtime"]),
+        "deferred_layers": list(contract["deferred"]),
+    }
+
+
+def flatten_map(path: Path) -> tuple[ET.Element, list[int], list[str]]:
+    root = ET.parse(path).getroot()
+    if (int(root.attrib["width"]), int(root.attrib["height"])) != (
+        SCREEN_WIDTH, SCREEN_HEIGHT
+    ):
+        raise ValueError(f"{path} must be a 40x24 map")
+    for tileset in root.findall("tileset"):
+        source = tileset.get("source")
+        if source and not (path.parent / source).exists():
+            local_source = path.parent / Path(source).name
+            if local_source.exists():
+                tileset.set("source", local_source.name)
+    layer_contract = validate_presentation_layers(root, path)
+    layers = root.findall("layer")
+    selected = [layer for name in layer_contract["static_layers"]
+                for layer in layers if layer.get("name") == name]
+    flattened = [0] * MAP_BYTES
+    sources = [""] * MAP_BYTES
+    for layer in selected:
+        cells = parse_csv(layer.find("data"), layer.get("name", ""))
+        for index, gid in enumerate(cells):
+            if gid & GID_MASK:
+                flattened[index] = gid
+                sources[index] = layer.get("name", "")
+    return root, flattened, sources
+
+
+def presentation_pen_map(
+        role: str, x: int, y: int, source_layer: str = "",
+        raw_code: int = -1, highscore_test_profile: bool = False,
+) -> tuple[int, int, int, int]:
+    """Apply the established CoCo palette adaptation to authored raw chars."""
+    if role == "instructions" and y == 7 and 1 <= x <= 6:
+        return (BLACK, BLUE, BLUE, BLUE)
+    if role == "high-score" and (x, y) in ((17, 0), (22, 21)):
+        colour = YELLOW if y == 0 else RED
+        return (BLACK, colour, colour, colour)
+    if role == "attract":
+        if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
+            return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+        if (y == 15 and source_layer == "Attract Title and Prompts"
+                and 0 <= raw_code <= 35):
+            return (BLACK, PURPLE, PURPLE, PURPLE)
+        if y == 18 and 13 <= x <= 26:
+            colour = YELLOW if raw_code == 1 else WHITE
+            return (BLACK, colour, colour, colour)
+        return (0, 1, 2, 3)
+    if x < 8 and y < 9:
+        colour = (RED, YELLOW, BLUE)[y // 3]
+        if y % 3 == 1 and x != 0:
+            colour = GREY
+        return (BLACK, colour, colour, colour)
+    if role in ("options", "credits", "keybind-options"):
+        return (BLACK, GREY, GREY, GREY)
+    if role == "level-start" and (x,y)==(34,13):
+        return (BLACK,GREEN,GREEN,GREEN)
+    if x >= 32:
+        if role == "instructions" and y == 2:
+            return (BLACK, LIGHT_GREEN, LIGHT_GREEN, LIGHT_GREEN)
+        if role == "instructions" and y == 13 and 34 <= x <= 39:
+            return (BLACK, GREEN, GREEN, GREEN)
+        colour = {
+            1: LIGHT_GREEN, 2: WHITE,
+            4: RED, 5: RED,
+            7: WHITE, 8: WHITE, 9: WHITE,
+            10: BLUE, 11: BLUE,
+            12: GREEN, 13: WHITE,
+        }.get(y, BLACK)
+        return (BLACK, colour, colour, colour)
+    if role == "level-start" and 8 <= x < 32:
+        if y == 4 and 15 <= x <= 25:
+            return (BLACK, BLUE, BLUE, BLUE)
+        if y == 7 and 16 <= x <= 26:
+            return (BLACK, GREEN, GREEN, GREEN)
+        if y == 9 and 10 <= x <= 30:
+            return (BLACK, YELLOW, YELLOW, YELLOW)
+        if y == 20 and 16 <= x <= 24:
+            return (BLACK, RED, RED, RED)
+        if 11 <= y <= 18 and 17 <= x <= 22:
+            if y <= 12:
+                return (BLACK, WHITE, WHITE, PINK)
+            return (BLACK, BLUE, WHITE, PINK)
+        return (BLACK, PINK, WHITE, PINK)
+    if role == "enter-high-score":
+        if source_layer == "Arcade Maze Border":
+            if (x, y) in perimeter_box_cells():
+                return (BLACK, PINK, WHITE, PINK)
+            return (BLACK, PINK, PINK, PINK)
+        if (source_layer == "Enter High Score Overlay" and
+                raw_code == ENTER_HIGH_SCORE_INNER_WALL_CODE):
+            return (BLACK, PINK, PINK, PINK)
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role == "high-score" and highscore_test_profile:
+        # The arcade high-score table and footer use the light-blue HUD pen;
+        # the central Lady Bug branding remains pink.  The registered mark at
+        # the right of the logo is part of the HUD text, not the logo.
+        if (source_layer == "High Score Table and Branding" and
+                13 <= y <= 18 and x < 30):
+            return (BLACK, PINK, PINK, PINK)
+        return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
+    if role == "high-score" and source_layer == "High Score Table and Branding":
+        if x in (30, 31) and y in (13, 14):
+            return (BLACK, RED, RED, RED)
+        if 13 <= y <= 18 and 9 <= x <= 30:
+            return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
+        if x == 31 and y in (13, 14):
+            return (0, 1, 2, 3)  # authored red R, as on attract
+    if role == "game-over":
+        if source_layer == "Arcade Maze Border":
+            return (BLACK, PINK, PINK, PINK)
+        if source_layer == "Game Over Overlay":
+            return (BLACK, RED, RED, RED)
+    if role in ("game-over", "high-score"):
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role == "instructions" and 28 <= x < 30 and 13 <= y < 15:
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role == "instructions" and (y == 5 and 15 <= x <= 25 or y == 17 and 17 <= x <= 25 or y == 20 and 16 <= x <= 25):
+        return (BLACK, WHITE, WHITE, WHITE)
+    if role == "instructions" and 13 <= x < 23 and 13 <= y < 15:
+        return (BLACK, PINK, PURPLE, PINK)
+    if role == "instructions" and (x in (8, 31) or y in (0, 23)):
+        return (BLACK, PINK, WHITE, PINK)
+    if 8 <= x < 32:
+        return (BLACK, PINK, PURPLE, GREEN)
+    return (BLACK, WHITE, WHITE, WHITE)
+
+
+def compile_map(
+    path: Path,
+    chars: list[list[list[int]]],
+    tiles: list[bytes],
+    tile_ids: dict[bytes, int],
+    highscore_test_profile: bool = False,
+    allow_phase_overlay: bool = False,
+) -> tuple[list[int] | bytes, dict[str, object]]:
+    root, flattened, sources = flatten_map(path)
+    role = screen_role(root, path)
+    ranges = tileset_ranges(root, path)
+    rotated = [rotate_ccw(tile) for tile in chars]
+    output: list[int] = []
+    for index, gid_with_flags in enumerate(flattened):
+        x = index % SCREEN_WIDTH
+        y = index // SCREEN_WIDTH
+        if role == "level-start" and allow_phase_overlay and (
+                y == 9 and 10 <= x <= 30 or y == 4 and 22 <= x <= 24 or
+                y == 20 and 16 <= x <= 24):
+            gid_with_flags = 0  # complete-profile stage helper owns these cells
+        if not (gid_with_flags & GID_MASK):
+            packed = bytes(TILE_BYTES)
+        else:
+            if gid_with_flags & FLIP_D:
+                raise ValueError(f"{path}: diagonal tile flips are unsupported")
+            gid = gid_with_flags & GID_MASK
+            tileset = next(
+                (item for item in ranges
+                 if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+                None,
+            )
+            if tileset is None:
+                raise ValueError(f"{path}: GID {gid} is not in a tileset")
+            if (tileset["name"] != "chars_raw2bpp" or
+                    tileset["tilewidth"] != TILE_SIZE or
+                    tileset["tileheight"] != TILE_SIZE):
+                raise ValueError(f"{path}: unsupported tileset {tileset['name']!r}")
+            sheet_index = gid - int(tileset["firstgid"])
+            code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+            tile = transform(
+                rotated[code], bool(gid_with_flags & FLIP_H),
+                bool(gid_with_flags & FLIP_V),
+            )
+            packed = pack_tile(recolor(
+                tile, presentation_pen_map(
+                    role, x, y, sources[index],
+                    raw_char_code(root, path, gid), highscore_test_profile,
+                )
+            ))
+        tile_id = tile_ids.setdefault(packed, len(tiles))
+        if tile_id == len(tiles):
+            tiles.append(packed)
+        if tile_id > 255 and not allow_phase_overlay:
+            raise ValueError("presentation atlas exceeds one-byte tile IDs")
+        output.append(tile_id)
+    return output if allow_phase_overlay else bytes(output), {
+        "role": role,
+        "path": str(path),
+        "layer_contract": validate_presentation_layers(root, path),
+    }
+
+
+def framebuffer_destination(cell: tuple[int, int]) -> int:
+    x, y = cell
+    return 0x2000 + y * 1280 + x * 4
+
+
+def instruction_char_tile(
+    root: ET.Element,
+    path: Path,
+    gid_with_flags: int,
+    cell: tuple[int, int],
+    chars: list[list[list[int]]],
+    pen_map: tuple[int, int, int, int] | None = None,
+) -> bytes:
+    gid = gid_with_flags & GID_MASK
+    ranges = tileset_ranges(root, path)
+    tileset = next(
+        (item for item in ranges
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "chars_raw2bpp":
+        raise ValueError(f"{path}: instruction metadata GID {gid} is not a char tile")
+    if gid_with_flags & FLIP_D:
+        raise ValueError(f"{path}: instruction char metadata uses a diagonal flip")
+    sheet_index = gid - int(tileset["firstgid"])
+    code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
+    tile = transform(
+        rotate_ccw(chars[code]), bool(gid_with_flags & FLIP_H),
+        bool(gid_with_flags & FLIP_V),
+    )
+    x, y = cell
+    return pack_tile(recolor(
+        tile,
+        pen_map if pen_map is not None
+        else presentation_pen_map("instructions", x, y),
+    ))
+
+
+def instruction_sprite(
+    root: ET.Element, path: Path, gid_with_flags: int,
+    sprites: list[list[list[int]]],
+) -> tuple[list[list[int]], int]:
+    gid = gid_with_flags & GID_MASK
+    tileset = next(
+        (item for item in tileset_ranges(root, path)
+         if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
+        None,
+    )
+    if tileset is None or tileset["name"] != "sprites_raw2bpp":
+        raise ValueError(f"{path}: instruction sprite GID {gid} is not raw sprite data")
+    tile = gid - int(tileset["firstgid"])
+    code = sheet_code(tile // 16, tile % 16)
+    pixels = sprite_transform(
+        rotate_ccw(sprites[code]), gid_with_flags & ~GID_MASK
+    )
+    return pixels, code
+
+
+def register_tile(tile: bytes, tiles: list[bytes], tile_ids: dict[bytes, int]) -> int:
+    tile_id = tile_ids.setdefault(tile, len(tiles))
+    if tile_id == len(tiles):
+        tiles.append(tile)
+    return tile_id
+
+
+def replace_packed_colour(tile: bytes, source: int, target: int) -> bytes:
+    output = bytearray()
+    for value in tile:
+        high = target if value >> 4 == source else value >> 4
+        low = target if (value & 0x0F) == source else value & 0x0F
+        output.append((high << 4) | low)
+    return bytes(output)
+
+
+def parse_instruction_contract(
+    path: Path,
+    chars: list[list[list[int]]],
+    sprites: list[list[list[int]]],
+    tiles: list[bytes],
+    tile_ids: dict[bytes, int],
+) -> dict[str, object]:
+    root = ET.parse(path).getroot()
+    layers = {layer.get("name", ""): layer for layer in root.findall("layer")}
+    metadata = layers.get(INSTRUCTION_METADATA_LAYER)
+    if metadata is None:
+        raise ValueError(f"{path}: missing {INSTRUCTION_METADATA_LAYER} layer")
+    cells = parse_csv(metadata.find("data"), INSTRUCTION_METADATA_LAYER)
+    records = layer_records(metadata)
+    require_records(
+        path, "Sprite Locations", records,
+        {**INSTRUCTION_CHARACTER_METADATA, **INSTRUCTION_RAW_SPRITE_MARKERS},
+    )
+
+    cucumber_gid = records[INSTRUCTION_CUCUMBER_MARKER]
+    cucumber_pixels, cucumber_code = instruction_sprite(
+        root, path, cucumber_gid, sprites
+    )
+    cucumber_native = expand_sprite(
+        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, GREEN, YELLOW)
+    )
+    cucumber_root = (
+        INSTRUCTION_CUCUMBER_MARKER[0], INSTRUCTION_CUCUMBER_MARKER[1] - 1
+    )
+    cucumber_stream = encode_sparse_native(cucumber_native, 16, 8)
+
+    overlay = layers["Instructions Overlay"]
+    overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    hud_layer = layers["CoCo Side HUD"]
+    hud_cells = parse_csv(hud_layer.find("data"), hud_layer.get("name", ""))
+    for target, hud in INSTRUCTION_TARGETS:
+        for dy in range(2):
+            for dx in range(2):
+                index = (target[1] + dy) * SCREEN_WIDTH + target[0] + dx
+                if not overlay_cells[index] & GID_MASK:
+                    raise ValueError(f"{path}: incomplete target at {target}")
+        if hud != (0, 0):
+            index = hud[1] * SCREEN_WIDTH + hud[0]
+            if not hud_cells[index] & GID_MASK:
+                raise ValueError(f"{path}: missing HUD target at {hud}")
+
+    reward_tiles: dict[str, list[int]] = {}
+    reward_pen_maps = {
+        "life": (BLACK, GREEN, DARK_RED, YELLOW),
+        "coin": (BLACK, WHITE, WHITE, GREY),
+    }
+    for name, root_cell in (("life", INSTRUCTION_LIFE_ROOT),
+                            ("coin", INSTRUCTION_COIN_ROOT)):
+        ids = []
+        for dy in range(2):
+            for dx in range(2):
+                cell = (root_cell[0] + dx, root_cell[1] + dy)
+                ids.append(register_tile(
+                    instruction_char_tile(
+                        root, path, records[cell], cell, chars,
+                        reward_pen_maps[name],
+                    ),
+                    tiles, tile_ids,
+                ))
+        reward_tiles[name] = ids
+
+    rotated = [rotate_ccw(tile) for tile in chars]
+    value_tiles: dict[str, list[int]] = {}
+    for colour, value in (("red", WHITE), ("yellow", WHITE), ("blue", WHITE)):
+        value_tiles[colour] = [register_tile(
+            pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+            tiles, tile_ids,
+        ) for digit in (8, 0, 0) if colour == "red"]
+        if colour == "yellow":
+            value_tiles[colour] = [register_tile(
+                pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+                tiles, tile_ids,
+            ) for digit in (3, 0, 0)]
+        if colour == "blue":
+            value_tiles[colour] = [register_tile(
+                pack_tile(recolor(rotated[digit], (BLACK, value, value, value))),
+                tiles, tile_ids,
+            ) for digit in (1, 0, 0)]
+    black_tile = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
+    multiplier_tiles = {
+        str(value): [register_tile(instruction_char_tile(
+            root, path,
+            hud_cells[7 * SCREEN_WIDTH + 1], (1, 7), chars,
+            (BLACK, BLUE, BLUE, BLUE),
+        ), tiles, tile_ids), register_tile(
+            pack_tile(recolor(rotated[value], (BLACK, BLUE, BLUE, BLUE))),
+            tiles, tile_ids,
+        )]
+        for value in (2, 3, 5)
+    }
+
+    reference = json.loads(INSTRUCTION_REFERENCE.read_text(encoding="ascii"))
+    first = int(reference["instruction_interval"]["first_complete_frame"])
+    source_targets = [target for row in reference["rows"]
+                      for target in row["targets"]]
+    source_targets.append(reference["rows"][2]["skull"])
+    if len(source_targets) != len(INSTRUCTION_TARGETS):
+        raise ValueError("instruction oracle/TMX target counts differ")
+    event_table = bytearray()
+    event_manifest = []
+    target_colour_streams = []
+    row_time_offsets = (0, 0, 0)
+    reference_consumes = []
+    instruction_colour_dwell = 32
+    for index, (source, (target, hud), stop) in enumerate(
+            zip(source_targets, INSTRUCTION_TARGETS, INSTRUCTION_STOPS)):
+        row = 0 if index < 5 else 1 if index < 12 else 2
+        motion = int(source["motion_first_frame"]) - first + row_time_offsets[row]
+        consume_key = "collision_frame" if index == 15 else "consume_frame"
+        consume = int(source[consume_key]) - first + row_time_offsets[row]
+        # Trigger-sensitive movements begin only after their collectible
+        # colour is visible. Rows two and three must also remain at their
+        # authored start for at least one complete red/yellow/blue cycle.
+        trigger_colour = 2 if index < 5 else 1 if index < 12 else 3
+        if index in (0, 5, 12, 13, 14):
+            earliest = motion
+            while not (
+                motion >= earliest
+                and ((motion - 1) % 90) // 30 + 1 == trigger_colour
+                and (motion - 1) % 30 == 0
+            ):
+                motion += 1
+        # Sprite Locations records each actor baseline. Convert the authored
+        # stop to the 16x16 framebuffer root used by save/draw.
+        goal = framebuffer_destination(stop) - 1280
+        reference_consumes.append(consume)
+        # Preserve the authored colour-cycle index and within-colour offset.
+        cycle, phase_tick = divmod(motion - 1, 90)
+        colour, offset = divmod(phase_tick, 30)
+        motion = 1 + (cycle * 3 + colour) * instruction_colour_dwell + offset
+        origin = (framebuffer_destination(INSTRUCTION_ANCHORS[row]) - 1280
+                  if index in (0, 5, 12)
+                  else event_manifest[-1]["goal_destination"])
+        distance = goal - origin
+        first_move = motion + (1 if motion % 2 == 0 else 0)
+        consume = first_move + 2 * (distance - 1) + 1
+        if index < 15 and ((consume - 1) // instruction_colour_dwell) % 3 + 1 != trigger_colour:
+            raise ValueError("instruction arrival outside required colour window")
+        target_destination = framebuffer_destination(target)
+        hud_destination = 0 if hud == (0, 0) else framebuffer_destination(hud)
+        hud_tile_id = 0
+        hud_tile_2_id = 0
+        if hud_destination:
+            hud_index = hud[1] * SCREEN_WIDTH + hud[0]
+            hud_tile_id = register_tile(instruction_char_tile(
+                root, path, hud_cells[hud_index], hud, chars,
+                (BLACK, trigger_colour, trigger_colour, trigger_colour),
+            ), tiles, tile_ids)
+            if 12 <= index < 15:
+                second = (hud[0] + 1, hud[1])
+                second_index = second[1] * SCREEN_WIDTH + second[0]
+                hud_tile_2_id = register_tile(instruction_char_tile(
+                    root, path, hud_cells[second_index], second, chars,
+                    (BLACK, trigger_colour, trigger_colour, trigger_colour),
+                ), tiles, tile_ids)
+        record = (
+            motion.to_bytes(2, "big") + consume.to_bytes(2, "big")
+            + goal.to_bytes(2, "big") + target_destination.to_bytes(2, "big")
+            + hud_destination.to_bytes(2, "big")
+            + bytes((0, 0))  # remapped tile IDs are installed after phase packing
+        )
+        event_table.extend(record)
+        event_manifest.append({
+            "index": index,
+            "name": source.get("name", "skull"),
+            "motion_tick": motion,
+            "consume_tick": consume,
+            "goal_destination": goal,
+            "target_destination": target_destination,
+            "hud_destination": hud_destination,
+            "hud_tile_id": hud_tile_id,
+            "hud_tile_2_id": hud_tile_2_id,
+        })
+        if index < 15:
+            operations = []
+            cursor = 0
+            operation_count = 0
+            for dy in range(2):
+                row_tiles = [instruction_char_tile(
+                    root, path,
+                    overlay_cells[(target[1] + dy) * SCREEN_WIDTH + target[0] + dx],
+                    (target[0] + dx, target[1] + dy), chars,
+                    (BLACK, 1, 2, 3) if index >= 12 else None,
+                ) for dx in range(2)]
+                for row in range(8):
+                    packed_row = (row_tiles[0][row * 4:row * 4 + 4]
+                                  + row_tiles[1][row * 4:row * 4 + 4])
+                    for column, value in enumerate(packed_row):
+                        high, low = value >> 4, value & 15
+                        selector = (
+                            (2 if (high == 1 if index >= 12 else high != 0) else 0)
+                            | (1 if (low == 1 if index >= 12 else low != 0) else 0)
+                        )
+                        if selector:
+                            destination = (dy * 8 + row) * 160 + column
+                            delta = destination - cursor
+                            if not 0 <= delta <= 0xFFFF:
+                                raise ValueError("instruction colour delta is invalid")
+                            if delta <= 0xFE:
+                                operations.extend((delta, selector))
+                            else:
+                                operations.extend((0xFF, delta >> 8,
+                                                   delta & 0xFF, selector))
+                            operation_count += 1
+                            cursor = destination
+            target_colour_streams.append(
+                bytes((operation_count,)) + bytes(operations)
+            )
+
+    # Last-row X is a persistent demonstration target, not a consumable event.
+    operations = bytearray()
+    cursor = count = 0
+    for dy in range(2):
+        pair = [instruction_char_tile(root, path,
+                    overlay_cells[(19 + dy) * SCREEN_WIDTH + 13 + dx],
+                    (13 + dx, 19 + dy), chars, (0, 1, 1, 1)) for dx in range(2)]
+        for row in range(8):
+            packed = pair[0][row * 4:row * 4 + 4] + pair[1][row * 4:row * 4 + 4]
+            for column, value in enumerate(packed):
+                selector = (2 if value & 0xF0 else 0) | (1 if value & 15 else 0)
+                if selector:
+                    destination = (dy * 8 + row) * 160 + column
+                    delta = destination - cursor
+                    operations.extend((delta,) if delta < 255 else (255, delta >> 8, delta & 255))
+                    operations.append(selector)
+                    cursor = destination
+                    count += 1
+    target_colour_streams.append(bytes((count,)) + operations)
+
+    death_frames = compile_death_sprites(path.parents[1] / "assets" / "arcade" / "sprites.json")
+    death_streams = [encode_sparse_native(
+        expand_sprite(frame, (0, RED, RED, RED) if index < 7
+                      else (0, WHITE, WHITE, WHITE)), 16, 8,
+    ) for index, frame in enumerate(death_frames)]
+    angel_gid = records[INSTRUCTION_ANGEL_ROOT]
+    angel_pixels, angel_code = instruction_sprite(
+        root, path, angel_gid, sprites
+    )
+    angel_frame = pack_sprite_2bpp(angel_pixels)
+    angel_stream = encode_sparse_native(
+        expand_sprite(angel_frame, (0, WHITE, WHITE, WHITE)), 16, 8
+    )
+    ending_shift = event_manifest[-1]["consume_tick"] - reference_consumes[-1]
+    return {
+        "anchors": [framebuffer_destination(cell) - 1280
+                    for cell in INSTRUCTION_ANCHORS],
+        "reward_destinations": {
+            "life": framebuffer_destination(INSTRUCTION_LIFE_ROOT),
+            "coin": framebuffer_destination(INSTRUCTION_COIN_ROOT),
+        },
+        "reward_tile_ids": reward_tiles,
+        "cucumber_destination": framebuffer_destination(cucumber_root),
+        "cucumber_source_code": cucumber_code,
+        "cucumber_stream": cucumber_stream,
+        "cucumber_native": cucumber_native,
+        "multiplier_destinations": [framebuffer_destination(cell)
+                                    for cell in INSTRUCTION_MULTIPLIER_ROOTS],
+        "multiplier_tile_ids": multiplier_tiles,
+        "value_destination": framebuffer_destination((16, 20)),
+        "value_tile_ids": value_tiles,
+        "black_tile_id": black_tile,
+        "event_table": bytes(event_table),
+        "target_colour_streams": target_colour_streams,
+        "events": event_manifest,
+        "death_streams": death_streams,
+        "angel_stream": angel_stream,
+        "angel_destination": framebuffer_destination(INSTRUCTION_ANGEL_ROOT) - 1280,
+        "angel_source_code": angel_code,
+        "death_collision_tick": event_manifest[-1]["consume_tick"],
+        "angel_tick": int(reference["death_sequence"]["angel_hold"]["first_frame"]) - first + row_time_offsets[-1] + ending_shift,
+        "next_screen_tick": int(reference["instruction_interval"]["next_screen_first_partial_frame"]) - first + row_time_offsets[-1] + ending_shift,
+        "colour_dwell_frames": instruction_colour_dwell,
+    }
+
+
+def parse_enter_high_score_contract(
+    path: Path,
+    chars: list[list[list[int]]],
+    sprites: list[list[list[int]]],
+    tiles: list[bytes],
+    tile_ids: dict[bytes, int],
+) -> dict[str, object]:
+    """Compile the authored name-entry keypad and cursor start marker."""
+    root = ET.parse(path).getroot()
+    layers = {layer.get("name", ""): layer for layer in root.findall("layer")}
+    metadata = layers[ENTER_HIGH_SCORE_METADATA_LAYER]
+    records = layer_records(metadata)
+    require_records(
+        path, "enter-high-score cursor metadata", records,
+        ENTER_HIGH_SCORE_SPRITE_LOCATIONS,
+    )
+    cursor_pixels, cursor_code = instruction_sprite(
+        root, path, records[(19, 22)], sprites
+    )
+    cursor_native = expand_sprite(
+        pack_sprite_2bpp(cursor_pixels), (BLACK, DARK_RED, GREEN, YELLOW)
+    )
+    cursor_stream = encode_sparse_native(cursor_native, 16, 8)
+    overlay = layers["Enter High Score Overlay"]
+    overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
+    grid_tiles: list[int] = []
+    grid_cells: list[tuple[int, int]] = []
+    for row in ENTER_HIGH_SCORE_GRID_ROWS:
+        for cell in row:
+            index = cell[1] * SCREEN_WIDTH + cell[0]
+            gid = overlay_cells[index]
+            if not gid & GID_MASK:
+                raise ValueError(f"{path}: missing name-entry character at {cell}")
+            grid_cells.append(cell)
+            grid_tiles.append(register_tile(
+                instruction_char_tile(
+                    root, path, gid, cell, chars,
+                    (BLACK, WHITE, WHITE, WHITE),
+                ),
+                tiles, tile_ids,
+            ))
+    for cell in (*ENTER_HIGH_SCORE_CL_CELLS, *ENTER_HIGH_SCORE_END_CELLS):
+        x, y = cell
+        if not overlay_cells[y * SCREEN_WIDTH + x] & GID_MASK:
+            raise ValueError(f"{path}: missing control marker at {cell}")
+    node_cells = []
+    node_tile_ids = []
+    for row_index, row in enumerate(ENTER_HIGH_SCORE_GRID_ROWS):
+        if row_index == 0:
+            row_cells = ((11, 4), *row, (27, 4))
+            row_tiles = (0xFE, *grid_tiles[:3], 0xFE)
+        else:
+            start = 3 + (row_index - 1) * 5
+            row_cells = row
+            row_tiles = tuple(grid_tiles[start:start + 5])
+        node_cells.extend(row_cells)
+        node_tile_ids.extend(row_tiles)
+    node_cells.extend(((11, 20), (15, 20), (19, 20), (23, 20), (27, 20)))
+    # Bottom-row actions use the Ladybug node column, while the visible dot
+    # and heart are authored in the adjacent right cell. Space is a virtual
+    # blank choice. Keep native tile descriptors rather than text codes.
+    symbol_tiles = []
+    for cell, code in (((16, 20), 45), ((20, 20), 36), ((24, 20), 41)):
+        if code == 36:
+            native = bytes(32)
+        else:
+            gid = overlay_cells[cell[1] * SCREEN_WIDTH + cell[0]]
+            if raw_char_code(root, path, gid & GID_MASK) != code:
+                raise ValueError(f"{path}: unexpected bottom-row symbol at {cell}")
+            native = instruction_char_tile(
+                root, path, gid, cell, chars, (BLACK, WHITE, WHITE, WHITE)
+            )
+        symbol_tiles.append(register_tile(native, tiles, tile_ids))
+    node_tile_ids.extend((0xFE, *symbol_tiles, 0xFD))
+    action_records = [
+        (cell, tile_id) for cell, tile_id in zip(node_cells, node_tile_ids)
+        if tile_id != 0xFF
+    ]
+    pending_name_cells = ENTER_HIGH_SCORE_PENDING_NAME_CELLS
+    top_name_cells = ENTER_HIGH_SCORE_TOP_NAME_CELLS
+
+    def authored_name_span(layer_name: str, cells: tuple[tuple[int, int], ...]) -> tuple[list[int], list[int]]:
+        layer = layers[layer_name]
+        layer_cells = parse_csv(layer.find("data"), layer.get("name", ""))
+        raw_codes = [
+            raw_char_code(root, path, layer_cells[y * SCREEN_WIDTH + x])
+            for x, y in cells
+        ]
+        if raw_codes != list(ENTER_HIGH_SCORE_DEFAULT_CODES):
+            raise ValueError(
+                f"{path}: {layer_name} authored name span must be LADYBUG, "
+                f"got raw codes {raw_codes}"
+            )
+        span_tile_ids = [
+            register_tile(
+                instruction_char_tile(
+                    root, path, layer_cells[y * SCREEN_WIDTH + x], (x, y), chars,
+                    (BLACK, WHITE, WHITE, WHITE),
+                ),
+                tiles, tile_ids,
+            )
+            for x, y in cells
+        ]
+        return span_tile_ids, [framebuffer_destination(cell) for cell in cells]
+
+    pending_name_tile_ids, pending_name_destinations = authored_name_span(
+        "Enter High Score Overlay", pending_name_cells
+    )
+    top_name_tile_ids, top_name_destinations = authored_name_span(
+        "CoCo Side HUD", top_name_cells
+    )
+    if top_name_tile_ids != pending_name_tile_ids:
+        raise ValueError(f"{path}: HUD and entry name spans do not share tile IDs")
+
+    default_codes = ENTER_HIGH_SCORE_DEFAULT_CODES
+    glyph_by_code = {
+        raw_char_code(root, path, overlay_cells[y * SCREEN_WIDTH + x]): tile_id
+        for (x, y), tile_id in zip(grid_cells, grid_tiles)
+    }
+    try:
+        default_name_tile_ids = [glyph_by_code[code] for code in default_codes]
+    except KeyError as exc:
+        raise ValueError(f"{path}: missing LADYBUG fixture glyph code {exc.args[0]}")
+    return {
+        "cursor_stream": cursor_stream,
+        "cursor_source_code": cursor_code,
+        "cursor_destination": framebuffer_destination((19, 22)) - 1280,
+        "cursor_cell": (19, 22),
+        "grid_cells": grid_cells,
+        "grid_tile_ids": grid_tiles,
+        "node_cells": node_cells,
+        "node_tile_ids": node_tile_ids,
+        "action_records": [
+            [cell[0], cell[1], tile_id] for cell, tile_id in action_records
+        ],
+        "default_name_tile_ids": pending_name_tile_ids,
+        "top_name_tile_ids": top_name_tile_ids,
+        "node_destinations": [
+            framebuffer_destination(cell) - 1280 for cell in node_cells
+        ],
+        "cl_cells": list(ENTER_HIGH_SCORE_CL_CELLS),
+        "end_cells": list(ENTER_HIGH_SCORE_END_CELLS),
+        "name_destinations": pending_name_destinations,
+        "top_name_destinations": top_name_destinations,
+        "score_destinations": list(ENTER_HIGH_SCORE_SCORE_DESTINATIONS),
+        "top_destinations": list(ENTER_HIGH_SCORE_TOP_DESTINATIONS),
+        "top_right_destinations": list(ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS),
+    }
+
+
+def encode_map(data: bytes) -> bytes:
+    """Encode a tile-index map as count/value pairs."""
+    encoded = bytearray()
+    index = 0
+    while index < len(data):
+        value = data[index]
+        end = index + 1
+        while end < len(data) and data[end] == value and end - index < 255:
+            end += 1
+        encoded.extend((end - index, value))
+        index = end
+    return bytes(encoded)
+
+
+def compile_profile_maps(
+    tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
+    tile_ids: dict[bytes, int], development_profile: bool,
+    highscore_test_profile: bool = False, complete_profile: bool = False,
+) -> tuple[list[bytes], list[dict[str, object]]]:
+    """Validate every map while omitting maps unreachable in the selected profile."""
+    maps: list[bytes | None] = []
+    map_info: list[dict[str, object]] = []
+    placeholder_maps = (
+        () if complete_profile
+        else HIGHSCORE_TEST_PLACEHOLDER_MAPS if highscore_test_profile
+        else DEVELOPMENT_PLACEHOLDER_MAPS if development_profile
+        else RELEASE_PLACEHOLDER_MAPS
+    )
+    for name in MAP_NAMES:
+        path = tiled_dir / MAP_FILES[name]
+        if name in placeholder_maps:
+            isolated_tiles: list[bytes] = []
+            isolated_ids: dict[bytes, int] = {}
+            authored, info = compile_map(
+                path, chars, isolated_tiles, isolated_ids
+            )
+            authored_frame = title_framebuffer(authored, isolated_tiles)
+            maps.append(None)
+            emission = (
+                "development-profile-black-placeholder" if development_profile
+                else "highscore-test-black-placeholder" if highscore_test_profile
+                else "release-profile-black-placeholder"
+            )
+        else:
+            authored, info = compile_map(
+                path, chars, tiles, tile_ids,
+                highscore_test_profile,
+                complete_profile,
+            )
+            authored_frame = title_framebuffer(authored, tiles)
+            maps.append(authored)
+            emission = "authored"
+        info.update({
+            "name": name,
+            "bytes": len(authored),
+            "authored_map_sha256": hashlib.sha256(
+                bytes(authored) if max(authored, default=0) <= 255
+                else b"".join(int(value).to_bytes(2, "big") for value in authored)
+            ).hexdigest(),
+            "authored_frame_sha256": hashlib.sha256(authored_frame).hexdigest(),
+            "emission": emission,
+        })
+        map_info.append(info)
+    if placeholder_maps:
+        black_tile_id = tile_ids.get(bytes(TILE_BYTES))
+        if black_tile_id is None:
+            black_tile_id = register_tile(bytes(TILE_BYTES), tiles, tile_ids)
+        for name in placeholder_maps:
+            maps[MAP_NAMES.index(name)] = bytes((black_tile_id,)) * MAP_BYTES
+    if any(data is None for data in maps):
+        raise AssertionError("presentation profile left an unresolved map slot")
+    return [data for data in maps if data is not None], map_info
+
+
+def load_demo_route(path: Path) -> tuple[bytes, dict[str, object]]:
+    """Validate and convert the arcade ROM direction stream to CoCo ordinals."""
+    record = json.loads(path.read_text(encoding="ascii"))
+    source = bytes(record["bytes"])
+    if len(source) != 188 or source[-1] != 0xFF:
+        raise ValueError(f"{path}: demo route must contain 187 actions plus $FF")
+    if hashlib.sha256(source).hexdigest() != record["route_sha256"]:
+        raise ValueError(f"{path}: demo route SHA-256 differs")
+    if record["rom_offset"] != 0x0EF8 or record["action_count"] != 187:
+        raise ValueError(f"{path}: demo route provenance differs")
+    if source[0] != 0 or any(value not in (1, 2, 4, 8) for value in source[1:-1]):
+        raise ValueError(f"{path}: demo route contains an illegal direction")
+    conversion = {0: 0xFF, 1: 3, 2: 2, 4: 1, 8: 0}
+    converted = bytes(conversion[value] for value in source[:-1])
+    return converted, {
+        "source": record["source"],
+        "program_sha256": record["program_sha256"],
+        "rom_offset": record["rom_offset"],
+        "source_bytes": len(source),
+        "source_sha256": record["route_sha256"],
+        "action_count": len(converted),
+        "converted_sha256": hashlib.sha256(converted).hexdigest(),
+        "encoding": "CoCo ordinals north/east/south/west=0/1/2/3; initial neutral=$FF",
+    }
+
+
+def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[str, object]]:
+    """Validate the explicit CoCo node walk and its arcade provenance link."""
+    record = json.loads(path.read_text(encoding="ascii"))
+    actions = bytes(record["actions"])
+    action_count = int(record["action_count"])
+    if len(actions) != action_count + 1 or actions[-1] != 0xFF:
+        raise ValueError(f"{path}: demo walk must contain action_count actions plus $FF")
+    if any(value not in (0, 1, 2, 3) for value in actions[:-1]):
+        raise ValueError(f"{path}: demo walk contains an illegal CoCo ordinal")
+    if hashlib.sha256(actions).hexdigest() != record["walk_sha256"]:
+        raise ValueError(f"{path}: demo walk SHA-256 differs")
+    text = str(record["action_text"])
+    if bytes("NESW".index(value) for value in text) != actions[:-1]:
+        raise ValueError(f"{path}: demo walk action text differs")
+    removed = record.get("removed_loop")
+    expected_removed = {
+        "action_offset": 13, "actions": "ESNW", "anchor": [14, 10],
+        "original_walk_sha256":
+            "c880f79e1c7e4366cd7421f93875940690bf3fbf6d655ae8ed0a0a3fed44557b",
+    }
+    if removed != expected_removed:
+        raise ValueError(f"{path}: demo walk removed-loop provenance differs")
+    offset = removed["action_offset"]
+    original_text = text[:offset] + removed["actions"] + text[offset:]
+    original_actions = bytes("NESW".index(value) for value in original_text) + b"\xff"
+    if (len(original_text) != 147 or
+            hashlib.sha256(original_actions).hexdigest() !=
+            removed["original_walk_sha256"]):
+        raise ValueError(f"{path}: original demo walk cannot be reconstructed")
+    if (record["source_route_sha256"] != route["source_sha256"] or
+            record["source_program_sha256"] != route["program_sha256"] or
+            record["source_action_count"] != route["action_count"]):
+        raise ValueError(f"{path}: demo walk arcade provenance differs")
+    position = list(record["start_cell"])
+    movement = ((0, -2), (2, 0), (0, 2), (-2, 0))
+    positions = []
+    for direction in original_actions[:-1]:
+        positions.append(tuple(position))
+        dx, dy = movement[direction]
+        position[0] += dx
+        position[1] += dy
+    if position != record["end_cell"]:
+        raise ValueError(f"{path}: demo walk endpoint differs")
+    if positions[offset] != tuple(removed["anchor"]):
+        raise ValueError(f"{path}: removed-loop anchor differs")
+    for detour in record["detours"]:
+        offset = int(detour["action_offset"])
+        detour_text = str(detour["actions"])
+        if positions[offset] != tuple(detour["anchor"]):
+            raise ValueError(f"{path}: detour anchor differs at action {offset}")
+        if original_text[offset:offset + len(detour_text)] != detour_text:
+            raise ValueError(f"{path}: detour actions differ at action {offset}")
+        x, y = detour["anchor"]
+        for value in detour_text:
+            dx, dy = movement["NESW".index(value)]
+            x += dx
+            y += dy
+        if [x, y] != detour["anchor"]:
+            raise ValueError(f"{path}: detour does not return to its anchor")
+    backbone = original_text
+    for detour in reversed(record["detours"]):
+        offset = int(detour["action_offset"])
+        count = len(str(detour["actions"]))
+        backbone = backbone[:offset] + backbone[offset + count:]
+    backbone_bytes = bytes("NESW".index(value) for value in backbone)
+    if (backbone != record["arcade_backbone_action_text"] or
+            len(backbone) + 1 != record["arcade_node_count"] or
+            hashlib.sha256(backbone_bytes).hexdigest() !=
+            record["arcade_backbone_sha256"]):
+        raise ValueError(f"{path}: arcade backbone relationship differs")
+    return actions, {
+        "source": route["source"],
+        "program_sha256": route["program_sha256"],
+        "rom_offset": route["rom_offset"],
+        "source_bytes": route["source_bytes"],
+        "source_sha256": route["source_sha256"],
+        "arcade_action_count": route["action_count"],
+        "arcade_converted_sha256": route["converted_sha256"],
+        "arcade_node_count": record["arcade_node_count"],
+        "arcade_backbone_sha256": record["arcade_backbone_sha256"],
+        "action_count": action_count,
+        "walk_sha256": record["walk_sha256"],
+        "encoding": record["encoding"],
+        "start_cell": record["start_cell"],
+        "end_cell": record["end_cell"],
+        "collectible_cells": record["collectible_cells"],
+        "quadrant_order": record["quadrant_order"],
+        "detours": record["detours"],
+        "removed_loop": removed,
+    }
+
+
+def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
+                 encoded_maps: list[bytes], manifest: dict[str, object],
+                 chars: list[list[list[int]]]) -> None:
+    lines = [
+        "; Generated by scripts/build_presentation.py; do not edit.",
+        f"PRESENTATION_MAP_COUNT equ {len(maps)}",
+        f"PRESENTATION_MAP_BYTES equ {MAP_BYTES}",
+        f"PRESENTATION_STAGE_PANEL_ENABLED equ {int(manifest['complete_profile'])}",
+        f"PRESENTATION_TILE_BYTES equ {TILE_BYTES}",
+        f"PRESENTATION_TILE_COUNT equ {len(tiles)}",
+        f"PRESENTATION_COLD_PAGE equ ${COLD_PAGE:02X}",
+        f"PRESENTATION_COLD_PAGE_COUNT equ {COLD_PAGE_COUNT}",
+        f"PRESENTATION_COLD_SIZE equ {manifest['cold_payload']['bytes']}",
+        f"PRESENTATION_TILE_ATLAS_OFFSET equ {manifest['tile_atlas_runtime_offset']}",
+        f"PRESENTATION_TILE_OFFSET equ {manifest['tile_atlas_runtime_offset']}",
+        f"PRESENTATION_TILE_ATLAS_SOURCE_OFFSET equ {manifest['tile_atlas_offset']}",
+        f"PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES equ {manifest['tile_atlas_compressed_bytes']}",
+        f"PRESENTATION_TILE_ATLAS_EXPANDED_BYTES equ {manifest['tile_atlas_expanded_bytes']}",
+        f"PRESENTATION_COLD_ONLY_TILE_COUNT equ {manifest['cold_only_tile_count']}",
+        f"PRESENTATION_GAMEPLAY_TILE_BASE equ {manifest['gameplay_tile_base']}",
+        f"PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ {manifest['gameplay_lookup_offset']}",
+        f"PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ {manifest['gameplay_lookup_bytes']}",
+        f"PRESENTATION_PHASE_TILE_OVERLAY_ENABLED equ {1 if manifest['phase_tile_overlay']['enabled'] else 0}",
+        f"PRESENTATION_PHASE_TILE_SLOT_0 equ {manifest['phase_tile_overlay']['slot_ids'][0] if manifest['phase_tile_overlay']['slot_ids'] else 0}",
+        f"PRESENTATION_PHASE_TILE_SLOT_1 equ {manifest['phase_tile_overlay']['slot_ids'][1] if manifest['phase_tile_overlay']['slot_ids'] else 0}",
+        f"PRESENTATION_ATTRACT_SURFACE_PAGE equ ${ATTRACT_ACTOR_SURFACE_PAGE:02X}",
+        f"PRESENTATION_ATTRACT_SURFACE_ADDRESS equ ${ATTRACT_ACTOR_SURFACE_ADDRESS:04X}",
+        f"PRESENTATION_ATTRACT_SURFACE_BYTES equ {manifest['attract_actor_surfaces']['bytes']}",
+        f"PRESENTATION_ATTRACT_DESTINATION_ADDRESS equ ${ATTRACT_ACTOR_DESTINATION_ADDRESS:04X}",
+        f"PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS equ ${ATTRACT_ACTOR_PHASE_POINTER_ADDRESS:04X}",
+        f"PRESENTATION_MAP_OUTPUT_OFFSET equ ${MAP_OUTPUT_OFFSET:04X}",
+        "",
+    ]
+    for index, name in enumerate(MAP_NAMES):
+        lines.append(f"PRESENTATION_MAP_{name.upper().replace('-', '_')} equ {index}")
+    lines.append("")
+    lines.append("; Compressed map stream offsets and lengths in the cold payload.")
+    for index, encoded in enumerate(encoded_maps):
+        lines.append(
+            f"PRESENTATION_MAP_STREAM_{index} equ "
+            f"${manifest['map_stream_offsets'][index]:04X}"
+        )
+        lines.append(
+            f"PRESENTATION_MAP_STREAM_{index}_BYTES equ {len(encoded)}"
+        )
+    demo_route = manifest["demo_route"]
+    lines.extend((
+        "",
+        "; BUG-012 arcade-derived demo direction stream.",
+        f"PRESENTATION_DEMO_ROUTE_OFFSET equ ${demo_route['cold_offset']:04X}",
+        f"PRESENTATION_DEMO_ROUTE_ACTIONS equ {demo_route['action_count']}",
+    ))
+    instruction = manifest["instruction_choreography"]
+    lines.extend((
+        "",
+        "; BUG-011 semantic instruction choreography.",
+        f"PRESENTATION_INSTRUCTION_EVENT_OFFSET equ ${instruction['event_table_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_EVENT_BYTES equ {instruction['event_record_bytes']}",
+        f"PRESENTATION_INSTRUCTION_EVENT_COUNT equ {len(instruction['events'])}",
+        f"PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ ${instruction['colour_pointer_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ ${instruction['cucumber_stream_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_CUCUMBER_DST equ ${instruction['cucumber_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
+        f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
+        f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
+        f"PRESENTATION_INSTRUCTION_ANGEL_TICK equ {instruction['angel_tick']}",
+        f"PRESENTATION_INSTRUCTION_ANGEL_DST equ ${instruction['angel_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_SKULL_DST equ ${instruction['events'][-1]['target_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_NEXT_TICK equ {instruction['next_screen_tick']}",
+        f"PRESENTATION_INSTRUCTION_COLOUR_DWELL equ {instruction['colour_dwell_frames']}",
+        f"PRESENTATION_INSTRUCTION_BLACK_TILE equ {instruction['black_tile_id']}",
+        f"PRESENTATION_INSTRUCTION_VALUE_DST equ ${instruction['value_destination']:04X}",
+        f"PRESENTATION_INSTRUCTION_LIFE_DST equ ${instruction['reward_destinations']['life']:04X}",
+        f"PRESENTATION_INSTRUCTION_COIN_DST equ ${instruction['reward_destinations']['coin']:04X}",
+        f"PRESENTATION_INSTRUCTION_MULTIPLIER_0 equ ${instruction['multiplier_destinations'][0]:04X}",
+        f"PRESENTATION_INSTRUCTION_MULTIPLIER_1 equ ${instruction['multiplier_destinations'][1]:04X}",
+        f"PRESENTATION_INSTRUCTION_EXTRA_SPAN equ ${framebuffer_destination((13, 7)):04X}",
+        f"PRESENTATION_INSTRUCTION_SPECIAL_SPAN equ ${framebuffer_destination((13, 10)):04X}",
+        f"PRESENTATION_INSTRUCTION_HEART_SPAN equ ${framebuffer_destination((13, 13)):04X}",
+        f"PRESENTATION_INSTRUCTION_ICON_SPAN equ ${framebuffer_destination((13, 19)):04X}",
+    ))
+    for index, destination in enumerate(instruction["anchors"]):
+        lines.append(f"PRESENTATION_INSTRUCTION_ANCHOR_{index} equ ${destination:04X}")
+    for name in ("red", "yellow", "blue"):
+        for index, tile_id in enumerate(instruction["value_tile_ids"][name]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_VALUE_{name.upper()}_{index} equ {tile_id}"
+            )
+    for name in ("life", "coin"):
+        for index, tile_id in enumerate(instruction["reward_tile_ids"][name]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_{name.upper()}_{index} equ {tile_id}"
+            )
+    for value in (2, 3, 5):
+        for index, tile_id in enumerate(instruction["multiplier_tile_ids"][str(value)]):
+            lines.append(
+                f"PRESENTATION_INSTRUCTION_X{value}_{index} equ {tile_id}"
+            )
+    name_entry = manifest["high_score_name_entry"]
+    name_dst = name_entry["name_destinations"][0] if name_entry["name_destinations"] else 0
+    top_name_dst = name_entry["top_name_destinations"][0] if name_entry["top_name_destinations"] else 0
+    score_dst = name_entry["score_destinations"][0] if name_entry["score_destinations"] else 0
+    top_dst = name_entry["top_destinations"][0] if name_entry["top_destinations"] else 0
+    top_right_dst = (
+        name_entry["top_right_destinations"][0]
+        if name_entry["top_right_destinations"] else 0
+    )
+    lines.extend((
+        "",
+        "; FEAT-003 authored high-score name-entry contract.",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_OFFSET equ ${name_entry['cursor_stream_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_BYTES equ {name_entry['cursor_stream_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_DST equ ${name_entry['cursor_destination']:04X}",
+        f"PRESENTATION_NAME_ENTRY_CURSOR_CODE equ {name_entry['cursor_source_code']}",
+        f"PRESENTATION_NAME_ENTRY_GRID_COUNT equ {len(name_entry['grid_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_CL_COUNT equ {len(name_entry['cl_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_END_COUNT equ {len(name_entry['end_cells'])}",
+        f"PRESENTATION_NAME_ENTRY_NAME_DST equ ${name_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_NAME_DST equ ${top_name_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_SCORE_DST equ ${score_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_DST equ ${top_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ ${top_right_dst:04X}",
+        f"PRESENTATION_NAME_ENTRY_BLACK_TILE equ {manifest['black_tile']}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_TABLE equ ${name_entry['timer_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES equ 4",
+        f"PRESENTATION_NAME_ENTRY_TIMER_FRAMES equ {name_entry['timer_frames_per_box']}",
+        f"PRESENTATION_NAME_ENTRY_TIMER_COUNT equ {name_entry['timer_box_count']}",
+        f"PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ ${name_entry['edge_mask_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ {name_entry['edge_mask_table_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE equ ${name_entry['full_edge_mask_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES equ {name_entry['full_edge_mask_table_bytes']}",
+        f"PRESENTATION_NAME_ENTRY_ACTION_TABLE equ ${name_entry['action_table_offset']:04X}",
+        f"PRESENTATION_NAME_ENTRY_ACTION_BYTES equ {name_entry['action_table_bytes']}",
+    ))
+    lines.append("PRESENTATION_NAME_ENTRY_GRID_TILES")
+    lines.append("PRESENTATION_NAME_ENTRY_GRID_CELLS")
+    lines.append("PRESENTATION_NAME_ENTRY_NODE_TILES")
+    lines.append("        ifne    PRESENTATION_NAME_ENTRY_DATA")
+    if name_entry["node_tile_ids"]:
+        lines.append("        fcb     " + ",".join(
+            f"${int(tile_id):02X}" for tile_id in name_entry["node_tile_ids"]
+        ))
+    lines.append("PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS")
+    lines.append("        endc")
+    for index, tile_id in enumerate(name_entry["default_name_tile_ids"]):
+        lines.append(
+            f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
+        )
+    rotated = [rotate_ccw(tile) for tile in chars]
+    for code in range(37):
+        packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
+        if packed not in tiles:
+            if not manifest["development_profile"]:
+                raise ValueError(f"presentation glyph {code} is absent from atlas")
+            continue
+        lines.append(f"PRESENTATION_GLYPH_{code} equ {tiles.index(packed)}")
+    lines.extend((
+        "",
+        "; Nine fixed seven-character session records live in PAR5 page $34.",
+        "PRESENTATION_HIGHSCORE_BASE equ $AF84",
+        "PRESENTATION_HIGHSCORE_RECORD_BYTES equ 10",
+        "PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3",
+        "PRESENTATION_HIGHSCORE_NAME_BYTES equ 7",
+        "PRESENTATION_HIGHSCORE_COUNT equ 9",
+        f"PRESENTATION_HIGHSCORE_TOP_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
+        f"PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
+        f"PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
+        f"PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
+    ))
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text("\n".join(lines) + "\n", encoding="ascii")
+
+
+def main() -> None:
+    args = parse_args()
+    development_profile = bool(args.development_profile)
+    complete_profile = bool(args.complete_profile)
+    highscore_test_profile = bool(args.highscore_test_profile)
+    shared = None
+    if args.shared_text:
+        if not complete_profile:
+            raise ValueError('shared text currently requires complete profile')
+        import sys
+        from shared_text import SharedText
+        shared = SharedText(args, sys.modules[__name__])
+        if shared.font[-1] != bytes(8):
+            raise ValueError("PART HUD requires the final compact glyph to be blank")
+    chars = load_chars(args.chars)
+    names = ("CUCUMBER", "EGGPLANT", "CARROT", "RADISH", "PARSLEY", "TOMATO",
+             "PUMPKIN", "BAMBOO SHOOT", "JAPANESE RADISH", "MUSHROOM", "POTATO",
+             "ONION", "CHINESE CABBAGE", "TURNIP", "RED PEPPER", "CELERY",
+             "SWEET POTATO", "HORSERADISH")
+    panel = ["; BUG-035: game/overview vegetable order; resident sprites remain authoritative.",
+             "stage_panel_records"]
+    for index, name in enumerate(names):
+        text = name.center(16) + str(1000 + index * 500)
+        codes = [36 if c == " " else int(c) if c.isdigit() else ord(c) - ord("A") + 10 for c in text]
+        panel.append("        fcb     " + ",".join(str(v) for v in codes))
+    panel.append("stage_panel_font")
+    for code in range(37):
+        masks = [sum((1 << (7 - x)) for x, v in enumerate(row) if v)
+                 for row in rotate_ccw(chars[code])] if code < 36 else [0] * 8
+        panel.append("        fcb     " + ",".join(str(v) for v in masks))
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    (args.output.parent / "ladybug_stage_panel.inc").write_text("\n".join(panel) + "\n", encoding="ascii")
+    sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
+    if isinstance(sprites, dict):
+        sprites = sprites.get("sprites", sprites)
+    if not isinstance(sprites, list) or len(sprites) != 128:
+        raise ValueError(f"{args.gameplay_sprites} must contain 128 sprites")
+    actors = parse_attract_actors(args.tiled_dir / MAP_FILES["attract"])
+    _gameplay_map, gameplay_tiles, *_ = compile_screen(
+        args.gameplay_map,
+        args.gameplay_maze,
+        args.gameplay_chars,
+        args.gameplay_sprites,
+    )
+    tiles: list[bytes] = []
+    tile_ids: dict[bytes, int] = {}
+    maps, map_info = compile_profile_maps(
+        args.tiled_dir, chars, tiles, tile_ids, development_profile,
+        highscore_test_profile, complete_profile,
+    )
+    if development_profile:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
+            tiles, tile_ids,
+        )
+    else:
+        instruction = parse_instruction_contract(
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
+        )
+    name_entry = (
+        parse_enter_high_score_contract(
+            args.tiled_dir / MAP_FILES["enter-high-score"], chars, sprites,
+            tiles, tile_ids,
+        )
+        if highscore_test_profile or complete_profile
+        else {
+            "cursor_stream": b"", "cursor_source_code": 0,
+            "cursor_destination": 0, "cursor_cell": (19, 22),
+            "grid_cells": [], "grid_tile_ids": [], "cl_cells": [],
+            "end_cells": [], "name_destinations": [], "top_name_destinations": [],
+            "score_destinations": [], "top_destinations": [],
+            "top_right_destinations": [],
+            "node_cells": [], "node_tile_ids": [], "node_destinations": [],
+            "action_records": [], "default_name_tile_ids": [],
+            "timer_base_tile_ids": [], "timer_green_tile_ids": [],
+            "timer_table_offset": 0,
+            "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
+            "timer_box_count": ENTER_HIGH_SCORE_TIMER_COUNT,
+            "edge_mask_table_offset": 0,
+            "edge_mask_table_bytes": 0,
+            "edge_masks": [],
+            "full_edge_mask_table_offset": 0,
+            "full_edge_mask_table_bytes": 0,
+            "full_edge_masks": [],
+            "action_table_offset": 0,
+            "action_table_bytes": 0,
+            "action_table": [],
+        }
+    )
+    _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
+    demo_walk, demo_walk_manifest = load_demo_walk(
+        args.demo_walk, arcade_route_manifest
+    )
+
+    if len(tiles) > 256 and not complete_profile:
+        raise ValueError(
+            f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
+        )
+
+    if name_entry["grid_tile_ids"]:
+        enter_map = maps[MAP_NAMES.index("enter-high-score")]
+        timer_base_tile_ids = []
+        timer_green_tile_ids = []
+        for x, y in perimeter_box_cells():
+            base_id = enter_map[y * SCREEN_WIDTH + x]
+            timer_base_tile_ids.append(base_id)
+            timer_green_tile_ids.append(register_tile(
+                replace_packed_colour(tiles[base_id], WHITE, GREEN),
+                tiles, tile_ids,
+            ))
+        name_entry["timer_base_tile_ids"] = timer_base_tile_ids
+        name_entry["timer_green_tile_ids"] = timer_green_tile_ids
+        if len(tiles) > 256 and not complete_profile:
+            raise ValueError(
+                f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
+            )
+
+    if shared:
+        maps = shared.separate_static(maps, tiles, tile_ids)
+    gameplay_tile_ids = {tile: index for index, tile in enumerate(gameplay_tiles)}
+    timer_green_tiles: list[bytes] = []
+    timer_green_indexes: list[int] = []
+    for tile_id in name_entry["timer_green_tile_ids"]:
+        tile = tiles[int(tile_id)]
+        try:
+            index = timer_green_tiles.index(tile)
+        except ValueError:
+            index = len(timer_green_tiles)
+            timer_green_tiles.append(tile)
+        timer_green_indexes.append(index)
+    live_tile_ids = set().union(*(set(data) for data in maps))
+    if development_profile:
+        live_tile_ids.add(int(instruction["black_tile_id"]))
+        for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+            for ids in instruction[group].values():
+                live_tile_ids.update(int(tile_id) for tile_id in ids)
+        for event in instruction["events"]:
+            if event["hud_destination"]:
+                live_tile_ids.add(int(event["hud_tile_id"]))
+                if event["hud_tile_2_id"]:
+                    live_tile_ids.add(int(event["hud_tile_2_id"]))
+    if name_entry["grid_tile_ids"]:
+        for key in (
+            "grid_tile_ids", "default_name_tile_ids", "top_name_tile_ids",
+            "timer_base_tile_ids",
+        ):
+            live_tile_ids.update(int(tile_id) for tile_id in name_entry[key])
+        live_tile_ids.update(
+            int(tile_id) for tile_id in name_entry["node_tile_ids"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        live_tile_ids.update(
+            int(tile_id) for _x, _y, tile_id in name_entry["action_records"]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+        )
+        if complete_profile and name_entry["timer_green_tile_ids"]:
+            # Retain one phase-native green perimeter tile in the atlas; the
+            # seven additional timer variants live in bounded cold tile data.
+            live_tile_ids.add(int(name_entry["timer_green_tile_ids"][0]))
+    overlay_pairs: list[tuple[int, int]] = []
+    if complete_profile:
+        overflow = len(live_tile_ids) - 256
+        if overflow > 2:
+            raise ValueError(
+                f"complete presentation union needs {overflow} overlaid tile slots; "
+                "existing phase allocation supports at most two; "
+                f"live={len(live_tile_ids)} timer-green="
+                f"{len(set(name_entry['timer_green_tile_ids']))}"
+            )
+        instruction_ids = set(maps[MAP_NAMES.index("instructions")])
+        highscore_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("game-over", "enter-high-score", "high-score")
+        ))
+        other_ids = set().union(*(
+            set(maps[MAP_NAMES.index(name)])
+            for name in ("attract", "level-start")
+        ))
+        instruction_candidates = sorted(
+            tile_id for tile_id in instruction_ids - highscore_ids - other_ids
+            if tile_id in live_tile_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        highscore_candidates = sorted(
+            tile_id for tile_id in highscore_ids - instruction_ids - other_ids
+            if tile_id in live_tile_ids and tiles[tile_id] not in gameplay_tile_ids
+        )
+        if len(instruction_candidates) < 2 or len(highscore_candidates) < 2:
+            raise ValueError("complete presentation lacks two phase-exclusive tile pairs")
+        overlay_pairs = list(zip(
+            instruction_candidates[:2], highscore_candidates[:2]
+        ))
+    elif len(live_tile_ids) > 256:
+        raise ValueError("presentation atlas exceeds one-byte tile IDs")
+
+    overlay_replacements = {
+        highscore_id: instruction_id
+        for instruction_id, highscore_id in overlay_pairs
+    }
+    representative_ids = [
+        tile_id for tile_id in sorted(live_tile_ids)
+        if tile_id not in overlay_replacements
+    ]
+    cold_tile_ids = [
+        tile_id for tile_id in representative_ids
+        if tiles[tile_id] not in gameplay_tile_ids
+    ]
+    gameplay_match_ids = [
+        tile_id for tile_id in representative_ids
+        if tiles[tile_id] in gameplay_tile_ids
+    ]
+    ordered_ids = cold_tile_ids + gameplay_match_ids
+    representative_remap = {
+        old_id: new_id for new_id, old_id in enumerate(ordered_ids)
+    }
+    remap = {
+        old_id: representative_remap[overlay_replacements.get(old_id, old_id)]
+        for old_id in live_tile_ids
+    }
+    instruction_patch_set = b"".join(
+        tiles[instruction_id] for instruction_id, _highscore_id in overlay_pairs
+    )
+    highscore_patch_set = b"".join(
+        tiles[highscore_id] for _instruction_id, highscore_id in overlay_pairs
+    )
+    overlay_slots = [remap[instruction_id] for instruction_id, _ in overlay_pairs]
+    maps = [bytes(remap[tile_id] for tile_id in data) for data in maps]
+    for info, data in zip(map_info, maps):
+        info["sha256"] = hashlib.sha256(data).hexdigest()
+    tiles = [tiles[tile_id] for tile_id in ordered_ids]
+    if development_profile:
+        instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
+        for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
+            instruction[group] = {
+                name: [remap[int(tile_id)] for tile_id in ids]
+                for name, ids in instruction[group].items()
+            }
+        event_table = bytearray(instruction["event_table"])
+        for index, event in enumerate(instruction["events"]):
+            hud_tile_id = remap[int(event["hud_tile_id"])] if event["hud_destination"] else 0
+            hud_tile_2_id = remap[int(event["hud_tile_2_id"])] if event["hud_tile_2_id"] else 0
+            event["hud_tile_id"] = hud_tile_id
+            event["hud_tile_2_id"] = hud_tile_2_id
+            event_table[index * INSTRUCTION_EVENT_BYTES + 10] = hud_tile_2_id
+            event_table[index * INSTRUCTION_EVENT_BYTES + 11] = hud_tile_id
+        instruction["event_table"] = bytes(event_table)
+    else:
+        instruction["event_table"] = b""
+        instruction["target_colour_streams"] = []
+        instruction["cucumber_stream"] = b""
+        instruction["death_streams"] = []
+        instruction["angel_stream"] = b""
+    if name_entry["grid_tile_ids"]:
+        name_entry["grid_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["grid_tile_ids"]
+        ]
+        name_entry["node_tile_ids"] = [
+            tile_id if tile_id in (0xFD, 0xFE, 0xFF) else remap[int(tile_id)]
+            for tile_id in name_entry["node_tile_ids"]
+        ]
+        name_entry["action_records"] = [
+            [x, y, remap[int(tile_id)]]
+            if tile_id not in (0xFD, 0xFE, 0xFF)
+            else [x, y, tile_id]
+            for x, y, tile_id in name_entry["action_records"]
+        ]
+        name_entry["default_name_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["default_name_tile_ids"]
+        ]
+        name_entry["top_name_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["top_name_tile_ids"]
+        ]
+        name_entry["timer_base_tile_ids"] = [
+            remap[int(tile_id)] for tile_id in name_entry["timer_base_tile_ids"]
+        ]
+        name_entry["timer_green_tile_ids"] = []
+    cold_only_tiles = tiles[:len(cold_tile_ids)]
+    gameplay_lookup = bytes(
+        gameplay_tile_ids[tiles[tile_id]]
+        for tile_id in range(len(cold_tile_ids), len(tiles))
+    )
+    encoded_maps = [encode_map(data) for data in maps]
+    tile_atlas = b"".join(cold_only_tiles)
+    stored_tile_atlas = (
+        lzss_compress(tile_atlas) if highscore_test_profile else tile_atlas
+    )
+    tile_atlas_offset = 0
+    gameplay_lookup_offset = len(stored_tile_atlas)
+    map_stream_offset = gameplay_lookup_offset + len(gameplay_lookup)
+    map_stream_offsets = []
+    encoded_stream = bytearray()
+    for encoded in encoded_maps:
+        map_stream_offsets.append(map_stream_offset + len(encoded_stream))
+        encoded_stream.extend(encoded)
+    attract_destinations = b"".join(
+        int(actor["destination"]).to_bytes(2, "big") for actor in actors
+    )
+    visual_maps, visual_tiles = (shared.visual_maps, shared.visual_tiles) if shared else (maps, tiles)
+    logo_roots, _ = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+    attract_destinations += b"".join(framebuffer_destination(root).to_bytes(2, "big") for root in logo_roots)
+    attract_surfaces = compile_attract_surfaces(visual_maps[0], visual_tiles, sprites, actors)
+    attract_frames = compose_attract_frames(visual_maps[0], visual_tiles, attract_surfaces, actors)
+    attract_phase_pointers = b"".join(
+        (ATTRACT_ACTOR_SURFACE_ADDRESS + phase * ATTRACT_COPY_COUNT * 128).to_bytes(2, "big")
+        for phase in ATTRACT_ACTOR_PHASES
+    )
+    attract_compressed = lzss_compress(attract_surfaces)
+    attract_metadata = attract_destinations + attract_phase_pointers
+    cold_payload = bytearray(
+        stored_tile_atlas + gameplay_lookup + bytes(encoded_stream)
+    )
+    event_count = len(instruction["event_table"]) // INSTRUCTION_EVENT_BYTES
+    for padding in range(PAGE_BYTES):
+        start = len(cold_payload) + padding
+        if all(
+            (start + index * INSTRUCTION_EVENT_BYTES) % PAGE_BYTES
+            <= PAGE_BYTES - INSTRUCTION_EVENT_BYTES
+            for index in range(event_count)
+        ):
+            cold_payload.extend(bytes(padding))
+            break
+    else:
+        raise ValueError("instruction event table cannot be page-aligned")
+    instruction_event_offset = len(cold_payload)
+    cold_payload.extend(instruction["event_table"])
+    instruction_colour_pointer_offset = len(cold_payload)
+    colour_streams = instruction["target_colour_streams"]
+    cold_payload.extend(bytes(len(colour_streams) * 2))
+    colour_stream_offsets = []
+    for stream in colour_streams:
+        page_offset = len(cold_payload) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            cold_payload.extend(bytes(PAGE_BYTES - page_offset))
+        colour_stream_offsets.append(len(cold_payload))
+        cold_payload.extend(stream)
+    for index, offset in enumerate(colour_stream_offsets):
+        start = instruction_colour_pointer_offset + index * 2
+        cold_payload[start:start + 2] = offset.to_bytes(2, "big")
+    cucumber_stream = instruction["cucumber_stream"]
+    cucumber_page_offset = len(cold_payload) % PAGE_BYTES
+    if cucumber_page_offset + len(cucumber_stream) > PAGE_BYTES:
+        cold_payload.extend(bytes(PAGE_BYTES - cucumber_page_offset))
+    instruction_cucumber_offset = len(cold_payload)
+    cold_payload.extend(cucumber_stream)
+    instruction_death_pointer_offset = len(cold_payload)
+    death_streams = (
+        [*instruction["death_streams"], instruction["angel_stream"]]
+        if development_profile else []
+    )
+    cold_payload.extend(bytes(len(death_streams) * 2))
+    death_stream_offsets = []
+    for stream in death_streams:
+        page_offset = len(cold_payload) % PAGE_BYTES
+        if page_offset + len(stream) > PAGE_BYTES:
+            cold_payload.extend(bytes(PAGE_BYTES - page_offset))
+        death_stream_offsets.append(len(cold_payload))
+        cold_payload.extend(stream)
+    for index, offset in enumerate(death_stream_offsets):
+        start = instruction_death_pointer_offset + index * 2
+        cold_payload[start:start + 2] = offset.to_bytes(2, "big")
+    name_entry_cursor_offset = len(cold_payload)
+    cold_payload.extend(name_entry["cursor_stream"])
+    name_entry["cursor_stream_offset"] = name_entry_cursor_offset
+    name_entry["cursor_stream_bytes"] = len(name_entry["cursor_stream"])
+    demo_route_offset = len(cold_payload)
+    cold_payload.extend(demo_walk)
+    name_entry_timer_tiles_offset = len(cold_payload)
+    cold_payload.extend(b"".join(timer_green_tiles))
+    name_entry_timer_offset = len(cold_payload)
+    for cell, green_index in zip(perimeter_box_cells(), timer_green_indexes):
+        cold_payload.extend(
+            framebuffer_destination(cell).to_bytes(2, "big") +
+            (name_entry_timer_tiles_offset + green_index * TILE_BYTES).to_bytes(
+                2, "big"
+            )
+        )
+    name_entry_edge_mask_offset = len(cold_payload)
+    edge_masks = enter_high_score_edge_masks() if name_entry["grid_tile_ids"] else b""
+    cold_payload.extend(edge_masks)
+    name_entry["edge_mask_table_offset"] = name_entry_edge_mask_offset
+    name_entry["edge_mask_table_bytes"] = len(edge_masks)
+    name_entry["edge_masks"] = list(edge_masks)
+    full_edge_masks = (
+        enter_high_score_full_edge_masks(args.tiled_dir / MAP_FILES["enter-high-score"])
+        if name_entry["grid_tile_ids"] else b""
+    )
+    name_entry_full_edge_mask_offset = len(cold_payload)
+    cold_payload.extend(full_edge_masks)
+    action_table = bytes(
+        byte
+        for x, y, tile_id in name_entry["action_records"]
+        for byte in (x - 8, y, tile_id)
+    )
+    name_entry_action_offset = len(cold_payload)
+    cold_payload.extend(action_table)
+    name_entry["full_edge_mask_table_offset"] = name_entry_full_edge_mask_offset
+    name_entry["full_edge_mask_table_bytes"] = len(full_edge_masks)
+    name_entry["full_edge_masks"] = list(full_edge_masks)
+    name_entry["action_table_offset"] = name_entry_action_offset
+    name_entry["action_table_bytes"] = len(action_table)
+    name_entry["action_table"] = list(action_table)
+    effective_cold_limit = PAGE_BYTES * 2 if complete_profile else COLD_PAYLOAD_LIMIT
+    if len(cold_payload) > effective_cold_limit:
+        raise ValueError(
+            f"presentation cold payload is {len(cold_payload)} bytes; "
+            f"limit is {effective_cold_limit}"
+        )
+    static_frame_hashes = []
+    highscore_phase_tiles = list(tiles)
+    for slot_id, tile in zip(
+            overlay_slots,
+            (highscore_patch_set[index:index + TILE_BYTES]
+             for index in range(0, len(highscore_patch_set), TILE_BYTES))):
+        highscore_phase_tiles[slot_id] = tile
+    for index, data in enumerate(maps):
+        frame = title_framebuffer(
+            data,
+            highscore_phase_tiles if index in (
+                MAP_NAMES.index("game-over"),
+                MAP_NAMES.index("enter-high-score"),
+                MAP_NAMES.index("high-score"),
+            ) else tiles,
+        )
+        if development_profile and index == MAP_NAMES.index("instructions"):
+            blend_native_surface(
+                frame, instruction["cucumber_destination"],
+                instruction["cucumber_native"],
+            )
+        static_frame_hashes.append(hashlib.sha256(frame).hexdigest())
+    manifest = {
+        "maps": map_info,
+        "map_count": len(maps),
+        "development_profile": bool(args.development_profile),
+        "complete_profile": bool(args.complete_profile),
+        "highscore_test_profile": highscore_test_profile,
+        "development_omitted_glyph_codes": [
+            code for code in range(37)
+            if pack_tile(recolor(
+                [row[:] for row in rotate_ccw(chars[code])],
+                (BLACK, WHITE, WHITE, WHITE),
+            )) not in tiles
+        ] if args.development_profile else [],
+        "layer_contracts": {
+            info["name"]: info["layer_contract"] for info in map_info
+        },
+        "raw_sprite_markers": {
+            "gameplay": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(GAMEPLAY_SPRITE_LOCATIONS.items())
+            ],
+            "instructions": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(INSTRUCTION_RAW_SPRITE_MARKERS.items())
+            ],
+            "level-start": [
+                {"cell": list(cell), "gid": value & GID_MASK,
+                 "flags": value & ~GID_MASK}
+                for cell, value in sorted(LEVEL_START_METADATA.items())
+                if (value & GID_MASK) == 633
+            ],
+        },
+        "map_bytes": MAP_BYTES,
+        "tile_count": len(tiles),
+        "tile_bytes": TILE_BYTES,
+        "tile_atlas_offset": tile_atlas_offset,
+        "tile_atlas_compressed_bytes": len(stored_tile_atlas),
+        "tile_atlas_expanded_bytes": len(tile_atlas),
+        "tile_atlas_runtime_offset": PAGE_BYTES if highscore_test_profile else 0,
+        "phase_tile_overlay": {
+            "enabled": bool(overlay_pairs),
+            "slot_ids": overlay_slots,
+            "instruction_patch_bytes": len(instruction_patch_set),
+            "highscore_patch_bytes": len(highscore_patch_set),
+            "instruction_patch_sha256": hashlib.sha256(instruction_patch_set).hexdigest(),
+            "highscore_patch_sha256": hashlib.sha256(highscore_patch_set).hexdigest(),
+        },
+        "cold_only_tile_count": len(cold_only_tiles),
+        "gameplay_tile_base": len(cold_only_tiles),
+        "gameplay_lookup_offset": gameplay_lookup_offset,
+        "gameplay_lookup_bytes": len(gameplay_lookup),
+        "gameplay_tile_count": len(gameplay_tiles),
+        "map_output_offset": MAP_OUTPUT_OFFSET,
+        "map_stream_offsets": map_stream_offsets,
+        "map_stream_bytes": [len(encoded) for encoded in encoded_maps],
+        "map_stream_total_bytes": len(encoded_stream),
+        "instruction_choreography": {
+            "emitted": development_profile,
+            "metadata_layer": INSTRUCTION_METADATA_LAYER,
+            "static_layers": list(INSTRUCTION_STATIC_LAYERS),
+            "anchors": instruction["anchors"],
+            "reward_destinations": instruction["reward_destinations"],
+            "reward_tile_ids": instruction["reward_tile_ids"],
+            "multiplier_destinations": instruction["multiplier_destinations"],
+            "multiplier_tile_ids": instruction["multiplier_tile_ids"],
+            "value_destination": instruction["value_destination"],
+            "value_tile_ids": instruction["value_tile_ids"],
+            "black_tile_id": instruction["black_tile_id"],
+            "event_record_bytes": INSTRUCTION_EVENT_BYTES,
+            "event_table_offset": instruction_event_offset,
+            "event_table_bytes": len(instruction["event_table"]),
+            "event_table_sha256": hashlib.sha256(instruction["event_table"]).hexdigest(),
+            "events": instruction["events"],
+            "colour_pointer_offset": instruction_colour_pointer_offset,
+            "colour_stream_offsets": colour_stream_offsets,
+            "colour_stream_bytes": [len(stream) for stream in colour_streams],
+            "cucumber_destination": instruction["cucumber_destination"],
+            "cucumber_source_code": instruction["cucumber_source_code"],
+            "cucumber_stream_offset": instruction_cucumber_offset,
+            "cucumber_stream_bytes": len(cucumber_stream),
+            "death_pointer_offset": instruction_death_pointer_offset,
+            "death_stream_offsets": death_stream_offsets,
+            "death_stream_bytes": [len(stream) for stream in death_streams],
+            "death_stream_sha256": [hashlib.sha256(stream).hexdigest()
+                                    for stream in death_streams],
+            "death_collision_tick": instruction["death_collision_tick"],
+            "angel_tick": instruction["angel_tick"],
+            "angel_destination": instruction["angel_destination"],
+            "next_screen_tick": instruction["next_screen_tick"],
+            "colour_dwell_frames": instruction["colour_dwell_frames"],
+            "angel_source_code": instruction["angel_source_code"],
+        },
+        "high_score_name_entry": {
+            "emitted": bool(name_entry["grid_tile_ids"]),
+            "metadata_layer": ENTER_HIGH_SCORE_METADATA_LAYER,
+            "cursor_cell": list(name_entry["cursor_cell"]),
+            "cursor_destination": name_entry["cursor_destination"],
+            "cursor_source_code": name_entry["cursor_source_code"],
+            "cursor_stream_offset": name_entry_cursor_offset,
+            "cursor_stream_bytes": len(name_entry["cursor_stream"]),
+            "cursor_stream_sha256": hashlib.sha256(
+                name_entry["cursor_stream"]
+            ).hexdigest(),
+            "grid_cells": [list(cell) for cell in name_entry["grid_cells"]],
+            "grid_tile_ids": name_entry["grid_tile_ids"],
+            "node_cells": [list(cell) for cell in name_entry["node_cells"]],
+            "node_tile_ids": name_entry["node_tile_ids"],
+            "action_records": name_entry["action_records"],
+            "default_name_tile_ids": name_entry["default_name_tile_ids"],
+            "authored_name_codes": list(ENTER_HIGH_SCORE_DEFAULT_CODES),
+            "top_name_tile_ids": name_entry.get("top_name_tile_ids", []),
+            "node_destinations": name_entry["node_destinations"],
+            "cl_cells": [list(cell) for cell in name_entry["cl_cells"]],
+            "end_cells": [list(cell) for cell in name_entry["end_cells"]],
+            "name_destinations": name_entry["name_destinations"],
+            "top_name_destinations": name_entry["top_name_destinations"],
+            "score_destinations": name_entry["score_destinations"],
+            "top_destinations": name_entry["top_destinations"],
+            "top_right_destinations": name_entry["top_right_destinations"],
+            "timer_table_offset": name_entry_timer_offset,
+            "timer_table_bytes": len(name_entry["timer_base_tile_ids"]) * 4,
+            "timer_tile_data_offset": name_entry_timer_tiles_offset,
+            "timer_tile_data_bytes": len(timer_green_tiles) * TILE_BYTES,
+            "timer_frames_per_box": ENTER_HIGH_SCORE_TIMER_FRAMES,
+            "timer_box_count": ENTER_HIGH_SCORE_TIMER_COUNT,
+            "timer_cells": [list(cell) for cell in perimeter_box_cells()],
+            "timer_base_tile_ids": name_entry["timer_base_tile_ids"],
+            "timer_green_tile_ids": name_entry["timer_green_tile_ids"],
+            "edge_mask_table_offset": name_entry_edge_mask_offset,
+            "edge_mask_table_bytes": len(edge_masks),
+            "edge_masks": list(edge_masks),
+            "full_edge_mask_table_offset": name_entry["full_edge_mask_table_offset"],
+            "full_edge_mask_table_bytes": name_entry["full_edge_mask_table_bytes"],
+            "full_edge_masks": name_entry["full_edge_masks"],
+            "action_table_offset": name_entry["action_table_offset"],
+            "action_table_bytes": name_entry["action_table_bytes"],
+            "action_table": name_entry["action_table"],
+        },
+        "high_score_table": {
+            "record_rows": list(HIGH_SCORE_RECORD_ROWS),
+            "name_column": HIGH_SCORE_NAME_COLUMN,
+            "score_column": HIGH_SCORE_SCORE_COLUMN,
+            "name_destinations": [
+                framebuffer_destination((HIGH_SCORE_NAME_COLUMN, row))
+                for row in HIGH_SCORE_RECORD_ROWS
+            ],
+            "score_destinations": [
+                framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, row))
+                for row in HIGH_SCORE_RECORD_ROWS
+            ],
+        },
+        "demo_route": {
+            **demo_walk_manifest,
+            "cold_offset": demo_route_offset,
+            "bytes": len(demo_walk),
+        },
+        "attract_actor_destinations": {
+            "bytes": len(attract_destinations),
+            "count": ATTRACT_COPY_COUNT,
+            "storage": "helper-table",
+            "sha256": hashlib.sha256(attract_destinations).hexdigest(),
+        },
+        "attract_actor_surfaces": {
+            "bytes": len(attract_surfaces),
+            "actor_bytes": ATTRACT_ACTOR_BYTES,
+            "unique_phases": len(ATTRACT_ACTOR_PHASES),
+            "page": ATTRACT_ACTOR_SURFACE_PAGE,
+            "address": ATTRACT_ACTOR_SURFACE_ADDRESS,
+            "storage": "loader-copy-to-page-$3C-$A000",
+            "sha256": hashlib.sha256(attract_surfaces).hexdigest(),
+            "actors": actors,
+            "logo_roots": logo_roots,
+            "phase_frame_sha256": [hashlib.sha256(frame).hexdigest()
+                                   for frame in attract_frames],
+            "phase_crop_sha256": [
+                [hashlib.sha256(attract_surfaces[
+                    (phase * ATTRACT_COPY_COUNT + actor_index) * ATTRACT_ACTOR_BYTES:
+                    (phase * ATTRACT_COPY_COUNT + actor_index + 1) * ATTRACT_ACTOR_BYTES
+                ]).hexdigest() for actor_index in range(len(actors))]
+                for phase in ATTRACT_ACTOR_PHASES
+            ],
+        },
+        "attract_actor_bundle": {
+            "compressed_bytes": len(attract_compressed),
+            "expanded_bytes": len(attract_surfaces),
+            "destination_address": ATTRACT_ACTOR_SURFACE_ADDRESS,
+            "destination_table_address": ATTRACT_ACTOR_DESTINATION_ADDRESS,
+            "phase_pointer_address": ATTRACT_ACTOR_PHASE_POINTER_ADDRESS,
+            "compressed_sha256": hashlib.sha256(attract_compressed).hexdigest(),
+            "metadata_bytes": len(attract_metadata),
+            "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
+        },
+        "black_tile": tiles.index(bytes(TILE_BYTES)),
+        "cold_page": COLD_PAGE,
+        "cold_page_count": COLD_PAGE_COUNT,
+        "cold_payload_limit": effective_cold_limit,
+        "cold_payload": {
+            "bytes": len(cold_payload),
+            "sha256": hashlib.sha256(cold_payload).hexdigest(),
+        },
+        "static_frame_sha256": static_frame_hashes,
+    }
+    args.output.parent.mkdir(parents=True, exist_ok=True)
+    args.output.write_bytes(bytes(cold_payload))
+    args.actor_record_output.parent.mkdir(parents=True, exist_ok=True)
+    args.actor_record_output.write_bytes(attract_metadata)
+    args.actor_underlay_output.parent.mkdir(parents=True, exist_ok=True)
+    args.actor_underlay_output.write_bytes(attract_compressed)
+    args.tile_patch_output.parent.mkdir(parents=True, exist_ok=True)
+    args.tile_patch_output.write_bytes(instruction_patch_set + highscore_patch_set)
+    timer_record_bytes = len(name_entry["timer_base_tile_ids"]) * 4
+    args.timer_record_output.parent.mkdir(parents=True, exist_ok=True)
+    timer_records = bytes(cold_payload[
+        name_entry_timer_offset:name_entry_timer_offset + timer_record_bytes
+    ])
+    timer_lines = ["; Generated name-entry timer records for the page-$23 helper."]
+    for offset in range(0, len(timer_records), 16):
+        timer_lines.append(
+            "        fcb     " + ",".join(
+                f"${value:02X}" for value in timer_records[offset:offset + 16]
+            )
+        )
+    args.timer_record_output.write_text("\n".join(timer_lines) + "\n", encoding="ascii")
+    args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
+    args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
+                                    encoding="ascii")
+    emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars)
+    if shared:
+        shared.finish(manifest, tiles, cold_payload, instruction)
+        # BUG-052: reuse the existing authored phase-changing logo tiles.
+        _, logo_frames = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+        payload = bytearray(args.output.read_bytes())
+        logo_records = []
+        for y in range(24):
+            for x in range(40):
+                offset = y * 1280 + x * 4
+                pair = [b"".join(frame[offset + row * 160:offset + row * 160 + 4]
+                                 for row in range(8)) for frame in logo_frames]
+                if pair[0] == pair[1]:
+                    continue
+                pointers = []
+                for tile in pair:
+                    if len(payload) % PAGE_BYTES + len(tile) > PAGE_BYTES:
+                        payload.extend(bytes(PAGE_BYTES - len(payload) % PAGE_BYTES))
+                    pointers.append(len(payload))
+                    payload.extend(tile)
+                logo_records.append((framebuffer_destination((x, y + 6)), *pointers))
+        assert len(logo_records) == 12, len(logo_records)
+        assert all(record[2] == record[1] + 32 for record in logo_records)
+        assert len(payload) <= effective_cold_limit
+        args.output.write_bytes(payload)
+        manifest["highscore_logo"] = {
+            "records": logo_records,
+            "cells": 12,
+            "appended_bytes": len(payload) - manifest["cold_payload"]["bytes"],
+        }
+        manifest["cold_payload"] = {
+            "bytes": len(payload),
+            "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+        include = args.include_output.read_text(encoding="ascii")
+        include = re.sub(
+            r"PRESENTATION_COLD_SIZE equ \d+",
+            f"PRESENTATION_COLD_SIZE equ {len(payload)}",
+            include,
+        )
+        args.include_output.write_text(include, encoding="ascii")
+        args.include_output.with_name("ladybug_highscore_logo.inc").write_text(
+            "\n".join(
+                "        fdb " + ",".join(f"${n:04X}" for n in record[:2])
+                for record in logo_records
+            ) + "\n",
+            encoding="ascii",
+        )
+        args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
+                                        encoding="ascii")
+    # Place the boot-only bundle after the cold records in their second page.
+    bundle_address = 0xA000 + max(0, manifest["cold_payload"]["bytes"] - PAGE_BYTES)
+    if bundle_address + len(attract_compressed) + len(attract_metadata) > 0xC000:
+        raise ValueError("attract bundle exceeds remaining page-$3B cold allocation")
+    with args.include_output.open("a", encoding="ascii") as include:
+        include.write(f"\nPRESENTATION_ATTRACT_BUNDLE_PAGE equ $3B\n"
+                      f"PRESENTATION_ATTRACT_BUNDLE_ADDRESS equ ${bundle_address:04X}\n")
+    print(
+        f"presentation: {len(maps)} maps, {len(tiles)} native descriptors, "
+        f"{manifest['cold_payload']['bytes']} cold bytes, "
+        f"{manifest['cold_payload']['sha256']}"
+    )
+
+
+if __name__ == "__main__":
+    main()
