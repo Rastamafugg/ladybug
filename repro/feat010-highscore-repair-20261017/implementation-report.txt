@@ -1,0 +1,18 @@
+FEAT-010 High Score source-only implementation
+Date: 2026-10-18
+Status: exact two-file source implementation complete; parent review and one-build release remain pending.
+
+Applied the two approved in-memory transforms from `setup/prepare_projection.py.txt` to the fresh `candidate/` only. The module was loaded with a non-main name; its candidate-copy `main()` was not invoked. No setup, manifest, fixture, root source, wiki, canonical ticket, or other candidate file was edited.
+
+Source identity
+
+- `candidate/src/shared_text_stage.inc`: SHA-256 `e396cd3f26524a69dcda3035abbe54c4b9fd613324412850260ef5954c67ada3`; 57,182 bytes.
+- `candidate/scripts/build_presentation.py`: SHA-256 `1044377b4f73f7f219401b12464dd270442275c082e94ee73c4c180a509b3a92`; 113,627 bytes.
+- Both hashes equal the approved projected manifest. Raw UTF-8 bytes were written from the qualified transformations with original line endings preserved.
+- All 264 other source-input files match the frozen baseline hashes. Both authored TMX files are unchanged. All 379 frozen wiki files match their separately recorded hashes. No candidate `build/` directory exists.
+
+Qualification evidence and boundary
+
+Parent HS-S qualification passed in 0.680642600000283 seconds of 60 seconds. The retained result is `source-qualification-result.json`, bound to source-card SHA-256 `aaf80ed0b525181c59f39b81dccc2cf41bd33fb1687658acc204649370f9634f` and log SHA-256 `88bb5188589f466e46c88180141e6f820c8880207f11205caea27a650cf31408`. The pinned defective source rejected H1-H4 independently; the corrected in-memory fixture passed. This implementation step did not rerun the card.
+
+The implemented source has not been assembled or built. Capacity remains a projection: helper usage is expected to increase by 14 bytes; the approved 3,136-byte helper cap, 1,280-byte presentation cap, 7,680-byte asset cap, and resident minimum 32-byte free-space guard remain unmeasured for this revision. No ROM, emulator, GDB, or manual-flow result is claimed. Parent review of the exact source blobs is required before the single approved complete/keyboard/adaptive/6809 build release.
