@@ -1,0 +1,27 @@
+{
+  "status": "Ready",
+  "approval": "Exact-relocation correction and one renewed postcheck explicitly approved",
+  "qualification_result_sha256": "c4daed0b1f3fe2aa284518d7db2532955037d02ee87fca601ad2c18285397b45",
+  "post_card_sha256": "c470a95d4d3298d4ba246d5d6e848baf698f23ffff07e80f1124b8e772ca544b",
+  "rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+  "receipt_sha256": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+  "command": [
+    "wsl",
+    "-d",
+    "Ubuntu",
+    "--cd",
+    "/mnt/e/projects/ladybug",
+    "--exec",
+    "timeout",
+    "--signal=TERM",
+    "--kill-after=2s",
+    "58s",
+    "python3",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/clock-post-card.py.txt"
+  ],
+  "whole_phase_limit_seconds": 60,
+  "attempts": 1,
+  "stop": "First failure; no retry or rebuild",
+  "manual": "Pending; no visible continuity claim"
+}
