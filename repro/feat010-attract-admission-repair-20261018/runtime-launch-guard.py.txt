@@ -5,6 +5,7 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import signal
 import subprocess
 import sys
@@ -118,8 +119,8 @@ def verify_inputs(plan_sha: str) -> tuple[dict, dict, list[str]]:
     port = subprocess.run(["ss", "-H", "-ltn", "sport = :65521"], capture_output=True,
                           timeout=2, check=True)
     require(not port.stdout.strip(), "approved diagnostic port already has a listener")
-    for name in ("probe-attempt-a1r-phase-20261018.json", "probe-launch-a1r-phase-20261018.json", "probe-cleanup-a1r-phase-20261018.json",
-                 "probe-cleanup-request-a1r-phase-20261018", "probe-xroar-a1r-phase-20261018.log"):
+    for name in ("probe-attempt-a1r-attachment-20261018.json", "probe-launch-a1r-attachment-20261018.json", "probe-cleanup-a1r-attachment-20261018.json",
+                 "probe-cleanup-request-a1r-attachment-20261018", "probe-xroar-a1r-attachment-20261018.log"):
         require(not (WORK / name).exists(), f"one-shot A1-R output already exists: {name}")
     return plan, launch, [str(executable), *argv]
 
@@ -132,17 +133,69 @@ def identity(pid: int) -> dict:
             "start_ticks": stat[19]}
 
 
+def listener_owner(output: str, pid: int) -> bool:
+    rows = [line for line in output.splitlines() if line.strip()]
+    if not rows:
+        return False
+    require(len(rows) == 1, "Ambiguous listener rows")
+    parts = rows[0].split()
+    require(len(parts) >= 6 and parts[0] == "LISTEN"
+            and parts[3] == "127.0.0.1:65521", "Unexpected listener endpoint or output")
+    owners = re.findall(r"\bpid=(\d+)", rows[0])
+    require(owners == [str(pid)], "Listener does not have the exact single owned PID")
+    return True
+
+
+def wait_for_listener(process, expected: dict, phase_start_ms: int,
+                      samples: list, spawned_monotonic=None) -> dict:
+    began = time.monotonic() if spawned_monotonic is None else spawned_monotonic
+    deadline = min(began + 3, time.monotonic()
+                   + max(0, (phase_start_ms + 8000 - int(time.time() * 1000)) / 1000))
+    for index in range(6):
+        delay = began + index * .5 - time.monotonic()
+        if delay > 0:
+            time.sleep(min(delay, max(0, deadline - time.monotonic())))
+        require(time.monotonic() < deadline, "Listener readiness deadline reached")
+        require(process.poll() is None, "Owned child exited before readiness")
+        require(not (WORK / "probe-cleanup-request-a1r-attachment-20261018").exists(),
+                "Cleanup requested during readiness")
+        require(identity(process.pid) == expected, "Child identity changed during readiness")
+        entry = {"sample": index + 1, "phase_elapsed_ms": int(time.time() * 1000) - phase_start_ms}
+        samples.append(entry)
+        try:
+            result = subprocess.run(["ss", "-H", "-ltnp", "sport = :65521"],
+                                    capture_output=True, text=True,
+                                    timeout=min(.25, deadline - time.monotonic()), check=True)
+            entry.update(status="OK", raw_output=result.stdout)
+        except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as error:
+            entry.update(status="COMMAND ERROR", error=str(error))
+            raise
+        require(time.monotonic() <= deadline, "Listener sample exceeded readiness deadline")
+        if listener_owner(result.stdout, process.pid):
+            require(process.poll() is None and identity(process.pid) == expected,
+                    "Child identity changed before readiness publication")
+            require(not (WORK / "probe-cleanup-request-a1r-attachment-20261018").exists(),
+                    "Cleanup requested before readiness publication")
+            entry.update(endpoint="127.0.0.1:65521", owner_pid=process.pid)
+            return {"qualified": True, "pid": process.pid, "endpoint": "127.0.0.1:65521",
+                    "samples": len(samples), "elapsed_ms": (time.monotonic() - began) * 1000,
+                    "ready_epoch_ms": int(time.time() * 1000)}
+    raise RuntimeError("No owned listener within six passive samples")
+
+
 def guard(plan_sha: str, phase_start_ms: int) -> None:
     plan, spec, command = verify_inputs(plan_sha)
     require(phase_start_ms <= int(time.time() * 1000), "phase start timestamp is in the future")
     deadline_ms = phase_start_ms + 36000
     require(int(time.time() * 1000) < deadline_ms, "whole-phase cleanup deadline has already arrived")
-    (WORK / "probe-attempt-a1r-phase-20261018.json").write_text(json.dumps({
+    (WORK / "probe-attempt-a1r-attachment-20261018.json").write_text(json.dumps({
         "card": "A1-R", "attempt": 1, "plan_sha256": plan_sha,
         "phase_started_epoch_ms": phase_start_ms, "whole_phase_limit_seconds": 45,
         "cleanup_begins_by_seconds": 37,
     }, indent=2) + "\n", encoding="utf-8")
-    log = (WORK / "probe-xroar-a1r-phase-20261018.log").open("xb")
+    require(int(time.time() * 1000) < phase_start_ms + 8000, "Startup deadline reached before spawn")
+    spawned_monotonic = time.monotonic()
+    log = (WORK / "probe-xroar-a1r-attachment-20261018.log").open("xb")
     process = subprocess.Popen(command, cwd=spec["cwd"], stdin=subprocess.DEVNULL,
                                stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
     expected = None
@@ -150,23 +203,28 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
     outcome = "Owned process exited"
     signals = []
     cleanup_started_ms = None
+    samples = []
+    listener_ready = None
     try:
         expected = identity(process.pid)
         require(expected["exe"] == str(Path(spec["executable"]).resolve()),
                 "child executable path differs from the pinned identity")
         require(expected["argv_bytes"] == [os.fsencode(value) for value in command],
                 "child argv differs from the exact frozen launch")
+        listener_ready = wait_for_listener(process, expected, phase_start_ms, samples, spawned_monotonic)
         launch_record = {
             "pid": expected["pid"], "exe": expected["exe"], "argv": command,
+            "listener_ready": listener_ready,
             "start_ticks": expected["start_ticks"], "started_epoch_ms": started_epoch_ms,
             "plan_sha256": plan_sha, "rom_sha256": EXPECTED["rom_sha256"],
             "launch_guard_sha256": digest(Path(__file__)), "phase_started_epoch_ms": phase_start_ms,
             "utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         }
-        (WORK / "probe-launch-a1r-phase-20261018.json").write_text(json.dumps(launch_record, indent=2) + "\n", encoding="utf-8")
+        require(int(time.time() * 1000) <= phase_start_ms + 8000, "Startup deadline reached before publication")
+        (WORK / "probe-launch-a1r-attachment-20261018.json").write_text(json.dumps(launch_record, indent=2) + "\n", encoding="utf-8")
         print(json.dumps(launch_record), flush=True)
         while int(time.time() * 1000) < deadline_ms:
-            if process.poll() is not None or (WORK / "probe-cleanup-request-a1r-phase-20261018").exists():
+            if process.poll() is not None or (WORK / "probe-cleanup-request-a1r-attachment-20261018").exists():
                 break
             time.sleep(0.02)
     finally:
@@ -203,6 +261,9 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
                             outcome = "Owned process did not exit after KILL"
                     else:
                         outcome = "Identity changed before KILL; no KILL sent"
+        (WORK / "probe-readiness-a1r-attachment-20261018.json").write_text(
+            json.dumps({"qualified": listener_ready is not None, "proof": listener_ready,
+                        "samples": samples}, indent=2) + "\n", encoding="utf-8")
         elapsed_ms = int(time.time() * 1000) - phase_start_ms
         cleanup_record = {
             "outcome": outcome, "signals": signals, "returncode": process.poll(),
@@ -212,7 +273,7 @@ def guard(plan_sha: str, phase_start_ms: int) -> None:
             "elapsed_seconds": round(elapsed_ms / 1000, 3), "within_45_seconds": elapsed_ms <= 45000,
             "plan_sha256": plan_sha,
         }
-        (WORK / "probe-cleanup-a1r-phase-20261018.json").write_text(json.dumps(cleanup_record, indent=2) + "\n", encoding="utf-8")
+        (WORK / "probe-cleanup-a1r-attachment-20261018.json").write_text(json.dumps(cleanup_record, indent=2) + "\n", encoding="utf-8")
         log.close()
         print(json.dumps(cleanup_record), flush=True)
 
@@ -225,21 +286,21 @@ def main() -> None:
                 "invalid frozen plan SHA")
         # Validate before starting the detached guard and before any target launch.
         verify_inputs(plan_sha)
-        with (WORK / "probe-driver-a1r-phase-20261018.log").open("xb") as driver_log:
+        with (WORK / "probe-driver-a1r-attachment-20261018.log").open("xb") as driver_log:
             child = subprocess.Popen([sys.executable, "-B", __file__, "--guard", plan_sha,
                                       str(phase_start_ms)], stdin=subprocess.DEVNULL,
                                      stdout=driver_log, stderr=subprocess.STDOUT, start_new_session=True)
-        until = min(time.monotonic() + 3, time.monotonic() + max(0, (phase_start_ms + 36000 - int(time.time() * 1000)) / 1000))
+        until = time.monotonic() + max(0, (phase_start_ms + 8000 - int(time.time() * 1000)) / 1000)
         while time.monotonic() < until:
-            identity_path = WORK / "probe-launch-a1r-phase-20261018.json"
+            identity_path = WORK / "probe-launch-a1r-attachment-20261018.json"
             if identity_path.exists():
                 print(identity_path.read_text(), flush=True)
                 return
             if child.poll() is not None:
                 break
             time.sleep(0.02)
-        if not (WORK / "probe-cleanup-request-a1r-phase-20261018").exists():
-            (WORK / "probe-cleanup-request-a1r-phase-20261018").touch(exist_ok=True)
+        if not (WORK / "probe-cleanup-request-a1r-attachment-20261018").exists():
+            (WORK / "probe-cleanup-request-a1r-attachment-20261018").touch(exist_ok=True)
         print(json.dumps({"outcome": "No launch identity; stop", "guard_pid": child.pid}), flush=True)
         raise SystemExit(1)
     if len(args) == 3 and args[0] == "--guard":

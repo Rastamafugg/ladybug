@@ -3,12 +3,21 @@ const session = load('attractA1RSession');
 const ready = load('attractA1RReady');
 const work = 'E:/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
 const wslWork = '/mnt/e/projects/ladybug/repro/feat010-attract-admission-repair-20261018';
-const audit = {card: 'A1-R', phase_revision: 'a1r-phase-20261018', outcome: 'NOT STARTED',
+const audit = {card: 'A1-R', phase_revision: 'a1r-attachment-20261018', outcome: 'NOT STARTED',
                stops: [], gdb_calls: [], last_proven_marker: 'none', launch_attempted: false};
 const started = Date.now();
 const phaseStartedEpochMs = started;
 function fail(message, kind = 'OBSERVER FAILURE; STOP') {
   const error = new Error(message); error.kind = kind; throw error;
+}
+function listenerReadyForLaunch(launch, phaseStart) {
+  const proof = launch?.listener_ready;
+  return Number.isInteger(launch?.pid) && launch.pid > 0 && proof?.qualified === true
+    && proof.pid === launch.pid && proof.endpoint === '127.0.0.1:65521'
+    && Number.isInteger(proof.samples) && proof.samples >= 1 && proof.samples <= 6
+    && Number.isFinite(proof.elapsed_ms) && proof.elapsed_ms >= 0 && proof.elapsed_ms <= 3000
+    && Number.isFinite(proof.ready_epoch_ms) && proof.ready_epoch_ms >= phaseStart
+    && proof.ready_epoch_ms <= phaseStart + 8000;
 }
 function requireReady() {
   if (!plan || plan.card !== 'A1-R' || plan.status !== 'offline plan; no target qualified') fail('Missing or unexpected frozen A1-R plan');
@@ -108,14 +117,18 @@ try {
   requireReady();
   const launchCommand = `wsl -d Ubuntu --exec python3 -B ${wslWork}/runtime-launch-guard.py.txt --start ${ready.plan_sha256} ${phaseStartedEpochMs}`;
   audit.launch_attempted = true;
-  const launch = await tools.exec_command({cmd: launchCommand, yield_time_ms: 5000, max_output_tokens: 1800});
+  const launch = await tools.exec_command({cmd: launchCommand, yield_time_ms: 10000, max_output_tokens: 1800});
   audit.launch_tool = {exit_code: launch.exit_code, output: launch.output, session_id: launch.session_id};
   if (launch.exit_code !== 0 || launch.session_id) fail('Owned A1-R launch did not return its frozen process identity');
   audit.launch = JSON.parse(launch.output.trim());
   if (!audit.launch.pid || audit.launch.plan_sha256 !== ready.plan_sha256
       || audit.launch.rom_sha256 !== plan.artifacts.rom_sha256) fail('Owned launch identity or plan/artifact hash differs');
 
-  const attachRows = await batch(plan.execution_recipe.initial_attach_commands, 1);
+  if (!listenerReadyForLaunch(audit.launch, phaseStartedEpochMs)) fail('Owned listener readiness proof is missing or invalid');
+  const attachRows = [
+    ...await batch([plan.execution_recipe.initial_attach_commands[0]], 3),
+    ...await batch(plan.execution_recipe.initial_attach_commands.slice(1), 1),
+  ];
   audit.attach = attachRows.map(row => ({command: row.command, output: row.output}));
   for (let index = 0; index < plan.execution_recipe.stops.length; index++) {
     const stop = plan.execution_recipe.stops[index];
@@ -190,11 +203,11 @@ try {
 } finally {
   try {
     if (audit.launch_attempted) {
-      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request-a1r-phase-20261018\n+Approved A1-R phase probe ended.\n*** End Patch');
+      audit.cleanup_request = await tools.apply_patch('*** Begin Patch\n*** Add File: ' + work + '/probe-cleanup-request-a1r-attachment-20261018\n+Approved A1-R phase probe ended.\n*** End Patch');
     }
     if (audit.launch_attempted) {
       audit.gdb_cleanup = await tools.mcp__gdb_mcp__stop_session({session_id: session});
-      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup-a1r-phase-20261018.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
+      const cleanup = await tools.exec_command({cmd: `wsl -d Ubuntu --exec python3 -B -c "import time,pathlib; p=pathlib.Path('${wslWork}/probe-cleanup-a1r-attachment-20261018.json'); [time.sleep(.02) for _ in range(100) if not p.exists()]; print(p.read_text() if p.exists() else '{}')"`, yield_time_ms: 3000, max_output_tokens: 1400});
       audit.process_cleanup = JSON.parse(cleanup.output.trim() || '{}');
       if (!audit.process_cleanup.owned_process_exited || !audit.process_cleanup.cleanup_started_by_37_seconds
           || !audit.process_cleanup.within_45_seconds || audit.gdb_cleanup.isError) audit.outcome = 'CLEANUP INCOMPLETE; STOP';
