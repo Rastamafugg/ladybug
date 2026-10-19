@@ -1,0 +1,139 @@
+[
+  {
+    "phase": "R-I",
+    "operation": "start_session",
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"session_id\": \"8c1206c5\",\n  \"binary\": null\n}"
+        }
+      ],
+      "isError": false
+    },
+    "elapsed_ms": 939
+  },
+  {
+    "phase": "R-I",
+    "elapsed_ms": 977,
+    "commands": [
+      "show architecture",
+      "set remote supported-packets-packet off",
+      "set confirm off",
+      "set pagination off",
+      "set breakpoint pending on"
+    ],
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"show architecture\",\n  \"output\": \"The target architecture is set to \\\"auto\\\" (currently \\\"m6809\\\").\\n\",\n  \"error\": false\n}"
+        },
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"set remote supported-packets-packet off\",\n  \"output\": \"Support for the 'qSupported' packet on future remote targets is set to \\\"off\\\".\\n\",\n  \"error\": false\n}"
+        },
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"set confirm off\",\n  \"output\": \"\",\n  \"error\": false\n}"
+        },
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"set pagination off\",\n  \"output\": \"\",\n  \"error\": false\n}"
+        },
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"set breakpoint pending on\",\n  \"output\": \"\",\n  \"error\": false\n}"
+        }
+      ],
+      "structuredContent": {
+        "result": [
+          {
+            "command": "show architecture",
+            "output": "The target architecture is set to \"auto\" (currently \"m6809\").\n",
+            "error": false
+          },
+          {
+            "command": "set remote supported-packets-packet off",
+            "output": "Support for the 'qSupported' packet on future remote targets is set to \"off\".\n",
+            "error": false
+          },
+          {
+            "command": "set confirm off",
+            "output": "",
+            "error": false
+          },
+          {
+            "command": "set pagination off",
+            "output": "",
+            "error": false
+          },
+          {
+            "command": "set breakpoint pending on",
+            "output": "",
+            "error": false
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  {
+    "phase": "R-I",
+    "elapsed_ms": 3404,
+    "commands": [
+      "target remote 127.0.0.1:65520",
+      "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u"
+    ],
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"target remote 127.0.0.1:65520\",\n  \"output\": \"Remote debugging using 127.0.0.1:65520\\n0x0000057c in ?? ()\\n[Stopped: in ??]\\n\",\n  \"error\": false\n}"
+        },
+        {
+          "type": "text",
+          "text": "{\n  \"command\": \"printf \\\"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\\\n\\\",$pc,$dp,$x,$y,$u\",\n  \"output\": \"pc=057c dp=02 x=a2b2 y=a359 u=e937\\n\",\n  \"error\": false\n}"
+        }
+      ],
+      "structuredContent": {
+        "result": [
+          {
+            "command": "target remote 127.0.0.1:65520",
+            "output": "Remote debugging using 127.0.0.1:65520\n0x0000057c in ?? ()\n[Stopped: in ??]\n",
+            "error": false
+          },
+          {
+            "command": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+            "output": "pc=057c dp=02 x=a2b2 y=a359 u=e937\n",
+            "error": false
+          }
+        ]
+      },
+      "isError": false
+    }
+  },
+  {
+    "phase": "R-I",
+    "operation": "abort",
+    "response": {
+      "chunk_id": "5908c9",
+      "wall_time_seconds": 0.3953639,
+      "exit_code": 0,
+      "original_token_count": 9,
+      "output": "{\"pid\": 1967, \"status\": \"ABORTED\"}\n"
+    }
+  },
+  {
+    "operation": "stop_session",
+    "response": {
+      "content": [
+        {
+          "type": "text",
+          "text": "{\n  \"stopped\": true\n}"
+        }
+      ],
+      "isError": false
+    }
+  }
+]

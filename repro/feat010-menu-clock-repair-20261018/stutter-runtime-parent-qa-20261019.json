@@ -1,0 +1,46 @@
+{
+  "ticket": "FEAT-010",
+  "date": "2026-10-19",
+  "class": "High-risk",
+  "verdict": "OBSERVER_SETUP_REJECTED",
+  "ready_commit": "3bf36c1e",
+  "phase": "R-I",
+  "reason": "Controller required literal SIGINT in MCP rendered output; successful remote attach instead rendered stopped target without signal-name",
+  "rejected_runtime_attempts": 1,
+  "observation_tool_timeouts": 0,
+  "identity_assertion_elapsed_seconds": 3.404,
+  "total_including_owned_cleanup_seconds": 4.011,
+  "deadline_seconds": 60,
+  "target_stops": 1,
+  "guest_memory_read_commands": 0,
+  "guest_memory_read_bytes": 0,
+  "code_identity_proved": false,
+  "trace_phase": "NOT_RUN_PREREQUISITE_FAILURE",
+  "native_trace_log_bytes": 0,
+  "last_proven": "Pinned host/artifact identities, ownedPID/listener, successful GDB-MCP target attach and stopped scalar register response",
+  "observed_registers": {
+    "pc": "057C",
+    "u": "E937",
+    "x": "A2B2",
+    "dp": "02",
+    "y": "A359"
+  },
+  "register_interpretation": "Raw values only; no routine/phase/symbol inference before byte/mapping proof. Whether C002 was already passed was not tested.",
+  "cleanup": {
+    "pid_absent_confirmed": true,
+    "listener65520_absent_confirmed": true,
+    "start_ticks": "6080664",
+    "pid": 1967,
+    "action": "Guard exact-identity TERM; GDB stop_session8c1206c5 returned stopped:true"
+  },
+  "source_finding": "Pinned GDB-MCP gdb.py formatter lines93-103 retains reason/function/file/line and omits signal-name. XRoar gdb.c accept signals MACHINE_SIGINT; stop query? sends last signal S%02x. This source behavior does not substitute for live stop-signal verification.",
+  "remaining_competing_causes": [
+    "Observer signal formatting assumption confirmed defective",
+    "Early bootstrap may be missed during launch-to-attach interval; untested and no named PC inference",
+    "No evidence about game stutter, phase skips or stale pixels"
+  ],
+  "qualifier_reruns": 0,
+  "production_changes": 0,
+  "capacity_change_bytes": 0,
+  "decision": "Stop firstfailure; no retry. Source-only next-step reassessment assigned to Luna Extra High before renewed proposal."
+}
