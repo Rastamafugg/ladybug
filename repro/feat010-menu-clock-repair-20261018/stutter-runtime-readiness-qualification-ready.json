@@ -1,0 +1,43 @@
+{
+  "ticket": "FEAT-010",
+  "status": "Ready",
+  "phase": "R-Q offline qualification only",
+  "approval": "User runtime identity and trace-readiness scope and R-Q/R-I/R-T cards",
+  "owner": "Parent",
+  "class": "High-risk",
+  "files_sha256": {
+    "stutter-runtime-guard.py.txt": "d1b409273e2ec046a3e334f77cdf364206808189242579ed97bda20e113ff4d7",
+    "stutter-trace-window.py.txt": "4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
+    "stutter-runtime-readiness-qualification.py.txt": "e152c8975837cf4df595c98897654d39c231da6c481e0ada49dc29f553263278",
+    "stutter-observer.py.txt": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+    "stutter-runtime-parent-source-proof.json": "c70ff0c9dca3328e27f02df185eb4ce1ea179da40ca99539241b3e4ca078ab0c"
+  },
+  "command": "wsl.exe --cd /mnt/e/projects/ladybug timeout --signal=TERM --kill-after=1 58s python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt",
+  "deadline_seconds": 60,
+  "attempts": 1,
+  "expected": {
+    "identity_good": "IDENTITY_COMPLETE_SYNTHETIC",
+    "enemy_slot_byte": "SETUP_REJECTED",
+    "low_six_mapping": "SETUP_REJECTED",
+    "relocation_byte": "SETUP_REJECTED",
+    "authored_source_byte": "SETUP_REJECTED",
+    "4091_vs_4096": "SETUP_REJECTED",
+    "relocated_pc": "SETUP_REJECTED",
+    "handoff_expiry": "EXPIRED_REJECTED",
+    "handoff_count": "SECOND_HANDOFF_REJECTED",
+    "phase_deadline": "52S_WORK_60S_PHASE",
+    "vector_dt_and_window": "WINDOW_READY_SYNTHETIC",
+    "unequal_spacing": "UNEQUAL_OBSERVED_SPACING",
+    "phase_anomaly": "PHASE_ANOMALY_WITH_TIMELINES",
+    "missing_sample": "MISSING_COVERAGE_SETUP_REJECTED",
+    "missing_frames": "SETUP_REJECTED",
+    "unknown_timing_row": "SETUP_REJECTED",
+    "second_activation": "SETUP_REJECTED",
+    "pixel_replay": "UNSUPPORTED_WITHOUT_PIXELS",
+    "host_fps": "UNSUPPORTED"
+  },
+  "fixture_identity": "Fixtures embedded in the pinned qualification source, synthetic only; 33 timers6..38 plus source-legal unpaired startup1..5; vector-first invalid delta; 239856 event ticks per field; FRAMES100..133; exact expected dictionary above",
+  "source_review": "stutter-runtime-parent-source-proof.json; source1C62 one-entry and guest horizon reviewed by parent",
+  "scope": "Read pinned local artifacts and in-memory fixtures only. No emulator, GDB, subprocess from qualifier, production change, old STUTTER-Q rerun, or runtime claims.",
+  "stop": "First failure stops; no repair or rerun under current card"
+}

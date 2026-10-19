@@ -1,0 +1,31 @@
+{
+  "ticket": "FEAT-010",
+  "kind": "Parent source review, no runtime evidence",
+  "date": "2026-10-18",
+  "source_sha256": {
+    "candidate/src/presentation_runtime.s": "10cdd089e0f993b474fdc08256ca4d1265d8052160d1d60904c21399b45b9506",
+    "candidate/src/main.s": "0a8d620cea3202d225579c2879b6ed79d14704c97fbcb7cda6d10e4e76d6e72d",
+    "candidate/src/shared_text_stage.inc": "d7f8474b06f86f98cccdfb6bc6f5370b49774cd7413dad099bae46587ef85633",
+    "candidate/src/perimeter_reset_helper.s": "a1e6c372922b8976bdba136825aba594ee91458a203f3985fc75f29eb3434e6c",
+    "candidate/src/enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+    "candidate/src/adaptive_runtime.s": "ffa30b03a31da2f2154d76c8aab2bfac1d46b67ffc35b4d4fba6f3dfe24d661c",
+    "candidate/build/ladybug-perimeter-reset-helper.lst": "ee01d49f370b63ccacc1ca335fe6de5d249d9ded429afd28c816b4ecb5e0bfed",
+    "candidate/build/ladybug-presentation-runtime.lst": "a99f659f48c108556768d58d2fe6e5f57d2016fd1fa0a1c84d18414eea34d6c9"
+  },
+  "unique_trigger": {
+    "source": "presentation_runtime.s:819-826",
+    "pc": "1C62",
+    "condition": "HOLD_FINAL=81, PENDING=0; clears HOLD_STATE once; subsequent no-input Attract dispatches bypass this instruction",
+    "reload": "Only load_done_hold_second sets HOLD_FINAL in this compiled path; no input and next natural screen threshold is 558 presentation counter advances",
+    "opcode": "0FD4"
+  },
+  "guest_horizon": {
+    "minimum_advances_to_idle_reload": 558,
+    "seconds": 2,
+    "ntsc_fields_maximum": 121,
+    "proof": "main.s adaptive mainloop SYNC + AD_CLOCK_EXEC vs AD_LAST_TIME bounds one presentation dispatch per distinct IRQ FRAMES value. adaptive_runtime.s clock reads FRAMES. Two NTSC guest seconds cannot reach 558 distinct fields."
+  },
+  "timeout_clock": "xroar.c xroar_set_timeout uses MACHINE_EVENT_LIST and EVENT_S; guest event time, not wall time",
+  "startup": "Helper 07E7 loads timer; SUBD #6 / BLO CLRA bypasses phase marker07F3 for timers below6. Native first event dt invalid; all later CPU/vector deltas retained.",
+  "limits": "Source review does not prove 32768 instructions contain 33 eligible samples. Missing runtime coverage is not passing evidence or evidence of slowdown."
+}
