@@ -1,13 +1,13 @@
 {
   "schema": "ladybug.feat010.controller-integration.freeze.v1",
-  "status": "APPROVED_SOURCE_PREPARATION_ONLY",
+  "status": "BLOCKED_STOP_ATTRIBUTION_SCOPE",
   "approval_proposal_commit": "57e121d9",
   "approval": "User explicitly approved bounded offline controller integration scope and five cards",
   "runtime_ready": false,
   "runtime_attempts_authorized": 0,
   "installation_authorized": false,
   "qualification_dispatch_authorized": false,
-  "source_assignment": "Python source reviewed commit9190b34f; next owned-stop additive source boundary. All executable gates remain held.",
+  "source_assignment": "Python source reviewed commit9190b34f; owned-stop source inspection stopped without edits. Reader/asynchronous-state recovery exceeds additive scope.",
   "linux_node": {
     "path": "/home/rastamafugg/.nvm/versions/node/v20.19.5/bin/node",
     "sha256": "8d01d4c50e7a9047d70196f8fc6f1b165069065b44bd9402491544bd70586c7d"
@@ -239,5 +239,17 @@
   "reviewed_python_sha256": {
     "python/analysis.py": "f6776ddd7db094d13609bcb30bd668236ed09d0bff28c5f987cfe9a7a06bd8f3",
     "python/stutter-trace-window.py": "349bd26405d96ef9ad3862af364fa3d7b680d6b51393be0b5ff050281bc90b5c"
+  },
+  "blocker": {
+    "classification": "Source/design boundary; not a failed runtime or qualification",
+    "source_method": "GdbSession._send_operation",
+    "source_line": 247,
+    "related_boundaries": [
+      "_format_output:147",
+      "interrupt:277",
+      "_quit_and_drain:327"
+    ],
+    "reason": "The supported untokened asynchronous stop record has no command identity. Serialized writers alone cannot prove that an event was caused by the current owned command.",
+    "required_reassessment": "Persistent raw-reader sequencing and asynchronous-state ownership across legacy send/interrupt/close, or a separately justified narrower contract; renewed approval before changes."
   }
 }

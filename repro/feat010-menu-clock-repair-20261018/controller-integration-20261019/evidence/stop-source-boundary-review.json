@@ -1,0 +1,31 @@
+{
+  "schema": "ladybug.feat010.controller-integration.source-boundary-review.v1",
+  "ticket": "FEAT-010",
+  "result": "BLOCKED_SCOPE_REASSESSMENT_REQUIRED",
+  "source_only": true,
+  "python_source_commit": "9190b34f918260b13857923ec3742896b1b5135b",
+  "parent_review_commit": "ade8ad98",
+  "reviewed_service_sha256": {
+    "service/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+    "service/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb"
+  },
+  "confirmed_source_findings": [
+    "Actual _send_operation writes/drains before collecting lines under the session lock and returns formatted text at a prompt.",
+    "Supported *stopped records have no command-ID field inspected or preserved by this path.",
+    "interrupt and quit/drain operate outside the serialized command reader.",
+    "No persistent raw-reader sequencing/state ownership spans those paths."
+  ],
+  "logical_counterexample": "Current command result can be token-correlated while a delayed asynchronous stop from an earlier/out-of-band action is read inside the same collection interval. No existing inspected field distinguishes that stop from one caused by the current command. This is source/design analysis, not an observed native trace.",
+  "rejected_alternatives": [
+    "Attribute stop by collection proximity or session lock alone.",
+    "Infer SIGINT from formatted text or human label.",
+    "Treat all stops UNKNOWN while claiming positive attach/continue acceptance passed.",
+    "Silently alter qualified legacy reader/interrupt/close semantics under additive scope."
+  ],
+  "service_files_modified": false,
+  "qualification_attempts": 0,
+  "runtime_attempts": 0,
+  "installation_authorized": false,
+  "runtime_ready": false,
+  "residual": "Python source execution remains unqualified; all five gates, guard, full controller and real native/transport readiness remain pending."
+}
