@@ -1,0 +1,829 @@
+'use strict';
+
+// Inert, fixed-scenario offline controller. It has no default adapter, process
+// entry point, filesystem access, real clock, or tool imports. The injected
+// adapter contract is intended only for reviewed mock qualification until a
+// separately approved service ownership/cancellation contract exists.
+
+const REGISTER_COMMAND = 'printf "pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n",$pc,$dp,$x,$y,$u';
+const STATUS_COMMAND = 'maintenance packet ?';
+const DUMP_ROOT = '/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-review-20261019/v2-results';
+const OPTIONAL_DESCRIPTOR_TEXT = 'Allow exactly one nonmatching descriptor stop at03D4 between enemy_post and helper_pre; record pc/u/x/y as helper_candidate, then one more continue. Any second nonmatch stops. Delete this breakpoint after target match before arming042A.';
+
+const LIMITS = Object.freeze({
+  totalMs: 60000,
+  workMs: 52000,
+  cleanupMs: 8000,
+  reads: 32,
+  readBytes: 32768,
+  stops: 8,
+  traceCpuInstructions: 32768
+});
+
+const CHECKPOINTS = Object.freeze([
+  Object.freeze({ name: 'C002', arm: 'tbreak *0xC002', run: 'continue', expected: Object.freeze({ pc: 0xC002 }) }),
+  Object.freeze({ name: 'enemy_pre', arm: 'tbreak *0x0350', run: 'continue', expected: Object.freeze({ pc: 0x0350, dp: 0x02, x: 0xC800, y: 0x0800 }) }),
+  Object.freeze({ name: 'enemy_post', arm: 'tbreak *0x0375', run: 'continue', expected: Object.freeze({ pc: 0x0375, dp: 0x02 }) }),
+  Object.freeze({ name: 'helper_pre', arm: 'break *0x03D4', run: 'continue', expected: Object.freeze({ pc: 0x03D4, dp: 0x02, x: 334, y: 0x06B2, u: 0xC802 }), allowOneDescriptor: true }),
+  Object.freeze({ name: 'helper_post', arm: 'tbreak *0x042A', run: 'continue', expected: Object.freeze({ pc: 0x042A, dp: 0x02, y: 0x0800 }) }),
+  Object.freeze({ name: 'B080', arm: 'tbreak *0xB080', run: 'continue', expected: Object.freeze({ pc: 0xB080, dp: 0x00 }) })
+]);
+
+// The exact Ready-assignment source/byte/PAR read recipe. End addresses are
+// derived as start + length, preserving each reviewed half-open memory span.
+const READ_RECIPE = Object.freeze([
+  Object.freeze({ checkpoint: 'C002', name: 'boot', address: 0xC000, length: 86, file: 'C002-boot.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'relocated_loader', address: 0x0300, length: 1324, file: 'enemy_pre-relocated_loader.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'enemy_rom', address: 0xC800, length: 4096, file: 'enemy_pre-enemy_rom.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'aux_b3_f495', address: 0xF495, length: 2411, file: 'enemy_pre-aux_b3_f495.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'aux_b3_c000', address: 0xC000, length: 16, file: 'enemy_pre-aux_b3_c000.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'aux_b3_c012', address: 0xC012, length: 2030, file: 'enemy_pre-aux_b3_c012.bin' }),
+  Object.freeze({ checkpoint: 'enemy_pre', name: 'par', address: 0xFFA0, length: 8, file: 'enemy_pre-par.bin' }),
+  Object.freeze({ checkpoint: 'enemy_post', name: 'enemy_dest', address: 0x0800, length: 4096, file: 'enemy_post-enemy_dest.bin' }),
+  Object.freeze({ checkpoint: 'enemy_post', name: 'par', address: 0xFFA0, length: 8, file: 'enemy_post-par.bin' }),
+  Object.freeze({ checkpoint: 'helper_pre', name: 'helper_source', address: 0xC802, length: 334, file: 'helper_pre-helper_source.bin' }),
+  Object.freeze({ checkpoint: 'helper_pre', name: 'aux_b0_c950', address: 0xC950, length: 706, file: 'helper_pre-aux_b0_c950.bin' }),
+  Object.freeze({ checkpoint: 'helper_pre', name: 'presentation_source', address: 0xCC92, length: 1279, file: 'helper_pre-presentation_source.bin' }),
+  Object.freeze({ checkpoint: 'helper_pre', name: 'descriptor', address: 0x0200, length: 96, file: 'helper_pre-descriptor.bin' }),
+  Object.freeze({ checkpoint: 'helper_pre', name: 'par', address: 0xFFA0, length: 8, file: 'helper_pre-par.bin' }),
+  Object.freeze({ checkpoint: 'helper_post', name: 'helper_dest', address: 0x06B2, length: 334, file: 'helper_post-helper_dest.bin' }),
+  Object.freeze({ checkpoint: 'helper_post', name: 'par', address: 0xFFA0, length: 8, file: 'helper_post-par.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'aux_dest', address: 0xA422, length: 5163, file: 'B080-aux_dest.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'helper_dest', address: 0x06B2, length: 334, file: 'B080-helper_dest.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'enemy_dest', address: 0x0800, length: 4096, file: 'B080-enemy_dest.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'presentation_dest', address: 0x1900, length: 1279, file: 'B080-presentation_dest.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'par', address: 0xFFA0, length: 8, file: 'B080-par.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'mode_screen', address: 0x00A5, length: 2, file: 'B080-mode_screen.bin' }),
+  Object.freeze({ checkpoint: 'B080', name: 'timer', address: 0x00B0, length: 2, file: 'B080-timer.bin' })
+]);
+
+function fault(code, classification, message, details) {
+  const error = new Error(message || code);
+  error.code = code;
+  error.classification = classification;
+  error.details = details || null;
+  return error;
+}
+
+function snapshotForEvidence(value) {
+  if (value === undefined) return null;
+  try { return JSON.parse(JSON.stringify(value)); }
+  catch { return { uncopyableType: typeof value, message: String(value) }; }
+}
+
+function typedErrorPresent(value, depth = 0) {
+  if (depth > 6 || value === null || typeof value !== 'object') return false;
+  if (Object.prototype.hasOwnProperty.call(value, 'error') && value.error !== false && value.error !== null) return true;
+  if (Array.isArray(value)) return value.some((entry) => typedErrorPresent(entry, depth + 1));
+  return Object.values(value).some((entry) => typedErrorPresent(entry, depth + 1));
+}
+
+function textJsonRecords(response) {
+  if (!response || typeof response !== 'object') throw fault('BAD_ENVELOPE', 'SETUP_FAILURE', 'Response envelope is absent or not an object');
+  if (response.isError !== undefined && response.isError !== false) throw fault('OUTER_ERROR', 'SETUP_FAILURE', 'Outer MCP envelope reports an error');
+  if (!Array.isArray(response.content)) throw fault('BAD_CONTENT', 'SETUP_FAILURE', 'Text content channel is absent');
+  const records = [];
+  for (const item of response.content) {
+    if (!item || item.type !== 'text' || typeof item.text !== 'string') throw fault('BAD_CONTENT_ITEM', 'SETUP_FAILURE', 'Response content contains a non-text item');
+    let value;
+    try { value = JSON.parse(item.text); }
+    catch { throw fault('BAD_JSON_TEXT', 'SETUP_FAILURE', 'Response text is not a JSON record'); }
+    if (!value || typeof value !== 'object' || Array.isArray(value)) throw fault('BAD_JSON_RECORD', 'SETUP_FAILURE', 'Response text JSON is not an object');
+    records.push(value);
+  }
+  return records;
+}
+
+function decodeSessionResponse(response) {
+  if (!response || typeof response !== 'object') throw fault('BAD_SESSION_ENVELOPE', 'SETUP_FAILURE', 'Start-session result is absent');
+  if (response.isError !== undefined && response.isError !== false) throw fault('SESSION_OUTER_ERROR', 'SETUP_FAILURE', 'Start-session outer envelope reports an error');
+  if (response.content !== undefined && !Array.isArray(response.content)) throw fault('SESSION_BAD_CONTENT', 'SETUP_FAILURE', 'Start-session content channel is not an array');
+  const ids = [];
+  if (Array.isArray(response.content)) {
+    for (const item of response.content) {
+      if (!item || item.type !== 'text' || typeof item.text !== 'string') throw fault('SESSION_BAD_CONTENT', 'SETUP_FAILURE', 'Start-session content is not typed text');
+      let record;
+      try { record = JSON.parse(item.text); }
+      catch { throw fault('SESSION_BAD_JSON', 'SETUP_FAILURE', 'Start-session text is not JSON'); }
+      if (!record || typeof record !== 'object' || Array.isArray(record)) throw fault('SESSION_BAD_RECORD', 'SETUP_FAILURE', 'Start-session text JSON is not an object');
+      if (typedErrorPresent(record)) throw fault('SESSION_TYPED_ERROR', 'SETUP_FAILURE', 'Start-session record reports a nested typed error');
+      if (Object.prototype.hasOwnProperty.call(record, 'session_id')) {
+        if (typeof record.session_id !== 'string' || record.session_id.trim() === '') throw fault('SESSION_ID_INVALID', 'SETUP_FAILURE', 'Start-session ID is not an opaque nonempty string');
+        ids.push(record.session_id);
+      }
+    }
+  }
+  const structured = response.structuredContent;
+  if (structured !== undefined) {
+    if (!structured || typeof structured !== 'object' || Array.isArray(structured)) throw fault('SESSION_BAD_STRUCTURED', 'SETUP_FAILURE', 'Structured start-session content is invalid');
+    if (typedErrorPresent(structured)) throw fault('SESSION_STRUCTURED_ERROR', 'SETUP_FAILURE', 'Structured start-session result contains a typed error');
+    for (const structuredId of [structured.session_id, structured.result?.session_id]) {
+      if (structuredId === undefined) continue;
+      if (typeof structuredId !== 'string' || structuredId.trim() === '') throw fault('SESSION_ID_INVALID', 'SETUP_FAILURE', 'Structured session ID is not an opaque nonempty string');
+      ids.push(structuredId);
+    }
+  }
+  if (ids.length === 0) throw fault('SESSION_ID_MISSING', 'SETUP_FAILURE', 'No successful session ID was returned');
+  if (ids.some((id) => id !== ids[0])) throw fault('SESSION_ID_CONFLICT', 'SETUP_FAILURE', 'Session ID channels disagree');
+  return Object.freeze({ accepted: true, sessionId: ids[0] });
+}
+
+function normalizeBatchResults(results) {
+  if (!Array.isArray(results)) throw fault('BATCH_NOT_ARRAY', 'SETUP_FAILURE', 'Batch result is not an array');
+  return results.map((item, index) => {
+    if (!item || typeof item !== 'object' || Array.isArray(item)) throw fault('BATCH_BAD_ITEM', 'SETUP_FAILURE', `Batch item ${index} is not an object`);
+    if (item.error !== false || typedErrorPresent(item)) throw fault('COMMAND_ERROR', 'SETUP_FAILURE', `Command ${index} reports an error`);
+    if (typeof item.command !== 'string' || typeof item.output !== 'string') throw fault('BATCH_BAD_FIELDS', 'SETUP_FAILURE', `Command ${index} lacks typed command/output fields`);
+    return { command: item.command, output: item.output, error: false };
+  });
+}
+
+function decodeBatchResponse(response, expectedCommands) {
+  if (!Array.isArray(expectedCommands) || expectedCommands.length === 0 || expectedCommands.some((c) => typeof c !== 'string')) {
+    throw fault('EXPECTED_COMMANDS_INVALID', 'CONTROLLER_ASSERTION_FAILURE', 'Expected command list is invalid');
+  }
+  if (!response || typeof response !== 'object') throw fault('BATCH_ENVELOPE_INVALID', 'SETUP_FAILURE', 'Batch response envelope is absent');
+  if (response.isError !== undefined && response.isError !== false) throw fault('OUTER_ERROR', 'SETUP_FAILURE', 'Outer MCP envelope reports an error');
+  const structured = response.structuredContent;
+  if (structured && typeof structured === 'object') {
+    if (typedErrorPresent(structured)) throw fault('STRUCTURED_ERROR', 'SETUP_FAILURE', 'Structured envelope reports a typed error');
+    if (Array.isArray(structured.errors) && structured.errors.length !== 0) throw fault('STRUCTURED_ERROR', 'SETUP_FAILURE', 'Structured envelope contains errors');
+  }
+  let contentResults = null;
+  if (response.content !== undefined) {
+    if (!Array.isArray(response.content)) throw fault('BAD_CONTENT', 'SETUP_FAILURE', 'Response content channel is not an array');
+    if (response.content.length > 0) contentResults = normalizeBatchResults(textJsonRecords(response));
+  }
+  let structuredResults = null;
+  if (structured !== undefined) {
+    if (!structured || typeof structured !== 'object' || Array.isArray(structured)) throw fault('STRUCTURED_BAD_SHAPE', 'SETUP_FAILURE', 'Structured batch result is invalid');
+    structuredResults = normalizeBatchResults(structured.result);
+  }
+  if (!contentResults && !structuredResults) throw fault('BATCH_NO_CHANNEL', 'SETUP_FAILURE', 'Batch response has no supported result channel');
+  if (contentResults && structuredResults && JSON.stringify(contentResults) !== JSON.stringify(structuredResults)) {
+    throw fault('CHANNEL_CONFLICT', 'SETUP_FAILURE', 'Content and structured command channels disagree');
+  }
+  const results = contentResults || structuredResults;
+  if (results.length !== expectedCommands.length) throw fault('BATCH_TRUNCATED', 'SETUP_FAILURE', 'Batch result count does not match requested command count');
+  for (let index = 0; index < expectedCommands.length; index += 1) {
+    if (results[index].command !== expectedCommands[index]) throw fault('COMMAND_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', `Batch command ${index} does not match the requested command`);
+  }
+  return results;
+}
+
+function decodeArchitectureResponse(response, expectedCommands) {
+  const results = decodeBatchResponse(response, expectedCommands);
+  if (expectedCommands[0] !== 'show architecture') throw fault('ARCH_COMMAND_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', 'Architecture query command is not the reviewed command');
+  const output = results[0].output;
+  const lines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  const exact = lines.length === 1 && (/^The target architecture is set to "m6809"\.$/.test(lines[0])
+    || /^The target architecture is set to "[^"]+" \(currently "m6809"\)\.$/.test(lines[0]));
+  if (!exact) throw fault('ARCHITECTURE_UNPROVED', 'SETUP_FAILURE', 'Output is not one exact affirmative m6809 line');
+  return Object.freeze({ architecture: 'm6809', results });
+}
+
+function decodeRegisterOutput(output) {
+  if (typeof output !== 'string') throw fault('REGISTERS_NO_OUTPUT', 'SETUP_FAILURE', 'Register result output is not text');
+  const nonemptyLines = output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (nonemptyLines.length !== 1) throw fault('REGISTERS_UNPROVED', 'SETUP_FAILURE', 'Exactly one register output line is required');
+  const pattern = /^pc=([0-9a-fA-F]{4})\s+dp=([0-9a-fA-F]{2})\s+x=([0-9a-fA-F]{4})\s+y=([0-9a-fA-F]{4})\s+u=([0-9a-fA-F]{4})\s*$/gm;
+  const matches = [...nonemptyLines[0].matchAll(pattern)];
+  if (matches.length !== 1) throw fault('REGISTERS_UNPROVED', 'SETUP_FAILURE', 'Exactly one explicit fixed-width register line is required');
+  return Object.freeze({ pc: parseInt(matches[0][1], 16), dp: parseInt(matches[0][2], 16), x: parseInt(matches[0][3], 16), y: parseInt(matches[0][4], 16), u: parseInt(matches[0][5], 16) });
+}
+
+function decodeAttachResponse(response, commands) {
+  const results = decodeBatchResponse(response, commands);
+  if (commands.length !== 2 || commands[0] !== 'target remote 127.0.0.1:65520' || commands[1] !== REGISTER_COMMAND) {
+    throw fault('ATTACH_COMMANDS_INVALID', 'CONTROLLER_ASSERTION_FAILURE', 'Attach/register command pair differs from the fixed sequence');
+  }
+  const attachLines = results[0].output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+  if (attachLines.filter((line) => line === 'Remote debugging using 127.0.0.1:65520').length !== 1) throw fault('ATTACH_UNPROVED', 'SETUP_FAILURE', 'Attach output does not contain one exact expected endpoint line');
+  if (attachLines.filter((line) => /^\[Stopped:[^\]]+\]$/.test(line)).length !== 1) throw fault('ATTACH_NOT_STOPPED', 'SETUP_FAILURE', 'Attach output does not contain one exact stopped marker line');
+  return Object.freeze({ stopped: true, signal: null, signalStatus: 'unknown', registers: decodeRegisterOutput(results[1].output), results });
+}
+
+function decodeReceivedStatus(response, expectedCommand) {
+  const results = decodeBatchResponse(response, [expectedCommand]);
+  if (expectedCommand !== STATUS_COMMAND) return Object.freeze({ signal: null, signalStatus: 'unknown', accepted: false, reason: 'status command mismatch' });
+  const lines = results[0].output.split(/\r?\n/).map((line) => line.trim());
+  const statusLines = lines.filter((line) => /^received status S[0-9A-F]{2}$/i.test(line));
+  if (statusLines.length !== 1) return Object.freeze({ signal: null, signalStatus: 'unknown', accepted: false, reason: 'no explicit received status payload' });
+  const signal = statusLines[0].slice(-3).toUpperCase();
+  if (signal === 'S02') return Object.freeze({ signal, signalStatus: 'SIGINT', accepted: true, source: 'matching received status command' });
+  if (signal === 'S05') return Object.freeze({ signal, signalStatus: 'wrong-stop', accepted: false, reason: 'received status is S05' });
+  return Object.freeze({ signal, signalStatus: 'unknown', accepted: false, reason: 'unrecognized received status' });
+}
+
+function decodeStoppedAck(response) {
+  if (!response || typeof response !== 'object') throw fault('STOP_ACK_BAD_ENVELOPE', 'CLEANUP_FAILURE', 'Stop-session acknowledgement is absent');
+  if (response.isError !== undefined && response.isError !== false) throw fault('STOP_ACK_OUTER_ERROR', 'CLEANUP_FAILURE', 'Stop-session envelope reports an error');
+  if (response.content !== undefined && !Array.isArray(response.content)) throw fault('STOP_ACK_BAD_CONTENT', 'CLEANUP_FAILURE', 'Stop-session content channel is not an array');
+  const values = [];
+  if (Array.isArray(response.content)) {
+    for (const item of response.content) {
+      if (!item || item.type !== 'text' || typeof item.text !== 'string') throw fault('STOP_ACK_BAD_CONTENT', 'CLEANUP_FAILURE', 'Stop-session content is not typed text');
+      let value;
+      try { value = JSON.parse(item.text); }
+      catch { throw fault('STOP_ACK_BAD_JSON', 'CLEANUP_FAILURE', 'Stop-session content is not JSON'); }
+      if (typedErrorPresent(value)) throw fault('STOP_ACK_TYPED_ERROR', 'CLEANUP_FAILURE', 'Stop-session content contains a typed error');
+      const beforeContent = values.length;
+      for (const stopped of [value?.stopped, value?.result?.stopped]) {
+        if (stopped === undefined) continue;
+        if (typeof stopped !== 'boolean') throw fault('STOP_ACK_BAD_SCHEMA', 'CLEANUP_FAILURE', 'Stop-session content has a non-boolean stopped field');
+        values.push(stopped);
+      }
+      if (values.length === beforeContent) throw fault('STOP_ACK_BAD_SCHEMA', 'CLEANUP_FAILURE', 'Stop-session payload lacks a boolean stopped field');
+    }
+  }
+  const structured = response.structuredContent;
+  if (structured !== undefined) {
+    if (!structured || typeof structured !== 'object' || typedErrorPresent(structured)) throw fault('STOP_ACK_TYPED_ERROR', 'CLEANUP_FAILURE', 'Structured stop-session result contains a typed error');
+    const beforeStructured = values.length;
+    for (const stopped of [structured.stopped, structured.result?.stopped]) {
+      if (stopped === undefined) continue;
+      if (typeof stopped !== 'boolean') throw fault('STOP_ACK_BAD_STRUCTURED', 'CLEANUP_FAILURE', 'Structured stop-session payload has a non-boolean stopped field');
+      values.push(stopped);
+    }
+    if (values.length === beforeStructured) throw fault('STOP_ACK_BAD_STRUCTURED', 'CLEANUP_FAILURE', 'Structured stop-session payload lacks a boolean stopped field');
+  }
+  if (values.length === 0 || values.some((value) => value !== values[0])) throw fault('STOP_ACK_CONFLICT', 'CLEANUP_FAILURE', 'Stop-session acknowledgement is missing or contradictory');
+  if (values[0] !== true) throw fault('STOP_ACK_FALSE', 'CLEANUP_FAILURE', 'Stop-session explicitly reports stopped:false');
+  return Object.freeze({ stopped: true });
+}
+
+function hex(value) { return `0x${value.toString(16)}`; }
+
+function readCommands(checkpoint, attemptId) {
+  if (typeof attemptId !== 'string' || !/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(attemptId)) {
+    throw fault('ATTEMPT_ID_INVALID', 'SETUP_FAILURE', 'Attempt ID is not a safe exclusive namespace segment');
+  }
+  return READ_RECIPE.filter((entry) => entry.checkpoint === checkpoint).map((entry) => ({
+    ...entry,
+    command: `dump binary memory ${DUMP_ROOT}/${attemptId}/dumps/${entry.file} ${hex(entry.address)} ${hex(entry.address + entry.length)}`
+  }));
+}
+
+function validatePlan(fixedPlan, ready) {
+  const plan = ready?.plan;
+  const checkpoints = ready?.identity_phase?.checkpoints;
+  if (!fixedPlan || !plan || !Array.isArray(checkpoints) || !Array.isArray(plan.read_recipe)) throw fault('PLAN_BAD_SHAPE', 'CONTROLLER_ASSERTION_FAILURE', 'Independently supplied Ready assignment is incomplete');
+  if (checkpoints.length !== fixedPlan.checkpoints.length) throw fault('PLAN_CHECKPOINT_DRIFT', 'CONTROLLER_ASSERTION_FAILURE', 'Ready assignment checkpoint count differs from the fixed six-checkpoint plan');
+  for (let index = 0; index < fixedPlan.checkpoints.length; index += 1) {
+    const expected = fixedPlan.checkpoints[index];
+    const actual = checkpoints[index];
+    if (!actual || typeof actual !== 'object' || Array.isArray(actual)) throw fault('PLAN_CHECKPOINT_DRIFT', 'CONTROLLER_ASSERTION_FAILURE', 'Ready assignment checkpoint entry is not an object');
+    const expectedKeys = Object.keys(expected.expected).sort();
+    const actualKeys = actual && actual.expected && typeof actual.expected === 'object' && !Array.isArray(actual.expected)
+      ? Object.keys(actual.expected).sort() : [];
+    if (actual.name !== expected.name || actual.arm !== expected.arm || actual.run !== expected.run
+        || actual.registers !== REGISTER_COMMAND || JSON.stringify(actualKeys) !== JSON.stringify(expectedKeys)
+        || expectedKeys.some((key) => actual.expected[key] !== expected.expected[key])
+        || (expected.allowOneDescriptor === true
+          ? actual.optional_ignored_candidate !== OPTIONAL_DESCRIPTOR_TEXT
+          : actual.optional_ignored_candidate !== undefined)) {
+      throw fault('PLAN_CHECKPOINT_DRIFT', 'CONTROLLER_ASSERTION_FAILURE', `Ready assignment checkpoint ${expected.name} differs from the fixed sequence`);
+    }
+  }
+  if (!Array.isArray(plan.read_recipe)) throw fault('PLAN_RECIPE_MISSING', 'CONTROLLER_ASSERTION_FAILURE', 'Ready assignment has no read recipe');
+  if (plan.read_recipe.length !== READ_RECIPE.length || plan.read_recipe.some((actual, index) => {
+    const expected = READ_RECIPE[index];
+    return !actual || actual.checkpoint !== expected.checkpoint || actual.name !== expected.name
+      || actual.address !== expected.address || actual.length !== expected.length || actual.file !== expected.file;
+  })) throw fault('PLAN_READ_RECIPE_DRIFT', 'CONTROLLER_ASSERTION_FAILURE', 'Source/byte/PAR read recipe differs from the reviewed recipe');
+  if (!Array.isArray(plan.launch_argv) || plan.launch_argv.length === 0 || plan.launch_argv.some((arg) => typeof arg !== 'string')
+      || plan.limits?.attempts !== 1 || plan.limits?.reads !== LIMITS.reads || plan.limits?.read_bytes !== LIMITS.readBytes || plan.limits?.stops !== LIMITS.stops
+      || plan.limits?.trace_cpu_instructions !== LIMITS.traceCpuInstructions || plan.limits?.phase_seconds !== LIMITS.totalMs / 1000
+      || plan.limits?.work_seconds !== LIMITS.workMs / 1000 || plan.limits?.cleanup_seconds !== LIMITS.cleanupMs / 1000) {
+    throw fault('PLAN_LIMIT_DRIFT', 'CONTROLLER_ASSERTION_FAILURE', 'Read, stop, or trace cap differs from the reviewed limits');
+  }
+  return true;
+}
+
+function validateFrozenReceipts(options) {
+  const names = ['analysis-v2.py.txt', 'controller-v2.js.txt', 'lifecycle-regression-v2.cjs', 'response-fixtures-v2.json', 'response-regression-v2.cjs', 'run-controller-v2-offline.ps1'];
+  const expected = options.expectedFrozenSources;
+  const actual = options.actualFrozenSources;
+  if (!expected || !actual) throw fault('SOURCE_FREEZE_MISSING', 'SETUP_FAILURE', 'Parent execution freeze and current source hashes are required');
+  const expectedKeys = Object.keys(expected).sort();
+  const actualKeys = Object.keys(actual).sort();
+  if (JSON.stringify(expectedKeys) !== JSON.stringify(names) || JSON.stringify(actualKeys) !== JSON.stringify(names)) {
+    throw fault('SOURCE_FREEZE_SHAPE', 'SETUP_FAILURE', 'Frozen/current source hash maps must contain exactly the six owned files');
+  }
+  for (const name of names) {
+    if (!/^[a-f0-9]{64}$/i.test(expected[name]) || expected[name].toLowerCase() !== actual[name].toLowerCase()) {
+      throw fault('SOURCE_FREEZE_MISMATCH', 'SETUP_FAILURE', `Current source hash does not match the parent freeze for ${name}`);
+    }
+  }
+  if (typeof options.expectedReadySha256 !== 'string' || !/^[a-f0-9]{64}$/i.test(options.expectedReadySha256)
+      || options.expectedReadySha256.toLowerCase() !== String(options.actualReadySha256 || '').toLowerCase()) {
+    throw fault('READY_IDENTITY_MISMATCH', 'SETUP_FAILURE', 'Reviewed Ready assignment hash does not match the retained source manifest');
+  }
+  return true;
+}
+
+const FIXED_PLAN = Object.freeze({ checkpoints: CHECKPOINTS, readRecipe: READ_RECIPE, limits: LIMITS });
+
+function checkAckProcess(ack, processIdentity) {
+  if (!ack || ack.acknowledged !== true || !ack.process || ack.process.pid !== processIdentity.pid
+      || ack.process.exe !== processIdentity.exe || ack.process.start_ticks !== processIdentity.start_ticks
+      || !Array.isArray(ack.process.argv) || JSON.stringify(ack.process.argv) !== JSON.stringify(processIdentity.argv)
+      || ack.checkpoint !== 'B080' || ack.breakpoints_remaining !== 0 || ack.identity_complete !== true) {
+    throw fault('HANDOFF_ACK_INVALID', 'CONTROLLER_ASSERTION_FAILURE', 'Handoff acknowledgement does not bind the verified B080 process and identity');
+  }
+  if (!Number.isFinite(ack.phaseStartMs) || !Number.isFinite(ack.acceptedAtMs) || ack.acceptedAtMs < ack.phaseStartMs
+      || ack.acceptedAtMs - ack.phaseStartMs > 1000) {
+    throw fault('HANDOFF_STALE', 'CONTROLLER_ASSERTION_FAILURE', 'Handoff acknowledgement is absent, future-dated, or stale');
+  }
+}
+
+function checkProcessIdentity(actual, expected) {
+  if (!actual || !Number.isInteger(actual.pid) || actual.pid <= 0 || actual.pid !== expected.pid
+      || typeof actual.exe !== 'string' || actual.exe.trim() === '' || actual.exe !== expected.exe
+      || typeof actual.start_ticks !== 'string' || actual.start_ticks.trim() === '' || actual.start_ticks !== expected.start_ticks
+      || !Array.isArray(actual.argv) || actual.argv.some((arg) => typeof arg !== 'string')
+      || JSON.stringify(actual.argv) !== JSON.stringify(expected.argv)) {
+    throw fault('PROCESS_OWNER_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', 'Observed process identity does not match the exact launch owner');
+  }
+}
+
+function checkBatchStop(results, continueCommand) {
+  const result = results.find((item) => item.command === continueCommand);
+  if (!result) throw fault('STOP_COMMAND_MISSING', 'SETUP_FAILURE', 'Continuation result is absent');
+  const markers = [...result.output.matchAll(/\[Stopped:([^\]]+)\]/g)];
+  const reasonParts = markers.length === 1 ? markers[0][1].split(',').map((part) => part.trim()) : [];
+  if (markers.length !== 1 || reasonParts[0] !== 'breakpoint-hit' || /\bsignal\b|\bexited\b/i.test(markers[0][1])) {
+    throw fault('STOP_REASON_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', 'Continuation did not stop for its matching breakpoint reason');
+  }
+}
+
+function checkRegisters(actual, expected, checkpoint) {
+  for (const [key, value] of Object.entries(expected)) {
+    if (actual[key] !== value) throw fault('CHECKPOINT_REGISTER_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', `${checkpoint} register ${key} differs from the fixed expectation`, { expected: value, actual: actual[key] });
+  }
+}
+
+function decodeReadCompletion(results, reads, validator) {
+  if (results.length !== reads.length || !Array.isArray(validator?.readRecords)) throw fault('READ_RESULT_COUNT', 'SETUP_FAILURE', 'Read command results or validator read records are incomplete');
+  if (validator.readRecords.length !== reads.length) throw fault('READ_RECORD_COUNT', 'SETUP_FAILURE', 'Typed validator record count differs from requested reads');
+  const completed = reads.map((read, index) => {
+    const result = results[index];
+    const measured = validator.readRecords[index];
+    if (!result || result.command !== read.command || result.error !== false || typeof result.output !== 'string') {
+      throw fault('READ_COMMAND_UNPROVED', 'SETUP_FAILURE', `Read command ${read.name} has no typed successful command result`);
+    }
+    if (!measured || measured.name !== read.name || measured.address !== read.address || measured.length !== read.length
+        || measured.file !== read.file || measured.complete !== true || measured.bytesRead !== read.length) {
+      throw fault('READ_RECORD_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', `Typed read record ${read.name} does not match the fixed source/byte/PAR recipe`);
+    }
+    return { name: read.name, address: read.address, length: read.length, file: read.file, command: read.command, completedBytes: measured.bytesRead };
+  });
+  const measuredBytes = completed.reduce((sum, entry) => sum + entry.completedBytes, 0);
+  if (validator.readCommands !== completed.length || validator.readBytes !== measuredBytes) {
+    throw fault('READ_AGGREGATE_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', 'Typed validator read totals disagree with measured read records');
+  }
+  return completed;
+}
+
+function makeReport(startedAt, status, classification, failure, state) {
+  const requested = state.readsRequested;
+  const completed = state.completedReads;
+  return {
+    ticket: 'FEAT-010',
+    phase: 'OFFLINE-CONTROLLER-V2',
+    status,
+    classification,
+    failure: failure ? { code: failure.code || 'UNCLASSIFIED', message: failure.message || String(failure) } : null,
+    firstFailureEvidence: state.firstFailureEvidence,
+    productAssertion: 'NOT_EVALUATED',
+    mockQualification: state.conditional ? 'CONDITIONAL_MOCK_ONLY' : 'NOT_REACHED',
+    runtimeIdentityProved: false,
+    serviceCancellationProved: false,
+    coverage: state.coverage,
+    ownership: {
+      session: { state: state.sessionOwnership, intent: state.sessionIntent, id: state.sessionId },
+      child: { state: state.childOwnership, intent: state.launchIntent, identity: state.childIdentity },
+      hostCommand: { state: state.hostCommandOwnership, sessionId: state.hostCommandSessionId }
+    },
+    cleanup: { attempted: state.cleanupAttempted, failures: state.cleanupFailures.slice(), evidence: state.cleanupEvidence.slice() },
+    evidence: { reserved: state.evidenceReserved, finalized: state.evidenceFinalized, failure: state.evidenceFailure },
+    checkpoints: state.checkpointsPassed.slice(),
+    stops: state.stops,
+    reads: {
+      requestedCommands: requested.count,
+      requestedBytes: requested.bytes,
+      completedCommands: completed.count,
+      completedBytes: completed.bytes
+    },
+    handoff: state.handoff,
+    attemptId: state.attemptId,
+    startedAt,
+    finishedAt: state.clock.now()
+  };
+}
+
+async function runFixedController(adapter, options = {}) {
+  if (!adapter || typeof adapter !== 'object') throw fault('ADAPTER_REQUIRED', 'SETUP_FAILURE', 'An injected offline adapter is required');
+  if (!adapter.clock || typeof adapter.clock.now !== 'function' || typeof adapter.awaitUntil !== 'function') throw fault('CLOCK_REQUIRED', 'SETUP_FAILURE', 'Injected monotonic clock and bounded-await scheduler are required');
+  const start = adapter.clock.now();
+  const workDeadline = start + LIMITS.workMs;
+  const totalDeadline = start + LIMITS.totalMs;
+  const state = {
+    clock: adapter.clock,
+    sessionIntent: false,
+    sessionId: null,
+    sessionOwnership: 'none',
+    launchIntent: false,
+    childIdentity: null,
+    childOwnership: 'none',
+    hostCommandOwnership: 'none',
+    hostCommandSessionId: null,
+    attemptId: null,
+    evidenceReserved: false,
+    evidenceFinalized: false,
+    evidenceFailure: null,
+    cleanupAttempted: false,
+    cleanupFailures: [],
+    cleanupEvidence: [],
+    firstFailureEvidence: null,
+    currentStage: null,
+    lastCompleted: null,
+    sessionStopAttempted: false,
+    readsRequested: { count: 0, bytes: 0 },
+    completedReads: { count: 0, bytes: 0 },
+    checkpointsPassed: [],
+    stops: 0,
+    conditional: false,
+    coverage: 'NOT_RUN',
+    handoff: null
+  };
+  let primaryFailure = null;
+  let classification = 'CONDITIONAL_MOCK_ONLY';
+  let report = null;
+  let attemptId = null;
+
+  async function action(stage, callback, deadline = workDeadline) {
+    state.currentStage = stage;
+    if (adapter.clock.now() >= deadline) throw fault('DEADLINE', 'SETUP_FAILURE', `${stage} began after its absolute deadline`);
+    let pending;
+    try { pending = Promise.resolve().then(callback); }
+    catch (error) { throw error; }
+    let outcome;
+    try { outcome = await adapter.awaitUntil(pending, deadline, stage); }
+    catch (error) {
+      state.lastCompleted = { stage, response: null };
+      throw fault('ADAPTER_REJECTED', 'SETUP_FAILURE', `${stage} rejected: ${error?.message || error}`);
+    }
+    if (!outcome || outcome.status === 'deadline') throw fault('DEADLINE', 'SETUP_FAILURE', `${stage} reached its absolute deadline; cancellation is unproved`);
+    if (outcome.status !== 'resolved') throw fault('BAD_AWAIT_RESULT', 'SETUP_FAILURE', `${stage} returned an invalid bounded-await result`);
+    if (adapter.clock.now() > deadline) throw fault('DEADLINE_OVERRUN', 'SETUP_FAILURE', `${stage} completed after its absolute deadline`);
+    state.lastCompleted = { stage, response: snapshotForEvidence(outcome.value) };
+    return outcome.value;
+  }
+
+  function saveFirstFailure(error) {
+    if (state.firstFailureEvidence) return;
+    const prior = state.lastCompleted;
+    state.firstFailureEvidence = {
+      stage: state.currentStage || prior?.stage || 'controller',
+      response: prior && prior.stage === state.currentStage ? prior.response : null,
+      error: { code: error?.code || 'UNCLASSIFIED', message: error?.message || String(error), details: error?.details || null }
+    };
+  }
+
+  function requireConditional(result, stage) {
+    if (!result || result.ok !== true || result.kind !== 'CONDITIONAL_MOCK_ONLY') {
+      throw fault('MOCK_VALIDATOR_REJECTED', 'CONTROLLER_ASSERTION_FAILURE', `${stage} did not return the reviewed conditional mock result`);
+    }
+    state.conditional = true;
+    return result;
+  }
+
+  async function cleanupOwners() {
+    state.cleanupAttempted = true;
+    if (state.childOwnership === 'owned') {
+      if (adapter.clock.now() >= totalDeadline) {
+        state.childOwnership = 'unresolved';
+        state.cleanupFailures.push('child cleanup deadline elapsed; cancellation is unproved');
+      } else {
+        try {
+          const ack = await action('abortChild', () => adapter.abortChild({ attemptId, process: state.childIdentity }), totalDeadline);
+          if (!ack || ack.exit_code !== 0 || ack.status !== 'ABORTED' || ack.pid !== state.childIdentity.pid || ack.start_ticks !== state.childIdentity.start_ticks) {
+            state.cleanupEvidence.push({ stage: 'abortChild', response: snapshotForEvidence(ack), error: 'positive exact-owner abort acknowledgement absent' });
+            state.childOwnership = 'unresolved';
+            state.cleanupFailures.push('child abort acknowledgement missing, false, or bound to another process');
+          } else state.childOwnership = 'released';
+        } catch (error) {
+          state.cleanupEvidence.push({ stage: 'abortChild', response: null, error: error.message });
+          state.childOwnership = 'unresolved';
+          state.cleanupFailures.push(`child cleanup unresolved: ${error.message}`);
+        }
+      }
+    } else if (state.childOwnership === 'pending' || state.childOwnership === 'unknown') {
+      state.childOwnership = 'unresolved';
+      state.cleanupFailures.push('child ownership is unresolved; no broad cleanup was attempted');
+    }
+    if (state.sessionOwnership === 'owned' && state.sessionStopAttempted) {
+      state.sessionOwnership = 'unresolved';
+      state.cleanupFailures.push('session stop was already attempted without a positive acknowledgement; no retry was issued');
+      if (!state.cleanupEvidence.some((item) => item.stage === 'stopSessionAfterDetach')) {
+        const firstStopFailure = state.firstFailureEvidence?.stage === 'stopSessionAfterDetach' ? state.firstFailureEvidence : null;
+        state.cleanupEvidence.push({
+          stage: firstStopFailure ? 'stopSessionAfterDetach' : state.lastCompleted?.stage === 'stopSessionAfterDetach' ? 'stopSessionAfterDetach' : 'stopSession',
+          response: firstStopFailure?.response || (state.lastCompleted?.stage === 'stopSessionAfterDetach' ? state.lastCompleted.response : null),
+          error: 'stop-session acknowledgement was rejected; ownership remains unresolved'
+        });
+      }
+    } else if (state.sessionOwnership === 'owned') {
+      if (adapter.clock.now() >= totalDeadline) {
+        state.sessionOwnership = 'unresolved';
+        state.cleanupFailures.push('session cleanup deadline elapsed; cancellation is unproved');
+      } else {
+        try {
+          state.sessionStopAttempted = true;
+          const ack = await action('stopSession', () => adapter.stopSession({ sessionId: state.sessionId }), totalDeadline);
+          decodeStoppedAck(ack);
+          state.sessionOwnership = 'released';
+        } catch (error) {
+          state.cleanupEvidence.push({ stage: 'stopSession', response: state.lastCompleted?.stage === 'stopSession' ? state.lastCompleted.response : null, error: error.message });
+          state.sessionOwnership = 'unresolved';
+          state.cleanupFailures.push(`session cleanup unresolved: ${error.message}`);
+        }
+      }
+    } else if (state.sessionOwnership === 'pending' || state.sessionOwnership === 'unknown') {
+      state.sessionOwnership = 'unresolved';
+      state.cleanupFailures.push('session creation ownership is unresolved; no unknown session was stopped');
+    }
+    if (state.hostCommandOwnership === 'pending' || state.hostCommandOwnership === 'unknown') {
+      state.hostCommandOwnership = 'unresolved';
+      state.cleanupFailures.push('host command session ownership is unresolved');
+    }
+  }
+
+  try {
+    const reservation = await action('reserveAttempt', () => adapter.reserveAttempt({ scope: 'FEAT-010-controller-v2', exclusive: true }), workDeadline);
+    if (!reservation || reservation.reserved !== true || typeof reservation.attemptId !== 'string' || reservation.attemptId.length === 0) {
+      throw fault('ATTEMPT_NOT_RESERVED', 'SETUP_FAILURE', 'Exclusive attempt namespace was unavailable; no tools were called');
+    }
+    attemptId = reservation.attemptId;
+    if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(attemptId)) throw fault('ATTEMPT_ID_INVALID', 'SETUP_FAILURE', 'Exclusive reservation returned an unsafe namespace ID');
+    state.attemptId = attemptId;
+    state.evidenceReserved = true;
+
+    validateFrozenReceipts(options);
+    validatePlan(FIXED_PLAN, options.reviewedReady);
+    const preflight = await action('preflight', () => adapter.validatePreflight({ fixedPlan: FIXED_PLAN, reviewedReady: options.reviewedReady, frozenSources: options.expectedFrozenSources, actualSources: options.actualFrozenSources }), workDeadline);
+    requireConditional(preflight, 'preflight');
+    const initialTrace = await action('initialTraceCheck', () => adapter.validateInitialTrace({ attemptId, mode: 'mock-only' }), workDeadline);
+    requireConditional(initialTrace, 'initial trace check');
+
+    state.sessionIntent = true;
+    state.sessionOwnership = 'pending';
+    let sessionResponse;
+    try { sessionResponse = await action('startSession', () => adapter.startSession({ attemptId }), workDeadline); }
+    catch (error) { state.sessionOwnership = 'unknown'; state.hostCommandOwnership = 'unknown'; throw error; }
+    let session;
+    try { session = decodeSessionResponse(sessionResponse); }
+    catch (error) { state.sessionOwnership = 'unknown'; state.hostCommandOwnership = 'unknown'; throw error; }
+    state.sessionId = session.sessionId;
+    state.sessionOwnership = 'owned';
+    state.hostCommandOwnership = 'none';
+
+    const configurationCommands = ['show architecture', 'set remote supported-packets-packet off', 'set confirm off', 'set pagination off', 'set breakpoint pending on'];
+    const configuration = await action('configurationBatch', () => adapter.batch({ sessionId: state.sessionId, commands: configurationCommands }), workDeadline);
+    decodeArchitectureResponse(configuration, configurationCommands);
+
+    state.launchIntent = true;
+    state.childOwnership = 'pending';
+    state.hostCommandOwnership = 'pending';
+    let launchResponse;
+    try { launchResponse = await action('launch', () => adapter.launch({ attemptId, fixedLimits: LIMITS }), workDeadline); }
+    catch (error) { state.childOwnership = 'unknown'; state.hostCommandOwnership = 'unknown'; throw error; }
+    if (typeof launchResponse?.hostCommandSessionId === 'string' && launchResponse.hostCommandSessionId.trim() !== '') {
+      state.hostCommandSessionId = launchResponse.hostCommandSessionId;
+      state.hostCommandOwnership = 'unknown';
+    }
+    if (launchResponse?.ambiguous === true || launchResponse?.pending === true) {
+      state.childOwnership = 'unknown';
+      state.hostCommandOwnership = 'unknown';
+      throw fault('LAUNCH_AMBIGUOUS', 'SETUP_FAILURE', 'Launch completion is ambiguous; host/child ownership remains tracked');
+    }
+    if (!launchResponse || launchResponse.exit_code !== 0 || launchResponse.status !== 'STARTED'
+        || !Number.isInteger(launchResponse.pid) || launchResponse.pid <= 0
+        || typeof launchResponse.exe !== 'string' || launchResponse.exe.trim() === ''
+        || typeof launchResponse.start_ticks !== 'string' || launchResponse.start_ticks.trim() === ''
+        || !Array.isArray(launchResponse.argv) || launchResponse.argv.some((arg) => typeof arg !== 'string')) {
+      state.childOwnership = 'unknown';
+      if (state.hostCommandSessionId) state.hostCommandOwnership = 'unknown';
+      else state.hostCommandOwnership = 'none';
+      throw fault('LAUNCH_METADATA_INVALID', 'SETUP_FAILURE', 'Launch response lacks a positive PID and nonempty typed owner identity');
+    }
+    state.childIdentity = Object.freeze({ pid: launchResponse.pid, exe: launchResponse.exe, start_ticks: launchResponse.start_ticks, argv: launchResponse.argv.slice() });
+    if (launchResponse.hostCommandSessionId !== undefined && launchResponse.hostCommandSessionId !== null
+        && (typeof launchResponse.hostCommandSessionId !== 'string' || launchResponse.hostCommandSessionId.trim() === '')) {
+      state.childOwnership = 'unknown';
+      state.hostCommandOwnership = 'unknown';
+      throw fault('LAUNCH_HOST_SESSION_INVALID', 'SETUP_FAILURE', 'Launch host-session field is malformed; ownership remains unresolved');
+    }
+    if (state.hostCommandSessionId) {
+      state.childOwnership = 'unknown';
+      state.hostCommandOwnership = 'unknown';
+      throw fault('LAUNCH_HOST_SESSION_UNRESOLVED', 'SETUP_FAILURE', 'Launch returned a host command session without a reviewed ownership acknowledgement');
+    }
+    state.hostCommandOwnership = 'none';
+    const reviewedArgv = options.reviewedReady?.plan?.launch_argv;
+    if (!Array.isArray(reviewedArgv) || launchResponse.exe !== reviewedArgv[0]
+        || JSON.stringify(launchResponse.argv) !== JSON.stringify(reviewedArgv)) {
+      state.childOwnership = 'unknown';
+      throw fault('LAUNCH_PROFILE_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', 'Launched executable or argv differs from the reviewed Ready profile');
+    }
+    state.childOwnership = 'owned';
+    const owner = await action('inspectOwner', () => adapter.inspectOwner({ expected: state.childIdentity }), workDeadline);
+    try { checkProcessIdentity(owner, state.childIdentity); }
+    catch (error) { state.childOwnership = 'unknown'; throw error; }
+    const listener = await action('inspectListener', () => adapter.inspectListener({ expected: state.childIdentity }), workDeadline);
+    try { checkProcessIdentity(listener, state.childIdentity); }
+    catch (error) { state.childOwnership = 'unknown'; throw error; }
+
+    const attachCommands = ['target remote 127.0.0.1:65520', REGISTER_COMMAND];
+    const attachEnvelope = await action('attachBatch', () => adapter.batch({ sessionId: state.sessionId, commands: attachCommands }), workDeadline);
+    state.stops += 1;
+    if (state.stops > LIMITS.stops) throw fault('STOP_CAP', 'CONTROLLER_ASSERTION_FAILURE', 'Target stop cap exceeded at attach');
+    const attach = decodeAttachResponse(attachEnvelope, attachCommands);
+    const statusEnvelope = await action('statusBatch', () => adapter.batch({ sessionId: state.sessionId, commands: [STATUS_COMMAND] }), workDeadline);
+    const statusResults = decodeBatchResponse(statusEnvelope, [STATUS_COMMAND]);
+    const status = decodeReceivedStatus(statusEnvelope, statusResults[0].command);
+    if (attach.stopped !== true || !status.accepted || status.signal !== 'S02') {
+      throw fault('REQUIRED_SIGINT_UNPROVED', 'SETUP_FAILURE', 'Attach stopped with unknown or non-SIGINT status; identity reads were not started');
+    }
+    const postAttachListener = await action('inspectListenerAfterAttach', () => adapter.inspectListener({ expected: state.childIdentity, afterAttach: true }), workDeadline);
+    try { checkProcessIdentity(postAttachListener, state.childIdentity); }
+    catch (error) { state.childOwnership = 'unknown'; throw error; }
+
+    for (const checkpoint of CHECKPOINTS) {
+      const checkpointCommands = [checkpoint.arm, checkpoint.run, REGISTER_COMMAND];
+      const envelope = await action(`checkpoint:${checkpoint.name}`, () => adapter.batch({ sessionId: state.sessionId, commands: checkpointCommands }), workDeadline);
+      state.stops += 1;
+      if (state.stops > LIMITS.stops) throw fault('STOP_CAP', 'CONTROLLER_ASSERTION_FAILURE', 'Target stop cap exceeded');
+      let results = decodeBatchResponse(envelope, checkpointCommands);
+      checkBatchStop(results, checkpoint.run);
+      let registers = decodeRegisterOutput(results[2].output);
+      try { checkRegisters(registers, checkpoint.expected, checkpoint.name); }
+      catch (error) {
+        if (checkpoint.allowOneDescriptor !== true || registers.pc !== 0x03D4) throw error;
+        const candidate = { pc: registers.pc, dp: registers.dp, x: registers.x, y: registers.y, u: registers.u };
+        const followCommands = ['continue', REGISTER_COMMAND];
+        const followEnvelope = await action('helperDescriptorContinuation', () => adapter.batch({ sessionId: state.sessionId, commands: followCommands }), workDeadline);
+        state.stops += 1;
+        if (state.stops > LIMITS.stops) throw fault('STOP_CAP', 'CONTROLLER_ASSERTION_FAILURE', 'Second helper descriptor exceeded the fixed stop cap');
+        const followResults = decodeBatchResponse(followEnvelope, followCommands);
+        checkBatchStop(followResults, 'continue');
+        const nextRegisters = decodeRegisterOutput(followResults[1].output);
+        try { checkRegisters(nextRegisters, checkpoint.expected, checkpoint.name); }
+        catch { throw fault('SECOND_HELPER_DESCRIPTOR', 'CONTROLLER_ASSERTION_FAILURE', 'A second nonmatching helper descriptor was rejected'); }
+        state.conditional = true;
+        if (typeof adapter.recordHelperCandidate === 'function') {
+          await action('recordHelperCandidate', () => adapter.recordHelperCandidate({ checkpoint: checkpoint.name, candidate }), workDeadline);
+        }
+        registers = nextRegisters;
+        results = followResults;
+      }
+      const reads = readCommands(checkpoint.name, attemptId);
+      const readBytes = reads.reduce((sum, entry) => sum + entry.length, 0);
+      if (state.readsRequested.count + reads.length > LIMITS.reads
+          || state.readsRequested.bytes + readBytes > LIMITS.readBytes) {
+        throw fault('READ_CAP', 'CONTROLLER_ASSERTION_FAILURE', 'Source/byte/PAR read cap would be exceeded');
+      }
+      const readCommandsForBatch = reads.map((entry) => entry.command);
+      const readEnvelope = await action(`readBatch:${checkpoint.name}`, () => {
+        state.readsRequested.count += reads.length;
+        state.readsRequested.bytes += readBytes;
+        return adapter.batch({ sessionId: state.sessionId, commands: readCommandsForBatch, reads });
+      }, workDeadline);
+      const readResults = decodeBatchResponse(readEnvelope, readCommandsForBatch);
+      const validator = await action(`validateCheckpoint:${checkpoint.name}`, () => adapter.validateCheckpoint({ attemptId, checkpoint, registers, reads, readResults, mode: 'conditional-mock' }), workDeadline);
+      requireConditional(validator, `checkpoint ${checkpoint.name}`);
+      const completed = decodeReadCompletion(readResults, reads, validator);
+      state.completedReads.count += completed.length;
+      state.completedReads.bytes += completed.reduce((sum, entry) => sum + entry.completedBytes, 0);
+      if (validator.sourceMatch !== true || validator.destinationMatch !== true || validator.parMatch !== true) {
+        throw fault('CONDITIONAL_VALIDATION_MISMATCH', 'CONTROLLER_ASSERTION_FAILURE', `Conditional source/byte/PAR validation failed at ${checkpoint.name}`);
+      }
+      state.checkpointsPassed.push(checkpoint.name);
+      if (checkpoint.name === 'helper_pre') {
+        const cleanupBreakpoints = await action('deleteHelperBreakpoint', () => adapter.batch({ sessionId: state.sessionId, commands: ['delete breakpoints'] }), workDeadline);
+        decodeBatchResponse(cleanupBreakpoints, ['delete breakpoints']);
+      }
+    }
+
+    const breakpointEnvelope = await action('breakpointState', () => adapter.batch({ sessionId: state.sessionId, commands: ['info breakpoints'] }), workDeadline);
+    const breakpointResults = decodeBatchResponse(breakpointEnvelope, ['info breakpoints']);
+    const breakpointLines = breakpointResults[0].output.split(/\r?\n/).map((line) => line.trim()).filter(Boolean);
+    if (breakpointLines.length !== 1 || breakpointLines[0] !== 'No breakpoints or watchpoints.') throw fault('BREAKPOINTS_REMAIN', 'CONTROLLER_ASSERTION_FAILURE', 'Handoff attempted without the exact no-breakpoints acknowledgement');
+    const finalIdentity = await action('finalIdentity', () => adapter.finalIdentity({ attemptId, process: state.childIdentity, checkpoints: state.checkpointsPassed, reads: state.completedReads }), workDeadline);
+    requireConditional(finalIdentity, 'final identity');
+    if (finalIdentity.identity_complete !== true || finalIdentity.checkpoints !== CHECKPOINTS.length
+        || finalIdentity.readCommands !== state.completedReads.count || finalIdentity.readBytes !== state.completedReads.bytes) {
+      throw fault('FINAL_IDENTITY_MISSING', 'CONTROLLER_ASSERTION_FAILURE', 'Final identity is missing or does not bind measured checkpoint reads');
+    }
+    const handoffStart = adapter.clock.now();
+    const handoffRequest = { attemptId, process: state.childIdentity, checkpoint: 'B080', registers: { pc: 0xB080, dp: 0 }, breakpoints_remaining: 0, identity_complete: true, phaseStartMs: handoffStart };
+    const handoffAck = await action('handoff', () => adapter.handoff(handoffRequest), workDeadline);
+    checkAckProcess(handoffAck, state.childIdentity);
+    if (handoffAck.phaseStartMs !== handoffStart || handoffAck.acceptedAtMs > adapter.clock.now()) throw fault('HANDOFF_ACK_TIME', 'CONTROLLER_ASSERTION_FAILURE', 'Handoff acknowledgement time does not bind the requested phase start');
+    state.handoff = { acknowledged: true, checkpoint: handoffAck.checkpoint, pid: handoffAck.process.pid, start_ticks: handoffAck.process.start_ticks, kind: 'CONDITIONAL_MOCK_ONLY' };
+
+    const detachCommands = ['delete breakpoints', 'detach'];
+    const detachEnvelope = await action('detach', () => adapter.batch({ sessionId: state.sessionId, commands: detachCommands }), workDeadline);
+    decodeBatchResponse(detachEnvelope, detachCommands);
+    state.sessionStopAttempted = true;
+    const stopAck = await action('stopSessionAfterDetach', () => adapter.stopSession({ sessionId: state.sessionId }), workDeadline);
+    decodeStoppedAck(stopAck);
+    state.sessionOwnership = 'released';
+
+    const trace = await action('traceAnalysis', () => adapter.finishTrace({ attemptId, process: state.childIdentity, maxInstructions: LIMITS.traceCpuInstructions, mode: 'conditional-mock' }), workDeadline);
+    if (!trace || !trace.process || trace.process.pid !== state.childIdentity.pid || trace.process.exe !== state.childIdentity.exe
+        || trace.process.start_ticks !== state.childIdentity.start_ticks || typeof trace.process.exited !== 'boolean') {
+      state.childOwnership = 'unknown';
+      throw fault('TRACE_PROCESS_UNBOUND', 'CONTROLLER_ASSERTION_FAILURE', 'Trace completion did not bind the exact launched process');
+    }
+    if (trace.process.exited) state.childOwnership = 'released';
+    else state.childOwnership = 'owned';
+    if (trace.coverage !== true) {
+      state.coverage = 'MISSING_COVERAGE';
+      classification = 'MISSING_COVERAGE';
+    } else {
+      if (trace.mockOnly !== true) throw fault('TRACE_NOT_MOCK_LABELED', 'CONTROLLER_ASSERTION_FAILURE', 'Offline trace result lacks its conditional mock label');
+      state.coverage = 'CONDITIONAL_MOCK_COVERAGE_ONLY';
+      classification = 'CONDITIONAL_MOCK_ONLY';
+    }
+    if (!Number.isInteger(trace.cpuInstructions) || trace.cpuInstructions < 0 || trace.cpuInstructions > LIMITS.traceCpuInstructions) {
+      throw fault('TRACE_INSTRUCTION_CAP', 'CONTROLLER_ASSERTION_FAILURE', 'Trace mock exceeds the fixed instruction cap');
+    }
+  } catch (error) {
+    saveFirstFailure(error);
+    primaryFailure = error;
+    classification = error.classification || 'SETUP_FAILURE';
+  }
+
+  if (state.evidenceReserved) {
+    if (state.childOwnership === 'owned' || state.childOwnership === 'pending' || state.childOwnership === 'unknown'
+        || state.sessionOwnership === 'owned' || state.sessionOwnership === 'pending' || state.sessionOwnership === 'unknown'
+        || state.hostCommandOwnership === 'pending' || state.hostCommandOwnership === 'unknown') {
+      await cleanupOwners();
+    }
+    if (state.cleanupFailures.length > 0) classification = 'CLEANUP_FAILURE';
+    const status = state.coverage === 'MISSING_COVERAGE' && !primaryFailure ? 'INCOMPLETE_COVERAGE'
+      : primaryFailure ? 'REJECTED' : state.cleanupFailures.length > 0 ? 'CLEANUP_UNRESOLVED' : 'CONDITIONAL_COMPLETE';
+    report = makeReport(start, status, classification, primaryFailure, state);
+    if (adapter.clock.now() >= totalDeadline) {
+      state.evidenceFailure = 'finalization skipped because the absolute phase deadline elapsed';
+      report.evidence.failure = state.evidenceFailure;
+      report.classification = 'EVIDENCE_FAILURE';
+      report.status = 'EVIDENCE_UNRESOLVED';
+    } else {
+      try {
+        const finalized = await action('finalizeEvidence', () => adapter.finalize({ attemptId, report }), totalDeadline);
+        if (!finalized || finalized.written !== true || finalized.attemptId !== attemptId) throw fault('FINALIZE_ACK_INVALID', 'EVIDENCE_FAILURE', 'Evidence finalization was not acknowledged for this attempt');
+        state.evidenceFinalized = true;
+        report.evidence.finalized = true;
+      } catch (error) {
+        saveFirstFailure(error);
+        state.evidenceFailure = error.message;
+        report.evidence.failure = error.message;
+        report.classification = 'EVIDENCE_FAILURE';
+        report.status = 'EVIDENCE_FAILURE';
+        report.firstFailureEvidence = state.firstFailureEvidence;
+      }
+    }
+    report.cleanup = { attempted: state.cleanupAttempted, failures: state.cleanupFailures.slice(), evidence: state.cleanupEvidence.slice() };
+    report.ownership = {
+      session: { state: state.sessionOwnership, intent: state.sessionIntent, id: state.sessionId },
+      child: { state: state.childOwnership, intent: state.launchIntent, identity: state.childIdentity },
+      hostCommand: { state: state.hostCommandOwnership, sessionId: state.hostCommandSessionId }
+    };
+    report.finishedAt = adapter.clock.now();
+  } else {
+    report = makeReport(start, 'SETUP_REJECTED', classification, primaryFailure, state);
+    report.evidence.failure = 'exclusive attempt namespace was unavailable; existing evidence was left untouched';
+  }
+  return report;
+}
+
+module.exports = Object.freeze({
+  CHECKPOINTS,
+  FIXED_PLAN,
+  LIMITS,
+  READ_RECIPE,
+  REGISTER_COMMAND,
+  STATUS_COMMAND,
+  decodeArchitectureResponse,
+  decodeAttachResponse,
+  decodeBatchResponse,
+  decodeReceivedStatus,
+  decodeRegisterOutput,
+  decodeSessionResponse,
+  decodeStoppedAck,
+  readCommands,
+  runFixedController
+});
