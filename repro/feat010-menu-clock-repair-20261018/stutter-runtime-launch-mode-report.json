@@ -1,0 +1,85 @@
+{
+  "ticket": "FEAT-010",
+  "step": "Resolve headless launch mismatch and source-review runtime assignment",
+  "status": "Source reviewed; runtime not executed",
+  "baseline": {
+    "guard_sha256_before": "d1b409273e2ec046a3e334f77cdf364206808189242579ed97bda20e113ff4d7",
+    "xroar_executable": "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+    "xroar_executable_sha256": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+    "rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+    "receipt_sha256": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+    "profile": "CoCo 3, CPU 6809, 512K, GMC, complete-adaptive; cold no-input, same PID",
+    "retained_rq": "20-control R-Q reconciliation commit db3fe366; not rerun"
+  },
+  "launch_change": {
+    "only_changed_argv_values": {
+      "-ui": {"before": "gtk3", "after": "null"},
+      "-ao": {"before": "pulse", "after": "null"}
+    },
+    "exact_argv": [
+      "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "-ui", "null", "-ao", "null",
+      "-machine", "coco3", "-machine-cpu", "6809", "-ram", "512",
+      "-ram-init", "random", "-cart-type", "gmc",
+      "-cart-rom", "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/candidate/build/ladybug.rom",
+      "-cart-autorun", "-tv-input", "rgb", "-joy-right", "", "-joy-left", "",
+      "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", "65520",
+      "-trace-timing", "-trap", "pc=0x1C62", "-trap-timeout", "2",
+      "-trap-trace-n", "32768"
+    ],
+    "other_argv_changed": false
+  },
+  "source_evidence": [
+    {
+      "path": "docs/reference/xroar/src/null/ui_null.c",
+      "locations": ["43-45", "67-72", "96-101"],
+      "finding": "The null UI is named `null`; its render callback discards line data and produces no screen output."
+    },
+    {
+      "path": "docs/reference/xroar/src/ui.c",
+      "locations": ["76-99"],
+      "finding": "The null UI is always present in the default UI module list, including builds that also include GTK3."
+    },
+    {
+      "path": "docs/reference/xroar/src/null/ao_null.c",
+      "locations": ["50-52", "76-82", "117-132"],
+      "finding": "The null audio module is named `null`, initializes SOUND_FMT_NULL, and installs a buffer callback. That callback compares guest event-cycle elapsed time with host milliseconds; at a difference of at least 10 ms it sleeps when rate limiting is enabled and the difference is at most 1000 ms, otherwise it resets its reference point."
+    },
+    {
+      "path": "docs/reference/xroar/src/ao.c",
+      "locations": ["63-65"],
+      "finding": "The null audio module is registered when HAVE_NULL_AUDIO is defined."
+    },
+    {
+      "path": "docs/reference/xroar/config.h and docs/reference/xroar/config.status",
+      "locations": ["config.h:62,83,101; config.status:972-982"],
+      "finding": "This configured source tree enables GTK3, Pulse, and HAVE_NULL_AUDIO, so null audio is available alongside the former modules."
+    },
+    {
+      "path": "docs/reference/xroar/src/module.c and docs/reference/xroar/src/xroar.c",
+      "locations": ["module.c:51-76; xroar.c:1076-1094"],
+      "finding": "Explicit module arguments are selected by their registered names before module initialization; the requested null names are valid selectors in the configured module lists."
+    }
+  ],
+  "pacing_and_observation_implications": {
+    "guest_profile": "Machine, CPU, memory, ROM, input, GDB, trace, trigger, and trace-cap arguments remain unchanged. The change selects explicit null UI/audio modules only.",
+    "null_audio": "No audio device output is requested. The null backend still contains clock-based rate-limit sleeping, so this launch must not be described as inherently unpaced or compared using host wall-time FPS.",
+    "null_ui": "Rendered lines are discarded; this launch has no scanout/pixel oracle. Pixel replay remains unsupported and must not be classified from FRONT/BACK metadata alone.",
+    "wall_time": "Use guest event-tick deltas for timer cadence. Host elapsed time only bounds the approved phase and does not establish guest slowdown."
+  },
+  "fixed_plan_review": {
+    "checkpoints": ["C002", "enemy_pre", "enemy_post", "helper_pre", "helper_post", "B080"],
+    "maximum_stops": 8,
+    "logical_memory_read_commands": 23,
+    "planned_live_read_bytes": 27724,
+    "approved_caps": {"stops": 8, "read_commands": 32, "read_bytes": 32768, "trace_cpu_instructions": 32768},
+    "phase_bounds_seconds": {"total": 60, "work": 52, "cleanup_reserve": 8},
+    "review": "The fixed plan fits its recorded stop/read/byte limits on paper. It retains source-to-staged-to-live byte checks, low-six-bit PAR checks, one bounded helper descriptor candidate, one B080 handoff, and the existing 1C62 trace contract. No extra read, stop, scenario, monitor channel, or deadline was added. These are static projections, not runtime measurements."
+  },
+  "workflow_boundary": {
+    "wiki_reference": "wiki/internal/tooling/xroar.html:162-164 documents the null/null spelling in a monitor example and explicitly says not to combine that monitor invocation with GDB. This assignment keeps the existing GDB path and does not add monitor options.",
+    "runtime_performed": false,
+    "build_or_test_performed": false,
+    "remaining_limit": "Source and configured-module evidence support the two launch values. This report does not claim a successful launch, displayed pixels, or runtime pacing result."
+  }
+}
