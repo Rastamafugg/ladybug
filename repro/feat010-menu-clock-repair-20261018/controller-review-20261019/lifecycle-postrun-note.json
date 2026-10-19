@@ -1,0 +1,53 @@
+{
+  "schema": "ladybug.feat010.controller-lifecycle-postrun-note.v1",
+  "ticket": "FEAT-010",
+  "review_step": "lifecycle-postrun-diagnosis",
+  "date": "2026-10-19",
+  "scope": "Read-only diagnosis of the retained offline characterization output. No lifecycle script/report correction, rerun, live tool, or commit was performed.",
+  "run": {
+    "artifact": "lifecycle-characterization.run.json",
+    "stdout": "lifecycle-characterization.stdout.json",
+    "exit_code": 1,
+    "test_count": 23,
+    "passed_characterizations": 22,
+    "failed_characterizations": 1,
+    "failed_case": "cleanup_return_values_not_verified",
+    "run_sha256": "8f97e3b8fbb88a78a3667f0f4dd99d37eb1c29b2a155c05305126476ca1dd6de",
+    "stdout_sha256": "3801bb8bc7bd5e2b206a46664483524487a2ac288a3553676ddf7f36fe29def1"
+  },
+  "diagnosis": {
+    "classification": "HARNESS_MEASUREMENT_DEFECT",
+    "case_expected": {
+      "abort_nonzero_responses": 1,
+      "stop_false_responses": 1
+    },
+    "case_observed": {
+      "abort_nonzero_responses": 1,
+      "stop_false_responses": 0,
+      "gdb_session_stop_calls": 1,
+      "cleanup_error_entries": 0,
+      "cleanup_status_in_result": null
+    },
+    "counter_source": "lifecycle-regression.cjs:146",
+    "counter_expression": "JSON.stringify(x.response).includes('\"stopped\":false')",
+    "mock_response_source": "lifecycle-regression.cjs:340",
+    "root_cause": "The mocked stop_session result is an MCP envelope whose content[0].text contains the inner JSON text {\"stopped\":false}. Stringifying the outer envelope escapes the inner JSON quotation marks, including the closing quote before :false, so the flat substring search for \"stopped\":false cannot match. The counter reports zero even though the controller records the mocked stopped:false envelope.",
+    "example_outer_serialization": "{\"content\":[{\"type\":\"text\",\"text\":\"{\\\"stopped\\\":false}\"}],\"isError\":false}"
+  },
+  "source_confirmed_controller_behavior": {
+    "classification": "INDEPENDENT_SOURCE_FINDING",
+    "catch_cleanup": "executed-controller.js.txt:64 records the resolved stop_session response, then clears sid without checking isError or stopped:true.",
+    "success_cleanup": "executed-controller.js.txt:54 awaits stop_session, then clears sid without inspecting its response.",
+    "distinction": "The failed expectation is a harness counter false negative, not evidence that the controller recognized or validated stopped:false. Source inspection confirms the response is ignored. This offline mock does not establish that a live GDB session remained active, and the actual retained runtime cleanup response was stopped:true."
+  },
+  "scope_limits": [
+    "No lifecycle script or lifecycle-review.json was changed.",
+    "No characterization rerun or other runtime execution was performed.",
+    "No live GDB, process, emulator, guard, network, or host lifecycle action was performed.",
+    "The parent may correct the offline counter by parsing the MCP content text as JSON or inspecting the structured stopped field; that correction is not applied here."
+  ],
+  "completion": {
+    "status": "DIAGNOSIS_COMPLETE",
+    "commit": null
+  }
+}

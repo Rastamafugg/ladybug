@@ -1,0 +1,223 @@
+{
+  "schema": "ladybug.feat010.controller-lifecycle-review.v1",
+  "ticket": "FEAT-010",
+  "review_step": "lifecycle",
+  "ticket_status": "Verification",
+  "runtime_status": "Paused; the single R-I attempt is blocked after setup rejection",
+  "assignment_status": "Ready High-risk offline review",
+  "date": "2026-10-19",
+  "classification": {
+    "class": "High-risk",
+    "basis": "Runtime process ownership, GDB session lifecycle, strict phase deadlines, and the R-I to R-T handoff are in scope.",
+    "route": ["project-management", "debugger", "qa-reviewer"]
+  },
+  "scope": {
+    "owned_files": [
+      "lifecycle-regression.cjs",
+      "lifecycle-review.json"
+    ],
+    "reviewed_inputs": [
+      "executed-controller.js.txt",
+      "../stutter-runtime-execution-ready.json",
+      "../stutter-runtime-gdb-transcript.json",
+      "../stutter-runtime-execution-result.json",
+      "../stutter-runtime-state.json",
+      "../stutter-runtime-guard.py.txt",
+      "ready-inline-analysis.py.txt",
+      "source-provenance.json"
+    ],
+    "excluded": [
+      "Production, guard, parser, previous R-Q reconciliation, and other review artifacts were not changed.",
+      "No tool, child process, network, GDB, emulator, build, or live host command was invoked.",
+      "The Python guard and inline trace-analysis program are not executed by the Node VM; their tool responses are mocked."
+    ]
+  },
+  "baseline": {
+    "ready_artifact": "../stutter-runtime-execution-ready.json",
+    "ready_commit": "3bf36c1e",
+    "ready_artifact_sha256": "db2a0a27ea209aec02d13f55654c8056d6c47870a2b957c56ce61b5cc70f0787",
+    "controller_source": "executed-controller.js.txt",
+    "controller_source_sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+    "controller_source_limit": "This is the exact original custom_tool_call.input recovered from the current-thread rollout (call_7de95861e0304b9196174e1535fd9f51, 2026-10-19T01:12:06.802Z; 9409 bytes; SHA-256 e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc). The archived copy is byte-identical. It was not in the pre-dispatch source freeze/qualification, so recovery does not retroactively qualify it.",
+    "retained_transcript_sha256": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20",
+    "retained_result_sha256": "ca3515047cbb1fbb943e59ee92e1ede429e198b2d08557f758d5666f703ea865",
+    "retained_state_sha256": "c1c5d50a07b457edb05bab248cd12e04be5ca78c1ff2fdf28c673af9b807eaaa",
+    "guard_sha256": "70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0"
+  },
+  "observed_runtime": {
+    "phase": "R-I",
+    "classification": "OBSERVER_SETUP_REJECTED",
+    "confirmed": [
+      "The retained GDB-MCP start_session response contains session_id 8c1206c5.",
+      "The retained configuration response reports the target architecture as m6809.",
+      "The retained target-remote response reports a stopped target and scalar registers, including PC 057C, but no literal SIGINT label.",
+      "The historical controller requires the literal string SIGINT at executed-controller.js.txt:24-25, then rejects before the checkpoint loop at lines 27-45.",
+      "The retained result records Connection SIGINT not observed, one target stop, zero guest memory commands/bytes, and R-T NOT_RUN.",
+      "The retained abort response is ABORTED for PID 1967; stop_session returned stopped:true. The retained state records phase ABORTED and cleanup signal TERM. Parent QA separately records the PID and listener absent after cleanup."
+    ],
+    "not_established": [
+      "No live signal value was independently queried; the rendered signal remains unknown.",
+      "No live code bytes, PAR values, mapping state, or source-to-destination comparison was read.",
+      "Whether checkpoint C002 had already passed remains unknown.",
+      "No trace phase ran; this is not evidence of a game stutter, phase skip, stale pixels, or hardware fault."
+    ]
+  },
+  "findings": [
+    {
+      "id": "LIFE-01",
+      "severity": "High",
+      "title": "Ambiguous host launch can bypass immediate owner cleanup",
+      "evidence": "executed-controller.js.txt:8 rejects any exec_command result with session_id. Lines 20-23 consume the --start and listener results; launchedMeta is parsed and launched becomes true only at line 21. Catch cleanup at lines 63-64 runs guard --abort only when launched is true.",
+      "effect": "If --start creates the child but the host tool returns a session_id or truncated/non-JSON output, the controller cannot establish launch metadata, does not wait or close that host session, and skips --abort. The guard watchdog is only a later fallback. A child-created synthetic fixture in lifecycle-regression.cjs is expected to expose this path; it is not evidence that the retained attempt hit it.",
+      "confidence": "Source-order fact; injected execution path is pending parent run."
+    },
+    {
+      "id": "LIFE-02",
+      "severity": "High",
+      "title": "Tool callbacks do not have a controller-wide deadline or cancellation path",
+      "evidence": "executed-controller.js.txt:17 awaits start_session without a timeout argument. Line 13 passes a per-command timeout to batch_commands but awaits its Promise without an outer deadline. Lines 63-64 and 68-69 await cleanup/final writes without phase checks. A never-resolving awaited call prevents catch/finally completion.",
+      "effect": "The configured 60-second phase bound does not bound the whole controller when a tool call never resolves. Parent source inspection of the pinned gdb.py reports create at lines 219-259: subprocess creation, a 15-second banner wait, three setup commands with 30-second defaults, and _sessions registration only after setup at line 258. A failure before registration can leave a GDB process without a returned/registered session ID. This is an external ownership/deadline dependency, not fixable by a JavaScript Promise.race alone.",
+      "confidence": "Controller await behavior is source-confirmed. Service details are attributed to the parent read of the pinned installed gdb.py; no service source was changed or executed.",
+      "test": "gdb_start_session_never_returns, gdb_callback_never_returns, cleanup_stop_session_never_returns, and host_wait_write_stdin_never_returns use unresolved mocked Promises. The fake clock advances to 60 seconds from that phase's start; the R-T case records and uses the `--handoff` epoch. The mock does not cancel the underlying Promise or model service-side partial process creation."
+    },
+    {
+      "id": "LIFE-03",
+      "severity": "High",
+      "title": "Cleanup responses are recorded but not validated",
+      "evidence": "executed-controller.js.txt:63 records the --abort exec_command response without checking exit_code. Line 64 records stop_session and clears sid without checking isError or stopped:true. The success cleanup at line 54 likewise clears sid after any resolved stop_session result.",
+      "effect": "A nonzero abort response or stopped:false can still produce and print SETUP_REJECTED without a cleanup-failed state. The actual retained response was successful and independent post-run inspection confirmed cleanup; the risk is an unhandled negative response, not a failure in the observed attempt.",
+      "confidence": "Source-order fact; negative envelopes are injected offline."
+    },
+    {
+      "id": "LIFE-04",
+      "severity": "High",
+      "title": "Final evidence writes can overwrite or fail without changing the reported result",
+      "evidence": "executed-controller.js.txt:16 writes the fixed attempt path; lines 67-69 write the fixed result and transcript paths through PowerShell WriteAllText. The final exec_command response is passed to text() without checking exit_code, and no exclusive-create or prior-hash check is present.",
+      "effect": "A later invocation rejected by the guard's one-shot check can still overwrite the previous execution result and transcript in finally. A failed final write can leave only an in-memory result while the controller prints it as if evidence finalization completed. The guard's one-shot check at stutter-runtime-guard.py.txt:468-473 protects runtime state/dump inputs, not these controller evidence outputs.",
+      "confidence": "Source-order fact; final-write and one-shot negatives are injected offline."
+    },
+    {
+      "id": "LIFE-05",
+      "severity": "Moderate",
+      "title": "Architecture admission can accept a structured error that echoes m6809",
+      "evidence": "executed-controller.js.txt:11 classifies errors with a small text-pattern regex plus top-level isError. Lines 19-20 then accept any serialized configuration response containing m6809.",
+      "effect": "An envelope with isError:false, structuredContent.error:true, and an echoed m6809 string is not rejected by errorResult and satisfies the substring check, so the controller can reach --start without a successful architecture query. The synthetic case is an injected counterexample; no such error occurred in the retained transcript.",
+      "confidence": "Static predicate analysis; parent response review separately owns parser characterization."
+    },
+    {
+      "id": "LIFE-06",
+      "severity": "Moderate",
+      "title": "Guard CLI has partial-artifact and exceptional-cleanup boundaries",
+      "evidence": "stutter-runtime-guard.py.txt:473-478 creates DUMPS and STATE before the guarded Popen try block at line 482. Lines 493-499 perform cleanup inside the exception handler. _cleanup_spawned at lines 392-401 can propagate a second TimeoutExpired. The outer handler at lines 579-581 catches Rejected, OSError, ValueError, and KeyError, not every cleanup exception. Handoff creates HANDOFF before updating STATE at lines 566-569.",
+      "effect": "A state-write failure before Popen can leave one-shot artifacts. A cleanup exception can prevent the intended SETUP_REJECTED record or escape the listed handler. If HANDOFF creation succeeds and the subsequent state update fails, the handoff file persists and blocks another --start. These are source-only exception-path risks; the guard CLI was not executed.",
+      "confidence": "Static source review only; no claim that these failures occurred."
+    },
+    {
+      "id": "LIFE-07",
+      "severity": "Informational",
+      "title": "PID reuse and one-shot runtime-state guards are present",
+      "evidence": "stutter-runtime-guard.py.txt:318-338 binds process identity to PID, executable, argv, and start_ticks. Lines 368-386 signal only an exact matching process and record identity mismatch without killing it. Lines 468-472 reject an existing STATE, LOG, HANDOFF, or DUMPS artifact. LIMITS at lines 41-43 set attempts to one.",
+      "effect": "These guard checks are useful protections in the Python CLI, but the offline controller VM does not execute or qualify them. They do not prevent the controller's fixed evidence paths from being overwritten.",
+      "confidence": "Source-only positive finding."
+    },
+    {
+      "id": "LIFE-08",
+      "severity": "Informational",
+      "title": "Stale handoff is rejected before trace admission",
+      "evidence": "stutter-runtime-guard.py.txt:298-315 enforces B080 identity, one handoff, and a maximum 1000 ms freshness bound. executed-controller.js.txt:51-54 records a fresh R-T epoch, invokes --handoff, and sets handoff=true only after shell returns successfully.",
+      "effect": "The offline late-handoff fixture should produce an R-T setup rejection and abort without running analysis. This is a protective behavior, conditional on the mocked guard response and not an end-to-end guard result.",
+      "confidence": "Source-only plus pending mock characterization."
+    },
+    {
+      "id": "LIFE-09",
+      "severity": "Moderate",
+      "title": "STARTED acknowledgement metadata is not validated before R-I admission",
+      "evidence": "executed-controller.js.txt:18-21 extracts the session and accepts launch metadata based only on status === STARTED; the listener state is parsed at lines 22-23, but no PID/start_ticks cross-check occurs. The handoff at lines 51-53 later interpolates launchedMeta.pid and launchedMeta.start_ticks.",
+      "effect": "A STARTED response with missing or contradictory process identity metadata can proceed through all identity checkpoints and record IDENTITY_PASS before a later handoff rejection. The mock scenario demonstrates the missing-field path with a synthetic guard rejection; it does not establish a live guard response or owner identity.",
+      "confidence": "Static source fact; conditional controller-flow characterization only."
+    }
+  ],
+  "guard_cli_review": {
+    "phase_budget": "stutter-runtime-guard.py.txt:288-315 enforces 52-second work and 60-second phase limits for guard identity/handoff state. The controller's tool awaits and finalization are outside that local guard's cancellation authority.",
+    "process_ownership": "The guard compares PID/exe/argv/start_ticks and only signals the exact owner. The controller does not itself verify the result of abort/stop_session cleanup.",
+    "retry": "The controller does not contain an automatic R-I/R-T retry loop. The guard rejects existing state/log/handoff/dumps on --start. A repeated controller invocation can nevertheless rewrite fixed controller evidence paths before/after the guard rejection.",
+    "partial_launch": "The guard's Popen cleanup covers exceptions after entering its try block, while the JS controller's ambiguous exec_command/session response can fail before its launched flag is set. These are distinct layers and neither is exercised by a mock-only VM as an integrated path.",
+    "handoff": "Guard handoff writes HANDOFF then updates STATE; partial persistence is fail-closed for subsequent --start but leaves stale one-shot evidence requiring review.",
+    "trace_analysis": "ready-inline-analysis.py.txt was read but not executed. Its line 41 source is output.write('\\n') with one source backslash, which writes a real newline; no malformed-JSON claim is made. The Node VM substitutes a labeled synthetic INCOMPLETE_COVERAGE response, so Python analysis, file-open('x'), trace-window parsing, source-byte validation, and trace classification remain unqualified here."
+  },
+  "offline_characterization": {
+    "script": "lifecycle-regression.cjs",
+    "status": "Prepared; pending parent freeze and single bounded execution",
+    "exact_command": "C:/Program Files/nodejs/node.exe repro/feat010-menu-clock-repair-20261018/controller-review-20261019/lifecycle-regression.cjs",
+    "phase_deadline_seconds": 60,
+    "tool_boundary": "Every tools method referenced by the historical controller is mocked inside node:vm. The harness only reads fixed local inputs and writes JSON to stdout.",
+    "positive_fixture_limit": "Synthetic SIGINT, register values, guard admissions, PID, handoff, and trace outcomes bypass the known retained SIGINT-label blocker solely to exercise deeper controller branches. Passing those cases is conditional orchestration characterization, not live validity.",
+    "register_fixture_limit": "Synthetic checkpoint register values are generated from ready.identity_phase.checkpoints[].expected, the same Ready metadata the controller reads. Deep-path passes therefore characterize controller routing and branch handling only; they are not an independent register expectation, source-byte oracle, or guard admission proof.",
+    "controller_flow_expectations": [
+      "Exact retained envelopes yield one R-I stop, Connection SIGINT not observed, no checkpoint reads, no handoff, exact-owner abort, GDB stop, and NOT_RUN trace.",
+      "Synthetic complete path admits six ordered checkpoints; the optional one-descriptor path uses at most eight stops; a second nonmatch rejects before helper admission.",
+      "Ambiguous launch/session, malformed launch JSON, and unknown launch status cases record the child-created premise and expect no controller --abort because launched remains false.",
+      "A STARTED response with missing PID/start_ticks reaches conditional R-I pass, then a synthetic guard response rejects handoff; this does not provide a live metadata or ownership proof.",
+      "A failed attempt-evidence write stops before GDB or guest launch, while finally still attempts fixed-path result writing.",
+      "A structured architecture error that echoes m6809 is expected to reach launch; this records the false admission predicate.",
+      "Stale handoff, deadline exhaustion, capture-write failure, post-handoff detach error, and one-shot guard rejection expect no retry and no trace analysis after failed prerequisites.",
+      "Never-resolving mocked start_session, GDB, cleanup, or host write_stdin callbacks remain pending at a fake 60-second boundary measured from the current phase epoch, including the recorded R-T handoff epoch; the harness does not claim Promise cancellation or model service-side partial process creation.",
+      "A synthetic trace-analysis command failure after conditional handoff is classified in R-T, but Python analysis and its output artifacts are not executed or checked.",
+      "Nonzero abort, stopped:false, and failed final evidence writes remain unverified by the controller and are surfaced as the expected historical behavior."
+    ],
+    "scenarios": [
+      "retained_actual_attach_rejection",
+      "synthetic_complete_sequence_conditional_only",
+      "one_ignored_helper_descriptor_within_stop_cap",
+      "second_helper_descriptor_rejected",
+      "structured_architecture_error_echoing_m6809",
+      "host_session_id_on_launch",
+      "malformed_launch_json_after_child_creation",
+      "guard_launch_ack_unknown_after_child_creation",
+      "started_ack_missing_process_metadata_rejected_at_handoff",
+      "attempt_evidence_write_failure",
+      "host_session_id_on_capture_write",
+      "capture_evidence_write_failure",
+      "handoff_rejected_after_trace_clock_age",
+      "identity_deadline_expires_before_handoff",
+      "gdb_callback_never_returns",
+      "gdb_start_session_never_returns",
+      "cleanup_stop_session_never_returns",
+      "cleanup_return_values_not_verified",
+      "final_evidence_write_failure_unchecked",
+      "detach_error_after_accepted_handoff",
+      "host_wait_write_stdin_never_returns",
+      "trace_analysis_command_failure",
+      "existing_one_shot_guard_rejection"
+    ],
+    "not_covered": [
+      "Python guard execution or byte/PAR oracle validity",
+      "Independent register-byte/source-byte expectation validation; synthetic deep-path registers reuse Ready expected metadata",
+      "GDB-MCP transport, process ownership, real callback deadline, or actual service cleanup",
+      "XRoar listener/process lifecycle or OS PID reuse",
+      "Ready inline analysis, trace-window adapter, observer output, guest events, or framebuffer evidence",
+      "Pre-dispatch freeze/qualification of the exact recovered inline controller source"
+    ]
+  },
+  "verification_performed_by_reviewer": {
+    "script_runtime": "Not run; parent owns the single execution after freezing hashes.",
+    "syntax_check": "C:/Program Files/nodejs/node.exe --check lifecycle-regression.cjs passed.",
+    "diff_check": "git diff --check passed for owned files.",
+    "runtime_or_gate": "None. No historical qualifier or runtime gate was rerun."
+  },
+  "smallest_coherent_next_step": {
+    "recommendation": "Keep runtime paused. Parent should freeze the two owned review artifacts and run lifecycle-regression.cjs once under the 60-second bound. Runtime remains blocked pending resolution or explicit redesign of the callback/session ownership and deadline contract, including service-side process ownership during start_session setup. Before proposing any runtime retry, prepare one reviewed controller lifecycle contract that preserves attempt history, treats ambiguous host sessions as unknown ownership, validates cleanup outcomes, and writes attempt-scoped evidence without overwriting prior results.",
+    "verification_after_repair": "Add bounded offline good/broken fixtures for each changed lifecycle contract and independently qualify the actual guard/service boundary. Do not treat the mock-only VM as integrated readiness. Any renewed runtime attempt remains a separate user-approved High-risk decision after exact source/command freeze.",
+    "scope_exclusions": [
+      "No parser, guard, service, production, or evidence-path repair is implemented by this review.",
+      "No R-I retry, R-T run, process cleanup command, build, or emulator action is authorized or performed."
+    ]
+  },
+  "completion": {
+    "status": "Drafts prepared; parent review/freeze/run/commit pending",
+    "commit": null,
+    "residual_risk": "High-risk lifecycle behavior remains unmodified and unverified end to end. The actual retained attempt cleaned up successfully; synthetic failures expose unhandled branches only if the parent-run characterization matches these expectations. Runtime stays blocked until the start_session process-ownership and whole-controller deadline contract is resolved or explicitly redesigned.",
+    "capacity_change_bytes": 0,
+    "manual_results": "Not applicable to this offline review."
+  }
+}
