@@ -1,0 +1,21 @@
+{
+  "ticket": "FEAT-010",
+  "status": "Ready",
+  "class": "High-risk controller review",
+  "date": "2026-10-19",
+  "approval": "User explicitly requests paused completecontroller review with retained response regression fixtures, negative cases, independent expected results; no production or emulator",
+  "baseline": "RuntimeReady3bf36c1e; retained failed attempt and three unchanged host files; executed-controller.js.txt is a post-run conversation transcription, NOT a source artifact frozen beforedispatch",
+  "source": "executed-controller.js.txt plus parent stutter-runtime-execution-ready.json, retained stutter-runtime-gdb-transcript.json, original helper qualification code/results",
+  "scope": "Audit only. Historical code must remain unchanged. New files only in controller-review-20261019; no live tools/processes/network/GDB/emulator/old gate or production writes.",
+  "qualifier_boundary": "Pure helper qualification doesnot imply controller/E2E readiness. New regression work is non-gating historical characterization, not acceptance or a runtime retry.",
+  "report": "Severity, exact source path/line, confirmed evidence vs inference, execution-path coverage and independent expected/negative cases. Report smallest coherent repair/verification; no repair implementation.",
+  "execution": "Prepare scripts/fixtures only; parent freezes and runs each offline characterization phase once max60seconds. Node installed C:/Program Files/nodejs/node.exe; no WSLNode. Scripts may read fixed local source/evidence and emitJSON only. Mock every tools method; never call real tools or exec/spawn/network/GDB.",
+  "commit": "Send frozen drafts/hashes for review before a separate owned commit. Parent has no staged work.",
+  "step": "responses",
+  "owned_files": [
+    "response-fixtures.json",
+    "response-regression.cjs",
+    "response-review.json"
+  ],
+  "task": "Review response decoding, structured errors, stop verification, architecture and session identity/register parsing. Use real retained MCP envelopes as exact fixture baseline (load existingtranscript by reference/hash), independent expected semantics stopped-with-unknownsignal, decodedregisters, correctsessionID. Add copied/mutated negative fixtures error:true withisErrorfalse, missing/contradictory envelopes, wrongstopS05/unknown, SIGINT inecho only, fake regs incommand echo, architecture negation, errorresponses withsessionIDecho. Extract historical helper functions from archivedcontroller unchanged, do not rewrite them. Characterize falseaccepts/rejects against independent expectedresults. Newparserfixnotauthorized."
+}

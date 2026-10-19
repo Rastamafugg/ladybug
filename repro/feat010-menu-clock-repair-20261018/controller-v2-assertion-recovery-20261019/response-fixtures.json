@@ -1,0 +1,216 @@
+{
+  "kind": "non-gating historical controller response characterization",
+  "ticket": "FEAT-010",
+  "step": "responses",
+  "created": "2026-10-19",
+  "scope": "Offline copies and deterministic mutations of retained MCP envelopes. These fixtures do not authorize a parser fix, runtime retry, emulator/GDB call, or product acceptance.",
+  "provenance": {
+    "transcript": {
+      "path": "../stutter-runtime-gdb-transcript.json",
+      "sha256": "1617ba0bde61ca2baFE2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20",
+      "selectors": {
+        "startSession": 0,
+        "configuration": 1,
+        "attachAndRegisters": 2,
+        "stopSession": 4
+      }
+    },
+    "controllerTranscription": {
+      "path": "executed-controller.js.txt",
+      "sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+      "recoveredCallId": "call_7de95861e0304b9196174e1535fd9f51",
+      "recoveredTimestamp": "2026-10-19T01:12:06.802Z",
+      "bytes": 9409,
+      "limit": "Exact original custom_tool_call.input recovered from the current-thread rollout and byte-identical to this archive. It was not included in a pre-dispatch source freeze or qualification; recovery does not retroactively qualify it."
+    },
+    "sourceProvenance": {
+      "path": "source-provenance.json",
+      "sha256": "77270c5e475b4466fcb539bfa25a7511d623d83881b21503eb670c517a669a02"
+    },
+    "runtimeResult": {
+      "path": "../stutter-runtime-execution-result.json",
+      "sha256": "ca3515047cbb1fbb943e59ee92e1ede429e198b2d08557f758d5666f703eae865"
+    },
+    "parentQa": {
+      "path": "../stutter-runtime-parent-qa-20261019.json",
+      "sha256": "eb7c1968c30905d5ef8dba860635f5d1545b472b34a4c0b890629b0e928e4b60"
+    },
+    "readyAssignment": {
+      "path": "responses-review-ready.json",
+      "sha256": "bdcc6db53004583eb8457ce3159f11bd0c7a00659bdd66a472b54d8cd12ced0c"
+    }
+  },
+  "baselineOracle": {
+    "sessionId": "8c1206c5",
+    "architecture": "m6809",
+    "stopped": true,
+    "signal": null,
+    "signalStatus": "unknown",
+    "registers": {
+      "pc": "057c",
+      "dp": "02",
+      "x": "a2b2",
+      "y": "a359",
+      "u": "e937"
+    },
+    "identityComplete": false,
+    "basis": "The retained attach result has a stopped-PC line and the explicit register command output. It contains no signal name or packet-status response. The transcript records no live-code/PAR memory read; the retained run result says code_identity_proved=false."
+  },
+  "expectedCommands": {
+    "architecture": "show architecture",
+    "attach": [
+      "target remote 127.0.0.1:65520",
+      "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u"
+    ],
+    "registerCommand": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u"
+  },
+  "mutationNotes": {
+    "responseTextMutation": "result fields are edited in a deep copy; content[].text is kept in sync only when mirrorContent is true.",
+    "syntheticSignalCases": "S02/S05/unknown status payloads are offline contract fixtures derived from the retained attach envelope. They are not observed GDB responses and do not establish the live stop signal.",
+    "expectedSemantics": "An envelope error, missing required duplicate channel, or disagreement between channels is rejected. Stop signal is accepted only from an explicit received status payload S02; command text and unrelated fields are not signal evidence. Register values come only from the matching explicit register command output. A session ID is admitted only from a non-error start-session response and must not be accepted from an error echo."
+  },
+  "cases": [
+    {
+      "id": "baseline-session",
+      "source": "startSession",
+      "mutations": [],
+      "oracle": { "sessionAccept": true, "sessionId": "8c1206c5" },
+      "historical": { "sessionId": "8c1206c5", "sessionAdmitted": true }
+    },
+    {
+      "id": "error-session-id-echo",
+      "source": "startSession",
+      "mutations": [{ "op": "sessionField", "field": "error", "value": true }],
+      "oracle": { "sessionAccept": false, "sessionId": null },
+      "historical": { "sessionId": "8c1206c5", "sessionAdmitted": true }
+    },
+    {
+      "id": "outer-isError-session-id-echo",
+      "source": "startSession",
+      "mutations": [{ "op": "topField", "field": "isError", "value": true }],
+      "oracle": { "sessionAccept": false, "sessionId": null },
+      "historical": { "sessionId": "8c1206c5", "sessionAdmitted": true }
+    },
+    {
+      "id": "wrong-session-id",
+      "source": "startSession",
+      "mutations": [{ "op": "sessionField", "field": "session_id", "value": "echo-only-session" }],
+      "oracle": { "sessionAccept": false, "sessionId": null },
+      "historical": { "sessionId": "echo-only-session", "sessionAdmitted": true }
+    },
+    {
+      "id": "conflicting-session-id-fields",
+      "source": "startSession",
+      "mutations": [{ "op": "topField", "field": "session_id", "value": "outer-conflict-session" }],
+      "oracle": { "sessionAccept": false, "sessionId": null },
+      "historical": { "sessionId": "outer-conflict-session", "sessionAdmitted": true }
+    },
+    {
+      "id": "baseline-architecture",
+      "source": "configuration",
+      "mutations": [],
+      "oracle": { "architectureAccept": true, "architecture": "m6809" },
+      "historical": { "architectureAccept": true }
+    },
+    {
+      "id": "architecture-negation",
+      "source": "configuration",
+      "mutations": [{ "op": "resultField", "index": 0, "field": "output", "value": "The target architecture is not m6809.\n", "mirrorContent": true }],
+      "oracle": { "architectureAccept": false, "architecture": null },
+      "historical": { "architectureAccept": true }
+    },
+    {
+      "id": "architecture-channel-conflict",
+      "source": "configuration",
+      "mutations": [{ "op": "resultField", "index": 0, "field": "output", "value": "The target architecture is set to z80.\n", "mirrorContent": false }],
+      "oracle": { "architectureAccept": false, "architecture": null },
+      "historical": { "architectureAccept": true }
+    },
+    {
+      "id": "baseline-attach-unknown-signal",
+      "source": "attachAndRegisters",
+      "mutations": [],
+      "oracle": { "responseAccept": true, "stopped": true, "signal": null, "signalStatus": "unknown", "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" }, "signalAccept": false },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": false, "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" } }
+    },
+    {
+      "id": "structured-error-true-with-isError-false",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "resultField", "index": 1, "field": "error", "value": true, "mirrorContent": true }],
+      "oracle": { "responseAccept": false, "signalAccept": false },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": false }
+    },
+    {
+      "id": "missing-structured-content",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "deleteTop", "field": "structuredContent" }],
+      "oracle": { "responseAccept": false, "registers": null },
+      "historical": { "errorResult": false, "gdb": "accept", "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" } }
+    },
+    {
+      "id": "missing-content-channel",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "deleteTop", "field": "content" }],
+      "oracle": { "responseAccept": false, "registers": null },
+      "historical": { "errorResult": false, "gdb": "accept", "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" } }
+    },
+    {
+      "id": "contradictory-register-channels",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "resultField", "index": 1, "field": "output", "value": "pc=ffff dp=ff x=ffff y=ffff u=ffff\n", "mirrorContent": false }],
+      "oracle": { "responseAccept": false, "registers": null },
+      "historical": { "errorResult": false, "gdb": "accept", "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" } }
+    },
+    {
+      "id": "registers-in-command-echo-only",
+      "source": "attachAndRegisters",
+      "mutations": [
+        { "op": "resultField", "index": 1, "field": "command", "value": "printf \\\"pc=0001 dp=00 x=0001 y=0001 u=0001\\\"", "mirrorContent": true },
+        { "op": "resultField", "index": 1, "field": "output", "value": "registers unavailable\n", "mirrorContent": true }
+      ],
+      "oracle": { "responseAccept": false, "registers": null },
+      "historical": { "errorResult": false, "gdb": "accept", "registers": { "pc": "0001", "dp": "00", "x": "0001", "y": "0001", "u": "0001" } }
+    },
+    {
+      "id": "SIGINT-in-command-echo-only",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "resultField", "index": 0, "field": "command", "value": "target remote 127.0.0.1:65520 # SIGINT", "mirrorContent": true }],
+      "oracle": { "responseAccept": true, "stopped": true, "signal": null, "signalStatus": "unknown", "signalAccept": false },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": true }
+    },
+    {
+      "id": "explicit-S02-status-positive-control",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "resultField", "index": 0, "field": "output", "value": "Remote debugging using 127.0.0.1:65520\n[Stopped: received status S02]\n", "mirrorContent": true }],
+      "oracle": { "responseAccept": true, "stopped": true, "signal": "S02", "signalStatus": "SIGINT", "signalAccept": true },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": false }
+    },
+    {
+      "id": "wrong-stop-S05-despite-SIGINT-command-echo",
+      "source": "attachAndRegisters",
+      "mutations": [
+        { "op": "resultField", "index": 0, "field": "command", "value": "maintenance packet ? # SIGINT", "mirrorContent": true },
+        { "op": "resultField", "index": 0, "field": "output", "value": "received stop-status S05\n", "mirrorContent": true }
+      ],
+      "oracle": { "responseAccept": true, "stopped": true, "signal": "S05", "signalStatus": "wrong-stop", "signalAccept": false },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": true }
+    },
+    {
+      "id": "unknown-stop-despite-SIGINT-command-echo",
+      "source": "attachAndRegisters",
+      "mutations": [
+        { "op": "resultField", "index": 0, "field": "command", "value": "maintenance packet ? # SIGINT", "mirrorContent": true },
+        { "op": "resultField", "index": 0, "field": "output", "value": "stop status unavailable\n", "mirrorContent": true }
+      ],
+      "oracle": { "responseAccept": true, "stopped": true, "signal": null, "signalStatus": "unknown", "signalAccept": false },
+      "historical": { "errorResult": false, "gdb": "accept", "signalAccept": true }
+    },
+    {
+      "id": "top-level-isError-true",
+      "source": "attachAndRegisters",
+      "mutations": [{ "op": "topField", "field": "isError", "value": true }],
+      "oracle": { "responseAccept": false },
+      "historical": { "errorResult": true, "gdb": "reject" }
+    }
+  ]
+}

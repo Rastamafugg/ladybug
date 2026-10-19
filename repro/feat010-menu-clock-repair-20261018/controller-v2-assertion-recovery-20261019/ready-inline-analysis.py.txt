@@ -1,0 +1,42 @@
+import hashlib,json,runpy,time
+from pathlib import Path
+case=Path('repro/feat010-menu-clock-repair-20261018').resolve()
+g=runpy.run_path(str(case/'stutter-runtime-guard.py.txt'))
+w=runpy.run_path(str(case/'stutter-trace-window.py.txt'))
+observer=w['observer']
+ready=json.loads((case/'stutter-runtime-execution-ready.json').read_text())
+for name,digest in ready['files_sha256'].items():
+    assert hashlib.sha256((case/name).read_bytes()).hexdigest()==digest, 'active hash mismatch: '+name
+handoff=json.loads((case/'stutter-runtime-handoff.json').read_text())
+state=json.loads((case/'stutter-runtime-state.json').read_text())
+assert handoff['pid']==state['pid'] and handoff['start_ticks']==state['start_ticks'], 'process handoff mismatch'
+assert state['handoff_count']==1 and handoff['identity_result']['identity_complete'] is True, 'unproved handoff'
+assert time.time()*1000 < handoff['phase_start_ms']+52000, 'trace analysis work deadline'
+captures=json.loads((case/'stutter-runtime-captures.json').read_text())
+proof=g['validate_capture_sequence'](captures,g['load_source_oracle']())
+assert proof['identity_complete'] is True and proof['verified_through']=='B080', 'R-I proof missing'
+raw=g['LOG'].read_text()
+events=observer.parse_trace(raw)
+cpu_count=sum(e['kind']=='cpu' for e in events)
+window=w['adapt_first_window'](raw)
+result={'ticket':'FEAT-010','phase':'R-T','pid':handoff['pid'],'raw_sha256':hashlib.sha256(raw.encode()).hexdigest(),'cpu_instructions':cpu_count,'raw_events':len(events),'runtime_identity':proof,'pixel_replay':'UNSUPPORTED_WITHOUT_PIXELS','host_fps':'UNSUPPORTED'}
+if window['kind']!='WINDOW_READY':
+    result.update(window)
+    if window.get('reason') in ('no native timing events','no eligible timer t>=6','first eligible window truncated','FRAMES does not bracket first eligible window','final eligible timer lacks phase'):
+        result['kind']='INCOMPLETE_COVERAGE'
+else:
+    spans=[(0x06B2,(case/'stutter-runtime-dumps/B080-helper_dest.bin').read_bytes()),(0x0800,(case/'stutter-runtime-dumps/B080-enemy_dest.bin').read_bytes()),(0xA422,(case/'stutter-runtime-dumps/B080-aux_dest.bin').read_bytes())]
+    marker_bytes={}
+    for name,(pc,opcode,mnemonic) in observer.MARKERS.items():
+        matches=[data[pc-start:pc-start+len(opcode)//2].hex() for start,data in spans if start<=pc and pc+len(opcode)//2<=start+len(data)]
+        assert len(matches)==1, 'ambiguous/missing live marker span'
+        marker_bytes[name]=matches[0]
+    identity={'receipt_sha256':observer.RECEIPT_SHA256,'rom_sha256':observer.ROM_SHA256,'profile':'complete-adaptive','runtime_bytes_and_mapping_proved':True,'marker_bytes':marker_bytes}
+    summary=observer.analyze(window['normalized_trace'],identity)
+    result.update(w['add_global_origin'](summary,window))
+    result['window_metadata']={k:window[k] for k in ('raw_event_origin_index','raw_line_origin','origin_event_ticks','discarded_native_first_dt','activation_event_indices','timer_event_indices','phase_event_indices','bracketing_frame_indices','folded_startup_records')}
+result['elapsed_seconds']=(time.time()*1000-handoff['phase_start_ms'])/1000
+assert result['elapsed_seconds'] < 52, 'trace analysis work deadline'
+with (case/'stutter-runtime-trace-result.json').open('x') as output:
+    json.dump(result,output,sort_keys=True,indent=2);output.write('\n')
+print(json.dumps({'kind':result['kind'],'cpu_instructions':cpu_count,'elapsed_seconds':result['elapsed_seconds'],'raw_sha256':result['raw_sha256']},sort_keys=True))

@@ -1,0 +1,209 @@
+{
+  "kind": "controller admission review",
+  "ticket": "FEAT-010",
+  "step": "admission",
+  "status": "DRAFT_FOR_PARENT_REVIEW",
+  "class": "High-risk controller review",
+  "scope": "Read-only review of source/artifact/live-byte admission, process binding and handoff, old R-Q helper coverage, and trace window/classification. No runtime, emulator, GDB, import, test, build, or production action was performed.",
+  "inputs": {
+    "assignment": {
+      "path": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/admission-review-ready.json",
+      "step": "admission",
+      "owned_output": "admission-review.json"
+    },
+    "controller": {
+      "path": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/executed-controller.js.txt",
+      "sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+      "provenance": "Exact 9,409-byte custom_tool_call.input recovered from rollout; byte-identical to archive. It was not frozen/qualified before dispatch. See source-provenance.json:3-6, 10-27."
+    },
+    "inlineAnalysis": {
+      "path": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/ready-inline-analysis.py.txt",
+      "sha256": "0d419d21dacfdfd4f706510957ad7bf7c569719d94801aba5d6dfe847bdf851a",
+      "provenance": "Extracted from the prior Ready JSON; not part of the recovered complete JS orchestration or a pre-dispatch file freeze."
+    },
+    "reviewedSources": {
+      "guard": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt, SHA-256 70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0",
+      "window": "repro/feat010-menu-clock-repair-20261018/stutter-trace-window.py.txt, SHA-256 4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
+      "observer": "repro/feat010-menu-clock-repair-20261018/stutter-observer.py.txt, SHA-256 8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+      "qualification": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt, SHA-256 e152c8975837cf4df595c98897654d39c231da6c481e0ada49dc29f553263278"
+    },
+    "runtimeEvidence": [
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-execution-ready.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-gdb-transcript.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-execution-result.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-parent-qa-20261019.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-parent-source-proof.json"
+    ]
+  },
+  "verdict": {
+    "controllerAdmission": "NOT_QUALIFIED",
+    "reason": "The retained runtime attempt stopped at the controller's SIGINT text gate before any guest memory reads. R-Q is synthetic helper qualification, not controller/transport/process or live-byte qualification. R-T did not run.",
+    "productAssertion": "NONE_RECORDED",
+    "productBehaviorConclusion": "No conclusion about menu stutter, phase skips, stale pixels, or host frame rate is supported."
+  },
+  "observedBaseline": {
+    "source": "stutter-runtime-parent-qa-20261019.json:5-28; stutter-runtime-execution-result.json:4-21; stutter-runtime-gdb-transcript.json:88-113",
+    "phase": "R-I",
+    "verdict": "OBSERVER_SETUP_REJECTED",
+    "reason": "Controller required rendered text containing SIGINT; the successful target-remote response rendered a stopped target without a signal name.",
+    "actualStopSignal": "Unknown; the transcript does not provide a signal-name or status-packet payload.",
+    "rawRegistersOnly": {
+      "pc": "057c",
+      "dp": "02",
+      "x": "a2b2",
+      "y": "a359",
+      "u": "e937"
+    },
+    "guestReads": 0,
+    "guestReadBytes": 0,
+    "tracePhase": "NOT_RUN",
+    "attempts": 1,
+    "elapsedSeconds": 4.011,
+    "meaning": "Host pins, owned PID/listener, GDB-MCP attach and scalar register response were observed. No live code or mapping identity was established; do not infer a routine or phase from PC 0x057c."
+  },
+  "positives": [
+    {
+      "area": "Source and artifact oracle",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:100-153 verifies pinned Ready/source/artifact hashes, lengths, source/build range consistency, the 4091-byte enemy artifact plus five A3 fill bytes, helper/presentation ranges, and auxiliary composition. repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:164-185 defines expected read bytes from that oracle."
+    },
+    {
+      "area": "Live identity gate design",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:48-81 fixes the 23-read recipe and checkpoint registers; :212-276 checks ordered checkpoints, byte comparisons, PAR low-six mappings/PAR5, helper descriptor, B080 mode/timer and read caps. :331-338 binds PID, executable, argv and start ticks; :368-389 limits cleanup to the exact process."
+    },
+    {
+      "area": "Launch and handoff bounds",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:341-365 pins launch options, trace trigger/cap and B080 handoff values. :464-503 rejects existing state/log/handoff/dumps, verifies launch identity and starts the watchdog. :531-571 rechecks process identity, checkpoint progression and one current B080 handoff."
+    },
+    {
+      "area": "Trace window and timeline preservation",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-trace-window.py.txt:23-47 rejects malformed timing rows and instruction-cap overflow; :63-73 checks one valid activation; :101-169 checks timer/phase pairing, a first 33-sample eligible window, FRAMES bracketing and publication boundaries; :171-218 preserves raw event indices/ticks while folding startup deltas; :221-231 restores global time origin."
+    },
+    {
+      "area": "Observer output boundaries",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-observer.py.txt:97-112 explicitly treats identity as caller-supplied evidence; :115-239 checks supplied identity, trace structure, marker sequence, 33 timer/phase values and spacing, and reports pixel replay and host FPS unsupported."
+    },
+    {
+      "area": "Independent source review",
+      "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-parent-source-proof.json:15-30 records a source-derived unique 1C62/0FD4 activation condition, a 558-field natural reload horizon versus a two-second trace timeout, guest-event timeout basis, and startup branch behavior. It explicitly does not prove that the 32768-instruction cap contains 33 eligible samples."
+    }
+  ],
+  "qualificationCoverage": {
+    "scope": "Historical R-Q source and saved result only; this review did not execute it.",
+    "executionLimits": "qualification.py.txt:1-10 labels the qualifier synthetic/no-subprocess/no-runtime/no-dump-writes and imports guard/window/observer helpers. Positive captures are generated from guard.EXPECTED_REGS, READ_PLAN and expected_reads at :26-43; the dump_provider is an in-memory mapping. Trace identity sets runtime_bytes_and_mapping_proved=true by construction at :87-91.",
+    "controls": [
+      {
+        "names": ["identity_good", "enemy_slot_byte", "low_six_mapping", "relocation_byte", "authored_source_byte", "4091_vs_4096", "relocated_pc"],
+        "functions": "load_source_oracle, expected_reads, validate_capture_sequence, and its in-memory dump_provider path",
+        "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:94-142",
+        "independenceLimit": "Good capture registers/read recipes and expected byte arrays are generated from the same guard constants/oracle used by the validator. Mutations show rejection of selected deviations from that oracle; the positive does not independently establish that a GDB read, address mapping or source-to-destination copy occurred."
+      },
+      {
+        "names": ["handoff_expiry", "handoff_count", "phase_deadline"],
+        "functions": "validate_handoff and phase_budget",
+        "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:144-162",
+        "independenceLimit": "Pure in-memory state and literal handoff values; no CLI state file, wall-clock wait, owned process, GDB detach or watchdog scheduling is exercised."
+      },
+      {
+        "names": ["vector_dt_and_window", "unequal_spacing", "phase_anomaly", "missing_sample", "missing_frames", "unknown_timing_row", "second_activation", "trigger_opcode"],
+        "functions": "adapt_first_window, parse_trace, analyze and add_global_origin",
+        "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:164-227",
+        "independenceLimit": "Synthetic native-format strings only. The good fixture uses the same activation/marker locations and duplicates the observer's phase formula. Explicit frame sequence and 239856 event spacing are separately asserted in this fixture, but no captured runtime trace is included."
+      },
+      {
+        "names": ["pixel_replay", "host_fps"],
+        "functions": "Declared unsupported outputs",
+        "evidence": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:228-231",
+        "independenceLimit": "These controls correctly preserve non-claims; they are not positive visual or host-timing tests."
+      }
+    ],
+    "savedResultAccounting": "The original R-Q output records process exit 0 but verdict SETUP_FAILURE with a control_count mismatch: repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification-result.json:2-7, :29-33. Its source output has 20 controls including trigger_opcode at repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:224-227, while the old Ready expected dictionary has 19 entries at repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification-ready.json:18-38. The later retained-output reconciliation reports 20 matched synthetic controls, rejects the old 19-entry dictionary as its negative control, and preserves product_validation=false/original_failure_preserved=true at repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-reconciliation-result.json:9-26. Therefore the reconciled synthetic accounting is supported; the raw R-Q record itself must not be called an unqualified pass."
+  },
+  "unqualifiedPaths": [
+    {
+      "path": "Controller host/GDB orchestration",
+      "detail": "No saved R-Q call exercises tools.mcp__gdb_mcp__*, tools.exec_command, the complete JS catch/finally flow, response transport/envelopes, controller deadlines, session cleanup, or actual command scheduling. The historical attempt reached start/configuration/launch/listener/attach/register capture only; parent QA records zero memory reads and no handoff."
+    },
+    {
+      "path": "Guard CLI and OS process lifecycle",
+      "detail": "R-Q does not call main(--start/--check/--handoff/--abort/--watch), subprocess.Popen, /proc identity checks, ss polling, the watchdog, filesystem dump reads, or cleanup. Only helper functions and synthetic state are qualified."
+    },
+    {
+      "path": "Source-to-staged-to-live byte/mapping proof",
+      "detail": "Pinned source/build composition and planned comparisons are present, but the retained attempt made zero guest memory reads. There is no current live comparison of authored source, staged ROM/relocated loader, destination bytes, or GIME PAR state."
+    },
+    {
+      "path": "R-T schedule and natural trace coverage",
+      "detail": "No actual 32768-instruction native trace, guest-time deadline, callback/wait schedule, 33-sample coverage, frame/publication progression, or analysis-output write was observed. Source proof explicitly leaves eligible-window coverage unresolved."
+    }
+  ],
+  "findings": [
+    {
+      "id": "ADM-01",
+      "severity": "P1",
+      "certainty": "Observed controller setup rejection; not a product assertion",
+      "source": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/executed-controller.js.txt:24-26",
+      "evidence": "The controller batches target remote and register capture, then admits only if serialized response text contains SIGINT. The retained response is isError=false and command error=false, with a stopped target and register output but no signal-name/status payload: stutter-runtime-gdb-transcript.json:88-113. The attempt consequently records SETUP_REJECTED before reads: stutter-runtime-execution-result.json:4-18; parent-qa-20261019.json:8-20.",
+      "impact": "The live attempt is unqualified because stop cause is unknown, but the current text gate loses that distinction and rejects a successful stopped attach. Do not relabel the observed stop SIGINT and do not accept an unknown signal as proved.",
+      "smallestCoherentNextStep": "For any renewed authorized runtime, use a response field/status source whose semantics are independently documented and preserved by the connector; otherwise retain an explicit unknown-stop setup failure. Freeze and qualify the controller/response fixture before dispatch."
+    },
+    {
+      "id": "ADM-02",
+      "severity": "P2",
+      "certainty": "Confirmed provenance limitation",
+      "source": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/source-provenance.json:3-6,10-27",
+      "evidence": "The controller archive now matches the exact recovered 9409-byte tool-call input and hash, but neither it nor the preflight was frozen/qualified before dispatch. The recovered source closes transcription uncertainty, not pre-dispatch identity/qualification. Controller line 2 loads runtimeReady from session state and line 16 records a literal Ready digest; the archived source does not compute/compare a digest for that loaded in-memory plan before using its fields.",
+      "impact": "Post-run source review can characterize the exact recovered call, but cannot prove that the exact source/loaded plan was reviewed and frozen before the historical dispatch. A stale in-memory plan is not shown to have occurred; downstream guard checks reduce some divergence to rejection but are not a substitute for a preflight binding.",
+      "smallestCoherentNextStep": "Before a future dispatch, retain the exact controller and inline-analysis bytes, compute their hashes, bind the loaded Ready bytes/digest to the reviewed execution-ready artifact, and reject any mismatch before the first tool call."
+    },
+    {
+      "id": "ADM-03",
+      "severity": "P2",
+      "certainty": "Potential false-admission race; not observed",
+      "source": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/executed-controller.js.txt:22-26; repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:331-338,531-541",
+      "evidence": "The controller polls ss for the expected listener PID, then attaches to the port and copies PID/exe/start_ticks from state into the connection capture. Guard --check rechecks the owned PID identity and compares captured PID/start_ticks, but it has no independent proof that the GDB session's attached target PID is the same process, and the socket owner is not rechecked after attach/before reads.",
+      "impact": "A listener-owner change in the poll-to-attach interval could make the capture's copied process identity differ from the process served at the endpoint. No such change is evidenced; the actual retained attach cannot be assigned to a different process from available evidence.",
+      "smallestCoherentNextStep": "If process-level binding is a required admission invariant, recheck exact listener ownership after attach and before memory reads, or use a transport response that binds the session to the expected process identity. Preserve exact PID/exe/argv/start-ticks comparisons."
+    },
+    {
+      "id": "ADM-04",
+      "severity": "P2",
+      "certainty": "Confirmed adapter condition not asserted; false-admission consequence is conditional",
+      "source": "repro/feat010-menu-clock-repair-20261018/stutter-trace-window.py.txt:63-73,83-100,146-154; repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt:57-84,164-180",
+      "evidence": "The adapter enforces exactly one valid 1C62 activation, then selects the first eligible timer from the entire parsed event list. It does not require that activation index precede the selected timer/window. The positive fixture always places activation before samples; Q tests wrong opcode and duplicate activation but not activation-after-window ordering.",
+      "impact": "If a native log can contain eligible timing events before the activation marker, the adapter could analyze a pre-activation window while still recording one valid activation later. No actual trace is available to show this input shape occurs; source-reviewed trigger uniqueness does not itself assert trace-record ordering.",
+      "smallestCoherentNextStep": "Add an explicit activation-before-selected-window predicate and a negative fixture with the sole valid activation after an otherwise valid 33-sample window, unless a separately retained logger contract proves pre-activation records cannot be present."
+    },
+    {
+      "id": "ADM-05",
+      "severity": "P2",
+      "certainty": "Confirmed scope of returned classification",
+      "source": "repro/feat010-menu-clock-repair-20261018/stutter-observer.py.txt:200-239",
+      "evidence": "GUEST_TIMER_PHASE_CONSISTENT is selected when the 33 phases match and timer-to-timer observed spacings are equal. Frame steps and publication records are reported, but their expected values/counts are not part of that classification; equal spacing need not equal a source-derived expected interval. Pixel replay and host FPS remain explicitly unsupported.",
+      "impact": "The result can support a bounded guest timer/phase observation only. It cannot by itself assert menu animation progress, visible stutter resolution, or host rendering performance. This is a result-interpretation boundary, not a confirmed product defect.",
+      "smallestCoherentNextStep": "Keep acceptance wording limited to the measured timer/phase contract; if user-visible progress is an acceptance target, specify and independently justify frame/publication expectations and a pixel/manual check in the approved card."
+    },
+    {
+      "id": "ADM-06",
+      "severity": "P2",
+      "certainty": "Conditional output-collision risk; absent in retained workspace",
+      "source": "repro/feat010-menu-clock-repair-20261018/controller-review-20261019/ready-inline-analysis.py.txt:38-42; repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt:464-473",
+      "evidence": "Analysis writes stutter-runtime-trace-result.json using exclusive create ('x'). Guard --start rejects pre-existing state/log/handoff and dump directory but does not check this result path. The result path was absent in the retained workspace at review time.",
+      "impact": "A stale result from an earlier attempt would make post-trace analysis fail at output creation after the trace/analysis work, obscuring an otherwise computed result. This cannot create a false pass; it can create a late setup rejection and lost retained output.",
+      "smallestCoherentNextStep": "Include every attempt-derived output in the start preflight or write under a unique per-attempt directory; preserve the one-shot/no-overwrite policy."
+    }
+  ],
+  "rejectedHypotheses": [
+    {
+      "hypothesis": "ready-inline-analysis.py.txt line 41 appends two literal backslashes plus n, making result JSON malformed.",
+      "resolution": "Rejected. The recovered line contains one backslash in the Python string literal '\\n', which writes a newline. Parent independently confirmed its AST literal ordinal is [10]. No artifact was changed for this hypothesis."
+    }
+  ],
+  "nonClaims": [
+    "No routine, phase, or code identity is inferred from raw PC 0x057c.",
+    "No stop signal is assigned to the actual attach.",
+    "No live bytes, GIME mapping, relocated copy, or B080 identity are claimed; the historical attempt read zero guest bytes.",
+    "No emulator, game, host-performance, or visible-stutter defect is claimed.",
+    "R-Q synthetic outcomes and parent source proof do not qualify the controller end-to-end or replace missing runtime coverage."
+  ],
+  "disposition": "Keep runtime paused and the controller unqualified. This report is an audit artifact only; no repair or retry is authorized by this review."
+}

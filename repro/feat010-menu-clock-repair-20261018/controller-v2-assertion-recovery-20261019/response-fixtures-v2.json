@@ -1,0 +1,84 @@
+{
+  "ticket": "FEAT-010",
+  "kind": "offline-controller-v2 response qualification fixtures",
+  "scope": "Retained MCP responses plus explicitly synthetic contract cases. No live signal, runtime identity, or service cancellation claim.",
+  "provenance": {
+    "transcript": {
+      "path": "../stutter-runtime-gdb-transcript.json",
+      "sha256": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
+    },
+    "historical_controller": {
+      "path": "executed-controller.js.txt",
+      "sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+      "use": "Pure historical helper/predicate negative controls only; the old controller is never executed."
+    }
+  },
+  "retained_oracle": {
+    "session_id": "8c1206c5",
+    "architecture": "m6809",
+    "stopped": true,
+    "signal": null,
+    "signal_status": "unknown",
+    "registers": {
+      "pc": "057c",
+      "dp": "02",
+      "x": "a2b2",
+      "y": "a359",
+      "u": "e937"
+    },
+    "identity_complete": false
+  },
+  "commands": {
+    "architecture": "show architecture",
+    "attach": "target remote 127.0.0.1:65520",
+    "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+    "status_query": "maintenance packet ?"
+  },
+  "synthetic_contract_cases": {
+    "new_opaque_session_id": "opaque-session-v2:7f3a",
+    "explicit_received_S02": {
+      "label": "SYNTHETIC_CONTRACT_CASE_NOT_OBSERVED",
+      "command": "maintenance packet ?",
+      "output": "received status S02\n"
+    },
+    "explicit_received_S05": {
+      "label": "SYNTHETIC_CONTRACT_CASE_NOT_OBSERVED",
+      "command": "maintenance packet ?",
+      "output": "received status S05\n"
+    },
+    "unknown_status": {
+      "label": "SYNTHETIC_CONTRACT_CASE_NOT_OBSERVED",
+      "command": "maintenance packet ?",
+      "output": "status unavailable\n"
+    },
+    "sigint_echo_only": {
+      "label": "SYNTHETIC_NEGATIVE_CONTROL_NOT_OBSERVED",
+      "command": "maintenance packet ?",
+      "output": "maintenance packet ?\nSIGINT\n"
+    }
+  },
+  "required_cases": [
+    "real_session",
+    "new_opaque_session",
+    "error_session_echo",
+    "conflicting_session",
+    "real_architecture",
+    "negated_architecture",
+    "real_stopped_unknown_signal",
+    "real_register_values",
+    "outer_error",
+    "per_command_error",
+    "structured_error",
+    "truncated_batch",
+    "wrong_command",
+    "channel_conflict",
+    "content_only_valid",
+    "structured_only_valid",
+    "register_echo_only",
+    "sigint_echo_only",
+    "explicit_received_S02",
+    "explicit_received_S05",
+    "unknown_status",
+    "stop_ack_false"
+  ]
+}

@@ -1,0 +1,70 @@
+// @exec: {"yield_time_ms": 1000, "max_output_tokens": 1800}
+const ready=load("runtimeReady"), caseWin="E:/projects/ladybug/repro/feat010-menu-clock-repair-20261018", caseLin="/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018";
+const guard="repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt";
+const start=Date.now(); let phaseStart=start, phase="R-I", sid=null, launched=false, handoff=false, launchedMeta=null, stopCount=0, captures=[], transcript=[], lastProven=null, ri=null, rt=null;
+const psq=s=>"'"+s.replaceAll("'","''")+"'";
+const remaining=()=>52-(Date.now()-phaseStart)/1000;
+function checkBudget(){if(remaining()<1)throw Error(phase+" work deadline reached");}
+async function shell(cmd,strict=true){checkBudget();const r=await tools.exec_command({cmd,max_output_tokens:5000,yield_time_ms:1000}); if(r.session_id) throw Error("Unexpected running host command "+r.session_id);if(strict&&r.exit_code!==0)throw Error("Host command failed: "+r.output);return r;}
+async function write(name,obj){return shell("[IO.File]::WriteAllText("+psq(caseWin+"/"+name)+","+psq(JSON.stringify(obj))+",[Text.UTF8Encoding]::new($false))");}
+function asText(r){return JSON.stringify(r);}
+function errorResult(r){const t=asText(r);return r?.isError||/\^error|error,msg|Connection refused|Cannot access memory|Register \d+ is not available|timed out|\"success\":false/i.test(t);}
+function findSid(v){if(v&&typeof v==="object"){if(typeof v.session_id==="string")return v.session_id;for(const z of Object.values(v)){const x=findSid(z);if(x)return x;}}if(typeof v==="string"){try{return findSid(JSON.parse(v));}catch{}const m=v.match(/"session_id"\s*:\s*"([^"]+)"/);if(m)return m[1];}return null;}
+async function gdb(commands){checkBudget();const timeout=Math.min(2,(remaining()-1)/(commands.length+1));if(timeout<=0)throw Error("Insufficient MCP batch budget");const r=await tools.mcp__gdb_mcp__batch_commands({commands,session_id:sid,stop_on_error:true,timeout});transcript.push({phase,elapsed_ms:Date.now()-phaseStart,commands,response:r});if(errorResult(r))throw Error("GDB command failure: "+asText(r));checkBudget();return r;}
+function regs(r){const m=asText(r).match(/pc=([0-9a-fA-F]{4}) dp=([0-9a-fA-F]{2}) x=([0-9a-fA-F]{4}) y=([0-9a-fA-F]{4}) u=([0-9a-fA-F]{4})/);if(!m)throw Error("Explicit register output missing");return Object.fromEntries(["pc","dp","x","y","u"].map((k,i)=>[k,parseInt(m[i+1],16)]));}
+try{
+ await write("stutter-runtime-identity-attempt.json",{ticket:"FEAT-010",phase:"R-I",attempt:1,epoch_ms:start,ready_sha256:"db2a0a27ea209aec02d13f55654c8056d6c47870a2b957c56ce61b5cc70f0787"});
+ const session=await tools.mcp__gdb_mcp__start_session({cwd:"/mnt/e/projects/ladybug"});
+ transcript.push({phase,operation:"start_session",response:session,elapsed_ms:Date.now()-start});sid=findSid(session);store("activeRuntimeGdbSession",sid);if(!sid)throw Error("GDB session identifier unavailable");
+ const conf=await gdb(ready.identity_phase.configuration_commands);if(!asText(conf).includes("m6809"))throw Error("Architecture not proved m6809");
+ const launch=await shell("wsl.exe --cd /mnt/e/projects/ladybug python3 -B "+guard+" --start "+start);
+ launchedMeta=JSON.parse(launch.output);if(launchedMeta.status!=="STARTED")throw Error("Guard did not launch");launched=true;
+ const listenerPy="import json,time,subprocess;from pathlib import Path;s=json.loads(Path("+JSON.stringify(caseLin+"/stutter-runtime-state.json")+").read_text());end=time.monotonic()+4\nwhile time.monotonic()<end:\n out=subprocess.check_output(['ss','-H','-ltnp','sport = :65520']).decode()\n if ('pid='+str(s['pid'])+',') in out:break\n time.sleep(.025)\nelse:raise SystemExit('Owned listener not ready')\nprint(json.dumps(s))";
+ const state=JSON.parse((await shell("wsl.exe --cd /mnt/e/projects/ladybug python3 -B -c "+psq(listenerPy))).output);
+ const attach=await gdb([ready.identity_phase.attach,ready.plan.register_command]);stopCount++;
+ if(!/SIGINT/.test(asText(attach)))throw Error("Connection SIGINT not observed");
+ captures.push({checkpoint:"connection",signal:"SIGINT",process:{pid:state.pid,exe:state.exe,start_ticks:state.start_ticks},registers:regs(attach)});
+ for(const step of ready.identity_phase.checkpoints){
+   let out=await gdb([step.arm,step.run,step.registers]);stopCount++;
+   let actual=regs(out);
+   if(step.name==="helper_pre" && !(actual.pc===0x3d4&&actual.u===0xc802&&actual.y===0x6b2&&actual.x===334)){
+     if(actual.pc!==0x3d4)throw Error("Wrong helper candidate PC");
+     captures.push({checkpoint:"helper_candidate",pc:actual.pc,u:actual.u,y:actual.y,x:actual.x});
+     out=await gdb(["continue",step.registers]);stopCount++;actual=regs(out);
+   }
+   if(stopCount>8)throw Error("Target stop cap exceeded");
+   for(const [key,value] of Object.entries(step.expected))if(actual[key]!==value)throw Error(step.name+" unexpected "+key+"="+actual[key].toString(16));
+   const reads=ready.plan.read_recipe.filter(x=>x.checkpoint===step.name);
+   await gdb(reads.map(x=>x.gdb));
+   captures.push({checkpoint:step.name,registers:actual,reads:reads.map(x=>({name:x.name,address:x.address,length:x.length,file:x.file}))});
+   await write("stutter-runtime-captures.json",captures);
+   const check=JSON.parse((await shell("wsl.exe --cd /mnt/e/projects/ladybug python3 -B "+guard+" --check "+caseLin+"/stutter-runtime-captures.json")).output);
+   if(check.verified_through!==step.name)throw Error("Checkpoint validator did not advance");lastProven=step.name;
+   notify("R-I admitted "+step.name+"; elapsed "+((Date.now()-start)/1000).toFixed(2)+"s.");
+   if(step.name==="helper_pre")await gdb(["delete breakpoints"]);
+ }
+ const bp=await gdb(["info breakpoints"]);if(!/No breakpoints/i.test(asText(bp)))throw Error("Breakpoints remain at handoff");
+ const logPy="from pathlib import Path;import re;p=Path("+JSON.stringify(caseLin+"/stutter-runtime-xroar.log")+");s=p.read_text();assert not re.search(r'(?m)^[0-9a-fA-F]{4}\\|',s) and 'dt=' not in s;print('NO_EARLY_TRACE')";
+ await shell("wsl.exe --cd /mnt/e/projects/ladybug python3 -B -c "+psq(logPy));
+ ri={ticket:"FEAT-010",phase:"R-I",verdict:"IDENTITY_PASS",last_proven:lastProven,stops:stopCount,read_commands:23,read_bytes:27724,elapsed_seconds:(Date.now()-start)/1000,pid:launchedMeta.pid};
+ await write("stutter-runtime-identity-result.json",ri);
+ phase="R-T";phaseStart=Date.now();
+ const cmd="wsl.exe --cd /mnt/e/projects/ladybug python3 -B "+guard+" --handoff "+phaseStart+" --pid "+launchedMeta.pid+" --start-ticks "+launchedMeta.start_ticks+" --checkpoint B080 --pc 0xB080 --dp 0 --mode 1 --screen 0 --timer 0 --par5 0x23 --breakpoints-remaining 0 --trace-started false";
+ await shell(cmd);handoff=true;notify("R-I passed; same-process R-T clock started.");
+ await gdb(["delete breakpoints","detach"]);await tools.mcp__gdb_mcp__stop_session({session_id:sid});sid=null;store("activeRuntimeGdbSession",null);
+ const waitPy="import json,time,os;from pathlib import Path;s=json.loads(Path("+JSON.stringify(caseLin+"/stutter-runtime-state.json")+").read_text());end=s['phase_start_ms']/1000+50\nwhile time.time()<end:\n try: alive=os.readlink('/proc/'+str(s['pid'])+'/exe')==s['exe']\n except (FileNotFoundError,ProcessLookupError):alive=False\n if not alive:break\n time.sleep(.05)\nelse:raise SystemExit('Trace process did not exit within work budget')\nprint('OWNED_PROCESS_EXITED')";
+ let wait=await tools.exec_command({cmd:"wsl.exe --cd /mnt/e/projects/ladybug python3 -B -c "+psq(waitPy),max_output_tokens:800,yield_time_ms:1000});
+ while(wait.session_id){checkBudget();wait=await tools.write_stdin({session_id:wait.session_id,chars:"",yield_time_ms:1000,max_output_tokens:800});}
+ if(wait.exit_code!==0)throw Error(wait.output);
+ rt=JSON.parse((await shell("wsl.exe --cd /mnt/e/projects/ladybug python3 -B -c "+psq(ready.trace_phase.analysis_python))).output);
+}catch(e){
+ const failure={ticket:"FEAT-010",phase,verdict:"SETUP_REJECTED",reason:String(e.message||e),last_proven:lastProven,stops:stopCount,elapsed_seconds:(Date.now()-phaseStart)/1000,identity_started_epoch_ms:start,trace_started:handoff};
+ if(phase==="R-I")ri=failure;else rt=failure;
+ if(launched){try{const r=await tools.exec_command({cmd:"wsl.exe --cd /mnt/e/projects/ladybug python3 -B "+guard+" --abort",max_output_tokens:1200,yield_time_ms:1000});transcript.push({phase,operation:"abort",response:r});}catch(z){transcript.push({cleanup_error:String(z)});}}
+ if(sid){try{transcript.push({operation:"stop_session",response:await tools.mcp__gdb_mcp__stop_session({session_id:sid})});sid=null;store("activeRuntimeGdbSession",null);}catch(z){transcript.push({cleanup_error:String(z)});}}
+}finally{
+ const result={ticket:"FEAT-010",ready_commit:"3bf36c1e",identity:ri,trace:rt||{verdict:"NOT_RUN",reason:"Identity prerequisite did not pass"},total_elapsed_seconds:(Date.now()-start)/1000,qualifier_reruns:0,production_changes:0};
+ store("runtimeRunResult",result);store("runtimeTranscript",transcript);
+ const writeFinal="[IO.File]::WriteAllText("+psq(caseWin+"/stutter-runtime-execution-result.json")+","+psq(JSON.stringify(result,null,2))+",[Text.UTF8Encoding]::new($false));[IO.File]::WriteAllText("+psq(caseWin+"/stutter-runtime-gdb-transcript.json")+","+psq(JSON.stringify(transcript,null,2))+",[Text.UTF8Encoding]::new($false))";
+ text(await tools.exec_command({cmd:writeFinal,max_output_tokens:200,yield_time_ms:1000}));text(result);
+}
