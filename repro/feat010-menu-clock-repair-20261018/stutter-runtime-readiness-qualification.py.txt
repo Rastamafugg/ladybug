@@ -1,0 +1,235 @@
+"""Offline synthetic qualification. No subprocess, runtime, or dump-file writes."""
+
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+import json
+
+HERE = Path(__file__).resolve().parent
+guard = SourceFileLoader("stutter_guard_qualification", str(HERE / "stutter-runtime-guard.py.txt")).load_module()
+window = SourceFileLoader("stutter_window_qualification", str(HERE / "stutter-trace-window.py.txt")).load_module()
+observer = window.observer
+
+
+def require(condition, message):
+    if not condition:
+        raise AssertionError(message)
+
+
+def rejected(call):
+    try:
+        call()
+    except guard.Rejected:
+        return True
+    return False
+
+
+def synthetic_identity_captures(oracle):
+    expected = guard.expected_reads(oracle)
+    for checkpoint in guard.CHECKPOINTS:
+        par5 = {"enemy_pre": 0x3E, "enemy_post": 0x3E,
+                "helper_pre": 0x24, "helper_post": 0x24,
+                "B080": 0x23}.get(checkpoint)
+        if par5 is not None:
+            expected[(checkpoint, "par")] = bytes((0xF8, 0, 0, 0, 0,
+                                                     par5 | 0x80, 0xFE, 0xFF))
+    captures = [{"checkpoint": "connection", "signal": "SIGINT",
+                 "process": {"pid": 123, "start_ticks": "77", "exe": "synthetic"}}]
+    for checkpoint in guard.CHECKPOINTS:
+        regs = dict(guard.EXPECTED_REGS[checkpoint])
+        reads = [{"name": name, "address": address, "length": length,
+                  "file": "{}-{}.bin".format(checkpoint, name)}
+                 for cp, name, address, length in guard.READ_PLAN if cp == checkpoint]
+        captures.append({"checkpoint": checkpoint, "registers": regs, "reads": reads})
+    return captures, expected
+
+
+def cpu(pc, opcode, mnemonic, *, a=0, b=0, u=0, dt=0):
+    return ("{:04X}| {:<16} {:<6} - cc=00 a={:02X} b={:02X} dp=00 "
+            "x=0000 y=0000 u={:04X} s=0000 dt={}".format(
+                pc, opcode, mnemonic, a, b, u, dt))
+
+
+def vector(dt):
+    fields = "0000".ljust(12) + "[IRQ]".ljust(24)
+    return "FFF8| {}  dt={}".format(fields, dt)
+
+
+def phase_trace(*, bad_phase=False, unequal=False, omit_sample=False,
+                second_activation=False, missing_frames=False,
+                wrong_activation=False):
+    lines = [vector(987654321),
+             cpu(0x1C62, "0fd5" if wrong_activation else "0fd4", "clr", dt=1),
+             cpu(0xACBD, "de02", "ldu", u=100, dt=4),
+             cpu(0x0EAD, "b7ff9d", "sta", a=0xC0),
+             cpu(0x0EB0, "968f", "lda", a=0),
+             cpu(0x0EB2, "d690", "ldb", b=1)]
+    if second_activation:
+        lines.insert(2, cpu(0x1C62, "0fd4", "clr", dt=0))
+    # The source-proven startup branch samples timers below six without the
+    # 07F3 phase-helper instruction. The five deltas total one NTSC field.
+    pieces = (47971, 47971, 47971, 47971, 47972)
+    for t, dt in zip(range(1, 6), pieces):
+        lines.append(cpu(0x07E7, "dcb0", "ldd", a=t >> 8, b=t & 0xFF, dt=dt))
+    phases = [((t - 6) >> 3) & 3 for t in range(6, 39)]
+    for t, phase in zip(range(6, 39), phases):
+        if not (omit_sample and t == 7):
+            timer_dt = 1 if unequal and t == 7 else 0
+            lines.append(cpu(0x07E7, "dcb0", "ldd", a=t >> 8, b=t & 0xFF, dt=timer_dt))
+            value = (phase + 1) if bad_phase and t == 14 else phase
+            lines.append(cpu(0x07F3, "8403", "anda", a=value, dt=0))
+        if t < 38:
+            lines.append(cpu(0xACBD, "de02", "ldu", u=101 + t - 6, dt=239856))
+    if not missing_frames:
+        lines.append(cpu(0xACBD, "de02", "ldu", u=133, dt=239856))
+    return "\n".join(lines) + "\n"
+
+
+def synthetic_trace_identity():
+    return {"receipt_sha256": observer.RECEIPT_SHA256,
+            "rom_sha256": observer.ROM_SHA256, "profile": observer.PROFILE,
+            "runtime_bytes_and_mapping_proved": True,
+            "marker_bytes": {name: marker[1] for name, marker in observer.MARKERS.items()}}
+
+
+def main():
+    oracle = guard.load_source_oracle()
+    captures, dumps = synthetic_identity_captures(oracle)
+    good = guard.validate_capture_sequence(captures, oracle, dumps)
+    require(good["identity_complete"] and good["read_commands"] == len(guard.READ_PLAN),
+            "identity positive fixture did not complete")
+    outcomes = {"identity_good": "IDENTITY_COMPLETE_SYNTHETIC"}
+
+    broken = dict(dumps)
+    damaged = bytearray(broken[("enemy_post", "enemy_dest")])
+    damaged[0] ^= 1
+    broken[("enemy_post", "enemy_dest")] = bytes(damaged)
+    require(rejected(lambda: guard.validate_capture_sequence(captures, oracle, broken)),
+            "wrong copied enemy slot was accepted")
+    outcomes["enemy_slot_byte"] = "SETUP_REJECTED"
+
+    broken = dict(dumps)
+    broken[("enemy_pre", "par")] = bytes((0xF9, 0, 0, 0, 0, 0xBE, 0xFE, 0xFF))
+    require(rejected(lambda: guard.validate_capture_sequence(captures, oracle, broken)),
+            "wrong low-six PAR mapping was accepted")
+    outcomes["low_six_mapping"] = "SETUP_REJECTED"
+
+    broken = dict(dumps)
+    damaged = bytearray(broken[("enemy_pre", "relocated_loader")])
+    damaged[0] ^= 1
+    broken[("enemy_pre", "relocated_loader")] = bytes(damaged)
+    require(rejected(lambda: guard.validate_capture_sequence(captures, oracle, broken)),
+            "wrong relocated loader byte was accepted")
+    outcomes["relocation_byte"] = "SETUP_REJECTED"
+
+    broken = dict(dumps)
+    damaged = bytearray(broken[("helper_pre", "helper_source")])
+    damaged[0] ^= 1
+    broken[("helper_pre", "helper_source")] = bytes(damaged)
+    require(rejected(lambda: guard.validate_capture_sequence(captures, oracle, broken)),
+            "wrong authored helper source byte was accepted")
+    outcomes["authored_source_byte"] = "SETUP_REJECTED"
+
+    truncated = dict(dumps)
+    truncated[("enemy_pre", "enemy_rom")] = oracle["enemy_artifact"]
+    require(rejected(lambda: guard.validate_capture_sequence(captures, oracle, truncated)),
+            "4091-byte enemy artifact was accepted as its 4096-byte copy slot")
+    outcomes["4091_vs_4096"] = "SETUP_REJECTED"
+
+    wrong_pc = json.loads(json.dumps(captures))
+    wrong_pc[2]["registers"]["pc"] = 0x0351
+    require(rejected(lambda: guard.validate_capture_sequence(wrong_pc, oracle, dumps)),
+            "wrong relocated checkpoint PC was accepted")
+    outcomes["relocated_pc"] = "SETUP_REJECTED"
+
+    state = {"phase": "identity", "handoff_count": 0, "identity_complete": True,
+             "checkpoint_cursor": "B080", "phase_start_ms": 1000000}
+    handoff = {"checkpoint": "B080", "pc": 0xB080, "dp": 0, "mode": 1,
+               "screen": 0, "timer": 0, "par5": 0x23,
+               "breakpoints_remaining": 0, "trace_started": False}
+    guard.validate_handoff(state, handoff, 1005000, 1005000)
+    require(rejected(lambda: guard.validate_handoff(state, handoff, 1005000, 1057000)),
+            "expired trace-phase epoch was accepted")
+    trace_state = guard.validate_handoff(state, handoff, 1005000, 1005000)
+    require(rejected(lambda: guard.validate_handoff(trace_state, handoff, 1006000, 1006000)),
+            "second handoff was accepted")
+    require(guard.phase_budget(1000000, 1051999)["work_open"]
+            and not guard.phase_budget(1000000, 1052000)["work_open"]
+            and guard.phase_budget(1000000, 1052000)["phase_open"]
+            and not guard.phase_budget(1000000, 1060000)["phase_open"],
+            "52-second work/60-second phase boundaries differ")
+    outcomes["handoff_expiry"] = "EXPIRED_REJECTED"
+    outcomes["handoff_count"] = "SECOND_HANDOFF_REJECTED"
+    outcomes["phase_deadline"] = "52S_WORK_60S_PHASE"
+
+    identity = synthetic_trace_identity()
+    raw = phase_trace()
+    adapted = window.adapt_first_window(raw)
+    require(adapted.get("kind") == "WINDOW_READY", "good native-format window rejected")
+    require(len(adapted["activation_event_indices"]) == 1,
+            "single activation was not retained")
+    summary = observer.analyze(adapted["normalized_trace"], identity)
+    require(summary.get("kind") == "GUEST_TIMER_PHASE_CONSISTENT",
+            "good window classification differs")
+    require(summary["frames"] == list(range(100, 134))
+            and summary["frame_steps"] == [1] * 33,
+            "independent FRAMES fixture values/steps differ")
+    require(summary["timer_spacing_event_ticks"] == [239856] * 32,
+            "independent timer event spacing differs")
+    require(adapted["discarded_native_first_dt"] == 987654321
+            and len(adapted["folded_startup_records"]) == 5,
+            "vector-first-delta/startup preamble provenance was lost")
+    raw_events = observer.parse_trace(raw)
+    raw_ticks = [0]
+    for event in raw_events[1:]:
+        raw_ticks.append(raw_ticks[-1] + event["dt"])
+    global_summary = window.add_global_origin(summary, adapted)
+    expected_timer_ticks = [raw_ticks[i] for i in adapted["timer_event_indices"]]
+    expected_frame_ticks = [raw_ticks[i] for i, event in enumerate(raw_events)
+                            if event["kind"] == "cpu" and event["pc"] == 0xACBD]
+    require(global_summary["global_timer_event_ticks"] == expected_timer_ticks
+            and global_summary["global_frame_event_ticks"] == expected_frame_ticks,
+            "independent raw event-time origin was not conserved")
+    outcomes["vector_dt_and_window"] = "WINDOW_READY_SYNTHETIC"
+
+    unequal = window.adapt_first_window(phase_trace(unequal=True))
+    unequal_summary = observer.analyze(unequal["normalized_trace"], identity)
+    require(unequal_summary.get("kind") == "UNEQUAL_OBSERVED_SPACING",
+            "unequal observed spacing was not retained")
+    outcomes["unequal_spacing"] = "UNEQUAL_OBSERVED_SPACING"
+
+    skipped_phase = window.adapt_first_window(phase_trace(bad_phase=True))
+    anomaly = observer.analyze(skipped_phase["normalized_trace"], identity)
+    require(anomaly.get("kind") == "PHASE_ANOMALY"
+            and len(anomaly.get("timer_spacing_event_ticks", [])) == 32
+            and len(anomaly.get("publications", [])) == 1,
+            "phase anomaly lost independent timeline records")
+    outcomes["phase_anomaly"] = "PHASE_ANOMALY_WITH_TIMELINES"
+
+    missing = window.adapt_first_window(phase_trace(omit_sample=True))
+    require(missing.get("kind") == "SETUP_REJECTED",
+            "missing timer/phase coverage was accepted")
+    outcomes["missing_sample"] = "MISSING_COVERAGE_SETUP_REJECTED"
+    no_bracket = window.adapt_first_window(phase_trace(missing_frames=True))
+    require(no_bracket.get("kind") == "SETUP_REJECTED",
+            "missing FRAMES bracket was accepted")
+    outcomes["missing_frames"] = "SETUP_REJECTED"
+    unknown_row = window.adapt_first_window(phase_trace() + "unknown native row dt=4\n")
+    require(unknown_row.get("kind") == "SETUP_REJECTED",
+            "unknown timing-looking row was ignored")
+    outcomes["unknown_timing_row"] = "SETUP_REJECTED"
+    duplicate = window.adapt_first_window(phase_trace(second_activation=True))
+    require(duplicate.get("kind") == "SETUP_REJECTED",
+            "second trace activation was accepted")
+    outcomes["second_activation"] = "SETUP_REJECTED"
+    wrong_trigger = window.adapt_first_window(phase_trace(wrong_activation=True))
+    require(wrong_trigger.get("kind") == "SETUP_REJECTED",
+            "wrong trigger opcode was accepted")
+    outcomes["trigger_opcode"] = "SETUP_REJECTED"
+    outcomes["pixel_replay"] = "UNSUPPORTED_WITHOUT_PIXELS"
+    outcomes["host_fps"] = "UNSUPPORTED"
+    print(json.dumps({"synthetic_only": True, "product_validation": False,
+                      "controls": outcomes}, sort_keys=True, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    main()

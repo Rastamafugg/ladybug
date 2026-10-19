@@ -1,0 +1,581 @@
+"""FEAT-010 bounded same-PID runtime guard. Import is side-effect free."""
+
+import argparse
+import hashlib
+import json
+import os
+from pathlib import Path
+import signal
+import subprocess
+import sys
+import time
+
+WORK = Path(__file__).resolve().parent
+BASE = WORK / "candidate"
+BUILD = BASE / "build"
+READY = WORK / "stutter-runtime-host-preparation-ready.json"
+SOURCE_ID = WORK / "stutter-runtime-proposal-source-identity.json"
+STATE = WORK / "stutter-runtime-state.json"
+LOG = WORK / "stutter-runtime-xroar.log"
+HANDOFF = WORK / "stutter-runtime-handoff.json"
+DUMPS = WORK / "stutter-runtime-dumps"
+EXE = Path("/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar")
+
+READY_SHA = "f0f9000b27fbab9b3f57411beFA03399904355c1ddc7ae52a90208bb359ec040".lower()
+SOURCE_ID_SHA = "d510554a8db475446e1dab7c060a990e52406eebe7700b877754cee1d5847e32"
+ROM_SHA = "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c"
+RECEIPT_SHA = "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4"
+EXE_SHA = "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf"
+BOOT_SHA = "2acc2da195e0b3ca2bfc7d7a5535fc7e1822f46b4f54f6e267bf9a095b3bac1f"
+ENEMY_SHA = "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9"
+HELPER_SHA = "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"
+PRESENTATION_SHA = "332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e"
+HIGHSCORE_SHA = "b2101f38c72c7f7854f23cda58b28a2c1b53734af447f5974fb9846d882c283c"
+OBSERVER_SHA = "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d"
+PROPOSAL_SHA = "8ecf2e37b3fb3db2d0f38c228dafdd9c0620f3e7e8116f30bed03115b03dd2a3"
+AUX_SHA = "bd94cf9f05b1413c763eff8d72ba031bf5952b21d1c1bdacd92a2fe53dc7be39"
+COPY_TABLE_SHA = "e1db287ab85b598b4ed93e11f4a32e26f783c4c611ca6cee30493e34fb80dc6a"
+GDB_SOURCE_SHA = "fef00482378eeb2e40a23109e9b5114259fe99f1caac1a352f0f7edc7bb854a7"
+XROAR_SOURCE_SHA = "afdd5d8708ac5582b8f0afe2b37d3437ee264bbd88f155cad6b1378f01ab3ac2"
+
+LIMITS = {"phase_seconds": 60, "work_seconds": 52, "cleanup_seconds": 8,
+          "stops": 8, "reads": 32, "read_bytes": 32768,
+          "trace_cpu_instructions": 32768, "attempts": 1}
+CHECKPOINTS = ("C002", "enemy_pre", "enemy_post", "helper_pre",
+               "helper_post", "B080")
+
+# One command per tuple. Never widen this list at runtime.
+READ_PLAN = (
+    ("C002", "boot", 0xC000, 86),
+    ("enemy_pre", "relocated_loader", 0x0300, 1324),
+    ("enemy_pre", "enemy_rom", 0xC800, 4096),
+    ("enemy_pre", "aux_b3_f495", 0xF495, 2411),
+    ("enemy_pre", "aux_b3_c000", 0xC000, 16),
+    ("enemy_pre", "aux_b3_c012", 0xC012, 2030),
+    ("enemy_pre", "par", 0xFFA0, 8),
+    ("enemy_post", "enemy_dest", 0x0800, 4096),
+    ("enemy_post", "par", 0xFFA0, 8),
+    ("helper_pre", "helper_source", 0xC802, 334),
+    ("helper_pre", "aux_b0_c950", 0xC950, 706),
+    ("helper_pre", "presentation_source", 0xCC92, 1279),
+    ("helper_pre", "descriptor", 0x0200, 96),
+    ("helper_pre", "par", 0xFFA0, 8),
+    ("helper_post", "helper_dest", 0x06B2, 334),
+    ("helper_post", "par", 0xFFA0, 8),
+    ("B080", "aux_dest", 0xA422, 5163),
+    ("B080", "helper_dest", 0x06B2, 334),
+    ("B080", "enemy_dest", 0x0800, 4096),
+    ("B080", "presentation_dest", 0x1900, 1279),
+    ("B080", "par", 0xFFA0, 8),
+    ("B080", "mode_screen", 0x00A5, 2),
+    ("B080", "timer", 0x00B0, 2),
+)
+
+EXPECTED_REGS = {
+    "C002": {"pc": 0xC002},
+    "enemy_pre": {"pc": 0x0350, "dp": 0x02, "x": 0xC800, "y": 0x0800},
+    "enemy_post": {"pc": 0x0375, "dp": 0x02},
+    "helper_pre": {"pc": 0x03D4, "dp": 0x02, "u": 0xC802,
+                    "y": 0x06B2, "x": 0x014E},
+    "helper_post": {"pc": 0x042A, "dp": 0x02, "y": 0x0800},
+    "B080": {"pc": 0xB080, "dp": 0x00},
+}
+
+
+class Rejected(ValueError):
+    pass
+
+
+def sha(data):
+    return hashlib.sha256(data).hexdigest()
+
+
+def _file(path, expected_hash=None):
+    data = Path(path).read_bytes()
+    if expected_hash and sha(data) != expected_hash:
+        raise Rejected("pinned artifact hash mismatch: " + str(path))
+    return data
+
+
+def verify_binding():
+    ready = _file(READY, READY_SHA)
+    assignment = json.loads(ready)
+    if (assignment.get("status") != "Ready" or assignment.get("ticket") != "FEAT-010"
+            or assignment.get("limits", {}).get("attempts_per_phase") != 1
+            or assignment.get("protected_observer_sha256") != OBSERVER_SHA):
+        raise Rejected("runtime Ready binding changed")
+    source_id = json.loads(_file(SOURCE_ID, SOURCE_ID_SHA))
+    _file(WORK / "stutter-runtime-readiness-proposal.txt", PROPOSAL_SHA)
+    _file(WORK / "stutter-observer.py.txt", OBSERVER_SHA)
+    _file(EXE, EXE_SHA)
+    _file(BUILD / "ladybug.rom", ROM_SHA)
+    _file(BUILD / "source-build-receipt.json", RECEIPT_SHA)
+    for name, digest in source_id["candidate_artifacts"].items():
+        _file(BUILD / name, digest)
+    project = WORK.parents[1]
+    for name, digest in source_id["candidate_sources"].items():
+        _file(BASE / name, digest)
+    for name, digest in source_id["tool_sources"].items():
+        _file(project / name, digest)
+    if source_id["tool_sources"].get("docs/reference/xroar/src/gdb.c") != GDB_SOURCE_SHA:
+        raise Rejected("GDB source fingerprint changed")
+    if source_id["tool_sources"].get("docs/reference/xroar/src/xroar.c") != XROAR_SOURCE_SHA:
+        raise Rejected("XRoar source fingerprint changed")
+    return assignment
+
+
+def load_source_oracle():
+    """Read-only receipt-pinned bytes used by the exact GDB read recipe."""
+    verify_binding()
+    boot = _file(BUILD / "ladybug-gmc-boot.rom", BOOT_SHA)
+    rom = _file(BUILD / "ladybug.rom", ROM_SHA)
+    enemy_artifact = _file(BUILD / "ladybug-enemy-runtime.rom", ENEMY_SHA)
+    helper = _file(BUILD / "ladybug-perimeter-reset-helper.bin", HELPER_SHA)
+    presentation = _file(BUILD / "ladybug-presentation-runtime.bin", PRESENTATION_SHA)
+    highscore = _file(BUILD / "ladybug-highscore-helper.bin", HIGHSCORE_SHA)
+    if (len(boot), len(rom), len(enemy_artifact), len(helper), len(presentation), len(highscore)) != (16384, 65536, 4091, 334, 1279, 3085):
+        raise Rejected("receipt artifact length mismatch")
+    def bank_slice(bank, address, length):
+        offset = bank * 0x4000 + address - 0xC000
+        return rom[offset:offset + length]
+    enemy = bank_slice(3, 0xC800, 4096)
+    helper_source = bank_slice(0, 0xC802, 334)
+    pres_source = bank_slice(0, 0xCC92, 1279)
+    aux = (bank_slice(3, 0xF495, 2411) + bank_slice(3, 0xC000, 16)
+           + bank_slice(3, 0xC012, 2030) + bank_slice(0, 0xC950, 706))
+    if (len(enemy) != 4096 or enemy[:4091] != enemy_artifact or enemy[4091:] != b"\xA3" * 5
+            or helper_source != helper or pres_source != presentation
+            or len(aux) != 5163 or sha(aux) != AUX_SHA
+            or aux[0x81E:] != highscore or sha(rom[0x4BF:0x51F]) != COPY_TABLE_SHA):
+        raise Rejected("authored source ranges do not match pinned receipt artifacts")
+    return {"boot": boot, "rom": rom, "enemy": enemy, "enemy_artifact": enemy_artifact,
+            "helper": helper, "presentation": presentation, "highscore": highscore,
+            "aux": aux, "descriptor": rom[0x4BF:0x51F], "bank_slice": bank_slice}
+
+
+def read_recipe():
+    return [{"checkpoint": cp, "name": name, "address": addr, "length": size,
+             "file": "{}-{}.bin".format(cp, name),
+             "gdb": "dump binary memory {}/{}-{}.bin 0x{:04x} 0x{:04x}".format(
+                 DUMPS, cp, name, addr, addr + size)}
+            for cp, name, addr, size in READ_PLAN]
+
+
+def expected_reads(oracle):
+    bank = oracle["bank_slice"]
+    return {
+        ("C002", "boot"): oracle["boot"][:86],
+        ("enemy_pre", "relocated_loader"): oracle["boot"][0x56:0x56 + 1324],
+        ("enemy_pre", "enemy_rom"): oracle["enemy"],
+        ("enemy_pre", "aux_b3_f495"): bank(3, 0xF495, 2411),
+        ("enemy_pre", "aux_b3_c000"): bank(3, 0xC000, 16),
+        ("enemy_pre", "aux_b3_c012"): bank(3, 0xC012, 2030),
+        ("enemy_post", "enemy_dest"): oracle["enemy"],
+        ("helper_pre", "helper_source"): oracle["helper"],
+        ("helper_pre", "aux_b0_c950"): bank(0, 0xC950, 706),
+        ("helper_pre", "presentation_source"): oracle["presentation"],
+        ("helper_pre", "descriptor"): oracle["descriptor"],
+        ("helper_post", "helper_dest"): oracle["helper"],
+        ("B080", "aux_dest"): oracle["aux"],
+        ("B080", "helper_dest"): oracle["helper"],
+        ("B080", "enemy_dest"): oracle["enemy"],
+        ("B080", "presentation_dest"): oracle["presentation"],
+        ("B080", "mode_screen"): bytes((1, 0)),
+        ("B080", "timer"): b"\0\0",
+    }
+
+
+def _parse_read_records(checkpoint, reads, dump_provider=None):
+    expected = [(name, addr, size) for cp, name, addr, size in READ_PLAN if cp == checkpoint]
+    if not isinstance(reads, list) or len(reads) != len(expected):
+        raise Rejected(checkpoint + ": read command count mismatch")
+    result = {}
+    for rec, (name, addr, size) in zip(reads, expected):
+        if rec.get("name") != name or rec.get("address") != addr or rec.get("length") != size:
+            raise Rejected(checkpoint + ": read recipe/order mismatch")
+        expected_file = "{}-{}.bin".format(checkpoint, name)
+        if rec.get("file") != expected_file:
+            raise Rejected(checkpoint + ": dump filename mismatch")
+        try:
+            if dump_provider is None:
+                data = (DUMPS / expected_file).read_bytes()
+            else:
+                data = dump_provider[(checkpoint, name)]
+        except (OSError, KeyError) as exc:
+            raise Rejected(checkpoint + ": required binary dump missing") from exc
+        if len(data) != size:
+            raise Rejected(checkpoint + ": read length mismatch")
+        result[name] = data
+    return result
+
+
+def validate_capture_sequence(captures, oracle, dump_provider=None):
+    """Validate ordered checkpoint JSON; caller supplies actual GDB-MCP reads."""
+    if not isinstance(captures, list) or len(captures) > 8:
+        raise Rejected("checkpoint sequence malformed or stop cap exceeded")
+    if len(READ_PLAN) > LIMITS["reads"] or sum(row[3] for row in READ_PLAN) > LIMITS["read_bytes"]:
+        raise Rejected("frozen read plan exceeds approved caps")
+    expected = expected_reads(oracle)
+    allowed_order = list(CHECKPOINTS)
+    seen = []
+    total_bytes = 0
+    connection_seen = False
+    for capture in captures:
+        name = capture.get("checkpoint")
+        if name == "connection":
+            process = capture.get("process", {})
+            if (connection_seen or seen or capture.get("signal") != "SIGINT"
+                    or not isinstance(process.get("pid"), int)
+                    or not process.get("start_ticks") or not process.get("exe")):
+                raise Rejected("connection stop is not the first unique SIGINT")
+            connection_seen = True
+            continue
+        if name == "helper_candidate":
+            if seen[-1:] != ["enemy_post"] or capture.get("pc") != 0x03D4:
+                raise Rejected("unexpected helper descriptor candidate")
+            if capture.get("u") == 0xC802 and capture.get("y") == 0x06B2 and capture.get("x") == 0x014E:
+                raise Rejected("target helper descriptor cannot be ignored")
+            continue
+        if name not in allowed_order or allowed_order.index(name) != len(seen):
+            raise Rejected("checkpoint order mismatch")
+        if not connection_seen:
+            raise Rejected("initial GDB connection stop missing")
+        regs = capture.get("registers", {})
+        for key, value in EXPECTED_REGS[name].items():
+            if regs.get(key) != value:
+                raise Rejected(name + ": register/checkpoint mismatch: " + key)
+        reads = _parse_read_records(name, capture.get("reads"), dump_provider)
+        for read_name, data in reads.items():
+            total_bytes += len(data)
+            oracle_data = expected.get((name, read_name))
+            if oracle_data is not None and data != oracle_data:
+                raise Rejected(name + ": byte identity mismatch: " + read_name)
+        par = reads.get("par")
+        if par is not None:
+            if len(par) != 8 or tuple(value & 0x3F for value in (par[0], par[6], par[7])) != (0x38, 0x3E, 0x3F):
+                raise Rejected(name + ": PAR0/6/7 mismatch")
+            expected_par5 = {"enemy_pre": 0x3E, "enemy_post": 0x3E,
+                             "helper_pre": 0x24, "helper_post": 0x24,
+                             "B080": 0x23}[name]
+            if (par[5] & 0x3F) != expected_par5:
+                raise Rejected(name + ": PAR5 mismatch")
+        if name == "helper_pre":
+            if (regs.get("u"), regs.get("y"), regs.get("x")) != (0xC802, 0x06B2, 0x014E):
+                raise Rejected("helper descriptor is not the bounded source segment")
+        if name == "B080":
+            if reads["mode_screen"] != b"\x01\x00" or reads["timer"] != b"\0\0":
+                raise Rejected("B080 is not LOAD/ATTRACT with timer zero")
+        seen.append(name)
+    command_count = sum(len(c.get("reads", [])) for c in captures)
+    if command_count > LIMITS["reads"]:
+        raise Rejected("logical memory-read command cap exceeded")
+    if total_bytes > LIMITS["read_bytes"]:
+        raise Rejected("live read byte cap exceeded")
+    return {"verified_through": seen[-1] if seen else None,
+            "checkpoints": seen, "read_commands": command_count,
+            "read_bytes": total_bytes, "identity_complete": seen == list(CHECKPOINTS)}
+
+
+def validate_trace_contract(config):
+    """Check frozen command parameters only; source uniqueness is a parent review gate."""
+    expected = {"trigger_pc": 0x1C62, "trigger_opcode": "0fd4",
+                "timeout_guest_seconds": 2, "trace_cpu_instructions": 32768}
+    if config != expected:
+        raise Rejected("native trace trigger/cap contract mismatch")
+    return True
+
+
+def phase_budget(start_ms, now_ms):
+    """Report the fixed 52-second work and 60-second whole-phase boundaries."""
+    if not isinstance(start_ms, int) or not isinstance(now_ms, int):
+        raise Rejected("phase epoch must be integer milliseconds")
+    elapsed = now_ms - start_ms
+    return {"work_open": 0 <= elapsed < LIMITS["work_seconds"] * 1000,
+            "phase_open": 0 <= elapsed < LIMITS["phase_seconds"] * 1000,
+            "elapsed_ms": elapsed}
+
+
+def validate_handoff(state, values, trace_start_ms, now_ms):
+    expected = {"checkpoint": "B080", "pc": 0xB080, "dp": 0,
+                "mode": 1, "screen": 0, "timer": 0, "par5": 0x23,
+                "breakpoints_remaining": 0, "trace_started": False}
+    if (state.get("phase") != "identity" or state.get("handoff_count") != 0
+            or state.get("identity_complete") is not True
+            or state.get("checkpoint_cursor") != "B080"
+            or values != expected or not isinstance(trace_start_ms, int)
+            or not isinstance(now_ms, int)
+            or trace_start_ms < state.get("phase_start_ms", 0)
+            or now_ms < trace_start_ms or now_ms - trace_start_ms > 1000
+            or not phase_budget(trace_start_ms, now_ms)["work_open"]
+            or not phase_budget(state.get("phase_start_ms", 0), now_ms)["work_open"]):
+        raise Rejected("single B080 handoff validation failed")
+    result = dict(state)
+    result.update(phase="trace", phase_start_ms=trace_start_ms, handoff_count=1,
+                  handoff_epoch_ms=now_ms)
+    return result
+
+
+def process_identity(pid):
+    proc = Path("/proc") / str(pid)
+    return {"pid": pid, "exe": os.readlink(proc / "exe"),
+            "argv": proc.joinpath("cmdline").read_bytes().split(b"\0")[:-1],
+            "start_ticks": proc.joinpath("stat").read_text().rsplit(")", 1)[1].split()[19]}
+
+
+def _atomic_json(path, value):
+    temp = path.with_suffix(path.suffix + ".tmp")
+    temp.write_text(json.dumps(value, sort_keys=True) + "\n")
+    temp.replace(path)
+
+
+def _same_process(state):
+    try:
+        now = process_identity(state["pid"])
+    except (FileNotFoundError, ProcessLookupError):
+        return False
+    return now == {"pid": state["pid"], "exe": state["exe"],
+                   "argv": [os.fsencode(arg) for arg in state["argv"]],
+                   "start_ticks": state["start_ticks"]}
+
+
+def launch_argv():
+    return [str(EXE), "-ui", "gtk3", "-ao", "pulse", "-machine", "coco3",
+            "-machine-cpu", "6809", "-ram", "512", "-ram-init", "random",
+            "-cart-type", "gmc", "-cart-rom", str(BUILD / "ladybug.rom"),
+            "-cart-autorun", "-tv-input", "rgb", "-joy-right", "", "-joy-left", "",
+            "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", "65520",
+            "-trace-timing", "-trap", "pc=0x1C62", "-trap-timeout", "2",
+            "-trap-trace-n", "32768"]
+
+
+def plan():
+    registers = 'printf "pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n",$pc,$dp,$x,$y,$u'
+    return {"binding_sha256": READY_SHA, "launch_argv": launch_argv(),
+            "limits": LIMITS, "read_recipe": read_recipe(),
+            "register_command": registers,
+            "gdb_steps": ["target remote 127.0.0.1:65520",
+                          "tbreak *0xC002", "continue", "delete all breakpoints after C002 proof",
+                          "tbreak *0x0350", "continue", "tbreak *0x0375", "continue",
+                          "break *0x03D4", "continue at most twice; one nonmatching descriptor maximum",
+                          "tbreak *0x042A", "continue", "tbreak *0xB080", "continue",
+                          "delete all breakpoints, validate B080, then detach"],
+            "handoff_fields": {"checkpoint": "B080", "pc": 0xB080, "dp": 0,
+                               "mode": 1, "screen": 0, "timer": 0,
+                               "par5": 0x23, "breakpoints_remaining": 0,
+                               "trace_started": False}}
+
+
+def _cleanup(state):
+    actions = []
+    if _same_process(state):
+        try:
+            os.kill(state["pid"], signal.SIGTERM)
+            actions.append("TERM")
+            until = time.monotonic() + 1
+            while time.monotonic() < until and _same_process(state):
+                time.sleep(0.02)
+        except ProcessLookupError:
+            pass
+        if _same_process(state):
+            try:
+                os.kill(state["pid"], signal.SIGKILL)
+                actions.append("KILL")
+            except ProcessLookupError:
+                pass
+    elif Path("/proc", str(state["pid"])).exists():
+        actions.append("IDENTITY_MISMATCH_NOT_KILLED")
+    state["cleanup_signals"] = actions
+    state["cleanup_epoch_ms"] = int(time.time() * 1000)
+    _atomic_json(STATE, state)
+
+
+def _cleanup_spawned(proc):
+    """Reap only the direct child returned by this Popen call."""
+    if proc.poll() is not None:
+        return
+    proc.terminate()
+    try:
+        proc.wait(timeout=1)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+        proc.wait(timeout=1)
+
+
+def _watch():
+    """Detached watchdog: exact-PID cleanup at the fixed 52-second work edge."""
+    while STATE.exists():
+        state = json.loads(STATE.read_text())
+        if state.get("phase") in ("SETUP_REJECTED", "CLEANED", "PROCESS_EXITED", "ABORTED"):
+            return
+        if not Path("/proc", str(state.get("pid", ""))).exists():
+            state["phase"] = "PROCESS_EXITED"
+            state["process_exit_epoch_ms"] = int(time.time() * 1000)
+            _atomic_json(STATE, state)
+            return
+        if not _same_process(state):
+            state["status"] = "PROCESS_IDENTITY_MISMATCH_NOT_KILLED"
+            _atomic_json(STATE, state)
+            return
+        now = int(time.time() * 1000)
+        if not phase_budget(state["phase_start_ms"], now)["work_open"]:
+            _cleanup(state)
+            state["phase"] = "CLEANED"
+            _atomic_json(STATE, state)
+            return
+        time.sleep(0.05)
+
+
+def _spawn_watchdog():
+    subprocess.Popen([sys.executable, "-B", str(Path(__file__).resolve()), "--watch"],
+                     cwd=BASE, stdin=subprocess.DEVNULL, stdout=subprocess.DEVNULL,
+                     stderr=subprocess.DEVNULL, start_new_session=True,
+                     close_fds=True)
+
+
+def main(argv=None):
+    parser = argparse.ArgumentParser()
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument("--plan", action="store_true")
+    group.add_argument("--start", type=int, metavar="PHASE_START_MS")
+    group.add_argument("--status", action="store_true")
+    group.add_argument("--abort", action="store_true")
+    group.add_argument("--check", metavar="CAPTURE_JSON")
+    group.add_argument("--handoff", type=int, metavar="TRACE_PHASE_START_MS")
+    group.add_argument("--watch", action="store_true", help=argparse.SUPPRESS)
+    parser.add_argument("--pid", type=int)
+    parser.add_argument("--start-ticks")
+    parser.add_argument("--checkpoint", choices=("B080",))
+    parser.add_argument("--pc", type=lambda x: int(x, 0))
+    parser.add_argument("--dp", type=lambda x: int(x, 0))
+    parser.add_argument("--mode", type=lambda x: int(x, 0))
+    parser.add_argument("--screen", type=lambda x: int(x, 0))
+    parser.add_argument("--timer", type=lambda x: int(x, 0))
+    parser.add_argument("--par5", type=lambda x: int(x, 0))
+    parser.add_argument("--breakpoints-remaining", type=int)
+    parser.add_argument("--trace-started", choices=("true", "false"))
+    args = parser.parse_args(argv)
+    if args.plan:
+        print(json.dumps(plan(), sort_keys=True, separators=(",", ":")))
+        return 0
+    verify_binding()
+    if args.watch:
+        _watch()
+        return 0
+    if args.start is not None:
+        now = int(time.time() * 1000)
+        if not (now >= args.start - 1000 and now < args.start + 52000):
+            raise Rejected("identity phase start boundary missed")
+        if STATE.exists() or LOG.exists() or HANDOFF.exists():
+            raise Rejected("one-shot attempt artifact already exists")
+        load_source_oracle()
+        if DUMPS.exists():
+            raise Rejected("one-shot binary dump directory already exists")
+        DUMPS.mkdir()
+        initial = {"ready_sha256": READY_SHA, "phase": "starting", "phase_start_ms": args.start,
+                   "checkpoint_cursor": None, "handoff_count": 0}
+        with STATE.open("x") as output:
+            json.dump(initial, output, sort_keys=True)
+            output.write("\n")
+        command = launch_argv()
+        proc = None
+        state = None
+        try:
+            with LOG.open("xb") as log:
+                proc = subprocess.Popen(command, cwd=BASE, stdin=subprocess.DEVNULL,
+                                        stdout=log, stderr=subprocess.STDOUT, start_new_session=True)
+            ident = process_identity(proc.pid)
+            if ident["exe"] != str(EXE.resolve()) or ident["argv"] != [os.fsencode(x) for x in command]:
+                raise Rejected("launched XRoar identity mismatch")
+            state = {**initial, "phase": "identity", "pid": proc.pid, "exe": ident["exe"],
+                     "argv": command, "start_ticks": ident["start_ticks"], "launch_epoch_ms": now}
+            _atomic_json(STATE, state)
+            _spawn_watchdog()
+        except Exception:
+            if state is not None and _same_process(state):
+                _cleanup(state)
+            elif proc is not None:
+                _cleanup_spawned(proc)
+            state = {**initial, "phase": "SETUP_REJECTED"}
+            _atomic_json(STATE, state)
+            raise
+        print(json.dumps({"status": "STARTED", "pid": proc.pid,
+                          "start_ticks": ident["start_ticks"], "phase_start_ms": args.start}))
+        return 0
+    if not STATE.exists():
+        raise Rejected("no owned runtime attempt")
+    state = json.loads(STATE.read_text())
+    if state.get("ready_sha256") != READY_SHA:
+        raise Rejected("state is not bound to frozen Ready manifest")
+    if args.status:
+        alive = _same_process(state)
+        phase_start = state.get("phase_start_ms")
+        if alive and not phase_budget(phase_start, int(time.time() * 1000))["work_open"]:
+            _cleanup(state)
+            state["phase"] = "CLEANED"
+            _atomic_json(STATE, state)
+            alive = False
+        report = {"alive_exact_pid": alive, "phase": state.get("phase"),
+                  "checkpoint_cursor": state.get("checkpoint_cursor"),
+                  "handoff_count": state.get("handoff_count"),
+                  "phase_elapsed_ms": int(time.time() * 1000) - phase_start if phase_start else None}
+        print(json.dumps(report, sort_keys=True))
+        return 0 if alive else 2
+    if args.abort:
+        if state.get("phase") not in ("identity", "trace") or not _same_process(state):
+            raise Rejected("abort refused: owned process identity is not current")
+        _cleanup(state)
+        state["phase"] = "ABORTED"
+        _atomic_json(STATE, state)
+        print(json.dumps({"status": "ABORTED", "pid": state["pid"]}, sort_keys=True))
+        return 0
+    if args.check:
+        if state.get("phase") != "identity" or not _same_process(state):
+            raise Rejected("identity check outside live identity phase")
+        if int(time.time() * 1000) >= state["phase_start_ms"] + LIMITS["work_seconds"] * 1000:
+            raise Rejected("identity phase work boundary reached")
+        oracle = load_source_oracle()
+        captures = json.loads(Path(args.check).read_text())
+        result = validate_capture_sequence(captures, oracle)
+        process_capture = next(c for c in captures if c.get("checkpoint") == "connection")["process"]
+        if process_capture.get("pid") != state["pid"] or str(process_capture.get("start_ticks")) != str(state["start_ticks"]):
+            raise Rejected("captured GDB session is not attached to owned PID")
+        if state.get("checkpoint_cursor") == result["verified_through"]:
+            raise Rejected("checkpoint cursor did not advance")
+        previous = state.get("checkpoint_cursor")
+        if previous and result["checkpoints"].index(previous) >= result["checkpoints"].index(result["verified_through"]):
+            raise Rejected("checkpoint sequence regressed")
+        state["checkpoint_cursor"] = result["verified_through"]
+        state["identity_complete"] = result["identity_complete"]
+        state["identity_result"] = result
+        _atomic_json(STATE, state)
+        print(json.dumps(result, sort_keys=True))
+        return 0
+    if args.handoff is not None:
+        values = {"checkpoint": args.checkpoint, "pc": args.pc, "dp": args.dp,
+                  "mode": args.mode, "screen": args.screen, "timer": args.timer,
+                  "par5": args.par5, "breakpoints_remaining": args.breakpoints_remaining,
+                  "trace_started": args.trace_started == "true"}
+        now = int(time.time() * 1000)
+        if (args.pid != state.get("pid") or str(args.start_ticks) != str(state.get("start_ticks"))
+                or not _same_process(state) or not (args.handoff <= now and now - args.handoff <= 1000)):
+            raise Rejected("handoff is not current owned-PID evidence")
+        next_state = validate_handoff(state, values, args.handoff, now)
+        handoff_record = {**values, "pid": args.pid, "start_ticks": args.start_ticks,
+                          "phase_start_ms": args.handoff, "ready_sha256": READY_SHA,
+                          "identity_result": state["identity_result"]}
+        with HANDOFF.open("x") as output:
+            json.dump(handoff_record, output, sort_keys=True)
+            output.write("\n")
+        _atomic_json(STATE, next_state)
+        print(json.dumps({"status": "HANDOFF_ACCEPTED", "pid": args.pid,
+                          "phase_start_ms": args.handoff}, sort_keys=True))
+        return 0
+    return 2
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (Rejected, OSError, ValueError, KeyError) as error:
+        print(json.dumps({"status": "SETUP_REJECTED", "reason": str(error)}), file=sys.stderr)
+        sys.exit(2)
