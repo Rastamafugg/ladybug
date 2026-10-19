@@ -1,0 +1,152 @@
+{
+  "schema": "ladybug.feat010.service-lease.b04-parent-qa.v1",
+  "verdict": "B04_REPAIR_QUALIFIED_CANDIDATE_READINESS_BLOCKED",
+  "source_commit": "d30c82f4ac53c675f54a4d84b7ea030aae2c6060",
+  "ready_commit": "1e4e1780",
+  "admission": {
+    "attempts": 1,
+    "status": "PASS",
+    "admitted": true,
+    "elapsed_ms": 3204,
+    "maximum_ms": 30000,
+    "children": 0,
+    "outer_command_seconds": 3.6918532,
+    "controls": {
+      "status": "PASS",
+      "positive_accepted": true,
+      "broken_zero_predicate_rejected": true,
+      "fixture_sha256": "91f87f0d67083ab716b5dbeb140ce2c7c0389baad7493108d11a3a6f1d406260",
+      "negative_controls_rejected": [
+        "count_zero",
+        "count_two",
+        "count_string_one",
+        "count_missing",
+        "observed_registry_retained",
+        "subject_flag_false",
+        "subject_flag_string_true",
+        "broken_flag_false",
+        "safe_flag_true",
+        "observed_missing"
+      ],
+      "outer_failure_retained": true
+    },
+    "successful_envelope_negatives": 12,
+    "retained_setup_shared_negatives": 12,
+    "retained_setup_diagnosis_negatives": 3,
+    "claim_sha256": "1b2f4aa410ff2f258209cd9397b999391fddf65a095e700dd437f2a8b0feb106",
+    "result_sha256": "9cb75d0c30f4da66c5b6320fb76fc52dd9ad85b6f798f7fe92db93d6bea96e7d"
+  },
+  "baseline": {
+    "attempts": 1,
+    "status": "PASS",
+    "admitted": true,
+    "elapsed_ms": 9330,
+    "maximum_ms": 60000,
+    "cases": [
+      {
+        "case_id": "B01",
+        "status": "PASS"
+      },
+      {
+        "case_id": "B02",
+        "status": "BASELINE_DEFECT_DETECTED"
+      },
+      {
+        "case_id": "B03",
+        "status": "BASELINE_DEFECT_DETECTED"
+      },
+      {
+        "case_id": "B04",
+        "status": "BASELINE_DEFECT_DETECTED"
+      }
+    ],
+    "b04_registry_total": 1,
+    "o01": "PASS",
+    "o02": "PASS",
+    "o03": "PASS",
+    "o03_elapsed_ms": 502,
+    "o03_maximum_ms": 1500,
+    "o03_wait_returncode": -9,
+    "o04": {
+      "annotation_controls": {
+        "broken_function_error": "'function' object is not subscriptable",
+        "broken_function_error_type": "TypeError",
+        "broken_function_rejected": true,
+        "installed_class_accepts_bytes": true,
+        "safe_class_accepts_bytes": true
+      },
+      "denied_counts": {
+        "asyncio.create_subprocess_shell": 1,
+        "os.system": 1,
+        "socket.bind": 1,
+        "socket.connect": 1,
+        "socket.getaddrinfo": 1,
+        "socket.listen": 1,
+        "socket.sendmsg": 1,
+        "socket.sendto": 1,
+        "subprocess.Popen": 2,
+        "subprocess.run": 1
+      },
+      "popen_denial_phases": [
+        "before_import",
+        "after_import"
+      ],
+      "popen_denials": 2,
+      "real_calls": 0,
+      "status": "PASS"
+    },
+    "worker_wait_confirmed": true,
+    "worker_returncode": 0,
+    "driver_exit_confirmed": true,
+    "driver_returncode": 0,
+    "claim_sha256": "582ef6b2fa5398a0cd2181859cccc4e1dce5c495feeac1824114f2c3ca559c62",
+    "result_sha256": "f1af6661f30e24fcb37187f3310d0f29558b1444421be35ec530f677e84b98cb"
+  },
+  "candidate": {
+    "attempts": 0,
+    "claim_present": false,
+    "status": "NOT_DISPATCHED_SOURCE_READINESS_BLOCKED",
+    "reason": "Unchanged candidate O01 C01 stopped=EXITED is a string but Test-CaseSet generic stopped boolean check rejects it before negative controls or child dispatch",
+    "evidence_type": "Read-only source proof; no measured candidate gate result",
+    "required_cases_unrun": 16
+  },
+  "product_assertion_failures_observed": 0,
+  "setup_observer_failure": "Candidate safe-fixture schema mismatch confirmed from source",
+  "missing_coverage": "Candidate C01-C16 and complete candidate host admission; actual transport/native stop; controller/guard/bridge and runtime trace acceptance",
+  "waivers": [],
+  "manual_tests_required": 0,
+  "seven_input_sha256": {
+    "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+    "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+    "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835",
+    "run-service-q.ps1": "bb9e8305da07a5673fcda92e1eb9804cf5d8d6b1a9c2917dd0c73444a6af6f49",
+    "service-q-freeze.json": "ab936b629db2f5eeafe4d483b8c0db6ecfe9d16b0e3457fe6072d4b597eba736"
+  },
+  "protected_count": 166,
+  "protected_unchanged": true,
+  "installed_interpreter_posthashes": {
+    "installed_source_sha256": {
+      "gdb.py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "server.py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3"
+    },
+    "interpreter_sha256": "339de109f072e52523066d97a2b3372e358a10cc00c6a9df62c28a6618061900",
+    "manifest_sha256": "ab936b629db2f5eeafe4d483b8c0db6ecfe9d16b0e3457fe6072d4b597eba736",
+    "source_sha256": {
+      "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+      "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+      "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+      "run-service-q.ps1": "bb9e8305da07a5673fcda92e1eb9804cf5d8d6b1a9c2917dd0c73444a6af6f49",
+      "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835"
+    },
+    "ticket_sha256": "a082df9ea943b02cbe0c0330489df501312ab44ab79f89c04588ab44f546a2aa"
+  },
+  "capacity_delta_bytes": 0,
+  "runtime_ready": false,
+  "runtime_attempts": 0,
+  "installation_authorized": false,
+  "retry_performed": false,
+  "retained_previous_failures_unchanged": true
+}
