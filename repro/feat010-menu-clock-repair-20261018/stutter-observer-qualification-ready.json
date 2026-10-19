@@ -1,0 +1,34 @@
+{
+  "ticket": "FEAT-010",
+  "card": "STUTTER-Q",
+  "status": "Ready",
+  "user_approval": "Bounded observer preparation and qualification explicitly approved",
+  "observer_commit": "9ba629668c807fd5bd772bb3f275db684aa289dc",
+  "sha256": {
+    "stutter-observer.py.txt": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+    "stutter-observer-qualification.py.txt": "92db3879893c090a3348c35fd3d02245347cc16ab62792eca42dce2cec019dd4",
+    "stutter-observer-source-plan.txt": "796a2f6949cdbe6f8b9170e898f3dbafdacde25ca7acb1e328019209d85f1154"
+  },
+  "command": [
+    "python",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/stutter-observer-qualification.py.txt"
+  ],
+  "expected_results": {
+    "good": "GUEST_TIMER_PHASE_CONSISTENT",
+    "phase_skip": "PHASE_ANOMALY",
+    "unequal_spacing": "UNEQUAL_OBSERVED_SPACING",
+    "wrong_opcode": "SETUP_REJECTED",
+    "wrong_dp": "SETUP_REJECTED",
+    "invalid_vector_row": "SETUP_REJECTED",
+    "missing_runtime_mapping_proof": "SETUP_REJECTED",
+    "invalid_first_event_dt_discarded": "GUEST_TIMER_PHASE_CONSISTENT",
+    "missing_sample": "SETUP_REJECTED"
+  },
+  "whole_phase_limit_seconds": 60,
+  "attempts": 1,
+  "fixture": "Explicit synthetic timers6..38,phases0/1/2/3/0,34 FRAMES99..132,239856eventtick intervals,33 relative publications; first vector dt discarded. No product/live evidence.",
+  "negative_controls": "Known phase mismatch,unequal spacing,wrong fetched opcode,DP,mappingproof,invalid nativevector,changedfirstdelta,missing sample. Exact classifications; no tolerance.",
+  "parent_review": "Marker opcodes verified in 12 receipt-bound binaries/maps/listings; consumed-timer marker07E7; vectors included; postregister semantics; fixtureoracle independent; IRQ publications ordinalonly. Corrections occurred before execution.",
+  "runtime": "NOT READY; same-process source/staged/live byte proof and real sample coverage unresolved; pixels unsupported. No launch,build,guest read/write,capture or monitor."
+}
