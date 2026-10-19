@@ -1,0 +1,54 @@
+{
+  "kind": "post-run characterization note",
+  "ticket": "FEAT-010",
+  "step": "responses",
+  "classification": "SETUP_FAILURE",
+  "scope": "Classify the attempted offline historical characterization only. No production/controller repair, runtime test, GDB/emulator call, or retry is authorized by this note.",
+  "run": {
+    "artifact": "response-characterization.run.json",
+    "artifactSha256": "322af54d35eea7a7ef5fc5e96bf001bbf80646d59bd542d3f7bc8be3d53c42fa",
+    "phase": "response",
+    "purpose": "Non-gating offline historical characterization",
+    "runtimeReadiness": "NOT_ESTABLISHED",
+    "exitCode": 1,
+    "elapsedSeconds": 0.0737646,
+    "emulatorCalls": 0,
+    "realGdbCalls": 0
+  },
+  "failure": {
+    "type": "Harness syntax/setup failure",
+    "evidence": "response-characterization.stderr.txt",
+    "evidenceSha256": "6f53c0a5128c227087d5f1feecb04cc0e12193dad40a06ee55e03237630a93d3",
+    "runtime": "Node.js v24.21.0",
+    "source": "response-regression.cjs:218",
+    "message": "SyntaxError: await is only valid in async functions and the top level bodies of modules",
+    "detail": "The CommonJS harness contains `observed.gdb = await oldGdbResult(response);` at top level. Node stopped during parsing before executing the harness body."
+  },
+  "execution": {
+    "fixtureCount": 19,
+    "casesExecuted": 0,
+    "assertionsExecuted": 0,
+    "stdoutBytes": 0,
+    "stdoutArtifact": "response-characterization.stdout.json",
+    "stdoutSha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "caseResults": "None; the 19 cases were not reached.",
+    "interpretation": "This establishes a harness setup failure only. It is neither a product assertion failure nor passing characterization evidence, and it says nothing about the historical response helpers' behavior."
+  },
+  "input": {
+    "harness": "response-regression.cjs",
+    "harnessSha256": "35f28482a25acf53ebd80624f864f5b792a0404e9b434f4783a8061c92822ef6",
+    "historicalController": "executed-controller.js.txt",
+    "historicalControllerSha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc"
+  },
+  "proposedPrerequisitesForAnyFutureRun": [
+    "Move the awaited characterization work into an async wrapper (or equivalent CommonJS-compatible structure) while leaving the archived historical controller source unchanged.",
+    "After review of the modified harness and its new freeze hash, syntax-check that exact file with the installed Node runtime before any characterization run; record the syntax-check result.",
+    "A later offline characterization run requires separate parent authorization. This note does not authorize a retry."
+  ],
+  "prohibitedActionsObserved": {
+    "scriptEdit": false,
+    "retry": false,
+    "runtimeOrEmulatorCall": false,
+    "externalProcessByHarness": false
+  }
+}

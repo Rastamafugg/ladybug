@@ -1,0 +1,137 @@
+{
+  "kind": "controller response review",
+  "ticket": "FEAT-010",
+  "step": "responses",
+  "status": "DRAFT_FOR_PARENT_REVIEW",
+  "class": "High-risk controller review",
+  "scope": "Historical response decoding and identity gates only. No production/parser fix, live GDB/emulator action, external process, network call, old qualifier, ticket lifecycle change, or product acceptance.",
+  "inputs": {
+    "readyAssignment": {
+      "path": "responses-review-ready.json",
+      "sha256": "bdcc6db53004583eb8457ce3159f11bd0c7a00659bdd66a472b54d8cd12ced0c"
+    },
+    "actualMcpTranscript": {
+      "path": "../stutter-runtime-gdb-transcript.json",
+      "sha256": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
+    },
+    "controllerTranscription": {
+      "path": "executed-controller.js.txt",
+      "sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+      "recoveredFrom": "Exact original custom_tool_call.input in the current-thread rollout",
+      "callId": "call_7de95861e0304b9196174e1535fd9f51",
+      "timestamp": "2026-10-19T01:12:06.802Z",
+      "bytes": 9409,
+      "provenanceLimit": "The recovered input is byte-identical to this archive, but it was not included in pre-dispatch source freeze or qualification; recovery does not retroactively qualify it."
+    },
+    "sourceProvenance": {
+      "path": "source-provenance.json",
+      "sha256": "77270c5e475b4466fcb539bfa25a7511d623d83881b21503eb670c517a669a02"
+    },
+    "runtimeResult": {
+      "path": "../stutter-runtime-execution-result.json",
+      "sha256": "ca3515047cbb1fbb943e59ee92e1ede429e198b2d08557f758d5666f703eae865"
+    },
+    "parentQa": {
+      "path": "../stutter-runtime-parent-qa-20261019.json",
+      "sha256": "eb7c1968c30905d5ef8dba860635f5d1545b472b34a4c0b890629b0e928e4b60"
+    }
+  },
+  "confirmedBaseline": {
+    "session": "8c1206c5",
+    "architecture": "m6809 from the returned show-architecture result",
+    "attach": "GDB-MCP returned a successful target-remote result and a stopped-PC line at raw PC 057c.",
+    "registers": { "pc": "057c", "dp": "02", "x": "a2b2", "y": "a359", "u": "e937" },
+    "stopSignal": "Unknown. The retained response contains no signal-name or status-packet payload. Do not label this actual stop SIGINT.",
+    "codeIdentity": "Not proved. The retained run result says code_identity_proved=false; no live bytes or mapping were read.",
+    "controllerSourceProvenance": "The exact original controller tool-call input was recovered and matches the 9409-byte archive. It was not frozen/qualified before dispatch.",
+    "failure": "The historical controller rejected R-I at 3.404 seconds because its rendered-text search did not find SIGINT. The stop response itself does not identify the signal."
+  },
+  "findings": [
+    {
+      "id": "RESP-01",
+      "severity": "High",
+      "source": "executed-controller.js.txt:11",
+      "confirmedBehavior": "errorResult checks the outer isError flag and searches serialized JSON for selected text patterns. It does not inspect per-command error:true fields.",
+      "independentEvidence": "The retained valid attach response has outer isError=false and per-command error=false. The response-fixtures structured-error-true-with-isError-false case mutates one command result to error=true while preserving a plausible output.",
+      "impact": "A structured command error can be returned by gdb() as if the command succeeded when its text does not match one of the ad hoc patterns.",
+      "inferenceBoundary": "The actual retained attach did not contain error:true; this is a source-level false-accept path, not an observed failure in the actual run."
+    },
+    {
+      "id": "RESP-02",
+      "severity": "High",
+      "source": "executed-controller.js.txt:14",
+      "confirmedBehavior": "regs searches JSON.stringify(response) for the first register-shaped substring, without binding it to the explicit register command's output field.",
+      "independentEvidence": "The retained baseline register values come from the second command output. Mutated fixtures put fake register text in the command echo, remove an envelope channel, or disagree across content and structuredContent.",
+      "impact": "Command text or one contradictory channel can supply a plausible register snapshot even when the designated output is absent or conflicts.",
+      "inferenceBoundary": "The actual baseline channels agree and the historical regs helper decodes the observed values; the false-accept cases are deterministic mutations only."
+    },
+    {
+      "id": "RESP-03",
+      "severity": "High",
+      "source": "executed-controller.js.txt:25-26",
+      "confirmedBehavior": "The gate accepts any SIGINT substring anywhere in the serialized attach response. If it matches, the next line records signal:'SIGINT' without reading an explicit signal field.",
+      "independentEvidence": "The actual attach response has stopped text but no SIGINT, S02, S05, or maintenance packet query. Fixtures cover command-echo-only SIGINT, S02 positive control, S05, and unknown status.",
+      "impact": "The current actual response correctly remains unqualified for the required signal, but the reason is lossy; an unrelated echo can falsely admit the stop and the capture can overstate signal identity.",
+      "inferenceBoundary": "The actual stop signal remains unknown. XRoar source predicts S02 for accepted connection, but source behavior does not establish this live response's signal."
+    },
+    {
+      "id": "RESP-04",
+      "severity": "High",
+      "source": "executed-controller.js.txt:12,18",
+      "confirmedBehavior": "findSid returns the first nested session_id found anywhere in objects or parseable strings. The start-session path admits any truthy result and does not first reject an outer or inner error.",
+      "independentEvidence": "The retained success response contains session_id 8c1206c5 in content text. Mutations preserve or replace that ID while marking the response as an error or echo-only value.",
+      "impact": "An error response that echoes an ID can pass the truthy session gate; conflicting nested IDs are not detected.",
+      "inferenceBoundary": "The actual start-session envelope is successful and its returned ID is the one used by the retained batch calls. No session-ID failure occurred in this attempt."
+    },
+    {
+      "id": "RESP-05",
+      "severity": "Moderate",
+      "source": "executed-controller.js.txt:19",
+      "confirmedBehavior": "Architecture admission uses a case-sensitive substring search over the whole serialized response.",
+      "independentEvidence": "The retained response explicitly says the current target architecture is m6809. Mutations test a negated mention and contradictory content/structured results.",
+      "impact": "A negated or conflicting mention can satisfy the architecture gate.",
+      "inferenceBoundary": "The actual retained architecture output is affirmative and uncontradicted; no architecture error occurred in the attempt."
+    },
+    {
+      "id": "RESP-06",
+      "severity": "Moderate",
+      "source": "executed-controller.js.txt:13",
+      "confirmedBehavior": "gdb accepts any response not flagged by errorResult and does not validate the number or identity of returned command results, required envelope channels, or channel agreement.",
+      "independentEvidence": "Fixtures remove content or structuredContent and create a per-command error while retaining other plausible text. The retained successful baseline has two matching content and structured result records.",
+      "impact": "A malformed or contradictory response may advance to downstream checks and produce incomplete or misleading evidence.",
+      "inferenceBoundary": "The actual retained baseline response is complete and matching."
+    }
+  ],
+  "coverage": {
+    "fixtureCount": 19,
+      "covered": [
+      "retained start-session, architecture, and attach/register envelopes",
+      "outer isError=true and per-command error=true with outer isError=false",
+      "missing content/structuredContent and contradictory response channels",
+      "session ID success, wrong/conflicting IDs, and inner/outer error echoes",
+      "architecture affirmative, negated, and contradictory mentions",
+      "stopped with unknown signal, echo-only SIGINT, synthetic S02 positive control, S05 and unknown status negatives",
+      "registers from designated output, command echo, and contradictory channels"
+    ],
+    "executionPathLimit": "The transcription is inspected and only five pure helper function lines are evaluated. The complete controller is not evaluated. No asynchronous workflow, cleanup branch, deadline arithmetic under delay, or live session lifecycle is executed.",
+    "qualificationLimit": "The fixtures are a non-gating historical characterization. They do not qualify the proposed status-packet command operationally, establish a new DOC-014 card, or authorize a runtime retry."
+  },
+  "smallestCoherentRepair": [
+    "Decode each MCP envelope by field: reject outer isError, require the expected structured command-result array, require each result's error field to be false, and reject missing or contradictory response representations.",
+    "Extract architecture only from the matching show-architecture result and require an affirmative current m6809 value.",
+    "Extract PC/DP/X/Y/U only from the output paired with the exact register command; never scan serialized request or response fields.",
+    "Obtain stop identity from the response payload to the same-channel status query and admit only exact received S02. Treat S05, missing, ambiguous, or echoed status as rejection; keep the actual retained signal unknown.",
+    "Accept a session ID only after validating the start-session envelope and its unambiguous result; bind subsequent calls to that returned ID."
+  ],
+  "verification": {
+    "plannedCommand": "C:\\Program Files\\nodejs\\node.exe repro\\feat010-menu-clock-repair-20261018\\controller-review-20261019\\response-regression.cjs",
+    "owner": "Parent",
+    "deadlineSeconds": 60,
+    "runs": 1,
+    "currentState": "Prepared only; this agent did not execute the characterization. Parent freezes and reviews these files before the single offline run.",
+    "testClass": "Non-gating historical characterization, not runtime acceptance.",
+    "evidence": "The script checks bound input hashes, validates the retained baseline independently, extracts the historical helpers unchanged, supplies mocked tool methods, compares expected semantics with historical helper behavior, and emits JSON to stdout only.",
+    "futureGate": "If any repair or these checks become a new/materially changed acceptance gate, prepare and approve a DOC-014 test card and qualify both valid and broken fixtures before dispatch."
+  },
+  "decision": "No parser fix is authorized by this audit. Preserve the runtime attempt and transcript; stop at the existing failure boundary. This report does not change FEAT-010 acceptance or establish a product assertion failure."
+}
