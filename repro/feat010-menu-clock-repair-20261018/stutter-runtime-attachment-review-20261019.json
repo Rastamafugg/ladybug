@@ -1,0 +1,161 @@
+{
+  "ticket": "FEAT-010",
+  "step": "Read-only attachment observer reassessment after first R-I failure",
+  "status": "Source review complete; report awaiting parent review",
+  "class": "High-risk inherited diagnosis",
+  "date": "2026-10-19",
+  "disposition": {
+    "failed_runtime_assignment": "R-I SETUP_REJECTED; its single attempt was consumed",
+    "runtime_work": "Blocked/Proposed pending a corrected assignment and explicit approval; no retry is authorized by Ready 3bf36c1e",
+    "this_review": "Ready, report-only",
+    "product_result": "No product assertion failure and no stutter cause established"
+  },
+  "baseline": {
+    "ready_commit": "3bf36c1e",
+    "result": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-execution-result.json",
+    "transcript": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-gdb-transcript.json",
+    "state": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-state.json",
+    "runtime_verdict": "SETUP_REJECTED: Connection SIGINT not observed",
+    "identity_elapsed_seconds": 3.404,
+    "total_including_cleanup_seconds": 4.011,
+    "observation_tool_timeouts": 0,
+    "target_stops": 1,
+    "guest_memory_reads": 0,
+    "last_proven": null,
+    "trace_started": false,
+    "qualifier_reruns": 0,
+    "production_changes": 0
+  },
+  "observed": {
+    "attach_output": "Remote debugging using 127.0.0.1:65520\\n0x0000057c in ?? ()\\n[Stopped: in ??]\\n",
+    "register_output": "pc=057c dp=02 x=a2b2 y=a359 u=e937",
+    "controller_failure": "The returned text contained no literal SIGINT label, so the connection-stop identity prerequisite rejected before C002 or any memory read.",
+    "connection_pc_limit": "PC 0x057c is an observed register value only. No live-byte proof exists, so it has no justified symbol, routine, phase, or bootstrap interpretation.",
+    "timing_records": {
+      "start_session_elapsed_ms": 939,
+      "initial_gdb_setup_batch_elapsed_ms": 977,
+      "attach_and_register_batch_elapsed_ms": 3404,
+      "interpretation": "These per-operation fields are retained as recorded and are not added together; the result file reports 3.404 seconds for R-I identity and 4.011 seconds including cleanup."
+    },
+    "parent_post_run_snapshot": {
+      "gdb_session_id": "8c1206c5",
+      "pid_1967_absent": true,
+      "listener_port_65520_present": false,
+      "xroar_log_bytes": 0,
+      "guard_abort": "PID 1967 aborted with TERM after identity-matched cleanup",
+      "gdb_session_closed": true,
+      "source": "Parent post-run inspection; no separate command-output artifact was retained in this case."
+    }
+  },
+  "confirmed_source_findings": [
+    {
+      "path": "docs/reference/xroar/src/gdb.c",
+      "locations": ["332-337", "391"],
+      "finding": "When the GDB connection is accepted, XRoar calls gdb_machine_signal(gip, MACHINE_SIGINT, 0). The signal handler stores the last signal; ack=0 suppresses the immediate stop-reply packet."
+    },
+    {
+      "path": "docs/reference/xroar/src/machine.h",
+      "locations": ["205-207"],
+      "finding": "MACHINE_SIGINT is 2 and MACHINE_SIGTRAP is 5."
+    },
+    {
+      "path": "docs/reference/xroar/src/gdb.c",
+      "locations": ["435-437", "698-701"],
+      "finding": "The read-only remote packet '?' calls send_last_signal, which formats the stored value as S%02x. Source therefore predicts S02 for the accepted-connection SIGINT and S05 for SIGTRAP. The packet handler does not continue, step, write guest memory, or request a memory dump."
+    },
+    {
+      "path": "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/gdb.py",
+      "locations": ["93-103"],
+      "finding": "The pinned installed formatter review supplied for this assignment shows stop reason/function/file fields but no signal-name field. That explains why the rendered stop line can omit SIGINT; it does not prove which signal the live stub returned.",
+      "provenance_limit": "The service package is outside this checkout; its installed source hash was not independently captured in this report."
+    },
+    {
+      "path": "wiki/internal/tooling/xroar.html",
+      "locations": ["178-201", "299"],
+      "finding": "The documented GDB-MCP path can launch through GDB's shell. The wiki warns that a raw TCP connect followed by close can wedge this single-active endpoint; readiness must use passive listener metadata and then attach directly."
+    },
+    {
+      "path": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt",
+      "locations": ["18-21", "41-43", "341-348", "435-507"],
+      "finding": "The current guard pins STATE, LOG, HANDOFF, and DUMPS paths; it has one attempt, a 60-second phase with 52 seconds of work and 8 seconds reserved for cleanup, an 8-stop cap, 32 logical reads, 32768 read bytes, and a 32768-instruction trace cap. Its launch path binds the exact process identity and its cleanup is PID-specific."
+    }
+  ],
+  "unknowns": [
+    "The retained transcript does not contain the raw reply to packet '?'; the actual signal returned by XRoar remains unobserved.",
+    "The exact console representation and availability of GDB's 'maintenance packet ?' command through this installed GDB-MCP session have not been operationally qualified.",
+    "Whether bootstrap checkpoint C002 had already been passed is unknown. No C002 stop, guest bytes, PAR values, source-to-destination comparison, or R-T trace exists.",
+    "No evidence identifies a game-code stutter, frontend pacing issue, pixel replay, or XRoar hardware defect."
+  ],
+  "bounded_correction_review": {
+    "proposal": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-attachment-correction-proposed-20261019.json",
+    "source_alignment": "The proposed same-channel status query follows the XRoar packet implementation. Requiring explicit received S02 is a discriminating check; the formatted '[Stopped: in ??]' text alone is inconclusive.",
+    "status_controls": {
+      "deadline_seconds": 10,
+      "positive": "A captured received payload exactly identifying S02 is accepted as SIGINT.",
+      "negative": [
+        "S05 is rejected as a non-SIGINT stop.",
+        "Missing, ambiguous, or malformed received payload is rejected.",
+        "An echoed S02 outside the actual received payload is rejected."
+      ],
+      "execution": "These are proposed pure offline controls; none was run in this review. No existing parser or observer edit is authorized."
+    },
+    "launch_attach": "Prepare GDB first, then place the existing guarded --start invocation, one passive ss owned-listener readiness operation capped at 4 seconds, target remote, status query, and supported register print in one GDB-MCP command batch. Compare the listener PID to the guard-reported PID. Do not open a raw socket or probe by connecting. A listener mismatch or readiness timeout is setup rejection.",
+    "fresh_namespace": {
+      "guard_literal_changes_only": {
+        "STATE": "stutter-runtime-state-ri2-20261019.json",
+        "LOG": "stutter-runtime-xroar-ri2-20261019.log",
+        "HANDOFF": "stutter-runtime-handoff-ri2-20261019.json",
+        "DUMPS": "stutter-runtime-dumps-ri2-20261019"
+      },
+      "fixed_metadata_paths": {
+        "captures": "stutter-runtime-captures-ri2-20261019.json",
+        "gdb_transcript": "stutter-runtime-gdb-transcript-ri2-20261019.json",
+        "execution_result": "stutter-runtime-execution-result-ri2-20261019.json",
+        "trace_result": "stutter-runtime-trace-result-ri2-20261019.json"
+      },
+      "source_equivalence": "Parent's proposed boundary is four path literals only, with the same 21 function bodies, argv, runtime caps, source/ROM oracles, frozen observer/window, and original R-Q evidence. Do not rerun R-Q. Keep every original attempt artifact intact."
+    },
+    "caps_and_stop_rules": {
+      "status_fixture_seconds": 10,
+      "runtime_phase_seconds": 60,
+      "work_seconds": 52,
+      "cleanup_seconds": 8,
+      "target_stops": 8,
+      "logical_memory_reads": 32,
+      "memory_read_bytes": 32768,
+      "trace_cpu_instructions": 32768,
+      "planned_reads": 23,
+      "planned_read_bytes": 27724,
+      "additional_status_packet": "One read-only status query; zero memory dumps and zero additional target stops.",
+      "retry_authority": "No retry is authorized by the consumed Ready attempt. This correction remains Proposed pending explicit approval and a replacement Ready packet. First failure stops; no deadline, read, stop, trace, or history expansion."
+    },
+    "material_risks": [
+      "The faster launch/attach ordering may reach a different guest PC and still miss C002; it only removes a host round-trip gap and does not guarantee checkpoint admission.",
+      "The passive listener operation's exact bounded command and PID-output parsing must be frozen in Ready. It must not use TCP connect, /dev/tcp, or any other active port probe.",
+      "If 'maintenance packet ?' is unsupported or the received payload cannot be distinguished from echoed text, classify setup/observer failure and stop rather than weakening the SIGINT oracle.",
+      "No live PC can be named or interpreted before current artifact byte proof; R-T remains conditional on complete R-I identity and same-process handoff."
+    ]
+  },
+  "review_scope": {
+    "read_only_sources": [
+      "wiki/index.html",
+      "wiki/internal/tickets/workflow.html",
+      "wiki/internal/implementation/roadmap.html",
+      "wiki/internal/index.html",
+      "wiki/internal/tickets/index.html",
+      "wiki/internal/tooling/xroar.html",
+      "wiki/internal/implementation/lessons-learned.html",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-attachment-review-ready-20261019.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-execution-result.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-gdb-transcript.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-state.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-execution-ready.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-launch-mode-ready.json",
+      "repro/feat010-menu-clock-repair-20261018/stutter-runtime-attachment-correction-proposed-20261019.json",
+      "docs/reference/xroar/src/gdb.c",
+      "docs/reference/xroar/src/machine.h"
+    ],
+    "actions": "No GDB session, emulator, process, guest, capture, port connection, build, test, qualification, source, guard, parser, wiki, or ticket change was performed. This report is the only file created by this review."
+  }
+}
