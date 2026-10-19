@@ -1,0 +1,112 @@
+{
+  "schema": "ladybug.feat010.service-lease.parent-qa.v1",
+  "status": "BLOCKED_OBSERVER_ADMISSION_FAILURE",
+  "source_commit": "8445b7eaac5dca077da02690a52e10537d35f812",
+  "ready_commit": "09b8095a",
+  "baseline_attempts": 1,
+  "candidate_attempts": 0,
+  "elapsed_ms": 8720,
+  "maximum_ms": 60000,
+  "outer_command_wall_seconds": 9.6605955,
+  "failure_category": "OBSERVER_FAILURE_INVALID_PASS_RECORD",
+  "failure_message": "PASS terminal record rejected: fixed card set or expected card status mismatch",
+  "service_assertion_failure_observed": false,
+  "missing_coverage": "Complete baseline host admission absent; C01-C16 unrun",
+  "worker_status": "PASS",
+  "worker_case_results": [
+    {
+      "case_id": "B01",
+      "status": "PASS"
+    },
+    {
+      "case_id": "B02",
+      "status": "BASELINE_DEFECT_DETECTED"
+    },
+    {
+      "case_id": "B03",
+      "status": "BASELINE_DEFECT_DETECTED"
+    },
+    {
+      "case_id": "B04",
+      "status": "BASELINE_DEFECT_DETECTED"
+    }
+  ],
+  "o01_safe_and_12_negatives": "PASS",
+  "retained_failure_classification": "SETUP_OR_OBSERVER_FAILURE",
+  "retained_failure_shared_rejections": 12,
+  "retained_failure_diagnosis_rejections": 3,
+  "o02": "PASS",
+  "o03": "PASS",
+  "o03_elapsed_ms": 508,
+  "o03_maximum_ms": 1500,
+  "o04_reported_by_worker": {
+    "annotation_controls": {
+      "broken_function_error": "'function' object is not subscriptable",
+      "broken_function_error_type": "TypeError",
+      "broken_function_rejected": true,
+      "installed_class_accepts_bytes": true,
+      "safe_class_accepts_bytes": true
+    },
+    "denied_counts": {
+      "asyncio.create_subprocess_shell": 1,
+      "os.system": 1,
+      "socket.bind": 1,
+      "socket.connect": 1,
+      "socket.getaddrinfo": 1,
+      "socket.listen": 1,
+      "socket.sendmsg": 1,
+      "socket.sendto": 1,
+      "subprocess.Popen": 2,
+      "subprocess.run": 1
+    },
+    "popen_denial_phases": [
+      "before_import",
+      "after_import"
+    ],
+    "popen_denials": 2,
+    "real_calls": 0,
+    "status": "PASS"
+  },
+  "worker_wait_confirmed": true,
+  "worker_returncode": 0,
+  "driver_exit_confirmed": true,
+  "driver_exit_code": 0,
+  "seven_input_sha256": {
+    "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+    "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+    "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835",
+    "run-service-q.ps1": "65ba9bd2c0f87ac4121b27fdbb240c0bf4c168f33f8b8df32d460889d98a9abb",
+    "service-q-freeze.json": "b68e3f35bc109e6c1860d6aaff2d1c10f4dc103faa5887794aa357fc6cf4f354"
+  },
+  "protected_count": 153,
+  "protected_unchanged": true,
+  "installed_and_interpreter_posthashes": {
+    "installed_source_sha256": {
+      "gdb.py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "server.py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3"
+    },
+    "interpreter_sha256": "339de109f072e52523066d97a2b3372e358a10cc00c6a9df62c28a6618061900",
+    "manifest_sha256": "b68e3f35bc109e6c1860d6aaff2d1c10f4dc103faa5887794aa357fc6cf4f354",
+    "source_sha256": {
+      "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+      "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+      "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+      "run-service-q.ps1": "65ba9bd2c0f87ac4121b27fdbb240c0bf4c168f33f8b8df32d460889d98a9abb",
+      "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835"
+    },
+    "ticket_sha256": "37e3b9b0ce3b61464657282e11f939bc22efe5e910fd6fea37427e0d83ec2022"
+  },
+  "runtime_ready": false,
+  "runtime_attempts": 0,
+  "installation_authorized": false,
+  "capacity_delta_bytes": 0,
+  "retry_authorized": false,
+  "retained_evidence_sha256": "91f87f0d67083ab716b5dbeb140ce2c7c0389baad7493108d11a3a6f1d406260",
+  "frozen_ticket_sha256": "37e3b9b0ce3b61464657282e11f939bc22efe5e910fd6fea37427e0d83ec2022",
+  "rejecting_predicate": "run-service-q.ps1:313 B04 registry_count_after_failure must equal0; retained value1",
+  "confirmed_cause": "B03 session remains registered in reused manager; B04 removes its own session but total registry count remains1. O01 synthetic positive hardcodes0.",
+  "qualification_gap": "Synthetic positive did not model natural B03-to-B04 registry history. Complete PASS-envelope acceptance remains unqualified."
+}
