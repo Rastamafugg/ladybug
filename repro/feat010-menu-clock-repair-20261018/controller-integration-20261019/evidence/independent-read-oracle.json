@@ -1,0 +1,280 @@
+{
+  "schema": "ladybug.feat010.controller-integration.independent-oracle.v1",
+  "provenance": "Immutable readiness-preparation card; independently authored expected read hashes and PAR masks, not helper output",
+  "source_path": "E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\controller-readiness-preparation-20261019\\verification-cards.json",
+  "source_sha256": "526b246df25859101024e1264d6913d60816ecddb1c05d130a78e3939b182182",
+  "oracle": {
+    "provenance": "The exact 23-row plan is copied as address/length from the approved runtime plan and checked against the pinned boot source/listing/map. Expected byte hashes below were computed by read-only slicing and SHA-256 over the receipt-pinned candidate artifacts; no guard import, expected_reads call, helper execution, or test execution generated them.",
+    "receipt_and_artifact_hashes": {
+      "source-build-receipt.json": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+      "ladybug.rom": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+      "ladybug-gmc-boot.rom": "2acc2da195e0b3ca2bfc7d7a5535fc7e1822f46b4f54f6e267bf9a095b3bac1f",
+      "ladybug-enemy-runtime.rom": "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9",
+      "ladybug-perimeter-reset-helper.bin": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959",
+      "ladybug-presentation-runtime.bin": "332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e",
+      "ladybug-highscore-helper.bin": "b2101f38c72c7f7854f23cda58b28a2c1b53734af447f5974fb9846d882c283c"
+    },
+    "source_relationships": {
+      "enemy_rom": "4096-byte bank3 C800:D800 range; bytes 0:4091 equal enemy-runtime artifact and bytes 4091:4096 are A3A3A3A3A3; full-range SHA-256 57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432.",
+      "helper": "ROM bank0 C802:C950 equals the 334-byte helper artifact with SHA-256 df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959.",
+      "presentation": "ROM bank0 CC92:D191 equals the 1279-byte presentation artifact; SHA-256 332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e.",
+      "auxiliary": "Concatenate bank3 F495:FE00, bank3 C000:C010, bank3 C012:C800, bank0 C950:CC12; length 5163 and SHA-256 bd94cf9f05b1413c763eff8d72ba031bf5952b21d1c1bdacd92a2fe53dc7be39. Bytes from offset 0x81E equal the 3085-byte highscore artifact.",
+      "descriptor_table": "ROM byte range 0x4BF:0x51F, length 96, SHA-256 e1db287ab85b598b4ed93e11f4a32e26f783c4c611ca6cee30493e34fb80dc6a."
+    },
+    "rows_in_read_order": [
+      {
+        "checkpoint": "C002",
+        "name": "boot",
+        "address": "0xC000",
+        "length": 86,
+        "expected_source": "ladybug-gmc-boot.rom[0:86]",
+        "sha256": "9b34a2dc47aff954d8557ae504552243fbf25a652e1990bf84893d2c95f4f27a"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "relocated_loader",
+        "address": "0x0300",
+        "length": 1324,
+        "expected_source": "ladybug-gmc-boot.rom[0x56:0x56+1324] relocated to 0x0300",
+        "sha256": "e9306a49e748d70e31ed7e0c97d2aa203301c1691df1c293ac5bbcb0c049340b"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "enemy_rom",
+        "address": "0xC800",
+        "length": 4096,
+        "expected_source": "ladybug.rom bank3[0xC800:0xD800], split relationship stated above",
+        "sha256": "57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "aux_b3_f495",
+        "address": "0xF495",
+        "length": 2411,
+        "expected_source": "ladybug.rom bank3[0xF495:0xFE00]",
+        "sha256": "6ae58c3a24a25b27f353d88822acec10f890894f3ed5f3e2e62c77b55eccd3f0"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "aux_b3_c000",
+        "address": "0xC000",
+        "length": 16,
+        "expected_source": "ladybug.rom bank3[0xC000:0xC010]",
+        "sha256": "b70ec1a38ff0b2a561512a72a01f46beecf4ce48a9c4f9fa7d09df32430f10e5"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "aux_b3_c012",
+        "address": "0xC012",
+        "length": 2030,
+        "expected_source": "ladybug.rom bank3[0xC012:0xC800]",
+        "sha256": "20a8bafc525018c8d4a7a0359de4776eeccf8660b356a4039cd68bd390dcf939"
+      },
+      {
+        "checkpoint": "enemy_pre",
+        "name": "par",
+        "address": "0xFFA0",
+        "length": 8,
+        "expected_source": "GIME PAR snapshot; masked predicate below",
+        "sha256": null,
+        "expected_masked_values": {
+          "PAR0": "0x38",
+          "PAR5": "0x3E",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      {
+        "checkpoint": "enemy_post",
+        "name": "enemy_dest",
+        "address": "0x0800",
+        "length": 4096,
+        "expected_source": "same bytes as enemy_pre.enemy_rom",
+        "sha256": "57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"
+      },
+      {
+        "checkpoint": "enemy_post",
+        "name": "par",
+        "address": "0xFFA0",
+        "length": 8,
+        "expected_source": "GIME PAR snapshot; masked predicate below",
+        "sha256": null,
+        "expected_masked_values": {
+          "PAR0": "0x38",
+          "PAR5": "0x3E",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      {
+        "checkpoint": "helper_pre",
+        "name": "helper_source",
+        "address": "0xC802",
+        "length": 334,
+        "expected_source": "ROM bank0 C802:C950, equal to helper artifact",
+        "sha256": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"
+      },
+      {
+        "checkpoint": "helper_pre",
+        "name": "aux_b0_c950",
+        "address": "0xC950",
+        "length": 706,
+        "expected_source": "ladybug.rom bank0[0xC950:0xCC12]",
+        "sha256": "d4200eb791b69709c4f19f3973d535993d8e8ef0075d7eb11366118654a0b39f"
+      },
+      {
+        "checkpoint": "helper_pre",
+        "name": "presentation_source",
+        "address": "0xCC92",
+        "length": 1279,
+        "expected_source": "ROM bank0 CC92:D191, equal to presentation artifact",
+        "sha256": "332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e"
+      },
+      {
+        "checkpoint": "helper_pre",
+        "name": "descriptor",
+        "address": "0x0200",
+        "length": 96,
+        "expected_source": "ladybug.rom[0x4BF:0x51F] descriptor/copy table",
+        "sha256": "e1db287ab85b598b4ed93e11f4a32e26f783c4c611ca6cee30493e34fb80dc6a"
+      },
+      {
+        "checkpoint": "helper_pre",
+        "name": "par",
+        "address": "0xFFA0",
+        "length": 8,
+        "expected_source": "GIME PAR snapshot; masked predicate below",
+        "sha256": null,
+        "expected_masked_values": {
+          "PAR0": "0x38",
+          "PAR5": "0x24",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      {
+        "checkpoint": "helper_post",
+        "name": "helper_dest",
+        "address": "0x06B2",
+        "length": 334,
+        "expected_source": "receipt-pinned helper artifact",
+        "sha256": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"
+      },
+      {
+        "checkpoint": "helper_post",
+        "name": "par",
+        "address": "0xFFA0",
+        "length": 8,
+        "expected_source": "GIME PAR snapshot; masked predicate below",
+        "sha256": null,
+        "expected_masked_values": {
+          "PAR0": "0x38",
+          "PAR5": "0x24",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      {
+        "checkpoint": "B080",
+        "name": "aux_dest",
+        "address": "0xA422",
+        "length": 5163,
+        "expected_source": "concatenated source slices stated above",
+        "sha256": "bd94cf9f05b1413c763eff8d72ba031bf5952b21d1c1bdacd92a2fe53dc7be39"
+      },
+      {
+        "checkpoint": "B080",
+        "name": "helper_dest",
+        "address": "0x06B2",
+        "length": 334,
+        "expected_source": "receipt-pinned helper artifact",
+        "sha256": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"
+      },
+      {
+        "checkpoint": "B080",
+        "name": "enemy_dest",
+        "address": "0x0800",
+        "length": 4096,
+        "expected_source": "same bytes as enemy_pre.enemy_rom",
+        "sha256": "57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"
+      },
+      {
+        "checkpoint": "B080",
+        "name": "presentation_dest",
+        "address": "0x1900",
+        "length": 1279,
+        "expected_source": "receipt-pinned presentation artifact",
+        "sha256": "332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e"
+      },
+      {
+        "checkpoint": "B080",
+        "name": "par",
+        "address": "0xFFA0",
+        "length": 8,
+        "expected_source": "GIME PAR snapshot; masked predicate below",
+        "sha256": null,
+        "expected_masked_values": {
+          "PAR0": "0x38",
+          "PAR5": "0x23",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      {
+        "checkpoint": "B080",
+        "name": "mode_screen",
+        "address": "0x00A5",
+        "length": 2,
+        "expected_source": "literal LOAD=1, ATTRACT=0 from approved runtime contract",
+        "sha256": "47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"
+      },
+      {
+        "checkpoint": "B080",
+        "name": "timer",
+        "address": "0x00B0",
+        "length": 2,
+        "expected_source": "literal timer=0 from approved runtime contract",
+        "sha256": "96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"
+      }
+    ],
+    "par_predicate": {
+      "comparison": "For all five PAR rows, compare only each named byte's low six bits (value & 0x3F). PAR indices 1-4 and upper bits are intentionally not admission criteria.",
+      "independent_source": "Pinned candidate/src/gmc_bootstrap.s and candidate/build/ladybug-gmc-boot.lst initialize PAR0=0x38, PAR5=PAR6=0x3E, PAR7=0x3F at source lines 63-72/listing lines 269-275. The approved R-I plan records the bank/page transitions: enemy source remains page 0x3E; helper-source descriptor uses page 0x24; first B080 executes LDA #$23 / STA PAR5. The receipt-pinned source/listing/map and approved runtime plan are all in source-manifest.json.",
+      "per_checkpoint": {
+        "enemy_pre": {
+          "PAR0": "0x38",
+          "PAR5": "0x3E",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        },
+        "enemy_post": {
+          "PAR0": "0x38",
+          "PAR5": "0x3E",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        },
+        "helper_pre": {
+          "PAR0": "0x38",
+          "PAR5": "0x24",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        },
+        "helper_post": {
+          "PAR0": "0x38",
+          "PAR5": "0x24",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        },
+        "B080": {
+          "PAR0": "0x38",
+          "PAR5": "0x23",
+          "PAR6": "0x3E",
+          "PAR7": "0x3F"
+        }
+      },
+      "tolerance": "Zero mismatch on the four masked register values at each checkpoint; all other byte fields are observed/retained but not gated."
+    },
+    "independent_arithmetic_checks": "Read-only file-byte arithmetic confirmed helper source slice equals the helper artifact, presentation source slice equals the presentation artifact, enemy source prefix equals its 4091-byte artifact with A3A3A3A3A3 tail, and AUX suffix at 0x81E equals the highscore artifact. Total row count is exactly 23 and lengths sum to 27724 bytes."
+  },
+  "runtime_evidence": false
+}
