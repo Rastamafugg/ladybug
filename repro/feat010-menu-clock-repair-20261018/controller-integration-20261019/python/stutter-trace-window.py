@@ -1,0 +1,234 @@
+"""Pure first-eligible-window adapter; never edits the frozen observer."""
+
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+import re
+
+HERE = Path(__file__).resolve().parent
+observer = SourceFileLoader("stutter_observer_window", str(HERE / "stutter-observer.py")).load_module()
+TIMER_PC = 0x07E7
+PHASE_PC = 0x07F3
+FRAMES_PC = 0xACBD
+PUBLISH_PC = 0x0EAD
+FRONT_PC = 0x0EB0
+BACK_PC = 0x0EB2
+ACTIVATION_PC = 0x1C62
+ACTIVATION_OPCODE = "0fd4"
+
+
+class WindowRejected(ValueError):
+    pass
+
+
+def _read_events(text):
+    rows = []
+    events = []
+    for line_number, line in enumerate(text.splitlines(), 1):
+        if not line.strip():
+            continue
+        event = observer.parse_line(line)
+        if event is None:
+            event = observer._parse_vector(line)
+        if event is None:
+            if "|" in line or "dt=" in line:
+                raise WindowRejected("unrecognized timing row at line {}".format(line_number))
+            continue
+        rows.append({"line_number": line_number, "line": line, "event": event})
+        events.append(event)
+    if not events:
+        raise WindowRejected("no native timing events")
+    if events[0]["dt"] is None:
+        raise WindowRejected("native first-event dt is absent")
+    for event in events[1:]:
+        if event["dt"] is None or event["dt"] < 0:
+            raise WindowRejected("native CPU/vector dt missing or negative")
+    if sum(event["kind"] == "cpu" for event in events) > 32768:
+        raise WindowRejected("32768-instruction input cap exceeded")
+    return rows, events
+
+
+def _marker(event):
+    if event["kind"] != "cpu":
+        return None
+    for name, (pc, opcode, mnemonic) in observer.MARKERS.items():
+        if event["pc"] == pc:
+            if event["opcode"] != opcode or event["mnemonic"] != mnemonic:
+                raise WindowRejected(name + " marker opcode mismatch")
+            if event["regs"]["dp"] != 0:
+                raise WindowRejected(name + " marker DP is not zero")
+            return name
+    return None
+
+
+def _activation_indices(events):
+    hits = []
+    for index, event in enumerate(events):
+        if event["kind"] == "cpu" and event["pc"] == ACTIVATION_PC:
+            if (event["opcode"] != ACTIVATION_OPCODE or event["mnemonic"] != "clr"
+                    or event["regs"]["dp"] != 0):
+                raise WindowRejected("trace activation opcode/DP mismatch")
+            hits.append(index)
+    if len(hits) != 1:
+        raise WindowRejected("trace must contain exactly one 1C62 activation")
+    return hits
+
+
+def _set_dt(line, value):
+    replaced, count = re.subn(r"(dt=)-?[0-9]+\s*$", r"\g<1>" + str(value), line)
+    if count != 1:
+        raise WindowRejected("cannot normalize native dt field")
+    return replaced
+
+
+def adapt_first_window(trace_text):
+    """Return raw-indexed, origin-preserving input for the frozen analyzer.
+
+    Only paired startup timer/phase records before the first t>=6 sample are
+    omitted from the observer view. Their individual native dt values remain
+    in provenance and are summed into the next retained row, preserving every
+    later event time. The untouched input remains caller-owned evidence.
+    """
+    try:
+        rows, events = _read_events(trace_text)
+        activation_indices = _activation_indices(events)
+    except (WindowRejected, ValueError) as exc:
+        return {"kind": "SETUP_REJECTED", "reason": str(exc)}
+
+    try:
+        markers = [_marker(event) for event in events]
+    except WindowRejected as exc:
+        return {"kind": "SETUP_REJECTED", "reason": str(exc)}
+    timers = []
+    pending_timer = None
+    frames = []
+    pubs = []
+    publication_state = 0
+    for index, (event, name) in enumerate(zip(events, markers)):
+        if name == "timer":
+            if pending_timer is not None:
+                if pending_timer["t"] >= 6:
+                    return {"kind": "SETUP_REJECTED", "reason": "eligible timer lacks paired phase"}
+                timers.append(pending_timer)
+            pending_timer = {"index": index, "t": event["regs"]["d"], "phase": None}
+        elif name == "phase":
+            if pending_timer is None or pending_timer["phase"] is not None:
+                return {"kind": "SETUP_REJECTED", "reason": "orphan or duplicate phase marker"}
+            if pending_timer["t"] < 6:
+                return {"kind": "SETUP_REJECTED", "reason": "startup timer unexpectedly executed phase helper"}
+            if event["regs"]["a"] > 3:
+                return {"kind": "SETUP_REJECTED", "reason": "phase result outside 0..3"}
+            pending_timer["phase"] = event["regs"]["a"]
+            pending_timer["phase_index"] = index
+            timers.append(pending_timer)
+            pending_timer = None
+        elif name == "frames":
+            frames.append({"index": index, "value": event["regs"]["u"]})
+        elif name == "publish":
+            if publication_state:
+                return {"kind": "SETUP_REJECTED", "reason": "nested publication path"}
+            publication_state = 1
+            pubs.append({"start": index, "front": None, "back": None})
+        elif name == "front":
+            if publication_state != 1:
+                return {"kind": "SETUP_REJECTED", "reason": "orphan FRONT marker"}
+            publication_state = 2
+            pubs[-1]["front"] = index
+        elif name == "back":
+            if publication_state != 2:
+                return {"kind": "SETUP_REJECTED", "reason": "orphan BACK marker"}
+            publication_state = 0
+            pubs[-1]["back"] = index
+    if pending_timer is not None:
+        if pending_timer["t"] >= 6:
+            return {"kind": "SETUP_REJECTED", "reason": "final eligible timer lacks phase"}
+        timers.append(pending_timer)
+
+    first = next((i for i, sample in enumerate(timers) if sample["t"] >= 6), None)
+    if first is None:
+        return {"kind": "SETUP_REJECTED", "reason": "no eligible timer t>=6"}
+    cycle = timers[first:first + 33]
+    if len(cycle) != 33:
+        return {"kind": "SETUP_REJECTED", "reason": "first eligible window truncated"}
+    values = [sample["t"] for sample in cycle]
+    if values != list(range(values[0], values[0] + 33)) or values[0] < 6:
+        return {"kind": "SETUP_REJECTED", "reason": "first eligible window is not 33 consecutive timers"}
+    if values[-1] - values[0] != 32:
+        return {"kind": "SETUP_REJECTED", "reason": "first eligible window does not span 32 advances"}
+    start_timer, end_timer = cycle[0]["index"], cycle[-1]["index"]
+    if activation_indices[0] >= start_timer:
+        return {"kind": "SETUP_REJECTED",
+                "reason": "unique activation does not precede first eligible 33-timer window"}
+    before = [frame for frame in frames if frame["index"] < start_timer]
+    after = [frame for frame in frames if frame["index"] > end_timer]
+    if not before or not after:
+        return {"kind": "SETUP_REJECTED", "reason": "FRAMES does not bracket first eligible window"}
+    start = before[-1]["index"]
+    end = after[0]["index"]
+    if any(pub["start"] < start <= (pub["back"] if pub["back"] is not None else len(events))
+           for pub in pubs):
+        return {"kind": "SETUP_REJECTED", "reason": "window begins inside IRQ publication"}
+    if any(pub["start"] <= end < (pub["back"] if pub["back"] is not None else len(events))
+           for pub in pubs):
+        return {"kind": "SETUP_REJECTED", "reason": "window ends inside IRQ publication"}
+
+    event_ticks = [0]
+    for event in events[1:]:
+        event_ticks.append(event_ticks[-1] + event["dt"])
+    kept = []
+    provenance = []
+    folded = []
+    folded_dt = 0
+    first_timer_seen = False
+    for index in range(start, end + 1):
+        marker = markers[index]
+        event = events[index]
+        omit = index < start_timer and marker in ("timer", "phase")
+        if omit:
+            if index:
+                folded_dt += event["dt"]
+            folded.append({"event_index": index, "line_number": rows[index]["line_number"],
+                           "marker": marker, "raw_dt": event["dt"]})
+            continue
+        line = rows[index]["line"]
+        native_dt = event["dt"]
+        normalized_dt = native_dt
+        if folded_dt:
+            normalized_dt += folded_dt
+            line = _set_dt(line, normalized_dt)
+            folded_dt = 0
+        if index == start_timer:
+            first_timer_seen = True
+        kept.append(line)
+        provenance.append({"event_index": index, "line_number": rows[index]["line_number"],
+                           "kind": event["kind"], "marker": marker,
+                           "raw_dt": native_dt, "normalized_dt": normalized_dt})
+    if folded_dt or not first_timer_seen:
+        return {"kind": "SETUP_REJECTED", "reason": "startup delta folding incomplete"}
+    window = {"kind": "WINDOW_READY", "normalized_trace": "\n".join(kept) + "\n",
+              "raw_event_origin_index": start, "raw_line_origin": rows[start]["line_number"],
+              "origin_event_ticks": event_ticks[start],
+              "activation_event_indices": activation_indices,
+              "discarded_native_first_dt": events[0]["dt"],
+              "timer_event_indices": [sample["index"] for sample in cycle],
+              "phase_event_indices": [sample["phase_index"] for sample in cycle],
+              "bracketing_frame_indices": [before[-1]["index"], after[0]["index"]],
+              "publication_event_indices": [p for pub in pubs
+                                             if pub["back"] is not None
+                                             and start <= pub["start"] <= end
+                                             for p in (pub["start"], pub["front"], pub["back"])],
+              "folded_startup_records": folded, "normalized_event_provenance": provenance,
+              "raw_input_sha256": __import__("hashlib").sha256(trace_text.encode()).hexdigest()}
+    return window
+
+
+def add_global_origin(summary, window):
+    """Copy observer result and expose original elapsed-time coordinates."""
+    result = dict(summary)
+    origin = window["origin_event_ticks"]
+    for key in ("timer_event_ticks", "frame_event_ticks"):
+        if key in result:
+            result["global_" + key] = [origin + value for value in result[key]]
+    result["window_raw_event_origin_index"] = window["raw_event_origin_index"]
+    result["window_raw_line_origin"] = window["raw_line_origin"]
+    result["window_input_sha256"] = window["raw_input_sha256"]
+    return result
