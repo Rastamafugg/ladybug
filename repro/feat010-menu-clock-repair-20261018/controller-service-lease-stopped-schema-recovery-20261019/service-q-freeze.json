@@ -4,7 +4,7 @@
   "class": "High-risk",
   "approval": "User approves stopped-field schema repair scope and STOPPED-Q/B-R3/C-R3 cards",
   "approval_commit": "79cc2f25",
-  "status": "APPROVED_STOPPED_SOURCE_PREPARATION_ONLY",
+  "status": "APPROVED_STOPPED_SOURCE_READY",
   "runtime_ready": false,
   "runtime_attempts_authorized": 0,
   "installation_authorized": false,
@@ -231,8 +231,19 @@
       "prerequisite": "Complete parent source review and freeze"
     }
   },
-  "source_preparation_gate_execution_authorized": false,
-  "execution_freeze": null,
+  "source_preparation_gate_execution_authorized": true,
+  "execution_freeze": {
+    "authorized": true,
+    "source_sha256": {
+      "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+      "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+      "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+      "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835",
+      "run-service-q.ps1": "1c0ae2883bb665da62c73462c1194c63c7478e98cb5d20a32fd2e4d06e826430"
+    },
+    "ticket_sha256": "46518e0ab29b44e27a648f8936793bdc0762660f1342fd572730897d823a356a"
+  },
   "capacity_delta_bytes": 0,
   "candidate_source_commit": "f02ec19f3d074d03e4cd80a335d7525c560c42a5",
   "candidate_source_sha256": {
@@ -252,9 +263,9 @@
       "O04 deny real service spawn and network escape"
     ],
     "only_real_child": "Pinned qualification Python worker; never GDB/rr/emulator or another program",
-    "review": "Parent complete source review and freeze before executable qualification",
+    "review": "Parent complete source review; STOPPED-Q Ready, baseline and candidate conditional matching complete preceding PASS",
     "phases": "One host-only STOPPED-Q30s, then conditional baseline60s and candidate60s; first failure stops"
   },
-  "qualifier_source_commit": null,
+  "qualifier_source_commit": "1bcb65cea24619f8542b453aac98b6e9328e0e77",
   "recovery_proposal": "service-lease-stopped-schema-proposed-20261019"
 }
