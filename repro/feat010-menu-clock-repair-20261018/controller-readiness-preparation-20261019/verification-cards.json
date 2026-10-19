@@ -1,0 +1,379 @@
+{
+  "document_status": "DRAFT_NOT_APPROVED_NOT_EXECUTABLE",
+  "ticket": "FEAT-010",
+  "source_freeze": {
+    "commit": "c8c03e4c",
+    "manifest": "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/source-manifest.json",
+    "manifest_sha256": "a56c865b0b3572915bffbc55c9b6e6493bcaeb2268e98b9ac3719623eb414cfb"
+  },
+  "execution_policy": "Every command below names a future unimplemented runner. MUST NOT RUN. These designs authorize no harness creation, helper qualification, service installation, GDB/MCP/emulator use, target execution, or runtime attempt.",
+  "baseline": {
+    "source_commit": "47c02c9b",
+    "result_commit": "91859234",
+    "response_cases": "22/22 passed offline",
+    "mocked_controller_cases": "19/19 passed offline",
+    "runtime_attempts_in_baseline": 0,
+    "runtime_ready": false,
+    "interpretation": "The baseline does not qualify the installed service, actual helper integration, complete offline controller path, or live Ready. No prior gate is rerun by this card set."
+  },
+  "decision": {
+    "first_independently_useful_repair": "Add a caller-owned service creation lease, then qualify actual copied service methods with a denied real subprocess factory. The caller knows owner_id before start; the service retains process ownership through confirmed exit or UNRESOLVED.",
+    "proposed_additive_api": {
+      "start": "start_owned_session(owner_id, binary, args, cwd) -> lease state; owner_id is caller-generated and single-use for one fixed attempt; register synchronously before first spawn await. Preserve the manager fixed GDB launch (gdb --interpreter=mi2 --quiet) and its existing binary,args,cwd authority; do not add executable, argv, or env launch controls",
+      "stop": "stop_session_by_owner(owner_id) -> idempotent lease state",
+      "owned_command": "exec_owned_session(owner_id, session_id, command_id, command, budget_ms) -> {owner_id, session_id, command_id, text, mi_result, mi_error, stop_record}; bind the parsed MI result/error and any stop record to that serialized command; absent, ambiguous, or unmatched stop records remain UNKNOWN",
+      "compatibility": "Keep start_session, stop_session, exec_command and batch_commands signatures and string/batch response schemas unchanged. New owned methods are separately named and additive; no install or deployment is authorized.",
+      "owner_rules": [
+        "Owner token is single-use for one fixed attempt.",
+        "Same token and identical launch tuple returns the existing lease; never spawn a second process.",
+        "Same token with a changed launch tuple returns OWNER_CONFLICT without spawn.",
+        "Stop before a delayed start creates CANCELLED_BEFORE_START tombstone; later start rejects without spawn.",
+        "EXITED requires proc.wait() to return a return code. Otherwise retain the lease and report UNRESOLVED."
+      ]
+    },
+    "unresolved_external_proof": "A client Promise.race, controller virtual clock, relative budget, or copied-source fake cannot prove MCP transport cancellation/deadline behavior. Real service integration remains blocked until separately authorized deployment and an end-to-end transport proof.",
+    "clock_contract": "Service and caller use separate monotonic clock domains. Never compare their absolute values. A passed relative budget does not prove cancellation of the remote operation."
+  },
+  "cards": [
+    {
+      "id": "SERVICE-Q",
+      "status": "DRAFT_NOT_APPROVED_NOT_EXECUTABLE_BLOCKED",
+      "purpose": "Qualify actual copied gdb-mcp service methods for creation ownership, cancellation races, full send deadline ownership, and truthful final process exit.",
+      "distinct_risk": "A process may spawn before its random session ID is returned; cancellation or timeout can otherwise lose the only caller-visible handle, leave send drain unbounded, or report cleanup before process exit.",
+      "test_type": "Offline copied-source service-method qualification with denied real subprocess factory and controlled fake streams/processes. Exercise the copied service methods; do not reimplement their behavior in a parallel model.",
+      "source_identity": {
+        "installed_gdb_py": {
+          "path": "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/gdb.py",
+          "sha256": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b"
+        },
+        "installed_server_py": {
+          "path": "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/server.py",
+          "sha256": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3"
+        },
+        "source_observations": "gdb.py send 121-181; close 196-213; create 219-259; remove 308-313. server.py start_session/stop_session 42-61; exec_command 136-149 returns a STRING and batch_commands begins at 153, so preserve both signatures and response schemas."
+      },
+      "future_owned_files": [
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-lease/gdb.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-lease/server.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-lease/service-q.py"
+      ],
+      "excluded_targets": [
+        "The two installed files above remain read-only and excluded until separate implementation/deployment approval.",
+        "No other process, session, service installation, MCP transport, emulator, or target is in this card."
+      ],
+      "fixture_and_controls": {
+        "controlled_state": "The future runner injects a factory into the actual copied service module. Its default/denial factory raises immediately if a real subprocess launch is attempted. Controlled fake stdin/stdout, drain gates, wait/terminate/kill results, owner tokens, and launch tuples are local to one invocation.",
+        "good_cases": [
+          "Start is paused after fake process creation and before the start response. stop_session_by_owner with the pre-known token requests cleanup; the same process remains owned until fake wait returns its exact return code.",
+          "Repeat start with the same owner and identical launch tuple; expected spawn count remains exactly 1 and both calls observe one lease.",
+          "Exercise serialized send with lock wait, stdin write/drain, and response collection under one proposed 1000 ms service-monotonic budget; a successful response within budget is accepted only when each stage shares that deadline."
+        ],
+        "broken_controls": [
+          "Cancel owner before delayed start; expect CANCELLED_BEFORE_START and spawn count exactly 0 after the later start request.",
+          "Reuse owner with a different launch tuple; expect OWNER_CONFLICT and no additional spawn.",
+          "Cancel or fail startup while banner/setup is pending after spawn; expect STOP_REQUESTED then EXITED only after fake wait returns, never an unowned process.",
+          "Block drain beyond the same 1000 ms deadline; expect deadline failure, no next command admission, and retained UNRESOLVED ownership until stop/wait resolves. Do not assert that cancelling drain alone stops the transport.",
+          "Make close share one 7000 ms absolute service-monotonic deadline across quit write/drain, graceful wait capped at 3000 ms, terminate wait capped at 2000 ms, kill, and final wait. Final wait receives only remaining time. Return EXITED only after fake wait returns; suppress final wait completion and expect UNRESOLVED plus a retained registry entry/task.",
+          "Repeat stop; expect an idempotent terminal/ongoing state and no second spawn or duplicate kill."
+        ]
+      },
+      "independent_expected_values": {
+        "same_owner_same_tuple_spawn_count": 1,
+        "cancel_before_start_spawn_count": 0,
+        "conflicting_owner_spawn_count_delta": 0,
+        "proposed_send_budget_ms": 1000,
+        "proposed_close_deadline_ms": 7000,
+        "close_deadline_scope": "One absolute service-monotonic deadline from close entry covers quit write/drain, graceful wait, terminate wait, kill and final wait. Graceful/terminate caps are at most 3000/2000 ms; final wait gets only remaining time. If write/drain or final wait consumes the deadline, retain the operation task and owner lease as UNRESOLVED.",
+        "runtime_cleanup_partition": "UNPROVEN: do not claim the 7000 ms service close fits the controller 8000 ms reserve until child/GDB/finalization partition or an independent concurrency contract is frozen.",
+        "exit_truth": "EXITED iff wait() returned a return code; otherwise UNRESOLVED and retained",
+        "tolerance": "Exact counts and states; no timing tolerance beyond a single service-monotonic deadline. Phase wall-clock maximum is 60000 ms."
+      },
+      "future_command": {
+        "command": "cd /mnt/e/projects/ladybug && python3 -B /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-lease/service-q.py",
+        "runner_status": "UNIMPLEMENTED; command MUST NOT RUN",
+        "prerequisites": [
+          "Separate approval to materialize the three exact future-owned files and freeze their hashes.",
+          "Review that the runner imports the copied service methods and replaces only the subprocess factory/streams with denied or controlled fakes.",
+          "A source test seam for subprocess-factory injection or an explicitly reviewed module-level factory substitution; no real process fallback.",
+          "Parent review of API return states, timeout behavior, and the first/final wait ownership contract."
+        ]
+      },
+      "phase_limits": {
+        "entire_phase_max_ms": 60000,
+        "invocations": 1,
+        "retry": "None. First unexpected result stops the card.",
+        "cost": "No measurement exists; the 60000 ms limit bounds the whole future qualification command and all nested waits."
+      },
+      "evidence_and_classification": {
+        "retain": "Frozen source hashes; one result with per-case expected/actual lease states, exact spawn/kill/wait counts, service-monotonic elapsed values, denied-real-factory assertion, first failure, and output hash. No process transcript or large passing trace.",
+        "failure_classes": ["service assertion failure", "fixture/setup failure", "deadline/observer failure", "missing case", "unresolved cleanup"],
+        "acceptance_limit": "A pass qualifies copied methods only. Installed-service integration remains a separate blocked tier."
+      },
+      "approval_and_owner": "Card is not approved. Parent must approve implementation, runner materialization and future qualification separately. Parent owns review and any install/deployment decision."
+    },
+    {
+      "id": "PYTHON-Q",
+      "status": "DRAFT_NOT_APPROVED_NOT_EXECUTABLE_BLOCKED",
+      "purpose": "Qualify actual copied guard validators, trace-window helper, observer, and one explicit analysis entry together on controlled offline fixtures.",
+      "distinct_risk": "Controller-v2 conditional adapters do not execute the pinned validators or establish source/staged/destination/PAR admission, activation ordering, or whole-analysis deadline behavior.",
+      "test_type": "One offline Python qualification that imports/calls the actual copied helper functions; no replacement validator or oracle generated by the helper under test.",
+      "source_identity": {
+        "runtime_guard_sha256": "70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0",
+        "trace_window_sha256": "4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
+        "observer_sha256": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+        "historical_analysis_sha256": "0d419d21dacfdfd4f706510957ad7bf7c569719d94801aba5d6dfe847bdf851a",
+        "pinned_candidate_rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+        "pinned_gmc_boot_rom_sha256": "2acc2da195e0b3ca2bfc7d7a5535fc7e1822f46b4f54f6e267bf9a095b3bac1f",
+        "source_build_receipt_sha256": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+        "boot_source_sha256": "2ef883b147a2334c854577763cb567b4831d3b6da4ce6889ba29b0a20e94f614",
+        "boot_listing_sha256": "b22613f9a5541f9b462053a47b1af02f08a9b2b153da9ee1154c8766c304649d",
+        "boot_map_sha256": "6c17c3c2eb63d4990fe75d21261506259fca8c594744ed8b24932d642e250689",
+        "proposal_source_identity_sha256": "d510554a8db475446e1dab7c060a990e52406eebe7700b877754cee1d5847e32",
+        "approved_runtime_plan_sha256": "8ecf2e37b3fb3db2d0f38c228dafdd9c0620f3e7e8116f30bed03115b03dd2a3"
+      },
+      "future_owned_files": [
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/stutter-runtime-guard.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/stutter-trace-window.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/stutter-observer.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/analysis.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/python-q.py"
+      ],
+      "fixture_and_controls": {
+        "good_fixture": "Controlled offline fixture with source oracle bytes derived independently from the frozen source/build receipt, staged bytes and six destination checkpoint captures. The runner calls the copied guard's actual validators, copied window helper, copied observer, and analysis entry. Expected output is exact source==staged==destination bytes, six marker checkpoints in order C002, 0350, 0375, 03D4, 042A, B080, and PAR values equal to the frozen checkpoint oracle.",
+        "planned_quantities_not_live_measurements": {
+          "checkpoint_count": 6,
+          "planned_read_count": 23,
+          "planned_read_bytes": 27724,
+          "approved_live_read_byte_cap": 32768,
+          "observer_cpu_instruction_cap": 32768,
+          "trace_timer_window_records": 33
+        },
+        "independent_read_oracle": {
+          "provenance": "The exact 23-row plan is copied as address/length from the approved runtime plan and checked against the pinned boot source/listing/map. Expected byte hashes below were computed by read-only slicing and SHA-256 over the receipt-pinned candidate artifacts; no guard import, expected_reads call, helper execution, or test execution generated them.",
+          "receipt_and_artifact_hashes": {
+            "source-build-receipt.json": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+            "ladybug.rom": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+            "ladybug-gmc-boot.rom": "2acc2da195e0b3ca2bfc7d7a5535fc7e1822f46b4f54f6e267bf9a095b3bac1f",
+            "ladybug-enemy-runtime.rom": "1585f8e1cf5b4c21257861f8345bc296b06b690279fd4e8e1c766dd771258bf9",
+            "ladybug-perimeter-reset-helper.bin": "df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959",
+            "ladybug-presentation-runtime.bin": "332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e",
+            "ladybug-highscore-helper.bin": "b2101f38c72c7f7854f23cda58b28a2c1b53734af447f5974fb9846d882c283c"
+          },
+          "source_relationships": {
+            "enemy_rom": "4096-byte bank3 C800:D800 range; bytes 0:4091 equal enemy-runtime artifact and bytes 4091:4096 are A3A3A3A3A3; full-range SHA-256 57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432.",
+            "helper": "ROM bank0 C802:C950 equals the 334-byte helper artifact with SHA-256 df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959.",
+            "presentation": "ROM bank0 CC92:D191 equals the 1279-byte presentation artifact; SHA-256 332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e.",
+            "auxiliary": "Concatenate bank3 F495:FE00, bank3 C000:C010, bank3 C012:C800, bank0 C950:CC12; length 5163 and SHA-256 bd94cf9f05b1413c763eff8d72ba031bf5952b21d1c1bdacd92a2fe53dc7be39. Bytes from offset 0x81E equal the 3085-byte highscore artifact.",
+            "descriptor_table": "ROM byte range 0x4BF:0x51F, length 96, SHA-256 e1db287ab85b598b4ed93e11f4a32e26f783c4c611ca6cee30493e34fb80dc6a."
+          },
+          "rows_in_read_order": [
+            {"checkpoint":"C002","name":"boot","address":"0xC000","length":86,"expected_source":"ladybug-gmc-boot.rom[0:86]","sha256":"9b34a2dc47aff954d8557ae504552243fbf25a652e1990bf84893d2c95f4f27a"},
+            {"checkpoint":"enemy_pre","name":"relocated_loader","address":"0x0300","length":1324,"expected_source":"ladybug-gmc-boot.rom[0x56:0x56+1324] relocated to 0x0300","sha256":"e9306a49e748d70e31ed7e0c97d2aa203301c1691df1c293ac5bbcb0c049340b"},
+            {"checkpoint":"enemy_pre","name":"enemy_rom","address":"0xC800","length":4096,"expected_source":"ladybug.rom bank3[0xC800:0xD800], split relationship stated above","sha256":"57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"},
+            {"checkpoint":"enemy_pre","name":"aux_b3_f495","address":"0xF495","length":2411,"expected_source":"ladybug.rom bank3[0xF495:0xFE00]","sha256":"6ae58c3a24a25b27f353d88822acec10f890894f3ed5f3e2e62c77b55eccd3f0"},
+            {"checkpoint":"enemy_pre","name":"aux_b3_c000","address":"0xC000","length":16,"expected_source":"ladybug.rom bank3[0xC000:0xC010]","sha256":"b70ec1a38ff0b2a561512a72a01f46beecf4ce48a9c4f9fa7d09df32430f10e5"},
+            {"checkpoint":"enemy_pre","name":"aux_b3_c012","address":"0xC012","length":2030,"expected_source":"ladybug.rom bank3[0xC012:0xC800]","sha256":"20a8bafc525018c8d4a7a0359de4776eeccf8660b356a4039cd68bd390dcf939"},
+            {"checkpoint":"enemy_pre","name":"par","address":"0xFFA0","length":8,"expected_source":"GIME PAR snapshot; masked predicate below","sha256":null,"expected_masked_values":{"PAR0":"0x38","PAR5":"0x3E","PAR6":"0x3E","PAR7":"0x3F"}},
+            {"checkpoint":"enemy_post","name":"enemy_dest","address":"0x0800","length":4096,"expected_source":"same bytes as enemy_pre.enemy_rom","sha256":"57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"},
+            {"checkpoint":"enemy_post","name":"par","address":"0xFFA0","length":8,"expected_source":"GIME PAR snapshot; masked predicate below","sha256":null,"expected_masked_values":{"PAR0":"0x38","PAR5":"0x3E","PAR6":"0x3E","PAR7":"0x3F"}},
+            {"checkpoint":"helper_pre","name":"helper_source","address":"0xC802","length":334,"expected_source":"ROM bank0 C802:C950, equal to helper artifact","sha256":"df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"},
+            {"checkpoint":"helper_pre","name":"aux_b0_c950","address":"0xC950","length":706,"expected_source":"ladybug.rom bank0[0xC950:0xCC12]","sha256":"d4200eb791b69709c4f19f3973d535993d8e8ef0075d7eb11366118654a0b39f"},
+            {"checkpoint":"helper_pre","name":"presentation_source","address":"0xCC92","length":1279,"expected_source":"ROM bank0 CC92:D191, equal to presentation artifact","sha256":"332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e"},
+            {"checkpoint":"helper_pre","name":"descriptor","address":"0x0200","length":96,"expected_source":"ladybug.rom[0x4BF:0x51F] descriptor/copy table","sha256":"e1db287ab85b598b4ed93e11f4a32e26f783c4c611ca6cee30493e34fb80dc6a"},
+            {"checkpoint":"helper_pre","name":"par","address":"0xFFA0","length":8,"expected_source":"GIME PAR snapshot; masked predicate below","sha256":null,"expected_masked_values":{"PAR0":"0x38","PAR5":"0x24","PAR6":"0x3E","PAR7":"0x3F"}},
+            {"checkpoint":"helper_post","name":"helper_dest","address":"0x06B2","length":334,"expected_source":"receipt-pinned helper artifact","sha256":"df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"},
+            {"checkpoint":"helper_post","name":"par","address":"0xFFA0","length":8,"expected_source":"GIME PAR snapshot; masked predicate below","sha256":null,"expected_masked_values":{"PAR0":"0x38","PAR5":"0x24","PAR6":"0x3E","PAR7":"0x3F"}},
+            {"checkpoint":"B080","name":"aux_dest","address":"0xA422","length":5163,"expected_source":"concatenated source slices stated above","sha256":"bd94cf9f05b1413c763eff8d72ba031bf5952b21d1c1bdacd92a2fe53dc7be39"},
+            {"checkpoint":"B080","name":"helper_dest","address":"0x06B2","length":334,"expected_source":"receipt-pinned helper artifact","sha256":"df9995580ae117d4e56f84d82ca52a8ac98f26f0bf324ff2c115c4ba8fce7959"},
+            {"checkpoint":"B080","name":"enemy_dest","address":"0x0800","length":4096,"expected_source":"same bytes as enemy_pre.enemy_rom","sha256":"57a110ffc79f51896dada39838f9316b7c9115893cfe9e46e5a8335043930432"},
+            {"checkpoint":"B080","name":"presentation_dest","address":"0x1900","length":1279,"expected_source":"receipt-pinned presentation artifact","sha256":"332019d2db758fbef4104cb16d410d43a1dfb1c90562fca53a5ff37fe731207e"},
+            {"checkpoint":"B080","name":"par","address":"0xFFA0","length":8,"expected_source":"GIME PAR snapshot; masked predicate below","sha256":null,"expected_masked_values":{"PAR0":"0x38","PAR5":"0x23","PAR6":"0x3E","PAR7":"0x3F"}},
+            {"checkpoint":"B080","name":"mode_screen","address":"0x00A5","length":2,"expected_source":"literal LOAD=1, ATTRACT=0 from approved runtime contract","sha256":"47dc540c94ceb704a23875c11273e16bb0b8a87aed84de911f2133568115f254"},
+            {"checkpoint":"B080","name":"timer","address":"0x00B0","length":2,"expected_source":"literal timer=0 from approved runtime contract","sha256":"96a296d224f285c67bee93c30f8a309157f0daa35dc5b87e410b78630a09cfc7"}
+          ],
+          "par_predicate": {
+            "comparison": "For all five PAR rows, compare only each named byte's low six bits (value & 0x3F). PAR indices 1-4 and upper bits are intentionally not admission criteria.",
+            "independent_source": "Pinned candidate/src/gmc_bootstrap.s and candidate/build/ladybug-gmc-boot.lst initialize PAR0=0x38, PAR5=PAR6=0x3E, PAR7=0x3F at source lines 63-72/listing lines 269-275. The approved R-I plan records the bank/page transitions: enemy source remains page 0x3E; helper-source descriptor uses page 0x24; first B080 executes LDA #$23 / STA PAR5. The receipt-pinned source/listing/map and approved runtime plan are all in source-manifest.json.",
+            "per_checkpoint": {
+              "enemy_pre": {"PAR0":"0x38","PAR5":"0x3E","PAR6":"0x3E","PAR7":"0x3F"},
+              "enemy_post": {"PAR0":"0x38","PAR5":"0x3E","PAR6":"0x3E","PAR7":"0x3F"},
+              "helper_pre": {"PAR0":"0x38","PAR5":"0x24","PAR6":"0x3E","PAR7":"0x3F"},
+              "helper_post": {"PAR0":"0x38","PAR5":"0x24","PAR6":"0x3E","PAR7":"0x3F"},
+              "B080": {"PAR0":"0x38","PAR5":"0x23","PAR6":"0x3E","PAR7":"0x3F"}
+            },
+            "tolerance": "Zero mismatch on the four masked register values at each checkpoint; all other byte fields are observed/retained but not gated."
+          },
+          "independent_arithmetic_checks": "Read-only file-byte arithmetic confirmed helper source slice equals the helper artifact, presentation source slice equals the presentation artifact, enemy source prefix equals its 4091-byte artifact with A3A3A3A3A3 tail, and AUX suffix at 0x81E equals the highscore artifact. Total row count is exactly 23 and lengths sum to 27724 bytes."
+        },
+        "broken_controls": [
+          "Flip one source byte, one staged byte, then one destination byte in separate controls; each exact byte comparison must reject the corresponding layer.",
+          "Remove and truncate a destination capture; both must reject as missing/incomplete coverage.",
+          "Change PAR low six bits or the checkpoint-specific PAR5 value; each must reject before success output.",
+          "Keep a valid 33-record timer sequence but place the unique activation after the chosen window; the copied window helper must reject it. The current helper chooses the first eligible window at lines 146-157 but does not assert activation ordering.",
+          "Use the retained ABORTED fixture (state file SHA-256 c1c5d50a07b457edb05bab248cd12e04be5ca78c1ff2fdf28c673af9b807eaaa, phase ABORTED, handoff_count 0) as a negative identity/phase control; it must never pass as a completed identity or trace.",
+          "Give the analysis entry an already-expired monotonic deadline; it must stop within its single Python phase and report timeout, never reset a nested budget."
+        ],
+        "oracle_limit": "The pinned source identity's layout_metadata.receipt_bound=false is a caveat about that metadata only. It does not make the approved read recipe unavailable. This JSON freezes the 23 planned rows from pinned receipts/source and leaves qualification blocked only on separately approved copy/implementation, fixture materialization, and guard-cleanup proof."
+      },
+      "proposed_edits": [
+        "Expose one callable analysis entry around the actual copied functions with explicit fixture root and result path; replace fixed historical paths and exclusive result creation with caller-provided attempt output.",
+        "Require activation event index before selected eligible 33-timer window in the copied window helper.",
+        "Use one Python time.monotonic deadline for the entire analysis phase; pass only remaining relative time. Do not compare Python and JS absolute monotonic clocks.",
+        "Do not include guard CLI/watch execution in this card. Its cleanup status is separately blocked until _cleanup waits after final kill and watch/abort independently prove the original PID/start_ticks has exited. These are separate processes and cannot wait() on the launcher original child. Signal delivery alone is insufficient. If the current guard cannot prove non-child exit, require a separately approved retained-parent design; retain unresolved identity otherwise."
+      ],
+      "future_command": {
+        "command": "cd /mnt/e/projects/ladybug && PYTHONDONTWRITEBYTECODE=1 python3 -B /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/python-admission/python-q.py",
+        "runner_status": "UNIMPLEMENTED; command MUST NOT RUN",
+        "prerequisites": [
+          "SERVICE-Q pass and parent approval of copied helper/analysis materialization.",
+          "Freeze all copied helper hashes and independently authored fixture values before qualification.",
+          "Before loading the actual helper/analysis copy, deny subprocess, network, GDB/MCP construction and writes outside the attempt fixture/result root; assert external-call count exactly zero.",
+          "Review the 23 address/length/source/hash rows and per-checkpoint PAR values frozen above against the pinned source-manifest before runner materialization.",
+          "Resolve the narrow guard-cleanup blocker before any runtime gate; Python-Q itself excludes CLI/watch process cleanup."
+        ]
+      },
+      "phase_limits": {
+        "entire_phase_max_ms": 60000,
+        "invocations": 1,
+        "retry": "None. First unexpected result stops.",
+        "cost": "No measurement exists; one outer 60000 ms deadline covers fixture loading, actual helper calls and result writing."
+      },
+      "evidence_and_classification": {
+        "retain": "Frozen source/fixture hashes, exact helper call list, six checkpoint outcomes, read-count/byte totals, PAR comparison, negative-control results, monotonic elapsed time, first failure and result hash.",
+        "failure_classes": ["product/helper assertion failure", "fixture/setup failure", "observer/deadline failure", "missing source oracle", "missing negative control"],
+        "acceptance_limit": "A pass qualifies these offline copied functions only. It does not qualify guard CLI cleanup, native stop reason, live identity, real transport or Ready."
+      },
+      "approval_and_owner": "Card is not approved. Parent owns source-oracle freeze, card approval, qualification and any later integration."
+    },
+    {
+      "id": "CONTROLLER-Q",
+      "status": "DRAFT_NOT_APPROVED_NOT_EXECUTABLE_BLOCKED",
+      "purpose": "Qualify one fully materialized offline controller path using actual helper functions and a mocked host transport.",
+      "distinct_risk": "The existing controller-v2 has conditional-mock validation at preflight, checkpoints, final identity and trace finish, so isolated mock passes do not prove complete orchestration or finalization.",
+      "test_type": "One offline integration qualification. The full controller uses actual Python helper functions and decoder; host/service transport is mocked. No GDB, emulator or guest process runs. This card is blocked because the JS-to-Python bridge is not frozen; only a separately approved, supervised, attempt-owned Python worker could be permitted later under the bounded file+JSON contract below. No worker launch is authorized here.",
+      "source_identity": {
+        "controller_v2_sha256": "c6e88ca8ad370076ceb89ed7954a03d0531f81aa62a95e592995acd1c1cbfe1b",
+        "historical_controller_sha256": "e8214e762c2692204751e1f11b0dba304587083af6f69a8e547ddea2c2873cdc",
+        "historical_preflight_sha256": "9705ba0e9996475d646c004b37975552881479f4be7c16011c1c0d34538110f6"
+      },
+      "future_owned_files": [
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-stop-status/gdb.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/service-stop-status/server.py",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/controller-v3.js",
+        "repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/controller-q.mjs"
+      ],
+      "fixture_and_controls": {
+        "synthetic_positive_identity": {
+          "label": "offline-only synthetic fixture; not a real process identity",
+          "pid": 41001,
+          "start_ticks": "778899",
+          "exe": "/fixture/xroar",
+          "argv": ["/fixture/xroar", "--fixture", "controller-q"],
+          "owner_id": "offline-owner-0001",
+          "session_id": "offline-session-0001"
+        },
+        "positive_expected": "One create lease, one attach identity, six ordered checkpoints C002/0350/0375/03D4/042A/B080, 23 planned reads totaling exactly 27724 bytes, exact source/staged/destination equality and PAR admission, one validated same-synthetic-identity handoff, one exclusive result write; output labels offline qualification PASS and runtime_ready false.",
+        "synthetic_stop_fixtures": {"label": "SYNTHETIC only; typed-field plumbing, never native response evidence", "attach": {"reason":"signal-received","signal_name":"SIGINT","signal_meaning":"Interrupt"}, "continuation": {"reason":"breakpoint-hit","breakpoint_address":"expected address for this command"}, "continuation_signal_name": "May be absent; do not inject SIGINT into a breakpoint-hit record."},
+        "proposed_native_interface": "In separate copied service-stop-status/gdb.py and server.py files, add exec_owned_session(owner_id, session_id, command_id, command, budget_ms) returning a separate structured object {owner_id, session_id, command_id, text, mi_result, mi_error, stop_record}; retain the existing exec_command and batch_commands signatures and string/batch responses unchanged. Preserve the raw same-command MI result/error and stop record. The controller requires attach reason=signal-received plus signal_name=SIGINT; continuation requires reason=breakpoint-hit plus the exact expected breakpoint address or identity, and may omit signal_name. Do not normalize or fabricate signal fields. Missing, ambiguous, error, or owner/session/command-unmatched records are UNKNOWN and rejected. This separate parser/API needs approval and retained native-response proof; synthetic parser cases cannot supply it.",
+        "broken_controls": [
+          "Use the pinned ABORTED/no-handoff state as a negative: expected no successful final identity or trace result.",
+          "Return a stop record bound to another command/session; expect fail-closed unknown/mismatch.",
+          "For attach, omit reason or SIGINT signal_name; expect UNKNOWN and no identity/trace admission. For continuation, omit reason or expected breakpoint identity/address; expect UNKNOWN. A correctly matched breakpoint-hit record with no signal_name must be accepted.",
+          "Change PID, executable, argv or start_ticks between any controller stage; expect fail-closed identity mismatch.",
+          "Apply one Python-Q byte/PAR/window negative through the complete controller; expect the same helper rejection to reach final result and cleanup.",
+          "Fail result reservation/write, make a host call reject, or expire the one controller deadline; expect catch/finally cleanup, one terminal result attempt, no retry and no Ready label.",
+          "Count host stops and reads; reject stop count above 8, logical memory reads above 32, or bytes above 32768."
+        ],
+        "independent_expected_values": {
+          "offline_status": "PASS only for the synthetic positive fixture",
+          "runtime_ready": false,
+          "checkpoint_count": 6,
+          "planned_reads": 23,
+          "planned_read_bytes": 27724,
+          "max_stops": 8,
+          "max_logical_reads": 32,
+          "max_read_bytes": 32768,
+          "trace_instruction_cap": 32768,
+          "tolerance": "Exact identity/bytes/order/counts; no timing tolerance beyond one outer controller deadline of at most 60000 ms."
+        }
+      },
+      "python_bridge_blocker": {"status":"BLOCKED_UNRESOLVED_INTERFACE","reason":"controller-v3.js is JavaScript, while the pinned guard, window, observer and analysis functions are Python. No in-process bridge is frozen; the no-subprocess containment therefore cannot call the actual Python functions from that controller.","candidate_future_contract":"A separately approved bounded Python worker/file+JSON protocol or another reviewed architecture. Candidate boundary: controller-v3.js writes one request.json under its unique attempt directory with owner_id, attempt_id, input artifact paths and a relative budget; it starts exactly one fixed python3 -B invocation of the copied python-admission/analysis.py worker; that worker imports/calls only the actual copied functions, writes one result.json atomically with matching owner_id/attempt_id and a terminal status, then exits. Request/result paths must remain inside the attempt directory.","ownership_deadlines_exit":"The JS caller creates a single-use owner token before worker creation, owns the direct child, records PID/start_ticks, and requires proc.wait() returncode 0 plus matching complete result.json for worker success. One outer controller monotonic deadline covers worker, validation and finalization; pass only relative remaining budget, never compare JS/Python absolute clock values. Timeout cleanup uses one caller-local deadline; termination signal alone is not exit proof, and missing final wait returncode leaves the child UNRESOLVED with evidence retained. The existing 52/8 R-I work/cleanup split remains unproven.","containment":"If later approved, the controlled local Python worker is the sole allowlisted child process; deny all other subprocesses, network, GDB/MCP construction and XRoar/guest launches. Expected external service calls and target launches are exactly zero. No worker command or launch is authorized now."},
+      "required_materialized_path": "One controller-v3.js must contain and freeze the complete preflight, typed decoders, all mocked host calls, lease ownership, catch/finally, finalization and exclusive one-shot evidence reservation. Delete conditional-mock branches from validatePreflight, validateCheckpoint, finalIdentity and finishTrace. Until the bounded owned Python bridge above is separately approved and materialized, do not claim actual Python helper wiring or run CONTROLLER-Q. The runner and every worker path remain unimplemented.",
+      "future_command": {
+        "command": "cd /mnt/e/projects/ladybug && node /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-readiness-preparation-20261019/controller-q.mjs",
+        "runner_status": "UNIMPLEMENTED; command MUST NOT RUN",
+        "prerequisites": [
+          "SERVICE-Q pass and frozen copied service API contract.",
+          "Build service-stop-status/gdb.py and server.py from the separately approved service-lease candidate commit, preserving its owner lease, cancellation tombstone, timeout/drain and confirmed-exit changes; do not recopy the installed baseline. Freeze these copied-source hashes only after that candidate commit exists.",
+          "PYTHON-Q pass with independently frozen source/read/PAR oracle and actual helper calls.",
+          "Materialize and freeze full controller-v3 and controller-q sources; review external-call denial, complete finally path and exclusive evidence reservation.",
+          "Freeze the separate structured API schema before CONTROLLER-Q. Use synthetic attach-SIGINT and continuation-breakpoint records for offline plumbing only; retained native service output remains a prerequisite for any live gate."
+        ]
+      },
+      "phase_limits": {
+        "entire_phase_max_ms": 60000,
+        "invocations": 1,
+        "retry": "None. First unexpected result stops.",
+        "cost": "No measurement exists; one outer deadline covers all controller orchestration and Python helper work. Nested calls consume the same remaining budget; no deadline reset."
+      },
+      "evidence_and_classification": {
+        "retain": "Frozen controller/helper/fixture hashes, ordered mocked call ledger, actual helper invocation names, exact synthetic identity and byte totals, every negative result, finalization state, elapsed time, first failure and result hash.",
+        "failure_classes": ["controller/product assertion failure", "fixture/setup failure", "mock observer failure", "deadline failure", "missing actual helper wiring", "missing control"],
+        "acceptance_limit": "A pass qualifies complete offline orchestration only. It is not installed-service integration, live Ready or product acceptance."
+      },
+      "approval_and_owner": "Card is not approved. Parent owns materialization, qualification and integration decisions."
+    },
+    {
+      "id": "RUNTIME-R-I-R-T",
+      "status": "HELD_REQUIRES_SEPARATE_APPROVAL_BLOCKED",
+      "purpose": "Future live acceptance only after offline and real-service dependencies are complete. No runtime command is approved or currently formulable against an implemented API.",
+      "distinct_risk": "Live identity, native stop cause, byte/PAR admission, process cleanup and same-process trace are unproven. The retained attach has unknown signal; S02/S05 are synthetic examples.",
+      "test_type": "Two separate, manually authorized one-shot runtime phases. R-I proves same-process identity and read admission; R-T is conditional on R-I pass and checks a bounded guest-timing window only.",
+      "fixture_and_controls": {
+        "artifact_identity": {
+          "candidate_rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+          "gmc_boot_rom_sha256": "2acc2da195e0b3ca2bfc7d7a5535fc7e1822f46b4f54f6e267bf9a095b3bac1f",
+          "receipt_binding": "Revalidate source, staged and destination bytes and frozen receipt provenance before interpreting any live PC or symbol."
+        },
+        "R_I_expected": "Exact owned PID/exe/argv/start_ticks through create, attach, stop, six ordered markers C002/0350/0375/03D4/042A/B080 and validated handoff; exact 23 planned reads/27724 planned bytes under 32-read/32768-byte ceilings; exact source/staged/destination/PAR equality; native command-bound stop fields known and validated.",
+        "R_T_expected": "Only after same-process R-I success: one unique 1C62 activation before the selected eligible 33-record timer window; preserve bracketing FRAME and full publication records; observer verdicts limited to guest timer phase/consistency.",
+        "negative_or_missing_coverage": [
+          "Unknown/missing/unmatched native stop field fails R-I closed.",
+          "Any source/staged/destination byte or PAR mismatch, stale PID identity, absent marker, truncated dump or unvalidated handoff fails R-I.",
+          "Missing activation, activation after selected window, absent FRAME bracket, timer truncation or observer anomaly fails R-T; no random-route search or retry.",
+          "Direct-child GDB cleanup without wait returncode is unresolved. Guard watch/abort cleanup without independently proven original PID/start_ticks exit is unresolved; sending a signal alone never proves exit."
+        ]
+      },
+      "future_command": {
+        "command": null,
+        "availability": "BLOCKED: do not invent or run a runtime command. The service owner API, installed transport behavior, native stop response shape, full controller-v3 interface, and guard cleanup proof are not implemented/qualified. Exact runtime command and attempt token can be frozen only in a separate approved assignment.",
+        "must_run": false
+      },
+      "phase_limits": {
+        "R_I_max_ms": 60000,
+        "R_I_work_ms": 52000,
+        "R_I_cleanup_reserve_ms": 8000,
+        "partition_status": "UNPROVEN: 52000 ms work plus 8000 ms cleanup is an inherited ceiling split only. Do not claim feasibility until child/GDB/helper/controller/finalization/cleanup budgets or an independent concurrency contract are frozen; SERVICE-Q close itself proposes one 7000 ms deadline.",
+        "R_I_max_stops": 8,
+        "R_I_max_logical_reads": 32,
+        "R_I_max_bytes": 32768,
+        "R_T_max_ms": 60000,
+        "R_T_cpu_instruction_cap": 32768,
+        "attempts_each_phase": 1,
+        "retry": "None; first failure, timeout, tool timeout, unresolved cleanup or missing coverage stops the phase.",
+        "cost": "No current cost measurement. Each phase's whole outer deadline, including cleanup and nested waits, is at most 60000 ms."
+      },
+      "evidence_and_classification": {
+        "retain": "Only after separate approval: one exclusive attempt directory with pre/post source identities, exact command-bound native response, owner lease status, process identity, exact read/PAR ledger, first failure or passing phase summary, cleanup wait result and hashes. Preserve attempt evidence without retry.",
+        "failure_classes": ["product assertion failure", "setup/transport failure", "observer failure", "missing required coverage", "unresolved cleanup", "manual product result pending"],
+        "manual_split": "Live identity/trace probe is automated under parent control. User-visible feature acceptance remains a separate pending manual/approved product gate; no host-FPS or pixel claim is included.",
+        "acceptance_limit": "No R-I/R-T attempt is authorized here. Even a future pass would not by itself complete product acceptance."
+      },
+      "approval_and_owner": "Runtime is paused. Separate explicit user approval and parent-owned command/source/evidence freeze are required before any attempt."
+    }
+  ],
+  "capacity_delta": {
+    "resident_bytes": 0,
+    "rom_bytes": 0
+  }
+}
