@@ -78,6 +78,55 @@ async def stop_session_by_owner(
 
 
 @mcp.tool()
+async def claim_observed_session(
+    owner_id: str,
+    session_id: str,
+    *,
+    budget_ms: int,
+) -> dict:
+    """Transfer a fresh owned GDB session to the bounded MI observer."""
+    return await manager.claim_observed_session(
+        owner_id, session_id, budget_ms=budget_ms
+    )
+
+
+@mcp.tool()
+async def exec_owned_session(
+    owner_id: str,
+    session_id: str,
+    command_id: str,
+    command: str,
+    *,
+    budget_ms: int,
+    stop_expectation: str = "none",
+    expected_breakpoint: dict[str, str] | None = None,
+) -> dict:
+    """Run one allow-listed owned command and report token/event evidence."""
+    return await manager.exec_owned_session(
+        owner_id,
+        session_id,
+        command_id,
+        command,
+        budget_ms=budget_ms,
+        stop_expectation=stop_expectation,
+        expected_breakpoint=expected_breakpoint,
+    )
+
+
+@mcp.tool()
+async def stop_observed_session(
+    owner_id: str,
+    session_id: str,
+    *,
+    budget_ms: int = 7000,
+) -> dict:
+    """Close an observed session and report process and reader exit separately."""
+    return await manager.stop_observed_session(
+        owner_id, session_id, budget_ms=budget_ms
+    )
+
+
+@mcp.tool()
 async def stop_session(session_id: str) -> dict:
     """Stop and clean up a GDB session (kills the GDB process)."""
     removed = await manager.remove(session_id)
