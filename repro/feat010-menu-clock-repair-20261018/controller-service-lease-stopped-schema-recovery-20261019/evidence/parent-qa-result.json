@@ -1,0 +1,217 @@
+{
+  "schema": "ladybug.feat010.service-lease.stopped-parent-qa.v1",
+  "verdict": "STOPPED_SCHEMA_QUALIFIED_CANDIDATE_FIXTURE_FAILURE",
+  "source_commit": "1bcb65cea24619f8542b453aac98b6e9328e0e77",
+  "ready_commit": "53126d42",
+  "admission": {
+    "attempts": 1,
+    "status": "PASS",
+    "admitted": true,
+    "elapsed_ms": 3542,
+    "maximum_ms": 30000,
+    "outer_command_seconds": 4.04684,
+    "children": 0,
+    "baseline_stopped": {
+      "status": "PASS",
+      "phase": "baseline",
+      "safe_accepted": true,
+      "safe_stopped_type": "Boolean",
+      "safe_stopped_value": true,
+      "legacy_boolean_only_c01_result": "NOT_APPLICABLE_NO_C01",
+      "stopped_fields_rejected": [
+        "b01_stopped_false",
+        "b01_stopped_string_true",
+        "b01_stopped_string_exited",
+        "b01_stopped_missing",
+        "b01_stopped_null"
+      ]
+    },
+    "candidate_stopped": {
+      "status": "PASS",
+      "phase": "candidate",
+      "safe_accepted": true,
+      "safe_stopped_type": "String",
+      "safe_stopped_value": "EXITED",
+      "legacy_boolean_only_c01_result": "REJECTED_C01_EXITED_STRING",
+      "stopped_fields_rejected": [
+        "c01_stopped_boolean_true",
+        "c01_stopped_boolean_false",
+        "c01_stopped_integer_zero",
+        "c01_stopped_null",
+        "c01_stopped_missing",
+        "c01_stopped_active",
+        "c01_stopped_lowercase_exited"
+      ]
+    },
+    "baseline_original_negatives": 12,
+    "candidate_original_negatives": 12,
+    "b04_controls": {
+      "status": "PASS",
+      "positive_accepted": true,
+      "broken_zero_predicate_rejected": true,
+      "fixture_sha256": "91f87f0d67083ab716b5dbeb140ce2c7c0389baad7493108d11a3a6f1d406260",
+      "negative_controls_rejected": [
+        "count_zero",
+        "count_two",
+        "count_string_one",
+        "count_missing",
+        "observed_registry_retained",
+        "subject_flag_false",
+        "subject_flag_string_true",
+        "broken_flag_false",
+        "safe_flag_true",
+        "observed_missing"
+      ],
+      "outer_failure_retained": true
+    },
+    "setup_shared_negatives": 12,
+    "setup_diagnosis_negatives": 3
+  },
+  "baseline": {
+    "attempts": 1,
+    "status": "PASS",
+    "admitted": true,
+    "elapsed_ms": 9418,
+    "maximum_ms": 60000,
+    "outer_command_seconds": 9.9128875,
+    "cases": [
+      {
+        "case_id": "B01",
+        "status": "PASS"
+      },
+      {
+        "case_id": "B02",
+        "status": "BASELINE_DEFECT_DETECTED"
+      },
+      {
+        "case_id": "B03",
+        "status": "BASELINE_DEFECT_DETECTED"
+      },
+      {
+        "case_id": "B04",
+        "status": "BASELINE_DEFECT_DETECTED"
+      }
+    ],
+    "o01": "PASS",
+    "o02": "PASS",
+    "o03": "PASS",
+    "o03_elapsed_ms": 509,
+    "o03_maximum_ms": 1500,
+    "o03_rc": -9,
+    "o04": {
+      "annotation_controls": {
+        "broken_function_error": "'function' object is not subscriptable",
+        "broken_function_error_type": "TypeError",
+        "broken_function_rejected": true,
+        "installed_class_accepts_bytes": true,
+        "safe_class_accepts_bytes": true
+      },
+      "denied_counts": {
+        "asyncio.create_subprocess_shell": 1,
+        "os.system": 1,
+        "socket.bind": 1,
+        "socket.connect": 1,
+        "socket.getaddrinfo": 1,
+        "socket.listen": 1,
+        "socket.sendmsg": 1,
+        "socket.sendto": 1,
+        "subprocess.Popen": 2,
+        "subprocess.run": 1
+      },
+      "popen_denial_phases": [
+        "before_import",
+        "after_import"
+      ],
+      "popen_denials": 2,
+      "real_calls": 0,
+      "status": "PASS"
+    },
+    "worker_wait": true,
+    "worker_rc": 0,
+    "driver_wait": true,
+    "driver_rc": 0
+  },
+  "candidate": {
+    "attempts": 1,
+    "status": "FAIL",
+    "admitted": false,
+    "elapsed_ms": 34154,
+    "maximum_ms": 60000,
+    "raw_category": "SETUP_OR_OBSERVER_FAILURE",
+    "raw_case": "SETUP",
+    "error_type": "GdbError",
+    "error": "Session '4338d447' exit was not confirmed; ownership retained",
+    "trace_marker": "service-q.py:1092 C16 normal legacy server.stop_session -> candidate GdbManager.remove",
+    "o01": "PASS",
+    "stopped_controls": {
+      "status": "PASS",
+      "phase": "candidate",
+      "safe_accepted": true,
+      "safe_stopped_type": "String",
+      "safe_stopped_value": "EXITED",
+      "legacy_boolean_only_c01_result": "REJECTED_C01_EXITED_STRING",
+      "stopped_fields_rejected": [
+        "c01_stopped_boolean_true",
+        "c01_stopped_boolean_false",
+        "c01_stopped_integer_zero",
+        "c01_stopped_null",
+        "c01_stopped_missing",
+        "c01_stopped_active",
+        "c01_stopped_lowercase_exited"
+      ]
+    },
+    "o02": "PASS",
+    "o03": "NOT_APPLICABLE",
+    "worker_wait": true,
+    "worker_rc": 1,
+    "driver_wait": true,
+    "driver_rc": 1,
+    "case_results_retained": false,
+    "o04_result_retained": false,
+    "interpretation": "Observer fixture mismatch: C16 normal fixture disables all quit/TERM/KILL exits but expects graceful return0 and no signals. Candidate refuses unconfirmed exit."
+  },
+  "missing_coverage": "Complete C01-C16 per-case result ledger and complete candidate O04/host acceptance; actual transport/native stop, controller guard/bridge and runtime",
+  "product_defect_established": false,
+  "source_finding": "C16 normal world.reset(False,False,False) contradicts normal graceful exit oracle; no followup repair authorized",
+  "classification_limit": "Raw case is SETUP because unwrapped GdbError uses default; retained traceback localizes C16. No case results inferred as passes.",
+  "seven_input_sha256": {
+    "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+    "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+    "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+    "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835",
+    "run-service-q.ps1": "1c0ae2883bb665da62c73462c1194c63c7478e98cb5d20a32fd2e4d06e826430",
+    "service-q-freeze.json": "e3fc72ca762e816b7c9b47d2da5ce6d4fb8f11b14980c966e4f421519c6d4f5f"
+  },
+  "protected_count": 181,
+  "protected_unchanged": true,
+  "evidence_sha256": {
+    "admission": "99b5122eca64d578dedecb1c13069608f5c0c97a9fac99eb7096b25fbe290e0c",
+    "baseline": "537f05f4e60a305d89fc1c08368d0eb933b0eb04025f58b8949bd42610342f02",
+    "candidate": "4b5d36cf9bf7019cf740af7396ac55b57f142827efa4724d59d95228bf148c3b"
+  },
+  "installed_interpreter_posthashes": {
+    "installed_source_sha256": {
+      "gdb.py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "server.py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3"
+    },
+    "interpreter_sha256": "339de109f072e52523066d97a2b3372e358a10cc00c6a9df62c28a6618061900",
+    "manifest_sha256": "e3fc72ca762e816b7c9b47d2da5ce6d4fb8f11b14980c966e4f421519c6d4f5f",
+    "source_sha256": {
+      "baseline/gdb.py.txt": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+      "baseline/server.py.txt": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3",
+      "candidate/gdb.py": "5b1d2a85723ceaaa3b87e6d541805f22a21218dd7796a765ba21845ed785e4ce",
+      "candidate/server.py": "f174de5e8fa0d24e3a5bb7445b9f1f6c7a46e19f6f1f5b37d83950e1d06315eb",
+      "run-service-q.ps1": "1c0ae2883bb665da62c73462c1194c63c7478e98cb5d20a32fd2e4d06e826430",
+      "service-q.py": "a5e0e5c10ae6ccdcc11ce8cb413ab3cd79bbe83255ab43db356121be97063835"
+    },
+    "ticket_sha256": "46518e0ab29b44e27a648f8936793bdc0762660f1342fd572730897d823a356a"
+  },
+  "capacity_delta_bytes": 0,
+  "runtime_ready": false,
+  "runtime_attempts": 0,
+  "installation_authorized": false,
+  "retry_performed": false,
+  "manual_tests_required": 0,
+  "waivers": []
+}
