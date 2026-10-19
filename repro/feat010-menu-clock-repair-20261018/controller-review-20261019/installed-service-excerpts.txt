@@ -1,0 +1,199 @@
+/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/gdb.py SHA256 61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b
+
+80:    """Convert raw MI2 output lines into clean human-readable text."""
+81:    parts: list[str] = []
+82:    for line in lines:
+83:        m = _STREAM_RE.match(line)
+84:        if m:
+85:            kind, content = m.group(1), m.group(2)
+86:            if kind in ("~", "@"):           # console + target output → keep
+87:                parts.append(_unescape(content))
+88:            # & (log / command echo) → skip
+89:        elif line.startswith("^error"):
+90:            msg_m = re.search(r'msg="((?:[^"\\]|\\.)*)"', line)
+91:            msg = _unescape(msg_m.group(1)) if msg_m else line
+92:            parts.append(f"Error: {msg}\n")
+93:        elif line.startswith("*stopped"):
+94:            reason_m = re.search(r'reason="([^"]+)"', line)
+95:            func_m   = re.search(r'func="([^"]+)"', line)
+96:            file_m   = re.search(r'file="([^"]+)"', line)
+97:            lineno_m = re.search(r'\bline="([^"]+)"', line)
+98:            info: list[str] = []
+99:            if reason_m: info.append(reason_m.group(1))
+100:            if func_m:   info.append(f"in {func_m.group(1)}")
+101:            if file_m and lineno_m:
+102:                info.append(f"at {file_m.group(1)}:{lineno_m.group(1)}")
+103:            parts.append(f"[Stopped: {', '.join(info)}]\n" if info else f"[{line}]\n")
+104:        elif line and line[0] not in "^*=":
+105:            # Raw text not matching any MI record prefix — pass through.
+106:            # Catches warnings from stderr or other non-MI-framed output
+107:            # (e.g. libthread_db messages, dynamic linker warnings).
+108:            parts.append(line + "\n")
+109:        # ^done, ^running, ^exit, =..., *running → no content, skip
+110:    return "".join(parts)
+
+116:    process: asyncio.subprocess.Process
+117:    kind: str = "gdb"  # "gdb" or "rr-replay"
+118:    _lock: asyncio.Lock = field(default_factory=asyncio.Lock, repr=False)
+119:    _broken: bool = field(default=False, repr=False)
+120:
+121:    async def send(self, cmd: str, timeout: float = 30.0) -> str:
+122:        """Execute a GDB command and return formatted output.
+123:
+124:        Commands on the same session are serialized via an asyncio.Lock so
+125:        concurrent callers never interleave writes or reads.
+126:        """
+127:        if self._broken:
+128:            raise GdbError(
+129:                "Session is tainted by a previous timeout and cannot be used; "
+130:                "call stop_session and start a new one"
+131:            )
+132:        if "\n" in cmd:
+133:            raise GdbError(
+134:                "Command contains embedded newlines; "
+135:                "use batch_commands to send multiple commands"
+136:            )
+137:        async with self._lock:
+138:            self.process.stdin.write((cmd + "\n").encode())
+139:            await self.process.stdin.drain()
+140:
+141:            lines: list[str] = []
+142:
+143:            async def _collect() -> None:
+144:                # In MI2 all-stop mode, execution commands (run, continue,
+145:                # step, …) emit (gdb) *twice*: once right after ^running to
+146:                # acknowledge the command, and again after *stopped when the
+147:                # inferior halts.  We must not return on the first (gdb) or
+148:                # the *stopped record and second (gdb) will pollute the next
+149:                # command's response.
+150:                waiting_for_stop = False
+151:                while True:
+152:                    raw = await self.process.stdout.readline()
+153:                    if not raw:
+154:                        raise GdbError("GDB process exited unexpectedly")
+155:                    line = raw.decode(errors="replace").rstrip("\n")
+156:                    if _PROMPT_RE.match(line):
+157:                        if not waiting_for_stop:
+158:                            return
+159:                        # (gdb) between ^running and *stopped — keep reading
+160:                    else:
+161:                        lines.append(line)
+162:                        if line.startswith("^running"):
+163:                            waiting_for_stop = True
+164:                        elif line.startswith("*stopped"):
+165:                            waiting_for_stop = False
+166:
+167:            try:
+168:                await asyncio.wait_for(_collect(), timeout=timeout)
+169:            except asyncio.TimeoutError:
+170:                # Attempt recovery: send SIGINT to stop the inferior, then
+171:                # drain stdout to the next (gdb) prompt.  This leaves the
+172:                # pipe clean so the session can be reused.  Only taint the
+173:                # session if recovery itself fails (GDB unresponsive/exited).
+174:                self.interrupt()
+175:                try:
+176:                    await asyncio.wait_for(
+177:                        _drain_to_prompt(self.process.stdout), timeout=5.0
+178:                    )
+179:                except (asyncio.TimeoutError, GdbError):
+180:                    self._broken = True
+181:                raise GdbError(f"Command timed out after {timeout}s: {cmd!r}")
+182:
+183:            return _format_output(lines)
+
+196:    async def close(self) -> None:
+197:        """Gracefully shut down GDB: quit → SIGTERM → SIGKILL."""
+198:        if self.process.returncode is not None:
+199:            return
+200:        with suppress(Exception):
+201:            self.process.stdin.write(b"quit\n")
+202:            await self.process.stdin.drain()
+203:        with suppress(asyncio.TimeoutError):
+204:            await asyncio.wait_for(self.process.wait(), timeout=3.0)
+205:        if self.process.returncode is None:
+206:            with suppress(Exception):
+207:                self.process.terminate()
+208:            with suppress(asyncio.TimeoutError, Exception):
+209:                await asyncio.wait_for(self.process.wait(), timeout=2.0)
+210:        if self.process.returncode is None:
+211:            with suppress(Exception):
+212:                self.process.kill()
+213:
+214:
+215:class GdbManager:
+216:    def __init__(self) -> None:
+217:        self._sessions: dict[str, GdbSession] = {}
+218:
+219:    async def create(
+220:        self,
+221:        binary: str | None = None,
+222:        args: list[str] | None = None,
+223:        cwd: str | None = None,
+224:    ) -> GdbSession:
+225:        """Spawn a new GDB process and return a ready, hardened GdbSession."""
+226:        cmd = ["gdb", "--interpreter=mi2", "--quiet"]
+227:        if binary:
+228:            cmd.append(binary)
+229:
+230:        process = await asyncio.create_subprocess_exec(
+231:            *cmd,
+232:            stdin=asyncio.subprocess.PIPE,
+233:            stdout=asyncio.subprocess.PIPE,
+234:            stderr=asyncio.subprocess.STDOUT,   # merge stderr so MI reader sees all output
+235:            cwd=cwd,
+236:        )
+237:
+238:        # Drain the GDB startup banner until the first (gdb) prompt
+239:        try:
+240:            await asyncio.wait_for(_drain_to_prompt(process.stdout), timeout=15.0)
+241:        except asyncio.TimeoutError:
+242:            process.kill()
+243:            raise GdbError("GDB failed to start (no prompt within 15 s)")
+244:
+245:        session = GdbSession(id=uuid.uuid4().hex[:8], process=process, kind="gdb")
+246:
+247:        # Harden the session: disable interactive prompts that would block the reader
+248:        for setup_cmd in (
+249:            "set pagination off",
+250:            "set confirm off",
+251:            "set breakpoint pending on",
+252:        ):
+253:            await session.send(setup_cmd)
+254:
+255:        if binary and args:
+256:            await session.send("set args " + " ".join(shlex.quote(a) for a in args))
+257:
+258:        self._sessions[session.id] = session
+259:        return session
+
+/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/server.py SHA256 9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3
+
+153:async def batch_commands(
+154:    session_id: str,
+155:    commands: list[str],
+156:    timeout: float = 15.0,
+157:    stop_on_error: bool = False,
+158:) -> list[dict]:
+159:    """Execute GDB commands sequentially, returning each output.
+160:
+161:    commands: list of GDB command strings
+162:    timeout: max seconds per command (default 15)
+163:    stop_on_error: halt on first error (default: continue)
+164:    """
+165:    s = manager.get(session_id)
+166:    results: list[dict] = []
+167:    for cmd in commands:
+168:        try:
+169:            out = await s.send(cmd, timeout=timeout)
+170:            # send() only raises GdbError for infrastructure failures (timeout,
+171:            # process exit).  GDB-level errors (^error records) are returned as
+172:            # "Error: ..." strings, so we detect them here for stop_on_error.
+173:            is_error = out.startswith("Error: ")
+174:            results.append({"command": cmd, "output": out, "error": is_error})
+175:            if is_error and stop_on_error:
+176:                break
+177:        except GdbError as e:
+178:            results.append({"command": cmd, "output": str(e), "error": True})
+179:            if stop_on_error:
+180:                break
+181:    return results
