@@ -1,0 +1,120 @@
+"""Offline qualification fixtures. Running this file is reserved to the parent."""
+
+import json
+from importlib.machinery import SourceFileLoader
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+observer = SourceFileLoader("stutter_observer", str(HERE / "stutter-observer.py.txt")).load_module()
+
+IDENTITY_FIXTURE = {
+    "receipt_sha256": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4",
+    "rom_sha256": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+    "profile": "complete-adaptive",
+    "runtime_bytes_and_mapping_proved": True,
+    "marker_bytes": {"timer": "dcb0", "phase": "8403", "frames": "de02",
+                     "publish": "b7ff9d", "front": "968f", "back": "d690",
+                     "phase_store": "97d3"},
+    "fixture_only": True,
+}
+
+# Independent explicit oracle: consumed timer, computed phase, and NTSC event
+# ticks per sample interval. Frame values are separately explicit (100..132).
+GOOD = [
+    (6,0,239856),(7,0,239856),(8,0,239856),(9,0,239856),(10,0,239856),(11,0,239856),(12,0,239856),(13,0,239856),
+    (14,1,239856),(15,1,239856),(16,1,239856),(17,1,239856),(18,1,239856),(19,1,239856),(20,1,239856),(21,1,239856),
+    (22,2,239856),(23,2,239856),(24,2,239856),(25,2,239856),(26,2,239856),(27,2,239856),(28,2,239856),(29,2,239856),
+    (30,3,239856),(31,3,239856),(32,3,239856),(33,3,239856),(34,3,239856),(35,3,239856),(36,3,239856),(37,3,239856),
+    (38,0,239856),
+]
+
+
+def cpu(pc, opcode, mnemonic, a=0, b=0, u=0, dt=1, dp=0):
+    return (f"{pc:04x}| {opcode:<12}{mnemonic:<6}{'fixture':<18}  "
+            f"cc=00 a={a:02x} b={b:02x} dp={dp:02x} "
+            f"x=0000 y=0000 u={u:04x} s=0000 dt={dt}")
+
+
+def vector(dt, malformed=False):
+    fields = "0000".ljust(12) + ("IRQ" if malformed else "[IRQ]").ljust(24)
+    return f"fff8| {fields}  dt={dt}"
+
+
+def trace(samples, first_event_dt=999999999, bad_opcode_at=None,
+          bad_dp_at=None, omitted_timer=None, bad_vector=False):
+    lines = [vector(first_event_dt, malformed=bad_vector), cpu(0xACBD, "de02", "ldu", u=99, dt=1)]
+    for index, (t, phase, spacing) in enumerate(samples):
+        if t == omitted_timer:
+            continue
+        timer_opcode = "dcb1" if t == bad_opcode_at else "dcb0"
+        dp = 1 if t == bad_dp_at else 0
+        lines.append(cpu(0x07E7, timer_opcode, "ldd", (t >> 8) & 0xff,
+                         t & 0xff, dt=1 if index == 0 else spacing - 6, dp=dp))
+        lines.append(cpu(0x07F3, "8403", "anda", a=phase, dt=1))
+        lines.append(cpu(0xACBD, "de02", "ldu", u=100 + index, dt=1))
+        lines.append(vector(1))
+        back_id = (index + 1) & 1
+        lines.append(cpu(0x0EAD, "b7ff9d", "sta", a=0xC0 - (back_id * 0x10), dt=1))
+        lines.append(cpu(0x0EB0, "968f", "lda", a=index & 1, dt=1))
+        lines.append(cpu(0x0EB2, "d690", "ldb", b=(index + 1) & 1, dt=1))
+    return "\n".join(lines) + "\n"
+
+
+def run_fixtures():
+    results = {}
+    good = observer.analyze(trace(GOOD), IDENTITY_FIXTURE)
+    assert good["kind"] == "GUEST_TIMER_PHASE_CONSISTENT", good
+    assert good["timers"] == list(range(6, 39))
+    assert good["phase"][8] == 1 and good["phase"][24] == 3  # logical aliases remain distinct
+    assert good["frames"] == list(range(99, 133)) and good["frame_steps"] == [1] * 33
+    assert good["timer_event_ticks"][1] - good["timer_event_ticks"][0] == 239856
+    assert len(good["frame_event_ticks"]) == 34
+    assert [p["ordinal"] for p in good["publications"]] == list(range(1, 34))
+    assert [p["front"] for p in good["publications"]] == [0, 1] * 16 + [0]
+    assert [p["back"] for p in good["publications"]] == [1, 0] * 16 + [1]
+    assert [p["voff1_a"] for p in good["publications"]] == [0xB0, 0xC0] * 16 + [0xB0]
+    assert good["timer_spacing_event_ticks"] == [239856] * 32
+    assert good["display_replay"] == "UNSUPPORTED_WITHOUT_PIXELS" and good["host_fps"] == "UNSUPPORTED"
+    results["good"] = good["kind"]
+
+    phase_skip = list(GOOD)
+    phase_skip[10] = (phase_skip[10][0], 2, phase_skip[10][2])
+    phase_result = observer.analyze(trace(phase_skip), IDENTITY_FIXTURE)
+    assert phase_result["kind"] == "PHASE_ANOMALY" and phase_result["phase_mismatch"]
+    assert phase_result["frames"] == list(range(99, 133)) and len(phase_result["publications"]) == 33
+    results["phase_skip"] = phase_result["kind"]
+
+    unequal = list(GOOD)
+    unequal[12] = (unequal[12][0], unequal[12][1], 240000)
+    spacing_result = observer.analyze(trace(unequal), IDENTITY_FIXTURE)
+    assert spacing_result["kind"] == "UNEQUAL_OBSERVED_SPACING"
+    assert spacing_result["timer_spacing_event_ticks"][11] == 240000
+    results["unequal_spacing"] = spacing_result["kind"]
+
+    assert observer.analyze(trace(GOOD, bad_opcode_at=18), IDENTITY_FIXTURE)["kind"] == "SETUP_REJECTED"
+    results["wrong_opcode"] = "SETUP_REJECTED"
+    assert observer.analyze(trace(GOOD, bad_dp_at=18), IDENTITY_FIXTURE)["kind"] == "SETUP_REJECTED"
+    results["wrong_dp"] = "SETUP_REJECTED"
+    assert observer.analyze(trace(GOOD, bad_vector=True), IDENTITY_FIXTURE)["kind"] == "SETUP_REJECTED"
+    results["invalid_vector_row"] = "SETUP_REJECTED"
+    wrong_mapping = dict(IDENTITY_FIXTURE, runtime_bytes_and_mapping_proved=False)
+    assert observer.analyze(trace(GOOD), wrong_mapping)["kind"] == "SETUP_REJECTED"
+    results["missing_runtime_mapping_proof"] = "SETUP_REJECTED"
+
+    # First vector-event dt is invalid by XRoar trace contract; changing it
+    # must not change any measured CPU/vector interval or classification.
+    first_invalid = observer.analyze(trace(GOOD, first_event_dt=123456789), IDENTITY_FIXTURE)
+    assert first_invalid["kind"] == good["kind"]
+    assert first_invalid["timer_spacing_event_ticks"] == good["timer_spacing_event_ticks"]
+    assert first_invalid["timer_event_ticks"] == good["timer_event_ticks"]
+    results["invalid_first_event_dt_discarded"] = first_invalid["kind"]
+
+    missing = observer.analyze(trace(GOOD, omitted_timer=22), IDENTITY_FIXTURE)
+    assert missing["kind"] == "SETUP_REJECTED" and "coverage" in missing["reason"]
+    results["missing_sample"] = missing["kind"]
+    print(json.dumps({"synthetic_only": True, "product_validation": False,
+                      "results": results}, sort_keys=True, separators=(",", ":")))
+
+
+if __name__ == "__main__":
+    run_fixtures()
