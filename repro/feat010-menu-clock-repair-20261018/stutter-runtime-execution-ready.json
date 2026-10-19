@@ -1,0 +1,678 @@
+{
+  "ticket": "FEAT-010",
+  "status": "Ready",
+  "scope": "R-I one cold same-process byte/mapping identity; R-T one native no-input trace only after identity passes",
+  "class": "High-risk",
+  "approval": "Existing user-approved R-I/R-T cards plus explicit request to resolve launch-mode mismatch and complete runtime Ready assignment",
+  "card": "wiki/internal/tickets/feat-010-attract-menu-free-start.html#attract-stutter-runtime-readiness-proposed-20261018",
+  "owner": "Parent executes exact GDB-MCP sequence, integration and QA",
+  "source_executor_commit": "f889f993",
+  "files_sha256": {
+    "stutter-runtime-guard.py.txt": "70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0",
+    "stutter-trace-window.py.txt": "4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
+    "stutter-observer.py.txt": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+    "stutter-runtime-readiness-qualification.py.txt": "e152c8975837cf4df595c98897654d39c231da6c481e0ada49dc29f553263278",
+    "stutter-runtime-readiness-reconciliation-ready.json": "67cfceb99cddcaa517e88f29d900f30152a6910b9a75df79af67924965ee9131",
+    "stutter-runtime-readiness-reconciliation-result.json": "03f80366b59c429a436a44b72218ea9925e6fcd137b836995584c774e7febb2d",
+    "stutter-runtime-parent-source-proof.json": "c70ff0c9dca3328e27f02df185eb4ce1ea179da40ca99539241b3e4ca078ab0c",
+    "stutter-runtime-proposal-source-identity.json": "d510554a8db475446e1dab7c060a990e52406eebe7700b877754cee1d5847e32",
+    "stutter-runtime-launch-mode-report.json": "4f4c5f46417e4a43ecd52acf9de1534d52792120791a6a0bdfad2d96618df634",
+    "candidate/build/ladybug.rom": "2c8add7b35ca4b5b01c119ed9ad35b0e1bf6ba9a48c26bc43262ac0321084e9c",
+    "candidate/build/source-build-receipt.json": "6959493425fcca3789bee8dcb4219fb65fbd211002de72c4b92622b6be9836d4"
+  },
+  "tools_sha256": {
+    "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar": "bad8de1a7a5cb1be5f55ff9bbb213442b403bc83c1f833c343523d5c318f6dbf",
+    "/usr/local/bin/m6809-gdb": "b26d0c76b4f73109ef3c0dfd54360805f7056dc2d80a1ab9080374446ba3168c",
+    "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/gdb.py": "61783b8d650533b9b7aacf5fc8257745a30ff5eb4dc622e5354a71ed78d3bc3b",
+    "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/lib/python3.12/site-packages/server.py": "9c3bb82f8bc208d1f826b953adaa767ead929b4ef755afe17deff91186ed60c3"
+  },
+  "qualification_bridge": {
+    "source_review": "Exact raw baseline replacement of gtk3,pulse by null,null only; AST20otherfunctions unchanged; no import/test/Q rerun needed for unchanged byte/mapping/budget/window validators",
+    "binary_support": "nm inspection of pinned executable exports ao_null_module and ui_null_module",
+    "baseline_guard": "d1b409273e2ec046a3e334f77cdf364206808189242579ed97bda20e113ff4d7",
+    "current_guard": "70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0",
+    "baseline": "R-Q once exit0/20controls, reconciled db3fe366",
+    "source_config": "HAVE_NULL_AUDIO set; null UI/audio modules registered; null audio may sleep under rate limiting; no host FPS/pixel claim"
+  },
+  "plan": {
+    "binding_sha256": "f0f9000b27fbab9b3f57411befa03399904355c1ddc7ae52a90208bb359ec040",
+    "gdb_steps": [
+      "target remote 127.0.0.1:65520",
+      "tbreak *0xC002",
+      "continue",
+      "delete all breakpoints after C002 proof",
+      "tbreak *0x0350",
+      "continue",
+      "tbreak *0x0375",
+      "continue",
+      "break *0x03D4",
+      "continue at most twice; one nonmatching descriptor maximum",
+      "tbreak *0x042A",
+      "continue",
+      "tbreak *0xB080",
+      "continue",
+      "delete all breakpoints, validate B080, then detach"
+    ],
+    "handoff_fields": {
+      "breakpoints_remaining": 0,
+      "checkpoint": "B080",
+      "dp": 0,
+      "mode": 1,
+      "par5": 35,
+      "pc": 45184,
+      "screen": 0,
+      "timer": 0,
+      "trace_started": false
+    },
+    "launch_argv": [
+      "/mnt/e/projects/ladybug/docs/reference/xroar/src/xroar",
+      "-ui",
+      "null",
+      "-ao",
+      "null",
+      "-machine",
+      "coco3",
+      "-machine-cpu",
+      "6809",
+      "-ram",
+      "512",
+      "-ram-init",
+      "random",
+      "-cart-type",
+      "gmc",
+      "-cart-rom",
+      "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/candidate/build/ladybug.rom",
+      "-cart-autorun",
+      "-tv-input",
+      "rgb",
+      "-joy-right",
+      "",
+      "-joy-left",
+      "",
+      "-gdb",
+      "-gdb-ip",
+      "127.0.0.1",
+      "-gdb-port",
+      "65520",
+      "-trace-timing",
+      "-trap",
+      "pc=0x1C62",
+      "-trap-timeout",
+      "2",
+      "-trap-trace-n",
+      "32768"
+    ],
+    "limits": {
+      "attempts": 1,
+      "cleanup_seconds": 8,
+      "phase_seconds": 60,
+      "read_bytes": 32768,
+      "reads": 32,
+      "stops": 8,
+      "trace_cpu_instructions": 32768,
+      "work_seconds": 52
+    },
+    "read_recipe": [
+      {
+        "address": 49152,
+        "checkpoint": "C002",
+        "file": "C002-boot.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/C002-boot.bin 0xc000 0xc056",
+        "length": 86,
+        "name": "boot"
+      },
+      {
+        "address": 768,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-relocated_loader.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-relocated_loader.bin 0x0300 0x082c",
+        "length": 1324,
+        "name": "relocated_loader"
+      },
+      {
+        "address": 51200,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-enemy_rom.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-enemy_rom.bin 0xc800 0xd800",
+        "length": 4096,
+        "name": "enemy_rom"
+      },
+      {
+        "address": 62613,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_f495.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_f495.bin 0xf495 0xfe00",
+        "length": 2411,
+        "name": "aux_b3_f495"
+      },
+      {
+        "address": 49152,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_c000.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_c000.bin 0xc000 0xc010",
+        "length": 16,
+        "name": "aux_b3_c000"
+      },
+      {
+        "address": 49170,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_c012.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_c012.bin 0xc012 0xc800",
+        "length": 2030,
+        "name": "aux_b3_c012"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 2048,
+        "checkpoint": "enemy_post",
+        "file": "enemy_post-enemy_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_post-enemy_dest.bin 0x0800 0x1800",
+        "length": 4096,
+        "name": "enemy_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "enemy_post",
+        "file": "enemy_post-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_post-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 51202,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-helper_source.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-helper_source.bin 0xc802 0xc950",
+        "length": 334,
+        "name": "helper_source"
+      },
+      {
+        "address": 51536,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-aux_b0_c950.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-aux_b0_c950.bin 0xc950 0xcc12",
+        "length": 706,
+        "name": "aux_b0_c950"
+      },
+      {
+        "address": 52370,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-presentation_source.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-presentation_source.bin 0xcc92 0xd191",
+        "length": 1279,
+        "name": "presentation_source"
+      },
+      {
+        "address": 512,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-descriptor.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-descriptor.bin 0x0200 0x0260",
+        "length": 96,
+        "name": "descriptor"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 1714,
+        "checkpoint": "helper_post",
+        "file": "helper_post-helper_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_post-helper_dest.bin 0x06b2 0x0800",
+        "length": 334,
+        "name": "helper_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "helper_post",
+        "file": "helper_post-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_post-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 42018,
+        "checkpoint": "B080",
+        "file": "B080-aux_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-aux_dest.bin 0xa422 0xb84d",
+        "length": 5163,
+        "name": "aux_dest"
+      },
+      {
+        "address": 1714,
+        "checkpoint": "B080",
+        "file": "B080-helper_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-helper_dest.bin 0x06b2 0x0800",
+        "length": 334,
+        "name": "helper_dest"
+      },
+      {
+        "address": 2048,
+        "checkpoint": "B080",
+        "file": "B080-enemy_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-enemy_dest.bin 0x0800 0x1800",
+        "length": 4096,
+        "name": "enemy_dest"
+      },
+      {
+        "address": 6400,
+        "checkpoint": "B080",
+        "file": "B080-presentation_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-presentation_dest.bin 0x1900 0x1dff",
+        "length": 1279,
+        "name": "presentation_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "B080",
+        "file": "B080-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 165,
+        "checkpoint": "B080",
+        "file": "B080-mode_screen.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-mode_screen.bin 0x00a5 0x00a7",
+        "length": 2,
+        "name": "mode_screen"
+      },
+      {
+        "address": 176,
+        "checkpoint": "B080",
+        "file": "B080-timer.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-timer.bin 0x00b0 0x00b2",
+        "length": 2,
+        "name": "timer"
+      }
+    ],
+    "register_command": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u"
+  },
+  "planned_cost": {
+    "runtime_attempts": 1,
+    "maximum_stops": 8,
+    "kind": "Projection, not runtime measurement",
+    "memory_commands": 23,
+    "memory_bytes": 27724,
+    "work_seconds_each": 52,
+    "cleanup_reserve_each": 8,
+    "trace_total_seconds": 60,
+    "identity_total_seconds": 60
+  },
+  "prerequisites": [
+    "Before dispatch recheck every pinned hash and source proof hash list, available GDB-MCP methods, GDB symlink target, no existing owned attempt state/log/handoff/dump directory, and empty listener65520 using ss -H -ltnp sport = :65520. No socket connection in readiness.",
+    "Current read-only preparation found no listener65520 and correct m6809-gdb symlink; these observations expire and must be rechecked.",
+    "No input, state forcing, monitor, additional capture channel, snapshots, production changes, XRoar edits, builds, or fourth host script. All runtime instructions executed through existing functions tools plus three approved case-local host files."
+  ],
+  "identity_phase": {
+    "phase": "R-I",
+    "start": "Capture both parent monotonic start and integer UTC epoch milliseconds BEFORE mcp__gdb_mcp__start_session. Initial GDB creation/configuration, launch, passive listener wait, attach, reads/validation and cleanup all count. Pass this original epoch to guard --start; never reset R-I clock.",
+    "start_session": {
+      "arguments": {
+        "cwd": "/mnt/e/projects/ladybug"
+      },
+      "tool": "mcp__gdb_mcp__start_session"
+    },
+    "configuration_commands": [
+      "show architecture",
+      "set remote supported-packets-packet off",
+      "set confirm off",
+      "set pagination off",
+      "set breakpoint pending on"
+    ],
+    "configuration_oracle": "show architecture must contain m6809; any unsupported/error result stops before guest launch",
+    "launch": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt --start ORIGINAL_RI_EPOCH_MS",
+    "listener": "Passive ss inspection only, maximum4seconds inside52second work budget. Require listener65520 owned by exact launched PID. One target remote connection only; no connect polling.",
+    "attach": "target remote 127.0.0.1:65520",
+    "connection": "Require initial SIGINT; record explicit PC/DP/X/Y/U without interpreting PC symbols, plus launched PID/exe/argv/start_ticks. This is stop1.",
+    "connection_register_command": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+    "checkpoints": [
+      {
+        "name": "C002",
+        "arm": "tbreak *0xC002",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "expected": {
+          "pc": 49154
+        },
+        "after": "Temporary bootstrap breakpoint must auto-delete. Validate boot bytes before interpreting relocated loader symbols.",
+        "run": "continue"
+      },
+      {
+        "arm": "tbreak *0x0350",
+        "run": "continue",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "name": "enemy_pre",
+        "expected": {
+          "y": 2048,
+          "pc": 848,
+          "x": 51200,
+          "dp": 2
+        }
+      },
+      {
+        "arm": "tbreak *0x0375",
+        "run": "continue",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "name": "enemy_post",
+        "expected": {
+          "pc": 885,
+          "dp": 2
+        }
+      },
+      {
+        "name": "helper_pre",
+        "arm": "break *0x03D4",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "expected": {
+          "y": 1714,
+          "pc": 980,
+          "x": 334,
+          "u": 51202,
+          "dp": 2
+        },
+        "optional_ignored_candidate": "Allow exactly one nonmatching descriptor stop at03D4 between enemy_post and helper_pre; record pc/u/x/y as helper_candidate, then one more continue. Any second nonmatch stops. Delete this breakpoint after target match before arming042A.",
+        "run": "continue"
+      },
+      {
+        "arm": "tbreak *0x042A",
+        "run": "continue",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "name": "helper_post",
+        "expected": {
+          "y": 2048,
+          "pc": 1066,
+          "dp": 2
+        }
+      },
+      {
+        "name": "B080",
+        "arm": "tbreak *0xB080",
+        "registers": "printf \"pc=%04x dp=%02x x=%04x y=%04x u=%04x\\n\",$pc,$dp,$x,$y,$u",
+        "expected": {
+          "pc": 45184,
+          "dp": 0
+        },
+        "after": "All temporary breakpoints already retired; helper breakpoint previously deleted. info breakpoints must report none. Stay paused; do not detach until validated handoff.",
+        "run": "continue"
+      }
+    ],
+    "read_commands": [
+      {
+        "address": 49152,
+        "checkpoint": "C002",
+        "file": "C002-boot.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/C002-boot.bin 0xc000 0xc056",
+        "length": 86,
+        "name": "boot"
+      },
+      {
+        "address": 768,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-relocated_loader.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-relocated_loader.bin 0x0300 0x082c",
+        "length": 1324,
+        "name": "relocated_loader"
+      },
+      {
+        "address": 51200,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-enemy_rom.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-enemy_rom.bin 0xc800 0xd800",
+        "length": 4096,
+        "name": "enemy_rom"
+      },
+      {
+        "address": 62613,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_f495.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_f495.bin 0xf495 0xfe00",
+        "length": 2411,
+        "name": "aux_b3_f495"
+      },
+      {
+        "address": 49152,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_c000.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_c000.bin 0xc000 0xc010",
+        "length": 16,
+        "name": "aux_b3_c000"
+      },
+      {
+        "address": 49170,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-aux_b3_c012.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-aux_b3_c012.bin 0xc012 0xc800",
+        "length": 2030,
+        "name": "aux_b3_c012"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "enemy_pre",
+        "file": "enemy_pre-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_pre-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 2048,
+        "checkpoint": "enemy_post",
+        "file": "enemy_post-enemy_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_post-enemy_dest.bin 0x0800 0x1800",
+        "length": 4096,
+        "name": "enemy_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "enemy_post",
+        "file": "enemy_post-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/enemy_post-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 51202,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-helper_source.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-helper_source.bin 0xc802 0xc950",
+        "length": 334,
+        "name": "helper_source"
+      },
+      {
+        "address": 51536,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-aux_b0_c950.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-aux_b0_c950.bin 0xc950 0xcc12",
+        "length": 706,
+        "name": "aux_b0_c950"
+      },
+      {
+        "address": 52370,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-presentation_source.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-presentation_source.bin 0xcc92 0xd191",
+        "length": 1279,
+        "name": "presentation_source"
+      },
+      {
+        "address": 512,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-descriptor.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-descriptor.bin 0x0200 0x0260",
+        "length": 96,
+        "name": "descriptor"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "helper_pre",
+        "file": "helper_pre-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_pre-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 1714,
+        "checkpoint": "helper_post",
+        "file": "helper_post-helper_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_post-helper_dest.bin 0x06b2 0x0800",
+        "length": 334,
+        "name": "helper_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "helper_post",
+        "file": "helper_post-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/helper_post-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 42018,
+        "checkpoint": "B080",
+        "file": "B080-aux_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-aux_dest.bin 0xa422 0xb84d",
+        "length": 5163,
+        "name": "aux_dest"
+      },
+      {
+        "address": 1714,
+        "checkpoint": "B080",
+        "file": "B080-helper_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-helper_dest.bin 0x06b2 0x0800",
+        "length": 334,
+        "name": "helper_dest"
+      },
+      {
+        "address": 2048,
+        "checkpoint": "B080",
+        "file": "B080-enemy_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-enemy_dest.bin 0x0800 0x1800",
+        "length": 4096,
+        "name": "enemy_dest"
+      },
+      {
+        "address": 6400,
+        "checkpoint": "B080",
+        "file": "B080-presentation_dest.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-presentation_dest.bin 0x1900 0x1dff",
+        "length": 1279,
+        "name": "presentation_dest"
+      },
+      {
+        "address": 65440,
+        "checkpoint": "B080",
+        "file": "B080-par.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-par.bin 0xffa0 0xffa8",
+        "length": 8,
+        "name": "par"
+      },
+      {
+        "address": 165,
+        "checkpoint": "B080",
+        "file": "B080-mode_screen.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-mode_screen.bin 0x00a5 0x00a7",
+        "length": 2,
+        "name": "mode_screen"
+      },
+      {
+        "address": 176,
+        "checkpoint": "B080",
+        "file": "B080-timer.bin",
+        "gdb": "dump binary memory /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-dumps/B080-timer.bin 0x00b0 0x00b2",
+        "length": 2,
+        "name": "timer"
+      }
+    ],
+    "capture_file": "repro/feat010-menu-clock-repair-20261018/stutter-runtime-captures.json",
+    "capture_schema": {
+      "target": {
+        "registers": "actual pc,dp,x,y,u integers",
+        "checkpoint": "one of the six exact names",
+        "reads": "fixed per-checkpoint name/address/length/file from read_recipe; bytes come only from GDB dump binary memory"
+      },
+      "connection": {
+        "process": "actual guard PID,exe,start_ticks; exact metadata checked against current /proc",
+        "registers": "actual supported scalar queries",
+        "signal": "SIGINT",
+        "checkpoint": "connection"
+      }
+    },
+    "capture_serialization": "Parse only exact fixed-width hex scalar fields from GDB result into integers. Serialize typed fixed-schema JSON; use proper PowerShell single-quote escaping for host writes. Do not interpolate raw GDB output into shell commands or fabricate register values from expectations.",
+    "admission": "After each checkpoint dump and register capture, append actual record and run guard --check on cumulative capture JSON. Must advance exactly one declared target and compare live bytes against pinned authored/relocated/staged oracle before continuing. Logical memory command is one dump binary memory, independent of backend packet splitting.",
+    "check_command": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt --check /mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/stutter-runtime-captures.json",
+    "stop_budget": "8target stops including connection+6targets+at most1ignored descriptor;23planned memory commands/27724bytes under32/32768. Scalar register queries and breakpoint bookkeeping are not memory dump commands.",
+    "success": "All6checkpoints admitted, exact bytes and low6PARs, identity_complete=true, cursorB080, actual LOAD/ATTRACT/timer0, PAR5=23, no native CPU/vector trace in log, no remaining breakpoint; same owned process paused atB080.",
+    "failure": "First wrong byte/PC/PAR, unsupported operation, missed checkpoint, port/PID mismatch, unproved identity or deadline => SETUP_REJECTED; preserve last proven boundary, do not enter R-T or relaunch. Timeout does not prove guest slowdown."
+  },
+  "rpc_deadlines": "Before each host/tool command check original phase remaining work. MCP batch timeout is per command: choose at most min(2seconds,(remaining_work_seconds-1)/(number_of_commands+1)); do not issue batch with insufficient positive budget. Continue timeout at most min(4seconds,remaining_work_seconds-1). No target call waits beyond remaining work by design. GDB creation has no explicit timeout argument: count its entire elapsed cost; if it returns late, refuse guest launch, record setup/deadline failure and close only returned owned session. No uncapped new retry or readiness warmup.",
+  "trace_phase": {
+    "phase": "R-T",
+    "precondition": "R-I success only, same exact PID/exe/argv/start_ticks and pausedB080, actual zero-breakpoint state. Inspect current log: reject any native CPU/vector timing row before handoff; trace_started=false must be derived from that inspection, not supplied as an unproved assertion.",
+    "start": "Capture fresh R-T monotonic/epoch before handoff and any delete/detach. All R-T host work and retained output analysis count in60seconds. Guard accepts handoff epoch no more than1000ms old; retain the original epoch, not time of detach.",
+    "handoff_command": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt --handoff ORIGINAL_RT_EPOCH_MS --pid ACTUAL_PID --start-ticks ACTUAL_START_TICKS --checkpoint B080 --pc 0xB080 --dp 0 --mode 1 --screen 0 --timer 0 --par5 0x23 --breakpoints-remaining 0 --trace-started false",
+    "gdb_commands_after_handoff": [
+      "delete breakpoints",
+      "detach"
+    ],
+    "gdb_cleanup": "mcp__gdb_mcp__stop_session only for this created session; never another session or user process",
+    "native": "Already-configured 1C62/0FD4 single activation; trap timeout2guestseconds, trace32768CPUinstructions, no range or extra trigger",
+    "wait": "Poll exact owned process/status only within remaining52second work budget; no new guest reads after detach. Guard watchdog cleans owned PID at fixed52second work edge; reserve8for cleanup and final record. Natural trap timeout may end earlier.",
+    "analysis": "Within remaining work: read finite original log once, use unchanged adapter adapt_first_window(text), then frozen observer.analyze(normalized_trace, identity derived from successful R-I dumps), then add_global_origin. Exactly one1C62/0FD4 activation required. Use first eligible33paired timer observations plus FRAMES brackets and complete publication triples; preserve all CPU/vector dt except native first delta, indices and global origin.",
+    "identity_context": "Actual R-I receipt/ROM/profile complete-adaptive + marker bytes from independently matched live helper/IRQ/page23 spans. runtime_bytes_and_mapping_proved=true only if full successful capture validation and same-process handoff are recorded.",
+    "success": "Complete supported guest timer/phase/event-time/publication evidence, not necessarily defect-free behavior; retain actual classifier and every failed product assertion separately",
+    "classifications": [
+      "GUEST_TIMER_PHASE_CONSISTENT",
+      "PHASE_ANOMALY",
+      "UNEQUAL_OBSERVED_SPACING",
+      "INCOMPLETE_COVERAGE for a valid but truncated first sample/bracket/cycle at cap/deadline",
+      "SETUP_REJECTED for bad identity/opcode/PAR/unknown timing row/duplicate activation/invalid delta"
+    ],
+    "limits": "No second trace, input history, cap/deadline increase or alternate-window search. Pixel replay and frontend FPS remain UNSUPPORTED; unequal trace wall-time is not slowdown evidence.",
+    "analysis_invocation": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B -c ANALYSIS_PYTHON_FROM_THIS_READY_JSON",
+    "analysis_python": "import hashlib,json,runpy,time\nfrom pathlib import Path\ncase=Path('repro/feat010-menu-clock-repair-20261018').resolve()\ng=runpy.run_path(str(case/'stutter-runtime-guard.py.txt'))\nw=runpy.run_path(str(case/'stutter-trace-window.py.txt'))\nobserver=w['observer']\nready=json.loads((case/'stutter-runtime-execution-ready.json').read_text())\nfor name,digest in ready['files_sha256'].items():\n    assert hashlib.sha256((case/name).read_bytes()).hexdigest()==digest, 'active hash mismatch: '+name\nhandoff=json.loads((case/'stutter-runtime-handoff.json').read_text())\nstate=json.loads((case/'stutter-runtime-state.json').read_text())\nassert handoff['pid']==state['pid'] and handoff['start_ticks']==state['start_ticks'], 'process handoff mismatch'\nassert state['handoff_count']==1 and handoff['identity_result']['identity_complete'] is True, 'unproved handoff'\nassert time.time()*1000 < handoff['phase_start_ms']+52000, 'trace analysis work deadline'\ncaptures=json.loads((case/'stutter-runtime-captures.json').read_text())\nproof=g['validate_capture_sequence'](captures,g['load_source_oracle']())\nassert proof['identity_complete'] is True and proof['verified_through']=='B080', 'R-I proof missing'\nraw=g['LOG'].read_text()\nevents=observer.parse_trace(raw)\ncpu_count=sum(e['kind']=='cpu' for e in events)\nwindow=w['adapt_first_window'](raw)\nresult={'ticket':'FEAT-010','phase':'R-T','pid':handoff['pid'],'raw_sha256':hashlib.sha256(raw.encode()).hexdigest(),'cpu_instructions':cpu_count,'raw_events':len(events),'runtime_identity':proof,'pixel_replay':'UNSUPPORTED_WITHOUT_PIXELS','host_fps':'UNSUPPORTED'}\nif window['kind']!='WINDOW_READY':\n    result.update(window)\n    if window.get('reason') in ('no native timing events','no eligible timer t>=6','first eligible window truncated','FRAMES does not bracket first eligible window','final eligible timer lacks phase'):\n        result['kind']='INCOMPLETE_COVERAGE'\nelse:\n    spans=[(0x06B2,(case/'stutter-runtime-dumps/B080-helper_dest.bin').read_bytes()),(0x0800,(case/'stutter-runtime-dumps/B080-enemy_dest.bin').read_bytes()),(0xA422,(case/'stutter-runtime-dumps/B080-aux_dest.bin').read_bytes())]\n    marker_bytes={}\n    for name,(pc,opcode,mnemonic) in observer.MARKERS.items():\n        matches=[data[pc-start:pc-start+len(opcode)//2].hex() for start,data in spans if start<=pc and pc+len(opcode)//2<=start+len(data)]\n        assert len(matches)==1, 'ambiguous/missing live marker span'\n        marker_bytes[name]=matches[0]\n    identity={'receipt_sha256':observer.RECEIPT_SHA256,'rom_sha256':observer.ROM_SHA256,'profile':'complete-adaptive','runtime_bytes_and_mapping_proved':True,'marker_bytes':marker_bytes}\n    summary=observer.analyze(window['normalized_trace'],identity)\n    result.update(w['add_global_origin'](summary,window))\n    result['window_metadata']={k:window[k] for k in ('raw_event_origin_index','raw_line_origin','origin_event_ticks','discarded_native_first_dt','activation_event_indices','timer_event_indices','phase_event_indices','bracketing_frame_indices','folded_startup_records')}\nresult['elapsed_seconds']=(time.time()*1000-handoff['phase_start_ms'])/1000\nassert result['elapsed_seconds'] < 52, 'trace analysis work deadline'\nwith (case/'stutter-runtime-trace-result.json').open('x') as output:\n    json.dump(result,output,sort_keys=True,indent=2);output.write('\\n')\nprint(json.dumps({'kind':result['kind'],'cpu_instructions':cpu_count,'elapsed_seconds':result['elapsed_seconds'],'raw_sha256':result['raw_sha256']},sort_keys=True))"
+  },
+  "cleanup": {
+    "abort_command": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt --abort",
+    "status_command": "wsl.exe --cd /mnt/e/projects/ladybug python3 -B repro/feat010-menu-clock-repair-20261018/stutter-runtime-guard.py.txt --status",
+    "policy": "On first failure abort exact owned PID only after identity check; then close owned GDB session. At52second work edge watchdog terminates owned child with1second TERM grace then KILL if identity still matches. Re-read final /proc identity to record exit/reuse mismatch. No broad kill/delete, existing process/window actions or unbounded cleanup."
+  },
+  "evidence": [
+    "Fixed Ready hashes, artifact/tool/source qualification bridge, original monotonic/epoch timestamps, actual owned process/session identity, last proven checkpoint and cumulative actual captures, individual binary dumps on failure, exact command outcomes and elapsed cost.",
+    "R-I/R-T separate result classes; record setup failure, product assertion failure, missing coverage and unsupported pixel/host timing separately.",
+    "Retain concise passing guest timeline/hash and first-discrepancy excerpt; large failed/truncated trace retained for diagnosis; no duplicate full passing trace copies. Original R-Q failures and reconciled output remain immutable."
+  ],
+  "completion": "Report actual commits, commands, elapsed vs60seconds perphase, stop/read/byte/instruction counts, measured classifier/coverage, runtime setup failures separately, hashes, remaining risks and unchanged capacity. This bounded run cannot by itself close FEAT-010 or claim visible-pixel replay fixed.",
+  "historical_binding": "Hash historical qualification/reconciliation documents as immutable evidence. Their old guard hash describes1b0875a1 and is bridged by exacttwo-literal/20unchanged-functions source comparison to active guard70460d25; do not rerun oldqualification or assert the historical guard hash against the current headless guard. Only active files_sha256 apply to current files.",
+  "null_sources_sha256": {
+    "docs/reference/xroar/src/null/ui_null.c": "b813f70b890375c467dc1c7135e4172884ee659c1e6f63ef058f929d83cca85c",
+    "docs/reference/xroar/src/null/ao_null.c": "924a529a901c640d075e5113682b824b1833eb56ffaa2444966b0ef3a50d3981",
+    "docs/reference/xroar/src/ui.c": "d5bd1b898fe0ab78c5700066ff12667228c7ae8bc84c65c9d5734a88223cfeaa",
+    "docs/reference/xroar/src/ao.c": "3575221c2b650489289006330cdb06df15d2b8d0069f6f46cad8369b28c4691b",
+    "docs/reference/xroar/src/module.c": "13f160591ea49736c0d31099458e1d570f7a0ac34c224ff206efe89298d77463",
+    "docs/reference/xroar/src/xroar.c": "afdd5d8708ac5582b8f0afe2b37d3437ee264bbd88f155cad6b1378f01ab3ac2",
+    "docs/reference/xroar/config.h": "f1557542326252d75ead64773fd66261211053679fe3cbb96c8c26d8196bba43",
+    "docs/reference/xroar/config.status": "bfb7860c2d295ce99ba85937c7d867773d8004fe2dd0258121ea46e8c09c2c18"
+  },
+  "preparation_review": {
+    "user_request": "Ready assignment preparation only; no runtime executed this turn",
+    "reviewer": "Parent QA-reviewer",
+    "guard_diff": "Exact two approved argv string replacements,20otherASTfunctions unchanged",
+    "inline_command": "Syntax parsed without executing trace analysis; bounded exact same existing adapter/observer calls and validated dump-derived marker bytes",
+    "read_plan": "23commands and27724bytes, below32 and32768 maxima",
+    "cold_boot_race": "Existing approved startup/attachment race remains; missedC002 fails setup without retry or startup trap addition",
+    "tool_limit": "GDB-MCP session creation has no timeout parameter; count actual cost and refuse launch if setup leaves insufficient time. Any tool overrun is a measured setup failure, never an extended pass or product slowdown.",
+    "pending_runtime": "R-I/R-T result, native feature behavior, actual sample fit and any guest-phase diagnosis remain unobserved",
+    "capacity": "No production change. Prior measured resident104free,presentation1free,actorhelper0free unchanged"
+  }
+}
