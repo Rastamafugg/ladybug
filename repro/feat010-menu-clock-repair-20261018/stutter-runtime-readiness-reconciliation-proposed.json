@@ -1,0 +1,38 @@
+{
+  "ticket": "FEAT-010",
+  "status": "Proposed",
+  "class": "High-risk inherited runtime workflow; metadata-only correction",
+  "blocker": "R-Q Python qualifier exited0 with20 synthetic controls; parent expected-result manifest listed19, omitting trigger_opcode. Reconciliation failed control_count. No runtime launched.",
+  "baseline": {
+    "elapsed_seconds": 1.8643392,
+    "host_commit": "1b0875a1",
+    "ready_commit": "fc3b1dff",
+    "expected_controls": 19,
+    "actual_controls": 20,
+    "qualification_exit": 0
+  },
+  "change": "Preserve failed original manifest, attempt and output. Publish replacement expected-result metadata adding only trigger_opcode=SETUP_REJECTED, then reconcile the retained output once. No qualifier rerun.",
+  "target": "Exactly20 named outcomes equal the frozen qualifier expectations, source hashes unchanged, retained output hashes bound; original19-entry expectation must still fail as negative control.",
+  "allowed_outputs": [
+    "stutter-runtime-readiness-reconciliation-ready.json",
+    "stutter-runtime-readiness-reconciliation-result.json"
+  ],
+  "limits": {
+    "qualifier_reruns": 0,
+    "production_changes": 0,
+    "postcheck_seconds": 10,
+    "runtime_attempts_in_this_card": 0,
+    "attempts": 1
+  },
+  "verification": "Read pinned existing R-Q Ready, qualifier source/hash and retained stdout/result; compare exact20 keys/values; test original omission as negative control; no subprocess, build, guest or source edits. Parent owns card.",
+  "dependencies": "Approval of this correction; successful reconciliation precedes previously approved R-I/R-T Ready preparation",
+  "stop": "Any other mismatch or hash drift stops without correction or rerun; renewed scope review required",
+  "risk": "Metadata could hide a missing control; prevent with exact saved stdout keys/values and unchanged qualifier hash",
+  "excluded": "No changed thresholds, scenarios, parser/guard/window/qualifier edits, old gate rerun, emulator/GDB run, or production repair",
+  "evidence_sha256": {
+    "stutter-runtime-readiness-qualification-ready.json": "057d0dd4e0b0dfad2cdbfa0b61d743c54409241146f37da794bfdd088394be0f",
+    "stutter-runtime-readiness-qualification.py.txt": "e152c8975837cf4df595c98897654d39c231da6c481e0ada49dc29f553263278",
+    "stutter-runtime-readiness-qualification-stdout.txt": "c40600606ed938d3b8e36cd77005e086fa39293cb3685a4a3716e0f3b9b1701f",
+    "stutter-runtime-readiness-qualification-result.json": "cb8d30ae3085f66321ecda87d6cbc0b3479c8e1d736d27c7c84962e34631e0e6"
+  }
+}
