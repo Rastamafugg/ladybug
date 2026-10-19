@@ -1,0 +1,42 @@
+{
+  "ticket": "FEAT-010",
+  "step": "Approved runtime readiness host preparation",
+  "status": "Ready",
+  "class": "High-risk",
+  "approval": "User explicitly approved runtime identity and trace-readiness scope and verification cards",
+  "next_role": "debugger -> parent QA-reviewer",
+  "owned_files": [
+    "stutter-runtime-guard.py.txt",
+    "stutter-trace-window.py.txt",
+    "stutter-runtime-readiness-qualification.py.txt"
+  ],
+  "directory": "repro/feat010-menu-clock-repair-20261018",
+  "executor": "Luna Extra High; parent review and qualification/execution",
+  "baseline": "stutter-runtime-proposal-source-identity.json and stutter-diagnosis-source-identity.json; frozen observer9ba62966 + Qpass",
+  "protected_observer_sha256": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+  "approved_contract": "wiki/internal/tickets/feat-010-attract-menu-free-start.html#attract-stutter-runtime-readiness-proposed-20261018",
+  "scope": "Implement only3hostfiles under approved R-Q/R-I/R-T cards. No production/parser/XRoar/wiki edits. No source/runtime qualification,gates,build,emulator,GDBsession,guest,capture or process execution delegated. Separate3filecommit afterparentreview.",
+  "qualification_command": [
+    "python",
+    "-B",
+    "repro/feat010-menu-clock-repair-20261018/stutter-runtime-readiness-qualification.py.txt"
+  ],
+  "limits": {
+    "qualification_seconds": 60,
+    "identity_seconds": 60,
+    "trace_seconds": 60,
+    "work_seconds_each_runtime_phase": 52,
+    "cleanup_reserve_seconds_each": 8,
+    "runtime_stops": 8,
+    "logical_gdb_memory_read_commands": 32,
+    "live_read_bytes": 32768,
+    "trace_cpu_instructions": 32768,
+    "attempts_per_phase": 1,
+    "history": "one cold no-input, samePID"
+  },
+  "runtime_guard": "Reuse exact-owned exe/argv/start_ticks cleanup from approved manualguardian. Explicitlaunchidentityphase then singlevalidatedhandoff atB080 and separatetracephase; no deadline reset withinphase. Parent performs GDB-MCP operations; guard never usesmonitor or injects gueststate. CLI/sourceplan must expose exactstart,status,handoff operations and frozen ready-manifest binding; prove/allows specified source/code/mapping/destination reads only. No autonomousscenario routing. HardPID cleanup atphase52 ifhandoffnotvalid, remaining8seconds reserve. No existinguserprocesses touched.",
+  "identity_plan": "six marker returns C002,0350,0375,03D4 helperonce-per-segment,042A helperdone,B080; plusinitialconnectionSIGINT and oneignoredproofdescriptorcandidate max8stops. Sourceproof loaderrelocationC056->0300, DP inheritedC002/02loader/00runtime. Fixedcopytable96bytes at0200; sourcebank0C802C950,C950CC12,CC92D191; sourcebank3C800D800,F495FE00,C000C010,C012C800; finalAUXA422B84D containshelperAC40B84D. Enemycopy4096 includes4091artifact+5A3; no layoutreceiptassumption. Verifyinitialloadercode livebeforeinterpreting and PARlow6bits. Fullreadlist/hashmanifest freeze byparentbeforeReady.",
+  "window": "Pure adapter only. Start native1C62 uniqueholdfinalclear,32768traceinstructions,2guestsecondstimeout. Require sourceone-entry/2secondhorizon proof beforeReady. Preserveglobalvector/CPU dt, discardonlynativefirstdelta, firsteligible33timer window>=6 plusbracketingFRAMES andcompletepubrecords; retainindices/origintime. No subsequentwindowsearch tohidefirstanomaly. Frozenobserverunchanged. Rejectearlytracing,secondactivation,truncation/missingcoverage.",
+  "R_Q": "Independentlyauthoredpositive/negative fixtures for byte/PAR/relocation/enemy-slot identity,phasebudget/onehandoff/oneactivation,sourceunique-trigger proof,preamble/vector-origin/windowpreservation,missingbracket/truncation/unknownrow/anomaly-preservation. Pureonly,no subprocess. Sourceguards may read pinnedauthoredartifacts but no runtime. Existing STUTTER-Q not rerun. Parent freezes hashes andexpectedclasses thenoneexecution60seconds.",
+  "stop": "Firstfailure,required fourthhostfile,source orcap drift,expandednewchannel/newhistory/timeout/readset =>stopandreport. No repair-retryaftergatefailure. Draftreviewcorrections beforeexecution allowed."
+}
