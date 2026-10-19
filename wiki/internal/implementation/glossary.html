@@ -17,7 +17,7 @@
     <header class="wiki-header">
       <p class="wiki-eyebrow">Implementation &middot; controlled vocabulary</p>
       <h1>Assembly and Runtime Glossary <span class="wiki-badge">internal</span></h1>
-      <p class="wiki-meta">Canonical meanings for source, memory, rendering, delivery, and evidence terms used by DOC-002.</p>
+      <p class="wiki-meta">Canonical meanings for source, memory, rendering, delivery, evidence, and testing terms.</p>
     </header>
 
     <section>
@@ -63,6 +63,96 @@
         <dd>The IRQ-time act that makes one fully composed PENDING framebuffer visible. Drawing into BACK is not publication.</dd>
         <dt id="term-evidence-dimension"><strong>Evidence dimension</strong></dt>
         <dd>One of structural, representation, delivery, runtime reachability, visible output, or timing. Each dimension is independently pass, fail, missing, or stale and is bound to an artifact hash.</dd>
+      </dl>
+    </section>
+
+    <section id="test-machinery-and-expectations">
+      <h2>Test machinery and expected results</h2>
+      <p>These definitions clarify vocabulary used by the <a href="../tooling/testing.html">testing strategy</a> and <a href="../tickets/doc-014-test-signoff-contract.html#card">test sign-off contract</a>. They introduce no new gate, approval rule, or implementation guarantee.</p>
+      <dl>
+        <dt id="term-test-harness"><strong>Test harness</strong></dt>
+        <dd>The surrounding code and tools that prepare a test, invoke the subject, collect observations, check expectations, and perform cleanup. Controllers and observers can be parts of a harness. A defect in this machinery can reject correct behavior or accept incorrect behavior.</dd>
+        <dt id="term-test-controller"><strong>Test controller</strong></dt>
+        <dd>The part of a harness that coordinates the sequence of operations: setup, tool calls, response handling, assertions, deadlines, cleanup, and result recording. Qualifying individual helpers does not establish that the complete controller calls them correctly or handles every failure path.</dd>
+        <dt id="term-test-observer"><strong>Test observer</strong></dt>
+        <dd>The component that collects or interprets evidence from the subject, such as debugger replies, memory dumps, pixels, or timing records. Its decoding rules, observation effects, and unsupported claims determine what that evidence can establish.</dd>
+        <dt id="term-test-fixture"><strong>Test fixture</strong></dt>
+        <dd>The specified inputs, artifacts, predecessor state, and environment used to exercise a case. Relevant clocks, input history, random choices, and framebuffer history form part of the fixture. A fixed random seed alone does not control every other source of variation.</dd>
+        <dt id="term-test-oracle"><strong>Test oracle</strong></dt>
+        <dd>An independently justified reference or rule for deciding the expected result, including any allowed tolerance. Examples include hand-checked bytes or specified state transitions. Reusing the subject's output or faulty calculation as the expected answer provides no independent correctness check.</dd>
+        <dt id="term-test-assertion"><strong>Test assertion</strong></dt>
+        <dd>A check comparing an observed value, state, or event sequence with an expected condition. Its meaning depends on what it checks: an assertion about observer setup is different from an assertion about game behavior. An incorrect assertion can fail even when the subject is correct.</dd>
+        <dt id="term-test-baseline"><strong>Test baseline</strong></dt>
+        <dd>An identified reference revision, artifact, or behavior used for comparison or qualification. A baseline may contain a known defect; demonstrating that a check detects that defect can be the expected result. The word baseline does not imply that all reference behavior is correct.</dd>
+        <dt id="term-test-qualification"><strong>Test qualification</strong></dt>
+        <dd>Evidence that the named harness, observer, or setup performs its intended checks for a specified revision and scope, using independently expected good and faulty cases. A qualification pass applies to those tested boundaries; it does not automatically establish product correctness, real-service integration, or runtime readiness.</dd>
+        <dt id="term-positive-control"><strong>Positive control</strong></dt>
+        <dd>A deliberately known-valid case that the check must accept. It shows that the check can recognize the expected successful behavior under the stated setup.</dd>
+        <dt id="term-negative-control"><strong>Negative control</strong></dt>
+        <dd>A deliberately invalid or faulty case that the check must reject. Correctly detecting its fault is a passing result for the check's qualification; it is not acceptance of the faulty subject. Controls must discriminate the relevant risk.</dd>
+      </dl>
+    </section>
+
+    <section id="test-scope-and-execution">
+      <h2>Test scope and execution</h2>
+      <dl>
+        <dt id="term-unit-test"><strong>Unit test</strong></dt>
+        <dd>A focused test of a selected function or component with controlled inputs and dependencies. Substitute dependencies can force rare cases. Its pass does not establish that actual callers, transports, or neighboring components integrate correctly.</dd>
+        <dt id="term-integration-test"><strong>Integration test</strong></dt>
+        <dd>A test of interactions between identified components, including their data formats, ownership, sequencing, and failure handling. State which components are actual implementations and which are substitutes; a mocked transport limits the integration claim.</dd>
+        <dt id="term-end-to-end-test"><strong>End-to-end test</strong></dt>
+        <dd>A test following the complete declared workflow from its entry through its required outcome and cleanup. The endpoint and environment must be explicit. An offline workflow with substituted services does not establish the corresponding real-service or game-runtime path.</dd>
+        <dt id="term-diagnostic-probe"><strong>Diagnostic probe</strong></dt>
+        <dd>One bounded experiment intended to distinguish competing explanations. It names its setup, observation boundary, success marker, and deadline. A failed setup or timeout may leave the diagnostic question unanswered; it does not by itself identify a product cause.</dd>
+        <dt id="term-test-phase"><strong>Test phase</strong></dt>
+        <dd>A named portion of test execution with a start boundary, required terminal result, and whole-phase budget. Nested calls consume that phase's remaining budget. A test phase is not necessarily a game screen or gameplay phase.</dd>
+        <dt id="term-test-marker"><strong>Test marker</strong></dt>
+        <dd>An observable condition used to identify progress or a boundary, such as a verified instruction address, state transition, or published screen. A marker's name does not prove its meaning: a PC needs byte/mapping identity, and a screen-entry marker alone does not prove visible pixels.</dd>
+        <dt id="term-callback-cap"><strong>Callback cap</strong></dt>
+        <dd>The declared maximum number of callbacks or notifications a phase may consume. State the counted event explicitly; debugger stops, tool calls, and memory reads are different quantities. Exhausting the cap before required coverage completes cannot be reported as a pass.</dd>
+      </dl>
+    </section>
+
+    <section id="test-result-classifications">
+      <h2>Test result classifications</h2>
+      <dl>
+        <dt id="term-product-assertion-failure"><strong>Product assertion failure</strong></dt>
+        <dd>A violation of a required product condition established by valid setup, identity, observation, and expected-result checks. A broken decoder, incorrect expectation, or absent required scenario does not by itself establish a product defect.</dd>
+        <dt id="term-observer-failure"><strong>Observer failure / setup failure</strong></dt>
+        <dd>A failure of test machinery or prerequisites, such as an unsupported reply, wrong artifact, invalid fixture, missed start marker, or unconfirmed cleanup. Report the failed boundary separately from product behavior; the failure may prevent a product conclusion.</dd>
+        <dt id="term-missing-coverage"><strong>Missing coverage</strong></dt>
+        <dd>A required case, path, sample, or form of evidence was not obtained or did not complete. The tested claim remains unproved and cannot pass acceptance while that coverage is required. This is distinct from observing incorrect product behavior.</dd>
+        <dt id="term-test-waiver"><strong>Test waiver</strong></dt>
+        <dd>An explicitly approved, scoped exception to a named requirement or result, with its applicability and residual risk recorded. It does not silently convert missing evidence into a pass, waive unrelated criteria, or require a historical defect to persist.</dd>
+      </dl>
+    </section>
+
+    <section id="test-clock-terms">
+      <h2>Test clocks</h2>
+      <dl>
+        <dt id="term-monotonic-time"><strong>Monotonic time</strong></dt>
+        <dd>A clock reading suitable for elapsed durations because it does not jump with civil date/time corrections. Differences are meaningful within the established clock domain. Absolute readings from different processes or languages are comparable only if their common origin and units are established; otherwise pass a remaining relative budget.</dd>
+        <dt id="term-wall-clock-time"><strong>Wall-clock time</strong></dt>
+        <dd>The host's civil date/time, which can change through clock adjustment. Reports also use wall time informally for real elapsed duration; name the actual clock source to avoid that ambiguity. An elapsed deadline measured with a monotonic clock is not a civil timestamp or a guest-cycle measurement.</dd>
+        <dt id="term-host-time"><strong>Host time</strong></dt>
+        <dd>Time measured on the computer running the test tools and emulator. Host elapsed duration includes startup, communication, scheduling, logging, and cleanup costs. It bounds the test operation but is not by itself evidence of emulated-game speed or guest instruction cost.</dd>
+        <dt id="term-guest-time"><strong>Guest time</strong></dt>
+        <dd>Time measured in the emulated machine's clock domain, such as event ticks or CPU cycles with declared units and conversion. Emulator throttling or tracing can change how much host time those guest ticks take. A game's software frame counter is a separate observation and does not alone establish hardware-field timing.</dd>
+      </dl>
+    </section>
+
+    <section id="test-process-lifecycle-terms">
+      <h2>Test process lifecycle terms</h2>
+      <p>These definitions describe ownership and timing contracts for test tools. Defining a contract does not establish that the installed service implements it. The <a href="../tickets/feat-010-attract-menu-free-start.html#service-lease-prototype-proposed-20261019">service-lease prototype proposal</a> describes a proposed use; the <a href="../tooling/testing.html">testing strategy</a> and <a href="../tickets/doc-014-test-signoff-contract.html#card">test sign-off contract</a> define the existing verification boundaries.</p>
+      <dl>
+        <dt id="term-caller-owned-creation-lease"><strong>Caller-owned creation lease</strong></dt>
+        <dd>An ownership record addressed by a unique token the caller knows before requesting asynchronous resource creation. The service registers the record before an operation can create a process or session, and retains responsibility for pending creation, any resulting resource, and cleanup until a terminal outcome is proved. This lets the caller request cleanup even if the creation response or generated session ID is lost. The caller owns the token; the service must retain the creation task and resource handle. A local token alone does not cancel backend work or prove exit.</dd>
+        <dt id="term-cancellation-tombstone"><strong>Cancellation tombstone</strong></dt>
+        <dd>A retained cancellation record for an operation token, including cancellation received before creation begins. A delayed start with that token is rejected before spawning; if creation is already pending, the service retains its task and handles any late resource under the cancelled operation's ownership. The record prevents a late response from reviving the operation as an active test session. It is not evidence that an already-created resource has exited, and its retention/reuse rules belong to the owning protocol.</dd>
+        <dt id="term-shared-deadline"><strong>Shared deadline</strong></dt>
+        <dd>One absolute end time, measured with a consistent monotonic clock, for a named operation or test phase. Setup, lock acquisition, writes and drains, response collection, analysis, and cleanup receive only the time remaining within their enclosing budget; each nested wait does not start a new full allowance. A cleanup reserve is part of that budget. Across processes with unproven clock epochs, pass the remaining relative allowance rather than comparing absolute clock readings. Reaching a deadline does not itself cancel outstanding backend work.</dd>
+        <dt id="term-exit-confirmed-cleanup"><strong>Exit-confirmed cleanup</strong></dt>
+        <dd>A cleanup result supported by evidence that the exact owned process or session has terminated, rather than merely receiving a cancellation or termination request. For a direct child, waiting for termination and obtaining its return code provides exit and reap evidence. A non-parent observer needs a separately established process-identity and exit check, such as the original PID and start-time identity disappearing; it cannot claim to have reaped that child. If exit cannot be confirmed, retain ownership and report unresolved cleanup. A successful signal send, a closed client connection, or a <code>stopped:true</code> response alone is not exit proof.</dd>
       </dl>
     </section>
 
