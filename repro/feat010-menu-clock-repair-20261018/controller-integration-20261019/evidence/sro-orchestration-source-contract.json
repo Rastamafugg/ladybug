@@ -1,0 +1,225 @@
+{
+  "schema": "ladybug.feat010.sro.orchestration-source-contract.v1",
+  "source_reference_only": true,
+  "execution_authorized": false,
+  "native_runtime_authorized": false,
+  "owner_boundaries": {
+    "python": "stop-q.py",
+    "host": "run-integration-q.ps1",
+    "parent": "manifest, fixture JSON, wiki, integration, gate release"
+  },
+  "phase_names": [
+    "stop-observation-admission",
+    "stop-observation-reader",
+    "stop-observation-compatibility"
+  ],
+  "maximum_ms": [
+    30000,
+    60000,
+    60000
+  ],
+  "attempts_each": 1,
+  "failure_policy": "First unexpected failure: retain, stop, no correction/retry",
+  "source_only_no_checks": "No syntax/parser/import/helper/producer/test/worker/interpreter execution before complete parent freeze",
+  "init_keys": [
+    "kind",
+    "phase",
+    "nonce",
+    "manifest_sha256",
+    "ticket_sha256",
+    "source_sha256",
+    "fixture_sha256",
+    "read_inputs_sha256",
+    "host_claim"
+  ],
+  "host_claim_keys": [
+    "exclusive",
+    "collision_preserved",
+    "launch_allowlist"
+  ],
+  "go_keys": [
+    "kind",
+    "phase",
+    "nonce",
+    "manifest_sha256",
+    "remaining_ms"
+  ],
+  "ready_keys": [
+    "kind",
+    "phase",
+    "nonce",
+    "manifest_sha256",
+    "ticket_sha256",
+    "source_sha256",
+    "fixture_sha256",
+    "read_inputs_sha256",
+    "supervisor_identity",
+    "supervisor_elapsed_ms"
+  ],
+  "terminal_keys": [
+    "kind",
+    "phase",
+    "nonce",
+    "manifest_sha256",
+    "ticket_sha256",
+    "source_sha256",
+    "fixture_sha256",
+    "read_inputs_sha256",
+    "status",
+    "phase_elapsed_ms",
+    "supervisor_identity",
+    "worker_identity",
+    "worker_exit",
+    "cases",
+    "ledgers",
+    "preservation",
+    "failure"
+  ],
+  "terminal_status": [
+    "SUBJECT_COMPLETE",
+    "FAIL"
+  ],
+  "identity_keys": [
+    "pid",
+    "start_ticks",
+    "executable",
+    "executable_sha256"
+  ],
+  "worker_exit_keys": [
+    "wait_confirmed",
+    "returncode"
+  ],
+  "ledger_keys": [
+    "service_calls",
+    "factory_calls",
+    "reader_count",
+    "raw_record_count",
+    "real_factory_calls",
+    "real_gdb_calls",
+    "real_network_calls"
+  ],
+  "case_keys": [
+    "case_id",
+    "expected",
+    "status",
+    "observations"
+  ],
+  "subcontrol_keys": [
+    "id",
+    "status",
+    "observed"
+  ],
+  "failure_keys": [
+    "category",
+    "case_id",
+    "subcontrol",
+    "message",
+    "observed"
+  ],
+  "preservation_snapshot_keys": [
+    "source_sha256",
+    "fixture_sha256",
+    "read_inputs_sha256",
+    "ticket_sha256",
+    "manifest_sha256",
+    "protected_files_sha256",
+    "qualified_seven_inputs_sha256",
+    "python_sha256"
+  ],
+  "worker_case_ids": {
+    "Q": [
+      "Q01",
+      "Q02",
+      "Q03",
+      "Q04",
+      "Q05"
+    ],
+    "R": [
+      "R01",
+      "R02",
+      "R03",
+      "R04",
+      "R05",
+      "R06",
+      "R07",
+      "R08",
+      "R09",
+      "R10",
+      "R11",
+      "R12",
+      "R13",
+      "R14",
+      "R15",
+      "R16"
+    ],
+    "C": [
+      "C01",
+      "C02",
+      "C03",
+      "C04",
+      "C05"
+    ]
+  },
+  "host_case": "C06 added only after actual supervisor worker wait and actual host WSL direct wait and preservation",
+  "C06_controls": [
+    "worker_wait_confirmed",
+    "worker_exit_zero",
+    "wsl_wait_confirmed",
+    "wsl_exit_zero",
+    "preservation_equal"
+  ],
+  "final_admission": "Host-only PASS requires exact current source/fixture/card/nonce/phase identities, all executed controls, direct worker+WSL integer0 waits, cleanup, preservation, entire phase deadline including durable evidence",
+  "launch_argv": [
+    "wsl.exe",
+    "--exec",
+    "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
+    "-B",
+    "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py",
+    "--supervisor"
+  ],
+  "claim_launch_allowlist": [
+    "wsl.exe",
+    "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
+    "-B",
+    "stop-q.py",
+    "--supervisor"
+  ],
+  "frozen_sources": [
+    "service/gdb.py",
+    "service/server.py",
+    "stop-q.py",
+    "run-integration-q.ps1"
+  ],
+  "frozen_fixtures": [
+    "evidence/sro-qualification-case-contract.json",
+    "evidence/sro-baseline-independent-fixtures.json",
+    "evidence/sro-stop-independent-fixtures.json",
+    "evidence/sro-natural-sequence-fixture.json",
+    "evidence/sro-producer-literal-fixture.json"
+  ],
+  "read_inputs": {
+    "stutter-runtime-gdb-transcript.json": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
+  },
+  "Q_host_oracle": "Exercise actual host validator with independent positive and discriminating typed/binding/missing-control/exit/cleanup/deadline negative fixtures. Helper-only PASS cannot qualify host.",
+  "boundary": "No installed service, native GDB/MCP/emulator, game/build/Tiled, old archived sources/evidence, dependencies, new framework or real fixture children. Pinned qualifier supervisor and one worker only during approved gates.",
+  "framing": "UTF-8 one JSON object per newline; stdout only protocol, bounded stderr retained.",
+  "sequence": [
+    "Supervisor INIT validates exact freeze and computes archived /proc identity, then READY before worker exists",
+    "Host matching GO carries relative positive remaining_ms; supervisor sets local deadline and cleanup reserve",
+    "Supervisor Popen exact pinned Python -B current stop-q.py --worker; one private config JSON; no extra child",
+    "Worker runs fixed subject cases under containment, never asserts its future exit",
+    "Supervisor actual direct worker wait and post-preservation produce external TERMINAL",
+    "Host actual WSL direct wait and preservation/deadline derive final completion and C06"
+  ],
+  "preservation_shape": "{before:<snapshot>,after:<snapshot>}, each snapshot has exact preservation_snapshot_keys and original-key hash maps",
+  "ledger_types": {
+    "service_calls": "array of actual method records",
+    "factory_calls": "array of safe actual argv/kwargs records",
+    "reader_count": "nonnegative strict integer, aggregate across fixtures",
+    "raw_record_count": "nonnegative strict integer, aggregate across fixtures",
+    "real_factory_calls": "strict integer 0",
+    "real_gdb_calls": "strict integer 0",
+    "real_network_calls": "strict integer 0"
+  },
+  "observation_shape": "Case observations dictionary contains mandatory subcontrols plus retained case evidence. Exact ordered subcontrols use CASE_SUBCONTROLS; each exact {id,status,observed}, status PASS and observed key present. No unexecuted expected row may be manufactured."
+}
