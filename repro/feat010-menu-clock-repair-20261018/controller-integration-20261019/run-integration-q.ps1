@@ -1294,10 +1294,10 @@ function Invoke-Phase {
             $script:HostCases = @(New-HostC06 $script:TerminalRecord $script:DriverExitConfirmed $script:DriverExitCode $true)
             if (@($script:HostCases).Count -ne 1 -or -not (Test-HostC06 $script:HostCases[0] $script:TerminalRecord $script:DriverExitConfirmed $script:DriverExitCode $true)) { throw 'host-derived C06 cleanup proof failed' }
         }
-        $finalReason = $null
-        $elapsedForAdmission = [int]$script:Clock.ElapsedMilliseconds
-        $finalContext = [pscustomobject]@{ phase = $Phase; host_case = if (@($script:HostCases).Count -gt 0) { $script:HostCases[0] } else { $null } }
-        if (-not (Test-FinalAdmission $script:TerminalRecord $finalContext $script:DriverExitConfirmed $script:DriverExitCode $true $true $elapsedForAdmission ([int]$script:PhaseLimits[$Phase]) ([ref]$finalReason))) { throw ('host-only final admission failed: ' + $finalReason) }
+        if (-not (Test-ExactBoolean $script:DriverExitConfirmed) -or $script:DriverExitConfirmed -ne $true -or -not (Test-ExactInteger $script:DriverExitCode) -or $script:DriverExitCode -ne 0) { throw 'prewrite subject checks lack a confirmed direct WSL exit zero' }
+        if (-not (Test-PreservationEqual $script:HostBefore $script:HostAfter)) { throw 'prewrite subject checks lack equal preservation snapshots' }
+        $prewriteElapsed = [long][Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds)
+        if ($prewriteElapsed -ge ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs)) { throw 'prewrite subject checks left no reserved time for durable evidence' }
         $success = $true
     } catch {
         $caughtMessage = $_.Exception.Message
@@ -1341,7 +1341,7 @@ function Invoke-Phase {
         [System.Console]::Error.WriteLine([string]$script:FailureMessage)
         return [bool]$false
     }
-    if ($success -and $script:Clock.ElapsedMilliseconds -ge ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs)) {
+    if ($success -and [Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds) -ge ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs)) {
         $success = $false
         $script:FailureCategory = 'PHASE_DEADLINE'
         $script:FailureMessage = 'phase left no reserved time to finalize durable evidence'
@@ -1361,11 +1361,34 @@ function Invoke-Phase {
         [System.Console]::Error.WriteLine('phase evidence could not be finalized: ' + $finalizationError)
         return [bool]$false
     }
-    if ($script:Clock.ElapsedMilliseconds -gt [int]$script:PhaseLimits[$Phase]) {
-        $success = $false
-        $script:FailureCategory = 'PHASE_OVERRUN_AFTER_EVIDENCE'
-        $script:FailureMessage = 'durable evidence completed after the entire-phase deadline'
-        try { Write-JsonCreateNew $script:OverrunPath ([pscustomobject]@{ phase = $Phase; nonce = $nonce; elapsed_ms = [long]$script:Clock.ElapsedMilliseconds; maximum_ms = [int]$script:PhaseLimits[$Phase]; failure_category = $script:FailureCategory; failure_message = $script:FailureMessage; receipt_path = $script:ReceiptPath }) } catch { }
+    if ($success) {
+        $elapsedAfterWrite = [long][Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds)
+        $finalizationComplete = [System.IO.File]::Exists($script:ReceiptPath)
+        $finalContext = [pscustomobject]@{ phase = $Phase; host_case = if (@($script:HostCases).Count -gt 0) { $script:HostCases[0] } else { $null } }
+        $finalReason = $null
+        $postWriteAdmission = Test-FinalAdmission $script:TerminalRecord $finalContext $script:DriverExitConfirmed $script:DriverExitCode ([bool](Test-PreservationEqual $script:HostBefore $script:HostAfter)) $finalizationComplete $elapsedAfterWrite ([int]$script:PhaseLimits[$Phase]) ([ref]$finalReason)
+        $elapsedAfterAdmission = [long][Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds)
+        if ($postWriteAdmission -and $elapsedAfterAdmission -gt [int]$script:PhaseLimits[$Phase]) {
+            $postWriteAdmission = $false
+            $elapsedAfterWrite = $elapsedAfterAdmission
+            $finalReason = 'host final-admission evaluation crossed the entire-phase deadline'
+        }
+        if (-not $postWriteAdmission) {
+            $success = $false
+            $script:FailureCategory = if ($elapsedAfterWrite -gt [int]$script:PhaseLimits[$Phase]) { 'PHASE_OVERRUN_AFTER_EVIDENCE' } else { 'FINAL_ADMISSION_FAILURE' }
+            $script:FailureMessage = 'post-write final admission failed: ' + $finalReason
+            $script:FailureDetail = ConvertTo-Json -InputObject ([pscustomobject]@{ elapsed_after_write_ms = $elapsedAfterWrite; finalization_complete = [bool]$finalizationComplete; reason = $finalReason; receipt_path = $script:ReceiptPath }) -Depth 20 -Compress
+            try {
+                Write-JsonCreateNew $script:OverrunPath ([pscustomobject]@{ phase = $Phase; nonce = $nonce; elapsed_ms = $elapsedAfterWrite; maximum_ms = [int]$script:PhaseLimits[$Phase]; failure_category = $script:FailureCategory; failure_message = $script:FailureMessage; failure_detail = $script:FailureDetail; receipt_path = $script:ReceiptPath })
+            } catch {
+                $script:TransportFailureCategory = 'EVIDENCE_FINALIZATION_FAILURE'
+                $script:TransportFailureMessage = 'post-write final admission failed and its exclusive overrun marker could not be retained'
+                $script:TransportFailureDetail = $_.Exception.ToString()
+                $script:FailureCategory = $script:TransportFailureCategory
+                $script:FailureMessage = $script:TransportFailureMessage
+                $script:FailureDetail = ConvertTo-Json -InputObject ([pscustomobject]@{ final_admission = $finalReason; marker_write_error = $script:TransportFailureDetail; receipt_path = $script:ReceiptPath }) -Depth 20 -Compress
+            }
+        }
     }
     if ($success) {
         [System.Console]::Error.WriteLine('SRO_PHASE_PASS ' + $Phase + ' ' + $nonce)
