@@ -1,0 +1,127 @@
+{
+  "schema": "ladybug.feat010.recovery-r1-final-source-review.v1",
+  "status": "SOURCE_REVIEW_COMPLETE_NOT_READY",
+  "date": "2026-10-20",
+  "ticket": "FEAT-010",
+  "classification": "High-risk",
+  "method": "Parent complete changed-source/caller/fixture review plus Luna Extra High independent review; no source evaluation",
+  "source_review_scope": [
+    "Repaired copied service parser/formatting diff and actual published schemas",
+    "Complete qualifier recovery diff, both finally callers and common failure mapper",
+    "Complete host recovery diff, stream/claim/receipt/oracle/finalization callers",
+    "Complete189-line compile-only preflight including embedded Python",
+    "All four parent inline dispatch bodies and explicit tools invocation/poll contract",
+    "Five independent fixture/contract files plus orchestration source contract",
+    "Historical complete frozen-controller inventory and excluded future integration findings"
+  ],
+  "commits": {
+    "qualifier_base": "f0d375cb",
+    "qualifier_finalization": "e55d750b",
+    "service": "4bf21637",
+    "preflight": "441dba5a",
+    "host": "2b69618e"
+  },
+  "source_sha256": {
+    "service/gdb.py": "a95b49fe2ad51834b6ef10c38c2a96ca94d31c3dd32098373d530729b4ab1e93",
+    "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
+    "stop-q.py": "386aa27eb2a600eb3f514cd67800412e7dd502d1b655f62473fafc84b9bc07e5",
+    "run-integration-q.ps1": "b675e2e9add92d7d4c01fa8a004e4d402eca1b4b6b25215586f27efb4b01d1ba",
+    "run-recovery-preflight.ps1": "7ee7538e213625f8b42974115d9069e5050f0a1276f753f83c9dc5c8192d1bf1",
+    "evidence/recovery-r1-parent-dispatch-source.json": "1a3eb008be6b873f13322e051ab075cbe90a65ed818cd5b3494c367bf1e6f163"
+  },
+  "fixed_review_findings": [
+    {
+      "severity": "High",
+      "artifact": "stop-q.py",
+      "finding": "Secondary finalization errors lost with primary exception and diagnostics=None",
+      "resolution": "Both finally paths attach errors to original exception; common mapper nests original observed and finalization_errors; existing before/after controls force real paths without diagnostics and verify actual waits"
+    },
+    {
+      "severity": "High",
+      "artifact": "run-integration-q.ps1",
+      "finding": "Stale host control arrays reject the updated qualifier",
+      "resolution": "Exact approved appended IDs, staticQ51/R115/C23, hostC06five and hostoracle76"
+    },
+    {
+      "severity": "High",
+      "artifact": "run-integration-q.ps1",
+      "finding": "Partial protocol and malformed UTF8 evidence discarded, cleanup errors discarded, read exception misreported as EOF",
+      "resolution": "Bounded prefix/count/hash with truthful newline metadata, retained secondary cleanup detail, no retry and no EOF certification on read error"
+    },
+    {
+      "severity": "High",
+      "artifact": "evidence/recovery-r1-parent-dispatch-source.json",
+      "finding": "Unbounded native wait and pre-exit-only elapsed, implicit outer interpreter",
+      "resolution": "Pinned outer shell/loginfalse, same one pinned native runner, bounded WaitForExit/500msreserve, native exit observation and explicit no-write5000mspoll cutoff"
+    }
+  ],
+  "declared_controls": {
+    "C_host": 5,
+    "C_worker": 23,
+    "R": 115,
+    "Q": 51,
+    "host_oracle": 76
+  },
+  "count_basis": "Static source enumeration, not passing measurements",
+  "preservation": {
+    "mismatches": 0,
+    "protected_files_checked": 199,
+    "qualified_inputs_checked": 7
+  },
+  "execution": {
+    "runtime_attempts": 0,
+    "Q_R1_attempts": 0,
+    "rom_changes": 0,
+    "production_changes": 0,
+    "C_R1_attempts": 0,
+    "R_R1_attempts": 0,
+    "preflight_attempts": 0
+  },
+  "qualification_boundary": "Helper/source review only; four ordered executable cards remain not run; no complete controller/native readiness inferred",
+  "residual_limits": [
+    "Actual PowerShell parser/compiler/environment behavior remains unqualified until SRO-P",
+    "Stream cap controls use actual fixed-buffer helpers with synthetic memory input; native transport/backpressure is outside this offline card",
+    "Process.Start may stall and no-kill timeout may leave runner/descendant-held pipes alive; retain unresolved and FAIL/BLOCK, never cleanup/PASS",
+    "First unexpected failure, missing control, unconfirmed exit, cap/time miss or identity change stops without retry",
+    "Missing full controller files, analysis publication and guard exit/timing repairs, transport and native capability/installation/runtime remain held"
+  ],
+  "current_readiness": "SRO-P/Q-R1/R-R1/C-R1 all NOT_READY: unresolved file-read bounds and scalar-string admission; no dispatch or retry. Existing code repairs are source-reviewed, not qualified.",
+  "capacity": "Game resident/module/asset headroom delta0; no game build",
+  "retained_previous_evidence": "Original failed SRO-Q and recovery-r1-baseline directories unchanged",
+  "independent_host_review": {
+    "reviewer": "Luna Extra High independent service reviewer",
+    "host_lines": 1830,
+    "host_sha256": "b675e2e9add92d7d4c01fa8a004e4d402eca1b4b6b25215586f27efb4b01d1ba",
+    "dispatch_sha256": "1a3eb008be6b873f13322e051ab075cbe90a65ed818cd5b3494c367bf1e6f163",
+    "result": "Outer shell finding closed; two confirmed admission blockers remain; read-only complete host inspection"
+  },
+  "remaining_findings": [
+    {
+      "id": "R1-READ-BOUND",
+      "severity": "P2",
+      "artifacts": [
+        "run-integration-q.ps1:1418",
+        "run-integration-q.ps1:1419",
+        "run-integration-q.ps1:1432",
+        "run-recovery-preflight.ps1:28"
+      ],
+      "finding": "Host ReadAllText precedes16Mi-character JSON cap; related preflight manifest Get-Content -Raw is also unbounded. Allocation already occurred before size rejection.",
+      "coverage_gap": "Approved stream helper controls do not exercise bounded file input admission; no pre-allocation file-read bound or independent over-limit file fixture is currently gated.",
+      "minimum_next_design": "Specify byte/character cap and strict-UTF8 read policy, use bounded incremental read before decoding in both current host and parent preflight, and pin independent legal/over-limit expectations before any gate. No cap or test expansion is silently authorized."
+    },
+    {
+      "id": "R1-SCALAR-STRING",
+      "severity": "P2",
+      "artifacts": [
+        "run-integration-q.ps1:317",
+        "run-integration-q.ps1:372",
+        "run-integration-q.ps1:1109",
+        "run-integration-q.ps1:1111"
+      ],
+      "finding": "Binding/status comparisons lack scalar-string guards. Matching one-element arrays can yield empty -cne comparison results and evade rejection.",
+      "coverage_gap": "Existing extra-field/float/Boolean controls do not discriminate array-valued string fields; Test-ObjectShape checks property names only.",
+      "minimum_next_design": "Require scalar string types at current protocol and retained-record admission sites; define independent valid baselines and matching-array negatives, with exact row IDs/count and unchanged phase budgets before renewed Ready."
+    }
+  ],
+  "stop_decision": "Stop before executable qualification. Required additional file-input and typed-shape scenarios need a bounded follow-up proposal/card revision; no unapproved gate, source file scope or retry is added."
+}

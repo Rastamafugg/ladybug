@@ -1,13 +1,13 @@
 {
   "schema": "ladybug.feat010.controller-integration.freeze.v1",
-  "status": "RECOVERY_R1_SOURCE_PREPARATION",
+  "status": "RECOVERY_R1_SOURCE_REVIEW_BLOCKED",
   "approval_proposal_commit": "57e121d9",
   "approval": "User approves revised bounded offline recovery scope and SRO-P/Q-R1/R-R1/C-R1 cards; runtime remains paused.",
   "runtime_ready": false,
   "runtime_attempts_authorized": 0,
   "installation_authorized": false,
   "qualification_dispatch_authorized": false,
-  "source_assignment": "Sequential Luna Extra High source preparation; parent reviews complete diffs and independent fixtures before freeze and ordered offline gates. No executable card Ready yet.",
+  "source_assignment": "Complete parent/Luna source review retained two remaining admission gaps. No executable card Ready; source repair proposal required before new gating cases. Runtime and installation remain paused.",
   "linux_node": {
     "path": "/home/rastamafugg/.nvm/versions/node/v20.19.5/bin/node",
     "sha256": "8d01d4c50e7a9047d70196f8fc6f1b165069065b44bd9402491544bd70586c7d"
@@ -271,9 +271,9 @@
     "initial_implementation_commit": "f5616b31"
   },
   "recovery_preflight": {
-    "status": "SOURCE_PREPARATION_NOT_READY",
+    "status": "SOURCE_REVIEW_BLOCKED_FILE_INPUT_ADMISSION",
     "path": "run-recovery-preflight.ps1",
-    "source_sha256": "a317ca8810e3be7701c5e69b917b1e2587337515c856da4ca6def7c7f6bd41ee",
+    "source_sha256": "7ee7538e213625f8b42974115d9069e5050f0a1276f753f83c9dc5c8192d1bf1",
     "maximum_ms": 30000,
     "host_path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
     "host_sha256": "60c9b29843624dd8af6b6a7b26147753be6aeef65098b9a503cc50850afe410f",
@@ -284,9 +284,20 @@
     "source_files": {
       "service/gdb.py": "a95b49fe2ad51834b6ef10c38c2a96ca94d31c3dd32098373d530729b4ab1e93",
       "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
-      "stop-q.py": "fe8b4b90e0e387e565e9883015f43d9dc96f8534a892c8becec2871913da0833",
-      "run-integration-q.ps1": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec"
+      "stop-q.py": "386aa27eb2a600eb3f514cd67800412e7dd502d1b655f62473fafc84b9bc07e5",
+      "run-integration-q.ps1": "b675e2e9add92d7d4c01fa8a004e4d402eca1b4b6b25215586f27efb4b01d1ba",
+      "evidence/sro-q-first-failure-20261020/executed-host.ps1.txt": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec"
     },
     "dispatch_authorized": false
+  },
+  "recovery_review": {
+    "report": "evidence/recovery-r1-final-source-review.json",
+    "report_sha256": "10da63f1e270df62a3ea123e43f1aa1406b80790d71d6f716fbc91b45930c994",
+    "remaining": [
+      "R1-READ-BOUND",
+      "R1-SCALAR-STRING"
+    ],
+    "qualification_attempts": 0,
+    "runtime_attempts": 0
   }
 }

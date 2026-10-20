@@ -47,7 +47,10 @@
       "signal_name": "SIGINT",
       "thread_id": "1",
       "pc": "0x0000c002",
-      "observation_generation": 1
+      "observation_generation": 1,
+      "signal_meaning": "Interrupt",
+      "stopped_threads": "all",
+      "result_class": "connected"
     },
     "breakpoint": {
       "command": "continue",
@@ -56,7 +59,9 @@
       "disposition": "del",
       "thread_id": "1",
       "pc": "0x00000350",
-      "observation_generation": 1
+      "observation_generation": 1,
+      "stopped_threads": "all",
+      "result_class": "running"
     },
     "mi_parser": {
       "valid": "1^connected",
@@ -78,13 +83,51 @@
       "status": "FAIL",
       "partial_evidence_required": true,
       "fabricated_complete_rows_allowed": false,
-      "cap_increase_allowed": false
+      "cap_increase_allowed": false,
+      "case_input": {
+        "case_id": "R01",
+        "expected": "VALIDATED_OBSERVATIONS_AND_BOTH_EXITS",
+        "status": "FAIL",
+        "observations": {
+          "fixture_provenance": "Synthetic partial-case input for serialization only; not evidence that R01 ran or passed.",
+          "subcontrols": []
+        }
+      },
+      "retained_case_rule": "Retain the exact synthetic input case as a prefix row; validate the FAIL result with actual worker-result validator. Never promote it to executed subject coverage."
     },
     "exception_capture": {
       "before_call_service_entries": 0,
       "after_call_minimum_service_entries": 1,
       "failure_retained": true,
-      "cleanup_retained": true
+      "cleanup_retained": true,
+      "primary_message": "controlled natural-sequence failure after fake service call",
+      "secondary_message": "controlled finalization retention failure",
+      "primary_observed": {
+        "fixture_provenance": "Independent primary failure observation",
+        "marker": "PRIMARY_RETAINED"
+      },
+      "finalization_errors_required": true,
+      "diagnostics_required": false,
+      "finalization_errors": [
+        "partial evidence capture: RuntimeError: controlled finalization retention failure"
+      ],
+      "primary_type": "QualificationFailure",
+      "primary_category": "ASSERTION",
+      "failure_observed": {
+        "primary_observed": {
+          "fixture_provenance": "Independent primary failure observation",
+          "marker": "PRIMARY_RETAINED"
+        },
+        "finalization_errors": [
+          "partial evidence capture: RuntimeError: controlled finalization retention failure"
+        ]
+      },
+      "before_failure_observed": {
+        "primary_observed": null,
+        "finalization_errors": [
+          "partial evidence capture: RuntimeError: controlled finalization retention failure"
+        ]
+      }
     },
     "module_restoration": {
       "names": [

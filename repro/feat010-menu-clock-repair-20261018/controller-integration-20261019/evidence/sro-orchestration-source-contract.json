@@ -231,6 +231,58 @@
     "receipt_alone_is_completion": false,
     "preflight": "run-recovery-preflight.ps1",
     "preflight_maximum_ms": 30000,
-    "no_runtime": true
+    "no_runtime": true,
+    "host_control_additions": [
+      "CLAIM_VALID",
+      "CLAIM_CHANGED_ARGUMENT",
+      "CLAIM_CHANGED_PATH",
+      "READY_EXTRA_FIELD",
+      "READY_FLOAT_ELAPSED",
+      "TERM_EXTRA_FIELD",
+      "TERM_FLOAT_PHASE_ELAPSED",
+      "FINAL_FLOAT_ELAPSED",
+      "PREV_JSON_TIMESTAMP_ROUNDTRIP",
+      "PREV_JSON_TIMESTAMP_TYPED_NEGATIVE",
+      "STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE",
+      "STREAM_STDERR_CAP_NO_NEWLINE",
+      "STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE",
+      "FINAL_POSTWRITE_ADMISSION_FAILURE",
+      "FINAL_MARKER_WRITE_FAILURE_NONZERO"
+    ],
+    "projected_host_rows": 76,
+    "stream_expectations": {
+      "protocol": {
+        "input_byte": 65,
+        "input_count": 262145,
+        "newline": false,
+        "retained_maximum_bytes": 262144,
+        "classification": "PROTOCOL",
+        "pass_allowed": false
+      },
+      "stderr": {
+        "input_byte": 83,
+        "input_count": 16385,
+        "newline": false,
+        "retained_maximum_characters": 16384,
+        "truncated": true,
+        "kind": "DIAGNOSTIC_CAPTURE",
+        "must_drain_without_unbounded_retention": true
+      },
+      "tail": {
+        "input_byte": 84,
+        "input_count": 16385,
+        "newline": false,
+        "retained_maximum_characters": 16384,
+        "classification": "PROTOCOL",
+        "pass_allowed": false
+      }
+    },
+    "final_admission_expectations": {
+      "postwrite_admission_failure": false,
+      "marker_write_failure": false,
+      "pass_marker_allowed_on_either_failure": false,
+      "actual_exit_must_be_observed_by_parent": true,
+      "receipt_alone_may_not_authorize_next_phase": true
+    }
   }
 }
