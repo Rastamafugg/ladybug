@@ -193,7 +193,10 @@ def _parse_mi_record(raw: bytes, sequence: int) -> dict[str, Any]:
         if not re.fullmatch(r"[A-Za-z0-9_-]+", result_class):
             raise ValueError("missing MI record class")
         record["class"] = result_class
-        record["fields"] = _MiParser(payload).parse_fields() if separator else {}
+        if separator:
+            if not payload:
+                raise ValueError("empty MI result payload after delimiter")
+            record["fields"] = _MiParser(payload).parse_fields()
     except ValueError as exc:
         record["parse_error"] = str(exc)
     return record
@@ -367,6 +370,28 @@ def _format_output(lines: list[str]) -> str:
             parts.append(line + "\n")
         # ^done, ^running, ^exit, =..., *running → no content, skip
     return "".join(parts)
+
+
+def _format_observation_output(records: list[dict[str, Any]]) -> str:
+    """Format parsed observation records without exposing MI framing tokens."""
+    lines: list[str] = []
+    for record in records:
+        if not isinstance(record, dict):
+            continue
+        if record.get("kind") == "prompt":
+            continue
+        raw = record.get("raw")
+        if not isinstance(raw, str):
+            continue
+        token = record.get("token")
+        if (
+            record.get("kind") == "mi"
+            and isinstance(token, str)
+            and raw.startswith(token)
+        ):
+            raw = raw[len(token):]
+        lines.append(raw)
+    return _format_output(lines)
 
 
 @dataclass
@@ -955,10 +980,7 @@ class GdbSession:
                 "state_generation_after": self._state_generation,
                 "mi_result": result,
                 "mi_error": result if result.get("class") == "error" else None,
-                "text": _format_output([
-                    record["raw"] for record in action_txn["records"]
-                    if isinstance(record.get("raw"), str)
-                ]),
+                "text": _format_observation_output(action_txn["records"]),
                 "stop_record": None,
                 "stop_observation": None,
                 "validated_stop": None,
@@ -1142,10 +1164,7 @@ class GdbSession:
                 "observation_generation": self._observation_generation,
                 "mi_result": result,
                 "mi_error": result if isinstance(result, dict) and result.get("class") == "error" else None,
-                "text": _format_output([
-                    record["raw"] for record in records
-                    if isinstance(record, dict) and isinstance(record.get("raw"), str)
-                ]),
+                "text": _format_observation_output(records),
                 "stop_record": stop_candidates[0] if len(stop_candidates) == 1 else None,
                 "stop_observation": "SESSION_EVENT_ONLY" if stop_candidates else None,
                 "validated_stop": None,
