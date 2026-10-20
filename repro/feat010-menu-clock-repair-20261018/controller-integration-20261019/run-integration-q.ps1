@@ -10,6 +10,11 @@ $script:Root = $PSScriptRoot
 $script:ProjectRoot = [System.IO.Path]::GetFullPath((Join-Path $PSScriptRoot '..\..\..'))
 $script:EvidenceDirectory = Join-Path $PSScriptRoot 'evidence'
 $script:FreezePath = Join-Path $PSScriptRoot 'integration-freeze.json'
+$script:FileScalarDescriptorPath = Join-Path $PSScriptRoot 'evidence\sro-qualification-case-contract.json'
+$script:FileScalarDescriptorSha256 = '493ffe9524977bb07376f55ef521a4d5e691539be5b7624f6194bab2d36043c0'
+$script:MaximumHostJsonBytes = 16777216
+$script:MaximumHostJsonUnits = 16777216
+$script:HostReadChunkBytes = 4096
 $script:TicketPath = Join-Path $script:ProjectRoot 'wiki\internal\tickets\feat-010-attract-menu-free-start.html'
 $script:TranscriptPath = Join-Path $script:ProjectRoot 'repro\feat010-menu-clock-repair-20261018\stutter-runtime-gdb-transcript.json'
 $script:QualifiedRoot = Join-Path $script:ProjectRoot 'repro\feat010-menu-clock-repair-20261018\controller-service-lease-c16-fixture-recovery-20261019'
@@ -52,7 +57,10 @@ $script:HostOracleRowIds = @(
     'READY_EXTRA_FIELD', 'READY_FLOAT_ELAPSED', 'TERM_EXTRA_FIELD', 'TERM_FLOAT_PHASE_ELAPSED', 'FINAL_FLOAT_ELAPSED',
     'PREV_JSON_TIMESTAMP_ROUNDTRIP', 'PREV_JSON_TIMESTAMP_TYPED_NEGATIVE',
     'STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE', 'STREAM_STDERR_CAP_NO_NEWLINE', 'STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE',
-    'FINAL_POSTWRITE_ADMISSION_FAILURE', 'FINAL_MARKER_WRITE_FAILURE_NONZERO', 'CLAIM_COLLISION_PRESERVES_BYTES'
+    'FINAL_POSTWRITE_ADMISSION_FAILURE', 'FINAL_MARKER_WRITE_FAILURE_NONZERO', 'CLAIM_COLLISION_PRESERVES_BYTES',
+    'FILE_EXACT_CAP', 'FILE_OVER_CAP_STOP', 'FILE_UTF8_SPLIT_BOM', 'FILE_UTF8_INVALID', 'FILE_EMPTY_JSON_REJECT',
+    'STR_FREEZE_FIELDS', 'STR_READY_FIELDS', 'STR_TERMINAL_FIELDS', 'STR_CASE_FIELDS', 'STR_SUBCONTROL_FIELDS',
+    'STR_ORACLE_FIELDS', 'STR_C06_FIELDS', 'STR_FINAL_FIELDS', 'STR_RETAINED_FIELDS'
 )
 $script:WorkerCaseIds = @{
     'stop-observation-admission' = @('Q01', 'Q02', 'Q03', 'Q04', 'Q05')
@@ -128,7 +136,7 @@ $script:ReadInputsSha256 = [ordered]@{}
 $script:HostBefore = $null
 $script:HostAfter = $null
 $script:HostRuntime = $null
-$script:EvidenceNamePrefix = 'recovery-r1-'
+$script:EvidenceNamePrefix = 'admission-r2-'
 $script:ClaimPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '.claim')
 $script:ReceiptPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '.json')
 $script:OverrunPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '-overrun.json')
@@ -148,6 +156,8 @@ $script:DriverStreamsDrained = $false
 $script:HostCases = @()
 $script:HostOracle = @()
 $script:PreservationError = $null
+$script:FileScalarDescriptor = $null
+$script:BoundedReadFailures = New-Object System.Collections.ArrayList
 
 function Get-PropertyNames {
     param([object]$Value)
@@ -270,6 +280,7 @@ function Test-FreezeEnvelope {
     param([object]$Value, [ref]$Reason)
     $Reason.Value = 'freeze envelope rejected'
     if (-not (Test-HasProperties $Value @('schema','status','runtime_ready','runtime_attempts_authorized','installation_authorized','qualification_dispatch_authorized','python','protected_count','protected_files_sha256','qualified_service_root','qualified_seven_inputs_sha256','execution_freeze'))) { return $false }
+    if ($Value.schema -isnot [string] -or $Value.status -isnot [string] -or $Value.python.path -isnot [string] -or $Value.python.resolved -isnot [string] -or $Value.python.sha256 -isnot [string] -or $Value.qualified_service_root -isnot [string]) { return $false }
     if ($Value.schema -cne 'ladybug.feat010.controller-integration.freeze.v1' -or $Value.runtime_ready -isnot [bool] -or $Value.runtime_ready -ne $false -or -not (Test-ExactInteger $Value.runtime_attempts_authorized) -or $Value.runtime_attempts_authorized -ne 0 -or $Value.installation_authorized -isnot [bool] -or $Value.installation_authorized -ne $false) { return $false }
     if ($Value.qualification_dispatch_authorized -isnot [bool] -or $Value.qualification_dispatch_authorized -ne $true) { return $false }
     if (-not (Test-HasProperties $Value @('recovery_preflight'))) { return $false }
@@ -314,6 +325,7 @@ function Test-AdmissionEnvelope {
     $Reason.Value = 'READY rejected'
     $keys = @('kind','phase','nonce','manifest_sha256','ticket_sha256','source_sha256','fixture_sha256','read_inputs_sha256','supervisor_identity','supervisor_elapsed_ms')
     if (-not (Test-ObjectShape $Record $keys)) { return $false }
+    foreach ($name in @('kind','phase','nonce','manifest_sha256','ticket_sha256')) { if ($Record.PSObject.Properties[$name].Value -isnot [string]) { return $false } }
     if ($Record.kind -cne 'READY' -or $Record.phase -cne $ExpectedPhase -or $Record.nonce -cne $Nonce -or $Record.manifest_sha256 -cne $Manifest -or $Record.ticket_sha256 -cne $Ticket) { return $false }
     if (-not (Test-HashObject $Record.source_sha256 $Sources) -or -not (Test-HashObject $Record.fixture_sha256 $Fixtures) -or -not (Test-HashObject $Record.read_inputs_sha256 $ReadInputs)) { return $false }
     if (-not (Test-Identity $Record.supervisor_identity) -or -not (Test-ExactInteger $Record.supervisor_elapsed_ms) -or $Record.supervisor_elapsed_ms -lt 0 -or $Record.supervisor_elapsed_ms -gt $MaximumMs) { return $false }
@@ -333,7 +345,7 @@ function Test-SubcontrolRows {
     if (-not $Complete -and $controls.Count -gt $expected.Count) { return $false }
     for ($i = 0; $i -lt $controls.Count; $i++) {
         $control = $controls[$i]
-        if (-not (Test-ObjectShape $control @('id','status','observed')) -or $control.id -cne $expected[$i] -or ($control.status -cne 'PASS' -and ($Complete -or $control.status -cne 'FAIL'))) { return $false }
+        if (-not (Test-ObjectShape $control @('id','status','observed')) -or $control.id -isnot [string] -or $control.status -isnot [string] -or $control.id -cne $expected[$i] -or ($control.status -cne 'PASS' -and ($Complete -or $control.status -cne 'FAIL'))) { return $false }
     }
     return $true
 }
@@ -369,6 +381,7 @@ function Test-TerminalRecord {
     $Reason.Value = 'TERMINAL rejected'
     $outer = @('kind','phase','nonce','manifest_sha256','ticket_sha256','source_sha256','fixture_sha256','read_inputs_sha256','status','phase_elapsed_ms','supervisor_identity','worker_identity','worker_exit','cases','ledgers','preservation','failure')
     if (-not (Test-ObjectShape $Record $outer)) { return $false }
+    foreach ($name in @('kind','phase','nonce','manifest_sha256','ticket_sha256','status')) { if ($Record.PSObject.Properties[$name].Value -isnot [string]) { return $false } }
     if ($Record.kind -cne 'TERMINAL' -or $Record.phase -cne $ExpectedPhase -or $Record.nonce -cne $Nonce -or $Record.manifest_sha256 -cne $Manifest -or $Record.ticket_sha256 -cne $Ticket) { return $false }
     if (-not (Test-HashObject $Record.source_sha256 $Sources) -or -not (Test-HashObject $Record.fixture_sha256 $Fixtures) -or -not (Test-HashObject $Record.read_inputs_sha256 $ReadInputs)) { return $false }
     if ($Record.status -cne 'SUBJECT_COMPLETE' -and $Record.status -cne 'FAIL') { return $false }
@@ -402,7 +415,7 @@ function Test-TerminalRecord {
     if ($cases.Count -gt $expectedIds.Count) { return $false }
     for ($i = 0; $i -lt $cases.Count; $i++) {
         $case = $cases[$i]
-        if (-not (Test-ObjectShape $case @('case_id','expected','status','observations')) -or $case.case_id -cne $expectedIds[$i] -or $case.expected -cne $script:ExpectedByCase[$expectedIds[$i]]) { return $false }
+        if (-not (Test-ObjectShape $case @('case_id','expected','status','observations')) -or $case.case_id -isnot [string] -or $case.expected -isnot [string] -or $case.status -isnot [string] -or $case.case_id -cne $expectedIds[$i] -or $case.expected -cne $script:ExpectedByCase[$expectedIds[$i]]) { return $false }
         if ($case.status -cne 'PASS' -and $case.status -cne 'FAIL') { return $false }
         $completeCase = ($Record.status -ceq 'SUBJECT_COMPLETE')
         if ($completeCase -and $case.status -cne 'PASS') { return $false }
@@ -418,7 +431,8 @@ function Test-TerminalRecord {
 function Test-FinalAdmission {
     param([object]$Terminal, [object]$Context, [object]$DriverWaitConfirmed, [object]$DriverExitCode, [object]$PreservationEqual, [object]$FinalizationComplete, [object]$ElapsedMs, [int]$MaximumMs, [ref]$Reason)
     $Reason.Value = 'final admission rejected'
-    if ($null -eq $Terminal -or $Terminal.status -cne 'SUBJECT_COMPLETE') { return $false }
+    if ($null -eq $Terminal -or $Terminal.status -isnot [string] -or $Terminal.status -cne 'SUBJECT_COMPLETE') { return $false }
+    if ($null -ne $Context -and $Context.phase -isnot [string]) { return $false }
     if (-not (Test-ExactBoolean $DriverWaitConfirmed) -or $DriverWaitConfirmed -ne $true -or -not (Test-ExactInteger $DriverExitCode) -or $DriverExitCode -ne 0) { return $false }
     if (-not (Test-ExactBoolean $PreservationEqual) -or $PreservationEqual -ne $true -or -not (Test-ExactBoolean $FinalizationComplete) -or $FinalizationComplete -ne $true) { return $false }
     if (-not (Test-ExactInteger $ElapsedMs) -or $ElapsedMs -lt 0 -or $ElapsedMs -gt $MaximumMs -or -not (Test-ExactInteger $Terminal.phase_elapsed_ms) -or $Terminal.phase_elapsed_ms -gt $MaximumMs) { return $false }
@@ -658,6 +672,121 @@ function Test-JsonWithUniqueKeys {
     if (-not (Test-JsonValueWithUniqueKeys $Json ([ref]$index) 0)) { return $false }
     Skip-JsonWhitespace $Json ([ref]$index)
     return ($index -eq $Json.Length)
+}
+
+function Get-HostReadCutoffElapsed {
+    $maximum = [int]$script:PhaseLimits[$Phase]
+    return [long]($maximum - $script:GoReserveMs - $script:DriverWaitReserveMs - $script:EvidenceReserveMs)
+}
+
+function Register-BoundedReadFailure {
+    param([string]$Stage, [string]$Path, [object]$Observation, [string]$FailureKind)
+    if ($null -eq $Observation -or ($Observation.accepted -and [string]::IsNullOrEmpty($FailureKind))) { return }
+    if ($script:BoundedReadFailures.Count -ge 12) { return }
+    [void]$script:BoundedReadFailures.Add([pscustomobject]@{
+        stage = Limit-CleanupDetail $Stage; path = Limit-CleanupDetail $Path
+        rejection = if ($Observation.accepted) { [string]$FailureKind } else { [string]$Observation.rejection }
+        position = [long]$Observation.position; actual_position = [long]$Observation.actual_position
+        retained_bytes = [long]$Observation.retained_bytes; text_units = $Observation.text_units
+        whole_document_decode_attempted = [bool]$Observation.whole_document_decode_attempted
+        sha256 = [string]$Observation.sha256; prefix_b64 = [string]$Observation.prefix_b64
+    })
+}
+
+function Read-BoundedUtf8Stream {
+    param([System.IO.Stream]$Stream, [long]$CutoffElapsed, [bool]$DecodeDocument)
+    $retained = [System.IO.MemoryStream]::new([int]$script:MaximumHostJsonBytes)
+    $chunk = New-Object byte[] $script:HostReadChunkBytes
+    $position = [long]0
+    $overLimit = $false
+    $readFailure = $null
+    try {
+        while ($true) {
+            if ($script:Clock.ElapsedMilliseconds -ge $CutoffElapsed) { $readFailure = 'READ_DEADLINE'; break }
+            $request = [int][Math]::Min([long]$script:HostReadChunkBytes, ([long]$script:MaximumHostJsonBytes - $position + 1))
+            try { $count = $Stream.Read($chunk, 0, $request) } catch { $readFailure = 'READ_ERROR'; break }
+            if ($count -eq 0) {
+                if ($script:Clock.ElapsedMilliseconds -ge $CutoffElapsed) { $readFailure = 'READ_DEADLINE' }
+                break
+            }
+            $keep = [int][Math]::Min([long]$count, ([long]$script:MaximumHostJsonBytes - $position))
+            if ($keep -gt 0) {
+                $retained.Write($chunk, 0, $keep)
+                $position += $keep
+            }
+            if ($count -gt $keep) {
+                $position += 1
+                $overLimit = $true
+            }
+            if ($script:Clock.ElapsedMilliseconds -ge $CutoffElapsed) { $readFailure = 'READ_DEADLINE'; break }
+            if ($overLimit) { break }
+        }
+        $retainedBytes = [int]$retained.Length
+        $raw = $retained.GetBuffer()
+        $hasher = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $digest = $hasher.ComputeHash($raw, 0, $retainedBytes)
+            $sha256 = ([System.BitConverter]::ToString($digest)).Replace('-', '').ToLowerInvariant()
+        } finally { $hasher.Dispose() }
+        $sampleCount = [int][Math]::Min(32, $retainedBytes)
+        $prefixB64 = [System.Convert]::ToBase64String($raw, 0, $sampleCount)
+        $actualPosition = [long]$position
+        try { $actualPosition = [long]$Stream.Position } catch { }
+        if ($null -eq $readFailure -and $script:Clock.ElapsedMilliseconds -ge $CutoffElapsed) { $readFailure = 'READ_DEADLINE' }
+        $base = @{
+            accepted = $false; rejection = $null; position = [long]$position; actual_position = $actualPosition
+            retained_bytes = [long]$retainedBytes; text = $null; text_units = $null
+            whole_document_decode_attempted = $false; sha256 = $sha256; prefix_b64 = $prefixB64
+        }
+        if ($null -ne $readFailure) { $base.rejection = $readFailure; return [pscustomobject]$base }
+        if ($overLimit) { $base.rejection = 'BYTE_LIMIT_BEFORE_DECODE'; return [pscustomobject]$base }
+        if (-not $DecodeDocument) { $base.accepted = $true; return [pscustomobject]$base }
+        $offset = 0
+        if ($retainedBytes -ge 3 -and $raw[0] -eq 239 -and $raw[1] -eq 187 -and $raw[2] -eq 191) { $offset = 3 }
+        if ($script:Clock.ElapsedMilliseconds -ge $CutoffElapsed) { $base.rejection = 'READ_DEADLINE'; return [pscustomobject]$base }
+        $base.whole_document_decode_attempted = $true
+        try { $text = (New-Object System.Text.UTF8Encoding($false, $true)).GetString($raw, $offset, ($retainedBytes - $offset)) }
+        catch [System.Text.DecoderFallbackException] { $base.rejection = 'STRICT_UTF8'; return [pscustomobject]$base }
+        $base.text_units = [int]$text.Length
+        if ($text.Length -gt $script:MaximumHostJsonUnits) { $base.rejection = 'UTF16_UNIT_LIMIT'; return [pscustomobject]$base }
+        if ($text.Length -eq 0) { $base.rejection = 'EMPTY_JSON_OBJECT'; $base.text = ''; return [pscustomobject]$base }
+        $base.accepted = $true
+        $base.text = $text
+        return [pscustomobject]$base
+    } finally { $retained.Dispose() }
+}
+
+function Read-BoundedUtf8File {
+    param([string]$Path, [string]$Stage, [bool]$DecodeDocument)
+    $observation = $null
+    try { $stream = [System.IO.File]::OpenRead($Path) }
+    catch {
+        $observation = [pscustomobject]@{
+            accepted = $false; rejection = 'OPEN_ERROR'; position = [long]0; actual_position = [long]0
+            retained_bytes = [long]0; text = $null; text_units = $null; whole_document_decode_attempted = $false
+            sha256 = 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855'; prefix_b64 = ''
+        }
+        Register-BoundedReadFailure $Stage $Path $observation
+        return ,$observation
+    }
+    try { $observation = Read-BoundedUtf8Stream $stream (Get-HostReadCutoffElapsed) $DecodeDocument }
+    finally { $stream.Dispose() }
+    Register-BoundedReadFailure $Stage $Path $observation
+    return ,$observation
+}
+
+function ConvertFrom-BoundedHostJson {
+    param([object]$Observation, [string]$Label)
+    if ($null -eq $Observation -or -not $Observation.accepted -or $Observation.text -isnot [string]) { throw ($Label + ' bounded read rejected: ' + $Observation.rejection) }
+    if (-not (Test-JsonWithUniqueKeys $Observation.text)) {
+        Register-BoundedReadFailure ($Label + ' JSON validation') $Label $Observation 'JSON_MALFORMED_OR_DUPLICATE_KEY'
+        throw ($Label + ' contained malformed JSON or duplicate object keys')
+    }
+    try { return (ConvertFrom-Json -InputObject $Observation.text -ErrorAction Stop) }
+    catch {
+        Register-BoundedReadFailure ($Label + ' JSON conversion') $Label $Observation 'JSON_CONVERSION_ERROR'
+        throw ($Label + ' JSON is invalid: ' + $_.Exception.Message)
+    }
 }
 
 function Test-ProtocolLineWithinLimit {
@@ -1057,7 +1186,7 @@ function New-SyntheticOracleRows {
 function New-SyntheticRetainedProof {
     $records = New-SyntheticRecords 'stop-observation-admission'
     $hostClaim = [pscustomobject]@{ exclusive = $true; collision_preserved = $true; launch_argv = $script:LaunchArgv }
-    $started = [DateTime]::UtcNow.ToString('o')
+    $started = '2026-10-20T12:34:56.1234567Z'
     $claim = [pscustomobject]@{ phase = 'stop-observation-admission'; nonce = $records.nonce; manifest_sha256 = $records.manifest; attempt = 1; started_utc = $started }
     $receipt = [pscustomobject]@{
         schema = 'ladybug.feat010.sro.host-phase-evidence.v1'; phase = 'stop-observation-admission'; attempt = 1; nonce = $records.nonce
@@ -1072,7 +1201,7 @@ function New-SyntheticRetainedProof {
         transport_failure_category = $null; transport_failure_message = $null; transport_failure_detail = $null
         preservation = [pscustomobject]@{ before = $records.snapshot; after = (Copy-JsonValue $records.snapshot) }
         preservation_equal = $true; subject_complete = $true; go_budget_ms = 20000; elapsed_ms = 100; maximum_ms = 30000
-        evidence_write_started_elapsed_ms = 100; evidence_written_utc = [DateTime]::UtcNow.ToString('o')
+        evidence_write_started_elapsed_ms = 100; evidence_written_utc = $started
     }
     return [pscustomobject]@{ claim = $claim; receipt = $receipt; snapshot = $records.snapshot }
 }
@@ -1086,9 +1215,9 @@ function Test-HostOracleProof {
         $row = $actual[$i]
         $id = $script:HostOracleRowIds[$i]
         if ($id -ceq 'CLAIM_COLLISION_PRESERVES_BYTES') {
-            if (-not (Test-ObjectShape $row @('id','expected','observed','status','original_sha256','after_sha256')) -or $row.id -cne $id -or $row.expected -cne 'REJECT_AND_PRESERVE' -or $row.observed -cne 'REJECT_AND_PRESERVE' -or $row.status -cne 'PASS' -or -not (Test-Sha256 $row.original_sha256) -or $row.original_sha256 -cne $row.after_sha256) { return $false }
+            if (-not (Test-ObjectShape $row @('id','expected','observed','status','original_sha256','after_sha256')) -or $row.id -isnot [string] -or $row.expected -isnot [string] -or $row.observed -isnot [string] -or $row.status -isnot [string] -or $row.id -cne $id -or $row.expected -cne 'REJECT_AND_PRESERVE' -or $row.observed -cne 'REJECT_AND_PRESERVE' -or $row.status -cne 'PASS' -or -not (Test-Sha256 $row.original_sha256) -or $row.original_sha256 -cne $row.after_sha256) { return $false }
         } else {
-            if (-not (Test-ObjectShape $row @('id','expected','observed','status','reason')) -or $row.id -cne $id -or $row.status -cne 'PASS') { return $false }
+            if (-not (Test-ObjectShape $row @('id','expected','observed','status','reason')) -or $row.id -isnot [string] -or $row.expected -isnot [string] -or $row.observed -isnot [string] -or $row.status -isnot [string] -or $row.id -cne $id -or $row.status -cne 'PASS') { return $false }
             $expected = Get-HostOracleExpected $id
             if ($row.expected -cne $expected -or $row.observed -cne $expected -or ($null -ne $row.reason -and $row.reason -isnot [string])) { return $false }
         }
@@ -1098,17 +1227,30 @@ function Test-HostOracleProof {
 
 function Get-HostOracleExpected {
     param([string]$Id)
-    if ($Id -match '(_VALID$|^PREV_VALID$|^TERM_FAIL_UNCONFIRMED_NULL_EXIT$|^PREV_JSON_TIMESTAMP_ROUNDTRIP$|^STREAM_STDERR_CAP_NO_NEWLINE$)') { return 'ACCEPT' }
+    if ($Id -match '(_VALID$|^PREV_VALID$|^TERM_FAIL_UNCONFIRMED_NULL_EXIT$|^PREV_JSON_TIMESTAMP_ROUNDTRIP$|^STREAM_STDERR_CAP_NO_NEWLINE$|^FILE_EXACT_CAP$|^FILE_UTF8_SPLIT_BOM$)') { return 'ACCEPT' }
     return 'REJECT'
+}
+
+function Test-RetainedPhaseClaim {
+    param([object]$Claim, [string]$ExpectedPhase, [string]$Manifest, [ref]$Reason)
+    $Reason.Value = 'retained phase claim rejected'
+    $claimKeys = @('phase','nonce','manifest_sha256','attempt','started_utc')
+    if (-not (Test-ObjectShape $Claim $claimKeys)) { return $false }
+    foreach ($name in @('phase','nonce','manifest_sha256','started_utc')) { if ($Claim.PSObject.Properties[$name].Value -isnot [string]) { return $false } }
+    if ($Claim.phase -cne $ExpectedPhase -or $Claim.nonce -cnotmatch '^[0-9a-f]{32}$' -or $Claim.manifest_sha256 -cne $Manifest -or -not (Test-ExactInteger $Claim.attempt) -or $Claim.attempt -ne 1) { return $false }
+    $Reason.Value = $null
+    return $true
 }
 
 function Test-RetainedPhaseEvidence {
     param([object]$Claim, [object]$Receipt, [string]$ExpectedPhase, [string]$Manifest, [string]$Ticket, [object]$Sources, [object]$Fixtures, [object]$ReadInputs, [object]$ExpectedPreservation, [ref]$Reason)
     $Reason.Value = 'retained phase evidence rejected'
-    $claimKeys = @('phase','nonce','manifest_sha256','attempt','started_utc')
-    if (-not (Test-ObjectShape $Claim $claimKeys) -or $Claim.phase -cne $ExpectedPhase -or $Claim.nonce -isnot [string] -or $Claim.nonce -cnotmatch '^[0-9a-f]{32}$' -or $Claim.manifest_sha256 -cne $Manifest -or -not (Test-ExactInteger $Claim.attempt) -or $Claim.attempt -ne 1 -or $Claim.started_utc -isnot [string]) { return $false }
+    $claimReason = $null
+    if (-not (Test-RetainedPhaseClaim $Claim $ExpectedPhase $Manifest ([ref]$claimReason))) { return $false }
     $receiptKeys = @('schema','phase','attempt','nonce','manifest_sha256','ticket_sha256','source_sha256','fixture_sha256','read_inputs_sha256','status','admitted','host_claim','host_oracle','host_cases','ready','terminal','worker_exit','driver_exit_confirmed','driver_exit_code','driver_is_wsl_only','protocol_records','protocol_lines','stderr','stdout_tail','failure_category','failure_message','failure_detail','transport_failure_category','transport_failure_message','transport_failure_detail','preservation','preservation_equal','subject_complete','go_budget_ms','elapsed_ms','maximum_ms','evidence_write_started_elapsed_ms','evidence_written_utc')
-    if (-not (Test-ObjectShape $Receipt $receiptKeys) -or $Receipt.schema -cne 'ladybug.feat010.sro.host-phase-evidence.v1' -or $Receipt.phase -cne $ExpectedPhase -or -not (Test-ExactInteger $Receipt.attempt) -or $Receipt.attempt -ne 1 -or $Receipt.nonce -cne $Claim.nonce -or $Receipt.manifest_sha256 -cne $Manifest -or $Receipt.ticket_sha256 -cne $Ticket) { return $false }
+    if (-not (Test-ObjectShape $Receipt $receiptKeys)) { return $false }
+    foreach ($name in @('schema','phase','nonce','manifest_sha256','ticket_sha256','status','evidence_written_utc','stderr','stdout_tail')) { if ($Receipt.PSObject.Properties[$name].Value -isnot [string]) { return $false } }
+    if ($Receipt.schema -cne 'ladybug.feat010.sro.host-phase-evidence.v1' -or $Receipt.phase -cne $ExpectedPhase -or -not (Test-ExactInteger $Receipt.attempt) -or $Receipt.attempt -ne 1 -or $Receipt.nonce -cne $Claim.nonce -or $Receipt.manifest_sha256 -cne $Manifest -or $Receipt.ticket_sha256 -cne $Ticket) { return $false }
     if (-not (Test-HashObject $Receipt.source_sha256 $Sources) -or -not (Test-HashObject $Receipt.fixture_sha256 $Fixtures) -or -not (Test-HashObject $Receipt.read_inputs_sha256 $ReadInputs)) { return $false }
     if ($Receipt.status -cne 'PASS' -or -not (Test-ExactBoolean $Receipt.admitted) -or $Receipt.admitted -ne $true -or -not (Test-HostClaim $Receipt.host_claim)) { return $false }
     $maximum = [int]$script:PhaseLimits[$ExpectedPhase]
@@ -1171,11 +1313,259 @@ function Invoke-OracleControl {
     return [pscustomobject]@{ id = $Id; expected = $(if ($ExpectedAccepted) { 'ACCEPT' } else { 'REJECT' }); observed = $(if ($accepted) { 'ACCEPT' } else { 'REJECT' }); status = $(if ($passed) { 'PASS' } else { 'FAIL' }); reason = $reason }
 }
 
+function New-AdmissionVectorStream {
+    param([object]$Vector)
+    switch ($Vector.input_kind) {
+        'repeat_byte' {
+            $text = [System.String]::new([char][byte]$Vector.input_byte, [int]$Vector.input_count)
+            $bytes = [System.Text.Encoding]::ASCII.GetBytes($text)
+            return [System.IO.MemoryStream]::new($bytes, $false)
+        }
+        'bom_repeat_suffix' {
+            $bytes = New-Object System.Collections.Generic.List[byte]
+            foreach ($item in $Vector.prefix_bytes) { $bytes.Add([byte]$item) }
+            for ($index = 0; $index -lt [int]$Vector.repeat_count; $index++) { $bytes.Add([byte]$Vector.repeat_byte) }
+            foreach ($item in $Vector.suffix_bytes) { $bytes.Add([byte]$item) }
+            return [System.IO.MemoryStream]::new($bytes.ToArray(), $false)
+        }
+        'literal_bytes' {
+            $bytes = New-Object System.Collections.Generic.List[byte]
+            foreach ($item in $Vector.input_bytes) { $bytes.Add([byte]$item) }
+            return [System.IO.MemoryStream]::new($bytes.ToArray(), $false)
+        }
+        default { throw ('unsupported descriptor file-reader vector: ' + $Vector.input_kind) }
+    }
+}
+
+function Invoke-AdmissionFileVector {
+    param([object]$Vector)
+    $stream = $null
+    $observation = $null
+    $actualPosition = $null
+    try {
+        $stream = New-AdmissionVectorStream $Vector
+        $observation = Read-BoundedUtf8Stream $stream (Get-HostReadCutoffElapsed) $true
+        $actualPosition = [long]$stream.Position
+    } catch {
+        $reason = 'stage=vector_read;error=' + (Limit-CleanupDetail $_.Exception.Message)
+        if ($null -ne $observation) {
+            $reason += ';position=' + [string]$observation.position + ';actual_position=' + [string]$observation.actual_position + ';retained=' + [string]$observation.retained_bytes + ';units=' + [string]$observation.text_units + ';decode=' + [string]$observation.whole_document_decode_attempted + ';rejection=' + [string]$observation.rejection + ';sha256=' + [string]$observation.sha256 + ';prefix_b64=' + [string]$observation.prefix_b64
+        } else { $reason += ';observation=unavailable' }
+        return [pscustomobject]@{ id = [string]$Vector.id; expected = [string]$Vector.expected; observed = 'UNKNOWN'; status = 'FAIL'; reason = $reason }
+    } finally { if ($null -ne $stream) { $stream.Dispose() } }
+    $acceptedExpected = ($Vector.expected -ceq 'ACCEPT')
+    $passed = ($observation.accepted -eq $acceptedExpected -and $observation.position -eq $Vector.expected_position -and $actualPosition -eq $Vector.expected_position)
+    if ($acceptedExpected) {
+        $passed = $passed -and $observation.retained_bytes -eq $Vector.expected_retained_bytes -and $observation.text_units -eq $Vector.expected_text_units -and $observation.whole_document_decode_attempted
+        if ($Vector.expected_text -ceq 'ASCII_A_REPEAT') {
+            $passed = $passed -and $observation.text.Length -eq $Vector.expected_text_units -and $observation.text.Trim([char[]]@('A')).Length -eq 0
+        } elseif ($Vector.expected_text -ceq 'ASCII_A_4092_THEN_U00E9_Z') {
+            $passed = $passed -and $observation.text.Length -eq $Vector.expected_text_units -and
+                $observation.text.Substring(0, [int]$Vector.repeat_count).Trim([char[]]@('A')).Length -eq 0 -and
+                [int][char]$observation.text[[int]$Vector.repeat_count] -eq 233 -and $observation.text.Substring($observation.text.Length - 1) -ceq 'Z'
+        } else { $passed = $false }
+    } else {
+        $passed = $passed -and $observation.rejection -ceq $Vector.rejection
+        if ($null -ne $Vector.maximum_retained_bytes) { $passed = $passed -and $observation.retained_bytes -le $Vector.maximum_retained_bytes }
+        if ($null -ne $Vector.whole_document_decode_allowed) { $passed = $passed -and $observation.whole_document_decode_attempted -eq $Vector.whole_document_decode_allowed }
+        if ($null -ne $Vector.expected_text_units) { $passed = $passed -and $observation.text_units -eq $Vector.expected_text_units }
+        if ($Vector.id -ceq 'FILE_EMPTY_JSON_REJECT') { $passed = $passed -and $observation.whole_document_decode_attempted -and $observation.text_units -eq 0 }
+    }
+    $reason = 'position=' + $observation.position + ';actual_position=' + $actualPosition + ';retained=' + $observation.retained_bytes + ';units=' + $observation.text_units + ';decode=' + $observation.whole_document_decode_attempted + ';rejection=' + $observation.rejection + ';sha256=' + $observation.sha256 + ';prefix_b64=' + $observation.prefix_b64
+    return [pscustomobject]@{
+        id = [string]$Vector.id; expected = [string]$Vector.expected
+        observed = if ($observation.accepted) { 'ACCEPT' } else { 'REJECT' }
+        status = if ($passed) { 'PASS' } else { 'FAIL' }; reason = $reason
+    }
+}
+
+function Get-HostScalarPathValue {
+    param([object]$Value, [string]$Path)
+    $current = $Value
+    foreach ($part in $Path.Split('.')) {
+        if ($null -eq $current) { return $null }
+        if ($current -is [System.Array]) {
+            if ($part -notmatch '^\d+$' -or [int]$part -ge $current.Count) { return $null }
+            $current = $current[[int]$part]
+        } else {
+            $property = $current.PSObject.Properties[$part]
+            if ($null -eq $property) { return $null }
+            $current = $property.Value
+        }
+    }
+    return ,$current
+}
+
+function Set-HostScalarPathValue {
+    param([object]$Value, [string]$Path, [object]$NewValue)
+    $parts = $Path.Split('.')
+    $current = $Value
+    for ($i = 0; $i -lt ($parts.Length - 1); $i++) {
+        $part = $parts[$i]
+        if ($null -eq $current) { return $false }
+        if ($current -is [System.Array]) {
+            if ($part -notmatch '^\d+$' -or [int]$part -ge $current.Count) { return $false }
+            $current = $current[[int]$part]
+        } else {
+            $property = $current.PSObject.Properties[$part]
+            if ($null -eq $property) { return $false }
+            $current = $property.Value
+        }
+    }
+    $last = $parts[$parts.Length - 1]
+    if ($current -is [System.Array]) {
+        if ($last -notmatch '^\d+$' -or [int]$last -ge $current.Count) { return $false }
+        $current[[int]$last] = $NewValue
+        return $true
+    }
+    $target = $current.PSObject.Properties[$last]
+    if ($null -eq $target) { return $false }
+    $target.Value = $NewValue
+    return $true
+}
+
+function Copy-HostScalarProbeValue {
+    param([object]$Value, [string]$Family)
+    if ($Family -ceq 'STR_RETAINED_FIELDS') {
+        $claimJson = ConvertTo-Json -InputObject $Value.claim -Depth 100 -Compress
+        $receiptJson = ConvertTo-Json -InputObject $Value.receipt -Depth 100 -Compress
+        return [pscustomobject]@{
+            claim = ConvertFrom-HostEvidenceJson $claimJson
+            receipt = ConvertFrom-HostEvidenceJson $receiptJson
+            snapshot = Copy-JsonValue $Value.snapshot
+        }
+    }
+    return Copy-JsonValue $Value
+}
+
+function Test-HostScalarProbe {
+    param([string]$Family, [object]$Value, [object]$Context, [string]$Variant)
+    $reason = $null
+    switch ($Family) {
+        'STR_FREEZE_FIELDS' { return (Test-FreezeEnvelope $Value ([ref]$reason)) }
+        'STR_READY_FIELDS' {
+            return (Test-AdmissionEnvelope $Value $Context.phase $Context.nonce $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 30000 ([ref]$reason))
+        }
+        'STR_TERMINAL_FIELDS' {
+            return (Test-TerminalRecord $Value $Context.phase $Context.nonce $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 $Context.ready.supervisor_identity 30000 ([ref]$reason))
+        }
+        'STR_CASE_FIELDS' { return (Test-TerminalRecord $Value.terminal $Context.phase $Context.nonce $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 $Context.ready.supervisor_identity 30000 ([ref]$reason)) }
+        'STR_SUBCONTROL_FIELDS' { return (Test-TerminalRecord $Value.terminal $Context.phase $Context.nonce $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 $Context.ready.supervisor_identity 30000 ([ref]$reason)) }
+        'STR_ORACLE_FIELDS' { return (Test-HostOracleProof $Value.rows) }
+        'STR_C06_FIELDS' { return (Test-HostC06 $Value.case $Value.terminal $true 0 $true) }
+        'STR_FINAL_FIELDS' { return (Test-FinalAdmission $Value.terminal $Value.context $true 0 $true $true 100 30000 ([ref]$reason)) }
+        'STR_RETAINED_FIELDS' { return (Test-RetainedPhaseEvidence $Value.claim $Value.receipt 'stop-observation-admission' $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 $Context.snapshot ([ref]$reason)) }
+        default { return $false }
+    }
+}
+
+function Invoke-HostScalarFamilyControl {
+    param([string]$Family, [string[]]$Members, [object[]]$Variants, [object]$Context)
+    $orderedEvidence = New-Object System.Collections.ArrayList
+    foreach ($variant in $Variants) {
+        foreach ($member in $Members) {
+            $probePath = $member
+            if ($null -ne $variant.paths -and $variant.paths.ContainsKey($member)) { $probePath = [string]$variant.paths[$member] }
+            try {
+                $baseline = Copy-HostScalarProbeValue $variant.value $Family
+                $baselineAccepted = Test-HostScalarProbe $Family $baseline $Context $variant.label
+            } catch {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=BASELINE_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            if (-not $baselineAccepted) {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=BASELINE_REJECT;mutation=NOT_ATTEMPTED'))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            try { $original = Get-HostScalarPathValue $baseline $probePath }
+            catch {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=PATH_READ_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            if ($original -isnot [string]) {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=BASELINE_MEMBER_NOT_STRING;mutation=NOT_ATTEMPTED'))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            try {
+                $mutation = Copy-HostScalarProbeValue $variant.value $Family
+                $mutationMade = Set-HostScalarPathValue -Value $mutation -Path $probePath -NewValue ([object[]]@([string]$original))
+            } catch {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=MUTATION_SETUP_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            if (-not $mutationMade) {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=MUTATION_PATH_MISSING'))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            try { $mutatedAccepted = Test-HostScalarProbe $Family $mutation $Context $variant.label }
+            catch {
+                [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=MUTATION_VALIDATOR_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            [void]$orderedEvidence.Add(($variant.label + ':' + $member + '=ACCEPT/' + $(if (-not $mutatedAccepted) { 'REJECT' } else { 'MUTATION_ACCEPT' })))
+            if ($mutatedAccepted) { return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'ACCEPT'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) } }
+        }
+    }
+    if ($Family -ceq 'STR_READY_FIELDS') {
+        $typeValues = @(
+            [pscustomobject]@{ name = 'empty_array'; value = [object[]]@() },
+            [pscustomobject]@{ name = 'null'; value = $null },
+            [pscustomobject]@{ name = 'boolean'; value = $true },
+            [pscustomobject]@{ name = 'integer'; value = [int]7 },
+            [pscustomobject]@{ name = 'float'; value = [double]7.25 },
+            [pscustomobject]@{ name = 'object'; value = [pscustomobject]@{ marker = 'not-a-string' } }
+        )
+        foreach ($typeCase in $typeValues) {
+            try {
+                $baseline = Copy-HostScalarProbeValue $Variants[0].value $Family
+                $baselineAccepted = Test-HostScalarProbe $Family $baseline $Context $Variants[0].label
+            } catch {
+                [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=BASELINE_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            if (-not $baselineAccepted) {
+                [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=BASELINE_REJECT;mutation=NOT_ATTEMPTED'))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            try {
+                $mutation = Copy-HostScalarProbeValue $Variants[0].value $Family
+                $mutationMade = Set-HostScalarPathValue -Value $mutation -Path 'kind' -NewValue $typeCase.value
+            } catch {
+                [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=MUTATION_SETUP_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            if (-not $mutationMade) {
+                [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=MUTATION_PATH_MISSING'))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            try { $mutatedAccepted = Test-HostScalarProbe $Family $mutation $Context $Variants[0].label }
+            catch {
+                [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=MUTATION_VALIDATOR_ERROR:' + (Limit-CleanupDetail $_.Exception.Message)))
+                return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'UNKNOWN'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) }
+            }
+            [void]$orderedEvidence.Add(('kind<' + $typeCase.name + '>=ACCEPT/' + $(if (-not $mutatedAccepted) { 'REJECT' } else { 'MUTATION_ACCEPT' })))
+            if ($mutatedAccepted) { return [pscustomobject]@{ id = $Family; expected = 'REJECT'; observed = 'ACCEPT'; status = 'FAIL'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray())) } }
+        }
+    }
+    $expected = 'REJECT'
+    return [pscustomobject]@{
+        id = $Family; expected = $expected; observed = $expected
+        status = 'PASS'; reason = [string]::Join(';', [string[]]@($orderedEvidence.ToArray()))
+    }
+}
+
+function Add-HostOracleControlResult {
+    param([System.Collections.ArrayList]$Results, [object]$Row)
+    [void]$Results.Add($Row)
+    $script:HostOracle = @($Results.ToArray())
+    if ($Row.status -cne 'PASS') { throw ('host-oracle control failed: ' + (ConvertTo-Json -InputObject $Row -Depth 10 -Compress)) }
+}
+
 function Invoke-HostOracle {
     param([object]$ActualHostClaim, [string]$ClaimPath, [string]$Nonce)
     $context = New-SyntheticRecords 'stop-observation-admission'
     $results = New-Object System.Collections.ArrayList
-    [void]$results.Add((Invoke-OracleControl 'READY_VALID' 'ready' $context.ready $true $context))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'READY_VALID' 'ready' $context.ready $true $context)
     foreach ($id in @('READY_WRONG_NONCE','READY_WRONG_MANIFEST','READY_WRONG_SOURCE','READY_WRONG_FIXTURE','READY_WRONG_READ_INPUT','READY_WRONG_TICKET','READY_BOOL_ELAPSED','READY_MISSING_IDENTITY')) {
         $copy = Copy-JsonValue $context.ready
         switch ($id) {
@@ -1188,19 +1578,19 @@ function Invoke-HostOracle {
             'READY_BOOL_ELAPSED' { $copy.supervisor_elapsed_ms = $true }
             'READY_MISSING_IDENTITY' { $copy.PSObject.Properties.Remove('supervisor_identity') }
         }
-        [void]$results.Add((Invoke-OracleControl $id 'ready' $copy $false $context))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'ready' $copy $false $context)
     }
-    [void]$results.Add((Invoke-OracleControl 'TERMINAL_VALID' 'terminal' $context.terminal $true $context))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'TERMINAL_VALID' 'terminal' $context.terminal $true $context)
     $workerWaitUnknown = Copy-JsonValue $context.terminal
     $workerWaitUnknown.status = 'FAIL'
     $workerWaitUnknown.worker_exit.wait_confirmed = $false
     $workerWaitUnknown.worker_exit.returncode = $null
     $workerWaitUnknown.cases = @()
     $workerWaitUnknown.failure = [pscustomobject]@{ category = 'TIMEOUT'; case_id = $null; subcontrol = $null; message = 'worker wait deadline expired'; observed = [pscustomobject]@{ wait_confirmed = $false } }
-    [void]$results.Add((Invoke-OracleControl 'TERM_FAIL_UNCONFIRMED_NULL_EXIT' 'terminal' $workerWaitUnknown $true $context))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'TERM_FAIL_UNCONFIRMED_NULL_EXIT' 'terminal' $workerWaitUnknown $true $context)
     $workerWaitInventedZero = Copy-JsonValue $workerWaitUnknown
     $workerWaitInventedZero.worker_exit.returncode = 0
-    [void]$results.Add((Invoke-OracleControl 'TERM_FAIL_UNCONFIRMED_ZERO_EXIT' 'terminal' $workerWaitInventedZero $false $context))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'TERM_FAIL_UNCONFIRMED_ZERO_EXIT' 'terminal' $workerWaitInventedZero $false $context)
     foreach ($id in @('TERM_WRONG_NONCE','TERM_WRONG_PHASE','TERM_WORKER_WAIT_FALSE','TERM_WORKER_BOOL_EXIT','TERM_WORKER_NONZERO_EXIT','TERM_MISSING_WORKER_EXIT','TERM_MISSING_WORKER_RETURN','TERM_MISSING_CASE','TERM_DUPLICATE_CASE','TERM_WRONG_CASE_ORDER','TERM_MISSING_SUBCONTROL','TERM_DUPLICATE_SUBCONTROL','TERM_BOOL_COUNTER','TERM_REAL_CALL','TERM_PRESERVATION_MISMATCH','TERM_OVER_DEADLINE','TERM_MISSING_OUTER_FIELD')) {
         $copy = Copy-JsonValue $context.terminal
         switch ($id) {
@@ -1222,11 +1612,11 @@ function Invoke-HostOracle {
             'TERM_OVER_DEADLINE' { $copy.phase_elapsed_ms = 30001 }
             'TERM_MISSING_OUTER_FIELD' { $copy.PSObject.Properties.Remove('worker_identity') }
         }
-        [void]$results.Add((Invoke-OracleControl $id 'terminal' $copy $false $context))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'terminal' $copy $false $context)
     }
     $finalContext = [pscustomobject]@{ phase = $context.ready.phase; nonce = $context.nonce; manifest = $context.manifest; ticket = $context.ticket; snapshot = $context.snapshot; ready = $context.ready }
     $finalValid = [pscustomobject]@{ terminal = $context.terminal; driver_wait = $true; driver_exit = 0; preservation_equal = $true; finalized = $true; elapsed_ms = 100 }
-    [void]$results.Add((Invoke-OracleControl 'FINAL_VALID' 'final' $finalValid $true $finalContext))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'FINAL_VALID' 'final' $finalValid $true $finalContext)
     foreach ($id in @('FINAL_DRIVER_WAIT_FALSE','FINAL_DRIVER_BOOL_EXIT','FINAL_DRIVER_NONZERO_EXIT','FINAL_MISSING_DRIVER_WAIT','FINAL_MISSING_DRIVER_CODE','FINAL_CLEANUP_FALSE','FINAL_EVIDENCE_NOT_FINAL','FINAL_MISSING_FINALIZATION','FINAL_OVER_DEADLINE')) {
         $copy = Copy-JsonValue $finalValid
         switch ($id) {
@@ -1240,13 +1630,13 @@ function Invoke-HostOracle {
             'FINAL_MISSING_FINALIZATION' { $copy.PSObject.Properties.Remove('finalized') }
             'FINAL_OVER_DEADLINE' { $copy.elapsed_ms = 30001 }
         }
-        [void]$results.Add((Invoke-OracleControl $id 'final' $copy $false $finalContext))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'final' $copy $false $finalContext)
     }
     $compatibility = New-SyntheticRecords 'stop-observation-compatibility'
     $compatibilityCase = New-HostC06 $compatibility.terminal $true 0 $true
     $compatibilityContext = [pscustomobject]@{ phase = 'stop-observation-compatibility'; host_case = $compatibilityCase }
     $finalC06 = [pscustomobject]@{ terminal = $compatibility.terminal; driver_wait = $true; driver_exit = 0; preservation_equal = $true; finalized = $true; elapsed_ms = 100 }
-    [void]$results.Add((Invoke-OracleControl 'FINAL_C06_VALID' 'final' $finalC06 $true $compatibilityContext))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'FINAL_C06_VALID' 'final' $finalC06 $true $compatibilityContext)
     foreach ($id in @('FINAL_C06_MISSING','FINAL_C06_WORKER_WAIT_FALSE','FINAL_C06_DRIVER_WAIT_FALSE','FINAL_C06_MISSING_CONTROL','FINAL_C06_DUPLICATE_CONTROL','FINAL_C06_PRESERVATION_FALSE')) {
         $copy = Copy-JsonValue $finalC06
         $contextCopy = Copy-JsonValue $compatibilityContext
@@ -1258,7 +1648,7 @@ function Invoke-HostOracle {
             'FINAL_C06_DUPLICATE_CONTROL' { $contextCopy.host_case.observations.subcontrols[1] = Copy-JsonValue $contextCopy.host_case.observations.subcontrols[0] }
             'FINAL_C06_PRESERVATION_FALSE' { $contextCopy.host_case.observations.preservation_equal = $false }
         }
-        [void]$results.Add((Invoke-OracleControl $id 'final' $copy $false $contextCopy))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'final' $copy $false $contextCopy)
     }
     $jsonVectors = @(
         [pscustomobject]@{ id = 'JSON_UNIQUE_VALID'; text = '{"name":"escaped \"quote\"","nested":[true,false,null,{"key":"\u0078"}]}' ; expected = $true },
@@ -1267,10 +1657,10 @@ function Invoke-HostOracle {
         [pscustomobject]@{ id = 'JSON_NESTED_DUPLICATE_KEY'; text = '{"outer":{"n":1,"n":2}}'; expected = $false },
         [pscustomobject]@{ id = 'JSON_MALFORMED'; text = '{"x":]'; expected = $false }
     )
-    foreach ($vector in $jsonVectors) { [void]$results.Add((Invoke-OracleControl $vector.id 'json' $vector.text $vector.expected $null)) }
+    foreach ($vector in $jsonVectors) { Add-HostOracleControlResult $results (Invoke-OracleControl $vector.id 'json' $vector.text $vector.expected $null) }
     $retained = New-SyntheticRetainedProof
     $retainedContext = [pscustomobject]@{ manifest = $retained.receipt.manifest_sha256; ticket = $retained.receipt.ticket_sha256; snapshot = $retained.snapshot }
-    [void]$results.Add((Invoke-OracleControl 'PREV_VALID' 'retained' $retained $true $retainedContext))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'PREV_VALID' 'retained' $retained $true $retainedContext)
     foreach ($id in @('PREV_MISSING_READY','PREV_MISSING_CASE','PREV_MISSING_HOST_ORACLE','PREV_ALTERED_CLAIM_NONCE','PREV_ALTERED_TERMINAL_BINDING','PREV_ALTERED_FINAL_ADMISSION','PREV_ALTERED_HOST_ORACLE','PREV_DUPLICATE_HOST_ORACLE')) {
         $copy = Copy-JsonValue $retained
         switch ($id) {
@@ -1283,31 +1673,31 @@ function Invoke-HostOracle {
             'PREV_ALTERED_HOST_ORACLE' { $copy.receipt.host_oracle[0].observed = 'REJECT' }
             'PREV_DUPLICATE_HOST_ORACLE' { $copy.receipt.host_oracle[1] = Copy-JsonValue $copy.receipt.host_oracle[0] }
         }
-        [void]$results.Add((Invoke-OracleControl $id 'retained' $copy $false $retainedContext))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'retained' $copy $false $retainedContext)
     }
-    [void]$results.Add((Invoke-OracleControl 'CLAIM_VALID' 'claim' $ActualHostClaim $true $context))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'CLAIM_VALID' 'claim' $ActualHostClaim $true $context)
     foreach ($id in @('CLAIM_CHANGED_ARGUMENT','CLAIM_CHANGED_PATH')) {
         $copy = Copy-JsonValue $ActualHostClaim
         $argv = @($copy.launch_argv)
         if ($id -ceq 'CLAIM_CHANGED_ARGUMENT') { $argv[5] = '--version' } else { $argv[4] = '/mnt/e/projects/ladybug/repro/changed/stop-q.py' }
         $copy.launch_argv = $argv
-        [void]$results.Add((Invoke-OracleControl $id 'claim' $copy $false $context))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'claim' $copy $false $context)
     }
     foreach ($id in @('READY_EXTRA_FIELD','READY_FLOAT_ELAPSED')) {
         $copy = Copy-JsonValue $context.ready
         if ($id -ceq 'READY_EXTRA_FIELD') { Add-Member -InputObject $copy -MemberType NoteProperty -Name extra_field -Value $true }
         else { $copy.supervisor_elapsed_ms = [double]4.25 }
-        [void]$results.Add((Invoke-OracleControl $id 'ready' $copy $false $context))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'ready' $copy $false $context)
     }
     foreach ($id in @('TERM_EXTRA_FIELD','TERM_FLOAT_PHASE_ELAPSED')) {
         $copy = Copy-JsonValue $context.terminal
         if ($id -ceq 'TERM_EXTRA_FIELD') { Add-Member -InputObject $copy -MemberType NoteProperty -Name extra_field -Value $true }
         else { $copy.phase_elapsed_ms = [double]80.5 }
-        [void]$results.Add((Invoke-OracleControl $id 'terminal' $copy $false $context))
+        Add-HostOracleControlResult $results (Invoke-OracleControl $id 'terminal' $copy $false $context)
     }
     $floatFinal = Copy-JsonValue $finalValid
     $floatFinal.elapsed_ms = [double]100.5
-    [void]$results.Add((Invoke-OracleControl 'FINAL_FLOAT_ELAPSED' 'final' $floatFinal $false $finalContext))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'FINAL_FLOAT_ELAPSED' 'final' $floatFinal $false $finalContext)
     $claimJson = ConvertTo-Json -InputObject $retained.claim -Depth 100 -Compress
     $receiptJson = ConvertTo-Json -InputObject $retained.receipt -Depth 100 -Compress
     $roundtrip = [pscustomobject]@{
@@ -1316,26 +1706,122 @@ function Invoke-HostOracle {
     }
     $roundtripAccepted = ($roundtrip.claim.started_utc -is [string] -and $roundtrip.claim.started_utc -ceq $retained.claim.started_utc -and
         $roundtrip.receipt.evidence_written_utc -is [string] -and $roundtrip.receipt.evidence_written_utc -ceq $retained.receipt.evidence_written_utc)
-    if ($roundtripAccepted) { [void]$results.Add((Invoke-OracleControl 'PREV_JSON_TIMESTAMP_ROUNDTRIP' 'retained' $roundtrip $true $retainedContext)) }
-    else { [void]$results.Add([pscustomobject]@{ id = 'PREV_JSON_TIMESTAMP_ROUNDTRIP'; expected = 'ACCEPT'; observed = 'REJECT'; status = 'FAIL'; reason = 'timestamp string type or value changed during actual host JSON round trip' }) }
+    if ($roundtripAccepted) { Add-HostOracleControlResult $results (Invoke-OracleControl 'PREV_JSON_TIMESTAMP_ROUNDTRIP' 'retained' $roundtrip $true $retainedContext) }
+    else { Add-HostOracleControlResult $results ([pscustomobject]@{ id = 'PREV_JSON_TIMESTAMP_ROUNDTRIP'; expected = 'ACCEPT'; observed = 'REJECT'; status = 'FAIL'; reason = 'timestamp string type or value changed during actual host JSON round trip' }) }
     $typedTimestamp = [pscustomobject]@{ claim = (Copy-JsonValue $retained.claim); receipt = (Copy-JsonValue $retained.receipt) }
     $typedTimestamp.claim.started_utc = [DateTime]::UtcNow
-    [void]$results.Add((Invoke-OracleControl 'PREV_JSON_TIMESTAMP_TYPED_NEGATIVE' 'retained' $typedTimestamp $false $retainedContext))
+    Add-HostOracleControlResult $results (Invoke-OracleControl 'PREV_JSON_TIMESTAMP_TYPED_NEGATIVE' 'retained' $typedTimestamp $false $retainedContext)
     foreach ($id in @('STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE','STREAM_STDERR_CAP_NO_NEWLINE','STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE')) {
-        [void]$results.Add((Invoke-StreamOracleControl $id))
+        Add-HostOracleControlResult $results (Invoke-StreamOracleControl $id)
     }
     foreach ($id in @('FINAL_POSTWRITE_ADMISSION_FAILURE','FINAL_MARKER_WRITE_FAILURE_NONZERO')) {
         $markerWrite = ($id -ceq 'FINAL_POSTWRITE_ADMISSION_FAILURE')
         $outcome = Get-PostWriteFinalOutcome $false $markerWrite
         $controlPassed = (-not $outcome.pass_marker_allowed -and -not $outcome.success -and $outcome.exit_code -ne 0)
-        [void]$results.Add([pscustomobject]@{ id = $id; expected = 'REJECT'; observed = $(if ($controlPassed) { 'REJECT' } else { 'ACCEPT' }); status = $(if ($controlPassed) { 'PASS' } else { 'FAIL' }); reason = 'post-write failure cannot authorize PASS; enclosing host returns failure for parent-observed exit' })
+        Add-HostOracleControlResult $results ([pscustomobject]@{ id = $id; expected = 'REJECT'; observed = $(if ($controlPassed) { 'REJECT' } else { 'ACCEPT' }); status = $(if ($controlPassed) { 'PASS' } else { 'FAIL' }); reason = 'post-write failure cannot authorize PASS; enclosing host returns failure for parent-observed exit' })
     }
     if (-not (Test-HostClaim $ActualHostClaim)) { throw 'host claim object failed its actual claim validator' }
     $collision = $script:ClaimCollision
     $collisionPassed = ($null -ne $collision -and $collision.rejected -is [bool] -and $collision.rejected -eq $true -and $collision.original_preserved -is [bool] -and $collision.original_preserved -eq $true)
     $collisionRow = [pscustomobject]@{ id = 'CLAIM_COLLISION_PRESERVES_BYTES'; expected = 'REJECT_AND_PRESERVE'; observed = $(if ($collisionPassed) { 'REJECT_AND_PRESERVE' } else { 'MISMATCH' }); status = $(if ($collisionPassed) { 'PASS' } else { 'FAIL' }); original_sha256 = $collision.original_sha256; after_sha256 = $collision.after_sha256 }
-    [void]$results.Add($collisionRow)
-    if (@($results | Where-Object { $_.status -cne 'PASS' }).Count -gt 0) { throw 'host-oracle negative or collision control failed' }
+    Add-HostOracleControlResult $results $collisionRow
+
+    foreach ($vector in $script:FileScalarDescriptor.file_vectors) { Add-HostOracleControlResult $results (Invoke-AdmissionFileVector $vector) }
+
+    $failTerminal = Copy-JsonValue $workerWaitUnknown
+    $terminalVariants = @(
+        [pscustomobject]@{ label = 'SUBJECT_COMPLETE'; value = $context.terminal },
+        [pscustomobject]@{ label = 'FAIL'; value = $failTerminal }
+    )
+    $caseProbe = [pscustomobject]@{ terminal = $context.terminal }
+    $subcontrolProbe = [pscustomobject]@{ terminal = $context.terminal }
+    $ordinaryOracle = [pscustomobject]@{ rows = (New-SyntheticOracleRows) }
+    $collisionOracle = [pscustomobject]@{ rows = Copy-JsonValue $ordinaryOracle.rows }
+    $collisionIndex = [Array]::IndexOf([string[]]$script:HostOracleRowIds, 'CLAIM_COLLISION_PRESERVES_BYTES')
+    $compatibility = New-SyntheticRecords 'stop-observation-compatibility'
+    $compatibilityCase = New-HostC06 $compatibility.terminal $true 0 $true
+    $c06Probe = [pscustomobject]@{ case = $compatibilityCase; terminal = $compatibility.terminal }
+    $finalContext = [pscustomobject]@{ phase = 'stop-observation-compatibility'; host_case = $compatibilityCase }
+    $finalProbe = [pscustomobject]@{ terminal = $compatibility.terminal; context = $finalContext }
+    $retainedProbe = New-SyntheticRetainedProof
+    $retainedContext = [pscustomobject]@{ manifest = $retainedProbe.receipt.manifest_sha256; ticket = $retainedProbe.receipt.ticket_sha256; snapshot = $retainedProbe.snapshot }
+    $familyVariants = @{
+        STR_FREEZE_FIELDS = @([pscustomobject]@{ label = 'admitted-freeze'; value = $script:Freeze })
+        STR_READY_FIELDS = @([pscustomobject]@{ label = 'READY'; value = $context.ready })
+        STR_TERMINAL_FIELDS = $terminalVariants
+        STR_CASE_FIELDS = @([pscustomobject]@{ label = 'SUBJECT_COMPLETE'; value = $caseProbe })
+        STR_SUBCONTROL_FIELDS = @([pscustomobject]@{ label = 'SUBJECT_COMPLETE'; value = $subcontrolProbe })
+        STR_ORACLE_FIELDS = @(
+            [pscustomobject]@{ label = 'ordinary'; value = $ordinaryOracle; paths = $null },
+            [pscustomobject]@{ label = 'collision'; value = $collisionOracle; paths = $null }
+        )
+        STR_C06_FIELDS = @([pscustomobject]@{ label = 'C06'; value = $c06Probe })
+        STR_FINAL_FIELDS = @([pscustomobject]@{ label = 'compatibility'; value = $finalProbe })
+        STR_RETAINED_FIELDS = @([pscustomobject]@{ label = 'admission-r2'; value = $retainedProbe })
+    }
+    $familyOrder = @('STR_FREEZE_FIELDS','STR_READY_FIELDS','STR_TERMINAL_FIELDS','STR_CASE_FIELDS','STR_SUBCONTROL_FIELDS','STR_ORACLE_FIELDS','STR_C06_FIELDS','STR_FINAL_FIELDS','STR_RETAINED_FIELDS')
+    foreach ($family in $familyOrder) {
+        $members = [string[]]@($script:FileScalarDescriptor.scalar_families.PSObject.Properties[$family].Value)
+        $variants = @($familyVariants[$family])
+        if ($family -ceq 'STR_ORACLE_FIELDS') {
+            $ordinaryPaths = @{}; $collisionPaths = @{}
+            foreach ($member in $members) {
+                $ordinaryPaths[$member] = 'rows.0.' + $member
+                $collisionPaths[$member] = 'rows.' + $collisionIndex + '.' + $member
+            }
+            $variants = @(
+                [pscustomobject]@{ label = 'ordinary'; value = $ordinaryOracle; paths = $ordinaryPaths },
+                [pscustomobject]@{ label = 'collision'; value = $collisionOracle; paths = $collisionPaths }
+            )
+        }
+        if ($family -ceq 'STR_C06_FIELDS') {
+            $c06Paths = @{}
+            foreach ($member in $members) {
+                if ($member.StartsWith('case.')) { $c06Paths[$member] = $member }
+                elseif ($member.StartsWith('control.')) { $c06Paths[$member] = 'case.observations.subcontrols.0.' + $member.Substring(8) }
+                else { $c06Paths[$member] = 'terminal.' + $member.Substring('terminal.'.Length) }
+            }
+            $variants = @([pscustomobject]@{ label = 'C06'; value = $c06Probe; paths = $c06Paths })
+        }
+        if ($family -ceq 'STR_CASE_FIELDS') {
+            $mapped = @{}; foreach ($member in $members) { $mapped[$member] = 'terminal.cases.0.' + $member }
+            $variants = @([pscustomobject]@{ label = 'SUBJECT_COMPLETE'; value = $caseProbe; paths = $mapped })
+        }
+        if ($family -ceq 'STR_SUBCONTROL_FIELDS') {
+            $mapped = @{}; foreach ($member in $members) { $mapped[$member] = 'terminal.cases.0.observations.subcontrols.0.' + $member }
+            $variants = @([pscustomobject]@{ label = 'SUBJECT_COMPLETE'; value = $subcontrolProbe; paths = $mapped })
+        }
+        if ($family -ceq 'STR_FINAL_FIELDS') {
+            $mapped = @{}; foreach ($member in $members) { $mapped[$member] = $member }
+            $variants = @([pscustomobject]@{ label = 'compatibility'; value = $finalProbe; paths = $mapped })
+        }
+        if ($family -ceq 'STR_RETAINED_FIELDS') {
+            $mapped = @{}; foreach ($member in $members) { $mapped[$member] = $member }
+            $variants = @([pscustomobject]@{ label = 'admission-r2'; value = $retainedProbe; paths = $mapped })
+        }
+        if ($family -ceq 'STR_FREEZE_FIELDS' -or $family -ceq 'STR_READY_FIELDS' -or $family -ceq 'STR_TERMINAL_FIELDS') {
+            foreach ($variant in $variants) { $variant | Add-Member -NotePropertyName paths -NotePropertyValue @{} -Force }
+            foreach ($variant in $variants) { foreach ($member in $members) { $variant.paths[$member] = $member } }
+        }
+        $probeVariants = New-Object System.Collections.ArrayList
+        foreach ($variant in $variants) {
+            $probeValue = $variant.value
+            if ($family -ceq 'STR_ORACLE_FIELDS') { $probeValue = $variant.value }
+            if ($family -ceq 'STR_C06_FIELDS') { $probeValue = $variant.value }
+            if ($family -ceq 'STR_CASE_FIELDS' -or $family -ceq 'STR_SUBCONTROL_FIELDS') { $probeValue = $variant.value }
+            if ($family -ceq 'STR_FINAL_FIELDS') { $probeValue = $variant.value }
+            if ($family -ceq 'STR_RETAINED_FIELDS') { $probeValue = $variant.value }
+            [void]$probeVariants.Add([pscustomobject]@{ label = $variant.label; value = $probeValue; paths = $variant.paths })
+        }
+        if ($family -ceq 'STR_FREEZE_FIELDS') { $validatorContext = $null }
+        elseif ($family -ceq 'STR_RETAINED_FIELDS') { $validatorContext = $retainedContext }
+        else { $validatorContext = $context }
+        Add-HostOracleControlResult $results (Invoke-HostScalarFamilyControl $family $members ([object[]]@($probeVariants.ToArray())) $validatorContext)
+    }
+    if (@($results | Where-Object { $_.status -cne 'PASS' }).Count -gt 0) {
+        $failedRows = @($results | Where-Object { $_.status -cne 'PASS' })
+        throw ('host-oracle controls failed: ' + (ConvertTo-Json -InputObject $failedRows -Depth 10 -Compress))
+    }
     $rows = @($results.ToArray())
     if (-not (Test-HostOracleProof $rows)) { throw 'host-oracle row set is incomplete, duplicated, reordered, or mistyped' }
     return $rows
@@ -1358,19 +1844,22 @@ function Get-BytesSha256 {
 function Test-ClaimCollisionPreservation {
     param([string]$Path, [string]$Nonce)
     if (-not [System.IO.File]::Exists($Path)) { throw 'exclusive phase claim is absent before collision control' }
-    $beforeBytes = [System.IO.File]::ReadAllBytes($Path)
-    $beforeHash = Get-BytesSha256 $beforeBytes
+    $beforeRead = Read-BoundedUtf8File $Path 'claim collision before' $false
+    if (-not $beforeRead.accepted) { throw ('claim collision original bounded raw read failed: ' + $beforeRead.rejection) }
+    $beforeHash = [string]$beforeRead.sha256
     $rejected = $false
     try { Write-NewUtf8File $Path ('COLLISION-' + $Nonce) }
     catch [System.IO.IOException] { $rejected = $true }
     if (-not [System.IO.File]::Exists($Path)) { throw 'claim collision removed the original claim' }
-    $afterHash = Get-BytesSha256 ([System.IO.File]::ReadAllBytes($Path))
+    $afterRead = Read-BoundedUtf8File $Path 'claim collision after' $false
+    if (-not $afterRead.accepted) { throw ('claim collision preserved-file bounded raw read failed: ' + $afterRead.rejection) }
+    $afterHash = [string]$afterRead.sha256
     return [pscustomobject]@{ rejected = [bool]$rejected; original_preserved = [bool]($beforeHash -ceq $afterHash); original_sha256 = $beforeHash; after_sha256 = $afterHash }
 }
 
 function Test-HostC06 {
     param([object]$Case, [object]$Terminal, [object]$DriverWait, [object]$DriverExit, [object]$PreservationEqual)
-    if (-not (Test-ObjectShape $Case @('case_id','expected','status','observations')) -or $Case.case_id -cne 'C06' -or $Case.expected -cne $script:ExpectedByCase.C06 -or $Case.status -cne 'PASS') { return $false }
+    if (-not (Test-ObjectShape $Case @('case_id','expected','status','observations')) -or $Case.case_id -isnot [string] -or $Case.expected -isnot [string] -or $Case.status -isnot [string] -or $Case.case_id -cne 'C06' -or $Case.expected -cne $script:ExpectedByCase.C06 -or $Case.status -cne 'PASS') { return $false }
     if ($null -eq $Case.observations -or $Case.observations -is [string] -or $Case.observations -is [System.Array]) { return $false }
     $controlsProperty = $Case.observations.PSObject.Properties['subcontrols']
     if ($null -eq $controlsProperty -or $controlsProperty.Value -isnot [System.Array]) { return $false }
@@ -1378,12 +1867,12 @@ function Test-HostC06 {
     $expectedIds = @($script:CaseSubcontrols.C06)
     if ($controls.Count -ne $expectedIds.Count) { return $false }
     for ($i = 0; $i -lt $expectedIds.Count; $i++) {
-        if (-not (Test-ObjectShape $controls[$i] @('id','status','observed')) -or $controls[$i].id -cne $expectedIds[$i] -or $controls[$i].status -cne 'PASS' -or $controls[$i].observed -isnot [bool] -or $controls[$i].observed -ne $true) { return $false }
+        if (-not (Test-ObjectShape $controls[$i] @('id','status','observed')) -or $controls[$i].id -isnot [string] -or $controls[$i].status -isnot [string] -or $controls[$i].id -cne $expectedIds[$i] -or $controls[$i].status -cne 'PASS' -or $controls[$i].observed -isnot [bool] -or $controls[$i].observed -ne $true) { return $false }
     }
     if (-not (Test-ObjectShape $Case.observations @('subcontrols','worker_exit','wsl_wait_confirmed','wsl_exit_code','preservation_equal'))) { return $false }
     if (-not (Test-ObjectShape $Case.observations.worker_exit @('wait_confirmed','returncode')) -or $Case.observations.worker_exit.wait_confirmed -isnot [bool] -or $Case.observations.worker_exit.wait_confirmed -ne $Terminal.worker_exit.wait_confirmed -or -not (Test-ExactInteger $Case.observations.worker_exit.returncode) -or $Case.observations.worker_exit.returncode -ne $Terminal.worker_exit.returncode) { return $false }
     if ($Case.observations.wsl_wait_confirmed -isnot [bool] -or $Case.observations.wsl_wait_confirmed -ne $DriverWait -or -not (Test-ExactInteger $Case.observations.wsl_exit_code) -or $Case.observations.wsl_exit_code -ne $DriverExit -or $Case.observations.preservation_equal -isnot [bool] -or $Case.observations.preservation_equal -ne $PreservationEqual) { return $false }
-    return ($Terminal.status -ceq 'SUBJECT_COMPLETE' -and (Test-ExactBoolean $Terminal.worker_exit.wait_confirmed) -and $Terminal.worker_exit.wait_confirmed -eq $true -and (Test-ExactInteger $Terminal.worker_exit.returncode) -and $Terminal.worker_exit.returncode -eq 0 -and (Test-ExactBoolean $DriverWait) -and $DriverWait -eq $true -and (Test-ExactInteger $DriverExit) -and $DriverExit -eq 0 -and (Test-ExactBoolean $PreservationEqual) -and $PreservationEqual -eq $true)
+    return ($Terminal.status -is [string] -and $Terminal.status -ceq 'SUBJECT_COMPLETE' -and (Test-ExactBoolean $Terminal.worker_exit.wait_confirmed) -and $Terminal.worker_exit.wait_confirmed -eq $true -and (Test-ExactInteger $Terminal.worker_exit.returncode) -and $Terminal.worker_exit.returncode -eq 0 -and (Test-ExactBoolean $DriverWait) -and $DriverWait -eq $true -and (Test-ExactInteger $DriverExit) -and $DriverExit -eq 0 -and (Test-ExactBoolean $PreservationEqual) -and $PreservationEqual -eq $true)
 }
 
 function New-HostC06 {
@@ -1412,29 +1901,99 @@ function Assert-PreviousPhase {
         $receiptPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '.json')
         $claimPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '.claim')
         $overrunPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '-overrun.json')
-        if (-not [System.IO.File]::Exists($receiptPath) -or -not [System.IO.File]::Exists($claimPath) -or [System.IO.File]::Exists($overrunPath)) { throw ('matching predecessor PASS is absent or invalid: ' + $prior) }
+        if (-not [System.IO.File]::Exists($claimPath) -or [System.IO.File]::Exists($overrunPath)) { throw ('matching predecessor claim is absent or invalid: ' + $prior) }
         try {
-            $encoding = New-Object System.Text.UTF8Encoding($false, $true)
-            $claimRaw = [System.IO.File]::ReadAllText($claimPath, $encoding)
-            $receiptRaw = [System.IO.File]::ReadAllText($receiptPath, $encoding)
-            if (-not (Test-JsonWithUniqueKeys $claimRaw) -or -not (Test-JsonWithUniqueKeys $receiptRaw)) { throw 'claim or receipt contained malformed JSON or duplicate object keys' }
-            $claim = ConvertFrom-HostEvidenceJson $claimRaw
-            $receipt = ConvertFrom-HostEvidenceJson $receiptRaw
-        } catch { throw ('predecessor evidence is not valid unique-key UTF-8 JSON: ' + $prior + ': ' + $_.Exception.Message) }
+            $claimRead = Read-BoundedUtf8File $claimPath ('predecessor claim ' + $prior) $true
+            if (-not $claimRead.accepted) { throw ('claim bounded read rejected: ' + $claimRead.rejection) }
+            if (-not (Test-JsonWithUniqueKeys $claimRead.text)) {
+                Register-BoundedReadFailure ('predecessor claim ' + $prior + ' JSON validation') $claimPath $claimRead 'JSON_MALFORMED_OR_DUPLICATE_KEY'
+                throw 'claim contained malformed JSON or duplicate object keys'
+            }
+            try { $claim = ConvertFrom-HostEvidenceJson $claimRead.text }
+            catch {
+                Register-BoundedReadFailure ('predecessor claim ' + $prior + ' JSON conversion') $claimPath $claimRead 'JSON_CONVERSION_ERROR'
+                throw
+            }
+        } catch { throw ('predecessor claim is not valid unique-key UTF-8 JSON: ' + $prior + ': ' + $_.Exception.Message) }
+        $claimReason = $null
+        if (-not (Test-RetainedPhaseClaim $claim $prior $Manifest ([ref]$claimReason))) {
+            Register-BoundedReadFailure ('predecessor claim ' + $prior + ' schema admission') $claimPath $claimRead ('CLAIM_SCHEMA_OR_BINDING_REJECT:' + $claimReason)
+            throw ('predecessor claim failed strict shape/string/binding admission: ' + $prior + ': ' + $claimReason)
+        }
+        if (-not [System.IO.File]::Exists($receiptPath)) { throw ('matching predecessor PASS receipt is absent: ' + $prior) }
+        try {
+            $receiptRead = Read-BoundedUtf8File $receiptPath ('predecessor receipt ' + $prior) $true
+            if (-not $receiptRead.accepted) { throw ('receipt bounded read rejected: ' + $receiptRead.rejection) }
+            if (-not (Test-JsonWithUniqueKeys $receiptRead.text)) {
+                Register-BoundedReadFailure ('predecessor receipt ' + $prior + ' JSON validation') $receiptPath $receiptRead 'JSON_MALFORMED_OR_DUPLICATE_KEY'
+                throw 'receipt contained malformed JSON or duplicate object keys'
+            }
+            try { $receipt = ConvertFrom-HostEvidenceJson $receiptRead.text }
+            catch {
+                Register-BoundedReadFailure ('predecessor receipt ' + $prior + ' JSON conversion') $receiptPath $receiptRead 'JSON_CONVERSION_ERROR'
+                throw
+            }
+        } catch { throw ('predecessor receipt is not valid unique-key UTF-8 JSON: ' + $prior + ': ' + $_.Exception.Message) }
         $reason = $null
-        if (-not (Test-RetainedPhaseEvidence $claim $receipt $prior $Manifest $Ticket $Sources $Fixtures $ReadInputs $script:HostBefore ([ref]$reason))) { throw ('predecessor evidence failed strict nested admission: ' + $prior + ': ' + $reason) }
+        $retainedAccepted = $false
+        try { $retainedAccepted = Test-RetainedPhaseEvidence $claim $receipt $prior $Manifest $Ticket $Sources $Fixtures $ReadInputs $script:HostBefore ([ref]$reason) }
+        catch { $reason = 'validator exception: ' + (Limit-CleanupDetail $_.Exception.Message) }
+        if (-not $retainedAccepted) {
+            $failureKind = if ($reason -like 'validator exception:*') { 'RETAINED_ADMISSION_EXCEPTION' } else { 'RETAINED_SCHEMA_ADMISSION_REJECT:' + $reason }
+            Register-BoundedReadFailure ('predecessor claim ' + $prior + ' retained admission') $claimPath $claimRead $failureKind
+            Register-BoundedReadFailure ('predecessor receipt ' + $prior + ' retained admission') $receiptPath $receiptRead $failureKind
+            throw ('predecessor evidence failed strict nested admission: ' + $prior + ': ' + $reason)
+        }
     }
 }
 
 function Read-AndValidateFreeze {
     if (-not [System.IO.File]::Exists($script:FreezePath)) { throw 'integration freeze is missing' }
-    $script:ManifestSha256 = Get-FileSha256 $script:FreezePath
-    $raw = [System.IO.File]::ReadAllText($script:FreezePath, (New-Object System.Text.UTF8Encoding($false, $true)))
-    if (-not (Test-JsonWithUniqueKeys $raw)) { throw 'integration freeze contains malformed JSON or duplicate object keys' }
-    try { $script:Freeze = ConvertFrom-Json -InputObject $raw -ErrorAction Stop } catch { throw ('integration freeze JSON is invalid: ' + $_.Exception.Message) }
+    $freezeRead = Read-BoundedUtf8File $script:FreezePath 'execution freeze' $true
+    if (-not $freezeRead.accepted) { throw ('integration freeze bounded read rejected: ' + $freezeRead.rejection) }
+    $script:ManifestSha256 = [string]$freezeRead.sha256
+    $script:Freeze = ConvertFrom-BoundedHostJson $freezeRead 'integration freeze'
     $reason = $null
-    if (-not (Test-FreezeEnvelope $script:Freeze ([ref]$reason))) { throw ('parent freeze is not fully authorized for this one-shot source-profile gate: ' + $reason) }
-    Assert-HostRuntimePin $script:Freeze
+    if (-not (Test-FreezeEnvelope $script:Freeze ([ref]$reason))) {
+        Register-BoundedReadFailure 'execution freeze schema admission' $script:FreezePath $freezeRead ('FREEZE_SCHEMA_REJECT:' + $reason)
+        throw ('parent freeze is not fully authorized for this one-shot source-profile gate: ' + $reason)
+    }
+    $descriptorRead = Read-BoundedUtf8File $script:FileScalarDescriptorPath 'file-scalar admission descriptor' $true
+    if (-not $descriptorRead.accepted) { throw ('file-scalar admission descriptor bounded read rejected: ' + $descriptorRead.rejection) }
+    if ($descriptorRead.sha256 -cne $script:FileScalarDescriptorSha256) {
+        Register-BoundedReadFailure 'file-scalar descriptor pin admission' $script:FileScalarDescriptorPath $descriptorRead 'DESCRIPTOR_SHA256_MISMATCH'
+        throw 'file-scalar admission descriptor differs from its reviewed source pin'
+    }
+    $descriptorDocument = ConvertFrom-BoundedHostJson $descriptorRead 'file-scalar admission descriptor'
+    $admission = $descriptorDocument.file_scalar_admission_r2
+    $requiredFamilyCounts = [ordered]@{
+        STR_FREEZE_FIELDS = 6; STR_READY_FIELDS = 5; STR_TERMINAL_FIELDS = 6; STR_CASE_FIELDS = 3; STR_SUBCONTROL_FIELDS = 2
+        STR_ORACLE_FIELDS = 4; STR_C06_FIELDS = 6; STR_FINAL_FIELDS = 2; STR_RETAINED_FIELDS = 13
+    }
+    if ($null -eq $admission -or $admission.schema -cne 'ladybug.feat010.file-scalar-admission-r2.expectations.v1' -or
+        $admission.maximum_bytes -ne $script:MaximumHostJsonBytes -or $admission.maximum_utf16_units -ne $script:MaximumHostJsonUnits -or
+        $admission.chunk_maximum_bytes -ne $script:HostReadChunkBytes -or $admission.host_row_total -ne 90 -or
+        $admission.fresh_evidence_prefix -cne 'admission-r2-' -or $admission.runtime_authorized -ne $false) {
+        Register-BoundedReadFailure 'file-scalar descriptor schema admission' $script:FileScalarDescriptorPath $descriptorRead 'DESCRIPTOR_SCHEMA_OR_LIMITS_REJECT'
+        throw 'file-scalar admission descriptor identity or fixed limits differ from the approved contract'
+    }
+    if (-not (Test-ObjectShape $admission.worker_control_totals @('Q','R','C_worker','C_host')) -or $admission.worker_control_totals.Q -ne 51 -or $admission.worker_control_totals.R -ne 115 -or $admission.worker_control_totals.C_worker -ne 23 -or $admission.worker_control_totals.C_host -ne 5 -or $admission.file_vectors -isnot [System.Array] -or $admission.file_vectors.Count -ne 5) {
+        Register-BoundedReadFailure 'file-scalar descriptor inventory admission' $script:FileScalarDescriptorPath $descriptorRead 'DESCRIPTOR_WORKER_TOTALS_OR_VECTOR_COUNT_REJECT'
+        throw 'file-scalar admission descriptor worker totals or vector count differ from the approved contract'
+    }
+    foreach ($family in $requiredFamilyCounts.Keys) {
+        $property = $admission.scalar_families.PSObject.Properties[$family]
+        if ($null -eq $property -or $property.Value -isnot [System.Array] -or $property.Value.Count -ne $requiredFamilyCounts[$family]) {
+            Register-BoundedReadFailure 'file-scalar descriptor family inventory admission' $script:FileScalarDescriptorPath $descriptorRead ('DESCRIPTOR_FAMILY_INVENTORY_REJECT:' + $family)
+            throw ('file-scalar admission descriptor member inventory differs: ' + $family)
+        }
+    }
+    $script:FileScalarDescriptor = $admission
+    try { Assert-HostRuntimePin $script:Freeze }
+    catch {
+        Register-BoundedReadFailure 'execution freeze runtime pin admission' $script:FreezePath $freezeRead 'FREEZE_RUNTIME_PIN_REJECT'
+        throw
+    }
     $script:Execution = $script:Freeze.execution_freeze
     $script:TicketSha256 = [string]$script:Execution.ticket_sha256
     if ((Get-FileSha256 $script:TicketPath) -cne $script:TicketSha256) { throw 'canonical FEAT-010 ticket differs from execution freeze' }
@@ -1581,6 +2140,7 @@ function Capture-DriverFailureEvidence {
         cleanup_secondary_error = Limit-CleanupDetail $cleanupDetail
         observed_streams = $script:DriverStreamCapture
         partial_protocol = if ($null -ne $script:StdoutState) { $script:StdoutState.partial_protocol } else { $null }
+        bounded_file_reads = @($script:BoundedReadFailures.ToArray())
     }
     $combined = ConvertTo-Json -InputObject $detail -Depth 20 -Compress
     $script:TransportFailureDetail = $combined
@@ -1760,7 +2320,28 @@ function Invoke-Phase {
         $success = $false
     }
     if (-not $script:ClaimCreated) {
-        [System.Console]::Error.WriteLine([string]$script:FailureMessage)
+        [System.Console]::Error.WriteLine((Limit-CleanupDetail ([string]$script:FailureMessage)))
+        if ($script:BoundedReadFailures.Count -gt 0) {
+            $lastReadFailures = @($script:BoundedReadFailures.ToArray() | Select-Object -Last 2)
+            $compactReadFailures = New-Object System.Collections.ArrayList
+            foreach ($failure in $lastReadFailures) {
+                $stage = [string]$failure.stage
+                $path = [string]$failure.path
+                $rejection = [string]$failure.rejection
+                if ($stage.Length -gt 128) { $stage = $stage.Substring(0, 128) }
+                if ($path.Length -gt 256) { $path = $path.Substring(0, 256) }
+                if ($rejection.Length -gt 128) { $rejection = $rejection.Substring(0, 128) }
+                [void]$compactReadFailures.Add([pscustomobject]@{
+                    stage = $stage; path = $path; rejection = $rejection
+                    position = $failure.position; actual_position = $failure.actual_position
+                    retained_bytes = $failure.retained_bytes; text_units = $failure.text_units
+                    whole_document_decode_attempted = $failure.whole_document_decode_attempted
+                    sha256 = $failure.sha256; prefix_b64 = $failure.prefix_b64
+                })
+            }
+            $boundedReadSummary = ConvertTo-Json -InputObject @($compactReadFailures.ToArray()) -Depth 5 -Compress
+            [System.Console]::Error.WriteLine('bounded_file_reads=' + [string]$boundedReadSummary)
+        }
         return [bool]$false
     }
     if ($success -and [Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds) -ge ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs)) {
