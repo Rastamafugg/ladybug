@@ -200,5 +200,233 @@
     "failure_no_pass": true,
     "no_real_subject_io": true,
     "complete_controller_ready": false
+  },
+  "file_scalar_admission_r2": {
+    "schema": "ladybug.feat010.file-scalar-admission-r2.expectations.v1",
+    "provenance": "Parent-authored from approved outcome and field inventory before repaired assertions or execution. Expected type/rejection is independent of subject output.",
+    "maximum_bytes": 16777216,
+    "maximum_utf16_units": 16777216,
+    "chunk_maximum_bytes": 4096,
+    "host_row_total": 90,
+    "worker_control_totals": {
+      "Q": 51,
+      "R": 115,
+      "C_worker": 23,
+      "C_host": 5
+    },
+    "file_vectors": [
+      {
+        "id": "FILE_EXACT_CAP",
+        "input_kind": "repeat_byte",
+        "input_byte": 65,
+        "input_count": 16777216,
+        "expected": "ACCEPT",
+        "expected_position": 16777216,
+        "expected_retained_bytes": 16777216,
+        "expected_text": "ASCII_A_REPEAT",
+        "expected_text_units": 16777216
+      },
+      {
+        "id": "FILE_OVER_CAP_STOP",
+        "input_kind": "repeat_byte",
+        "input_byte": 65,
+        "input_count": 16781312,
+        "expected": "REJECT",
+        "rejection": "BYTE_LIMIT_BEFORE_DECODE",
+        "expected_position": 16777217,
+        "maximum_retained_bytes": 16777216,
+        "whole_document_decode_allowed": false
+      },
+      {
+        "id": "FILE_UTF8_SPLIT_BOM",
+        "input_kind": "bom_repeat_suffix",
+        "prefix_bytes": [
+          239,
+          187,
+          191
+        ],
+        "repeat_byte": 65,
+        "repeat_count": 4092,
+        "suffix_bytes": [
+          195,
+          169,
+          90
+        ],
+        "input_count": 4098,
+        "expected": "ACCEPT",
+        "expected_position": 4098,
+        "expected_retained_bytes": 4098,
+        "expected_text": "ASCII_A_4092_THEN_U00E9_Z",
+        "expected_text_units": 4094
+      },
+      {
+        "id": "FILE_UTF8_INVALID",
+        "input_kind": "literal_bytes",
+        "input_bytes": [
+          195,
+          40
+        ],
+        "input_count": 2,
+        "expected": "REJECT",
+        "rejection": "STRICT_UTF8",
+        "expected_position": 2,
+        "whole_document_decode_allowed": true
+      },
+      {
+        "id": "FILE_EMPTY_JSON_REJECT",
+        "input_kind": "literal_bytes",
+        "input_bytes": [],
+        "input_count": 0,
+        "expected": "REJECT",
+        "rejection": "EMPTY_JSON_OBJECT",
+        "expected_position": 0,
+        "expected_text_units": 0
+      }
+    ],
+    "scalar_families": {
+      "STR_FREEZE_FIELDS": [
+        "schema",
+        "status",
+        "python.path",
+        "python.resolved",
+        "python.sha256",
+        "qualified_service_root"
+      ],
+      "STR_READY_FIELDS": [
+        "kind",
+        "phase",
+        "nonce",
+        "manifest_sha256",
+        "ticket_sha256"
+      ],
+      "STR_TERMINAL_FIELDS": [
+        "kind",
+        "phase",
+        "nonce",
+        "manifest_sha256",
+        "ticket_sha256",
+        "status"
+      ],
+      "STR_CASE_FIELDS": [
+        "case_id",
+        "expected",
+        "status"
+      ],
+      "STR_SUBCONTROL_FIELDS": [
+        "id",
+        "status"
+      ],
+      "STR_ORACLE_FIELDS": [
+        "id",
+        "expected",
+        "observed",
+        "status"
+      ],
+      "STR_C06_FIELDS": [
+        "case.case_id",
+        "case.expected",
+        "case.status",
+        "control.id",
+        "control.status",
+        "terminal.status"
+      ],
+      "STR_FINAL_FIELDS": [
+        "terminal.status",
+        "context.phase"
+      ],
+      "STR_RETAINED_FIELDS": [
+        "claim.phase",
+        "claim.nonce",
+        "claim.manifest_sha256",
+        "claim.started_utc",
+        "receipt.schema",
+        "receipt.phase",
+        "receipt.nonce",
+        "receipt.manifest_sha256",
+        "receipt.ticket_sha256",
+        "receipt.status",
+        "receipt.evidence_written_utc",
+        "receipt.stderr",
+        "receipt.stdout_tail"
+      ]
+    },
+    "scalar_rule": {
+      "baseline": "Independently valid scalar baseline must be accepted before single-field mutation",
+      "mutation": "one_element_array_containing_expected_string",
+      "expected": "REJECT",
+      "reason": "SCALAR_STRING_TYPE",
+      "guard_before_cast": true,
+      "family_members_order_required": true,
+      "missing_member_is_failure": true,
+      "terminal_variants": [
+        "SUBJECT_COMPLETE",
+        "FAIL"
+      ],
+      "oracle_variants": [
+        "ordinary",
+        "collision"
+      ],
+      "representative_ready_field": "kind",
+      "representative_type_mutations": [
+        "empty_array",
+        "null",
+        "boolean",
+        "integer",
+        "float",
+        "object"
+      ]
+    },
+    "preflight_string_paths": [
+      "recovery_preflight.status",
+      "recovery_preflight.path",
+      "recovery_preflight.source_sha256",
+      "recovery_preflight.host_path",
+      "recovery_preflight.host_sha256",
+      "recovery_preflight.ps_version",
+      "recovery_preflight.wsl_path",
+      "recovery_preflight.wsl_sha256",
+      "python.path",
+      "python.resolved",
+      "python.sha256",
+      "recovery_preflight.source_files.service/gdb.py",
+      "recovery_preflight.source_files.service/server.py",
+      "recovery_preflight.source_files.stop-q.py",
+      "recovery_preflight.source_files.run-integration-q.ps1",
+      "recovery_preflight.source_files.evidence/sro-q-first-failure-20261020/executed-host.ps1.txt"
+    ],
+    "preflight_rows": [
+      "FSA_FILE_EXACT_CAP",
+      "FSA_FILE_OVER_CAP_STOP",
+      "FSA_FILE_UTF8_SPLIT_BOM",
+      "FSA_FILE_UTF8_INVALID",
+      "FSA_FILE_EMPTY_JSON_REJECT",
+      "FSA_PREFLIGHT_STRING_PINS"
+    ],
+    "synthetic_baseline_bindings": {
+      "phase": "stop-observation-admission",
+      "nonce": "0123456789abcdef0123456789abcdef",
+      "manifest": "0000000000000000000000000000000000000000000000000000000000000000",
+      "ticket": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "ready_kind": "READY",
+      "terminal_kind": "TERMINAL",
+      "case_id": "Q01",
+      "case_expected": "ORACLE_DISCRIMINATES",
+      "subcontrol_id": "valid",
+      "success_status": "PASS",
+      "terminal_status": "SUBJECT_COMPLETE",
+      "receipt_schema": "ladybug.feat010.sro.host-phase-evidence.v1",
+      "timestamp": "2026-10-20T12:34:56.1234567Z",
+      "stderr": "",
+      "stdout_tail": "",
+      "c06_case_id": "C06",
+      "c06_expected": "DIRECT_EXITS_CONFIRMED_NO_REAL_SUBJECT",
+      "c06_first_control": "worker_wait_confirmed",
+      "freeze_schema": "ladybug.feat010.controller-integration.freeze.v1",
+      "python_path": "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
+      "python_resolved": "/home/rastamafugg/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12",
+      "python_sha256": "339de109f072e52523066d97a2b3372e358a10cc00c6a9df62c28a6618061900"
+    },
+    "fresh_evidence_prefix": "admission-r2-",
+    "runtime_authorized": false
   }
 }

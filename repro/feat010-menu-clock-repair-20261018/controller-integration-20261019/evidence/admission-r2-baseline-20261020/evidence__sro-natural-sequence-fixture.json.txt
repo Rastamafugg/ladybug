@@ -1,0 +1,75 @@
+{
+  "schema": "ladybug.feat010.sro.natural-sequence-fixture.v1",
+  "provenance": "Parent-authored independent schedule before actual-method execution; synthetic, not native support evidence.",
+  "owner_id": "sro-owner",
+  "startup_uuid_hex": "0123456789abcdef0123456789abcdef",
+  "session_id": "01234567",
+  "nonce_uuid_hex": "abcdef0123456789abcdef0123456789",
+  "observation_generation": 1,
+  "initial_state_generation": 1,
+  "attach_command": "target remote 127.0.0.1:65520",
+  "expected_breakpoint": {
+    "number": "2",
+    "address": "0x0350",
+    "disposition": "del"
+  },
+  "transactions": [
+    {
+      "token": "1",
+      "expected_state_generation": 1,
+      "kind": "baseline"
+    },
+    {
+      "token": "2",
+      "kind": "pre-attach-thread-info",
+      "body": "^done,threads=[]"
+    },
+    {
+      "expected_stop_sequence": 7,
+      "token": "3",
+      "expected_stop_state_generation": 2,
+      "kind": "attach",
+      "body": "^connected"
+    },
+    {
+      "token": "4",
+      "expected_pc": 49154,
+      "kind": "post-attach-thread-info"
+    },
+    {
+      "token": "5",
+      "expected_pc": 49154,
+      "kind": "pre-continue-thread-info"
+    },
+    {
+      "token": "6",
+      "kind": "pre-continue-break-list"
+    },
+    {
+      "kind": "continue",
+      "intermediate_prompt": true,
+      "expected_stop_state_generation": 4,
+      "intermediate_running_event": "*running,thread-id=\"all\"",
+      "token": "7",
+      "expected_stop_sequence": 18,
+      "body": "^running"
+    },
+    {
+      "token": "8",
+      "expected_pc": 848,
+      "kind": "post-continue-thread-info"
+    }
+  ],
+  "expected_raw_record_count": 21,
+  "expected_observer_reader_count": 1,
+  "expected_actual_factory_calls": 1,
+  "expected_real_factory_calls": 0,
+  "expected_real_gdb_calls": 0,
+  "expected_cleanup": {
+    "process_exit_confirmed": true,
+    "returncode": 0,
+    "reader_exit_confirmed": true,
+    "cleanup_complete": true
+  },
+  "pending_source_mapping": true
+}

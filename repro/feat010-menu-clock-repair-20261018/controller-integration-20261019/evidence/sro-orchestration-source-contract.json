@@ -284,5 +284,48 @@
       "actual_exit_must_be_observed_by_parent": true,
       "receipt_alone_may_not_authorize_next_phase": true
     }
+  },
+  "file_scalar_admission_r2": {
+    "status": "APPROVED_SOURCE_PREPARATION",
+    "approval": "User approves FSA-P/Q/R/C and bounded file-input/scalar-string scope; runtime paused",
+    "descriptor": "evidence/sro-qualification-case-contract.json#/file_scalar_admission_r2",
+    "source_reference_only": true,
+    "new_host_rows": [
+      "FILE_EXACT_CAP",
+      "FILE_OVER_CAP_STOP",
+      "FILE_UTF8_SPLIT_BOM",
+      "FILE_UTF8_INVALID",
+      "FILE_EMPTY_JSON_REJECT",
+      "STR_FREEZE_FIELDS",
+      "STR_READY_FIELDS",
+      "STR_TERMINAL_FIELDS",
+      "STR_CASE_FIELDS",
+      "STR_SUBCONTROL_FIELDS",
+      "STR_ORACLE_FIELDS",
+      "STR_C06_FIELDS",
+      "STR_FINAL_FIELDS",
+      "STR_RETAINED_FIELDS"
+    ],
+    "expected_accept": [
+      "FILE_EXACT_CAP",
+      "FILE_UTF8_SPLIT_BOM"
+    ],
+    "host_row_target": 90,
+    "worker_controls_unchanged": {
+      "Q": 51,
+      "R": 115,
+      "C_worker": 23,
+      "C_host": 5
+    },
+    "phase_maxima_ms": [
+      30000,
+      30000,
+      60000,
+      60000
+    ],
+    "attempts_each": 1,
+    "first_failure": "STOP_RETAIN_NO_RETRY",
+    "runtime_authorized": false,
+    "ready": false
   }
 }
