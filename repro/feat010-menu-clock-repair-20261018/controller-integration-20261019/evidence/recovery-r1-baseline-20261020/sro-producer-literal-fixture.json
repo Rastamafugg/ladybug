@@ -1,0 +1,28 @@
+{
+  "schema": "ladybug.feat010.sro.producer-literal-fixture.v1",
+  "provenance": "Parent-authored literal from reviewed fixed template before helper/producer execution; expected payloads independent.",
+  "native_evidence": false,
+  "owner_id": "sro-owner",
+  "session_id": "sro-session",
+  "generation": 1,
+  "nonce": "sro-baseline-query-001",
+  "source_ascii": "import gdb,json\n_lb_sro_connections = gdb.connections()\n_lb_sro_payload = {'schema':\"ladybug.feat010.connection-baseline.v1\",'owner_id':\"sro-owner\",'session_id':\"sro-session\",'generation':1,'nonce':\"sro-baseline-query-001\",'connection_count':len(_lb_sro_connections)}\nprint('LB_SRO_BASELINE:' + json.dumps(_lb_sro_payload, separators=(',', ':'), sort_keys=True))\n",
+  "source_sha256": "5d745ba536497f8621263c5fd259281c2d58a9a28aaf4adc3679f1b50fe7b0bd",
+  "expected_stdout_zero": "LB_SRO_BASELINE:{\"connection_count\":0,\"generation\":1,\"nonce\":\"sro-baseline-query-001\",\"owner_id\":\"sro-owner\",\"schema\":\"ladybug.feat010.connection-baseline.v1\",\"session_id\":\"sro-session\"}\n",
+  "expected_stdout_one": "LB_SRO_BASELINE:{\"connection_count\":1,\"generation\":1,\"nonce\":\"sro-baseline-query-001\",\"owner_id\":\"sro-owner\",\"schema\":\"ladybug.feat010.connection-baseline.v1\",\"session_id\":\"sro-session\"}\n",
+  "expected_connections_calls_per_fixture": 1,
+  "permitted_imports": [
+    "gdb",
+    "json"
+  ],
+  "permitted_builtins": [
+    "__import__",
+    "len",
+    "print"
+  ],
+  "real_gdb_calls": 0,
+  "real_subprocess_calls": 0,
+  "real_network_calls": 0,
+  "restore_sys_modules_mapping": true,
+  "execution_phase": "SRO-R_ONLY"
+}

@@ -1,0 +1,41 @@
+{
+  "schema": "ladybug.feat010.sro.independent-stop-fixtures.v1",
+  "provenance": "Parent-authored protocol fixtures from approved observational contract; no subject parser/helper/producer execution or native capture used.",
+  "native_evidence": false,
+  "owner_id": "sro-owner",
+  "generation": 1,
+  "thread_id": "1",
+  "attach": {
+    "raw_event": "*stopped,reason=\"signal-received\",signal-name=\"SIGINT\",signal-meaning=\"Interrupt\",frame={addr=\"0x0000c002\"},thread-id=\"1\",stopped-threads=\"all\"",
+    "raw_state_result_body": "^done,threads=[{id=\"1\",target-id=\"Thread 1\",frame={level=\"0\",addr=\"0x0000c002\"},state=\"stopped\"}],current-thread-id=\"1\"",
+    "expected_reason": "signal-received",
+    "expected_signal": "SIGINT",
+    "expected_pc": 49154,
+    "expected_attribution": "SESSION_EVENT_ONLY"
+  },
+  "continuation": {
+    "raw_breakpoint_result_body": "^done,BreakpointTable={nr_rows=\"1\",body=[bkpt={number=\"2\",type=\"breakpoint\",disp=\"del\",enabled=\"y\",addr=\"0x00000350\"}]}",
+    "raw_event": "*stopped,reason=\"breakpoint-hit\",disp=\"del\",bkptno=\"2\",frame={addr=\"0x00000350\"},thread-id=\"1\",stopped-threads=\"all\"",
+    "raw_state_result_body": "^done,threads=[{id=\"1\",target-id=\"Thread 1\",frame={level=\"0\",addr=\"0x00000350\"},state=\"stopped\"}],current-thread-id=\"1\"",
+    "expected_reason": "breakpoint-hit",
+    "expected_number": "2",
+    "expected_disposition": "del",
+    "expected_pc": 848,
+    "expected_signal_present": false,
+    "expected_attribution": "SESSION_EVENT_ONLY",
+    "temporary_breakpoint_present_after_hit_required": false
+  },
+  "constraints": {
+    "physical_event_after_command_proved": false,
+    "causal_command_id_proved": false,
+    "unknown_signal_admitted": false,
+    "current_pc_must_match_raw_event": true,
+    "thread_must_match_event": true,
+    "pre_resume_breakpoint_query_required": true,
+    "query_without_new_state_change_required": true,
+    "process_exit_alone_is_reader_cleanup": false,
+    "default_legacy_response_schema_changed": false,
+    "one_reader_maximum": 1,
+    "extra_reader_for_queries_allowed": false
+  }
+}

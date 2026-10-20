@@ -1,0 +1,123 @@
+{
+  "schema": "ladybug.feat010.sro.independent-baseline-fixtures.v1",
+  "provenance": "Parent-authored from approved predicate/fields and GNU connection API semantics; no subject helper/decoder/producer execution used.",
+  "native_evidence": false,
+  "expected_prefix": "LB_SRO_BASELINE:",
+  "expected_mi_token": "901",
+  "expected_payload": {
+    "schema": "ladybug.feat010.connection-baseline.v1",
+    "owner_id": "sro-owner",
+    "session_id": "sro-session",
+    "generation": 1,
+    "nonce": "sro-baseline-query-001",
+    "connection_count": 0
+  },
+  "controls": [
+    {
+      "id": "BASELINE_ZERO",
+      "mutation": "none",
+      "expected": "ACCEPT_BASELINE",
+      "expected_count": 0,
+      "note": "one successful matching MI result and one console payload; generation stable"
+    },
+    {
+      "id": "CONNECTION_WITHOUT_THREADS",
+      "mutation": "connection_count=1; other process/thread query shows empty",
+      "expected": "REJECT_BASELINE",
+      "risk": "connection exists without a process/thread"
+    },
+    {
+      "id": "COUNT_BOOLEAN",
+      "mutation": "connection_count=false",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "COUNT_STRING",
+      "mutation": "connection_count=\"0\"",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "COUNT_NULL",
+      "mutation": "connection_count=null",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "COUNT_MISSING",
+      "mutation": "remove connection_count",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "STALE_NONCE",
+      "mutation": "nonce=sro-baseline-query-old",
+      "expected": "REJECT_BINDING"
+    },
+    {
+      "id": "WRONG_OWNER",
+      "mutation": "owner_id=other-owner",
+      "expected": "REJECT_BINDING"
+    },
+    {
+      "id": "WRONG_SESSION",
+      "mutation": "session_id=other-session",
+      "expected": "REJECT_BINDING"
+    },
+    {
+      "id": "WRONG_GENERATION",
+      "mutation": "generation=2",
+      "expected": "REJECT_BINDING"
+    },
+    {
+      "id": "WRONG_STREAM",
+      "mutation": "payload in target/log stream instead of console",
+      "expected": "REJECT_OR_MISSING_PAYLOAD"
+    },
+    {
+      "id": "DUPLICATE_PAYLOAD",
+      "mutation": "two reserved-prefix payloads",
+      "expected": "REJECT_AMBIGUOUS"
+    },
+    {
+      "id": "MALFORMED_JSON",
+      "mutation": "invalid JSON",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "TRUNCATED_JSON",
+      "mutation": "remove final closing brace",
+      "expected": "REJECT_SCHEMA"
+    },
+    {
+      "id": "PYTHON_UNAVAILABLE",
+      "mutation": "matching MI error for Python support",
+      "expected": "UNKNOWN_BASELINE"
+    },
+    {
+      "id": "API_UNAVAILABLE",
+      "mutation": "fixed producer raises AttributeError",
+      "expected": "UNKNOWN_BASELINE"
+    },
+    {
+      "id": "MI_ERROR",
+      "mutation": "matching result is error",
+      "expected": "UNKNOWN_BASELINE"
+    },
+    {
+      "id": "WRONG_RESULT_TOKEN",
+      "mutation": "query result token differs",
+      "expected": "REJECT_BINDING"
+    },
+    {
+      "id": "INVALIDATED_GENERATION",
+      "mutation": "state generation changes during query",
+      "expected": "REJECT_INVALIDATED"
+    }
+  ],
+  "producer_execution": {
+    "empty_list_count": 0,
+    "single_connection_count": 1,
+    "calls_per_fixture": 1,
+    "real_gdb_calls": 0,
+    "fake_module_restored": true
+  },
+  "all_cards_unready": true
+}

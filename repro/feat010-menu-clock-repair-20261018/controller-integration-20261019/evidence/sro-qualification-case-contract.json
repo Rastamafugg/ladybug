@@ -1,6 +1,6 @@
 {
   "schema": "ladybug.feat010.sro.case-contract.v1",
-  "provenance": "Parent-authored from approved SRO-Q/R/C cards before qualifier execution; grouped controls do not waive any listed negative case.",
+  "provenance": "Parent-authored original cards plus explicitly approved recovery-R1 controls; independent outcomes are frozen before subject execution.",
   "status": "SOURCE_PREPARATION_NOT_READY",
   "runtime_authorized": false,
   "native_evidence": false,
@@ -153,5 +153,52 @@
       "controlled_scenario": "qualification worker and WSL driver cleanup",
       "independent_expected": "DIRECT_EXITS_CONFIRMED_NO_REAL_SUBJECT"
     }
-  ]
+  ],
+  "recovery_r1": {
+    "approved_proposal": "controller-full-review-recovery-proposed-20261020",
+    "status": "SOURCE_PREPARATION_NOT_READY",
+    "append_subcontrols": {
+      "Q01": [
+        "coherent_copy",
+        "command",
+        "nested_generation",
+        "nested_type",
+        "error_code",
+        "overflow_evidence",
+        "extra_field",
+        "float"
+      ],
+      "Q04": [
+        "changed_argument_rejected",
+        "changed_path_rejected"
+      ],
+      "R01": [
+        "exception_before_call_capture_cleanup",
+        "exception_after_call_capture_cleanup",
+        "token_and_prompt_text",
+        "tokenized_error_text",
+        "console_stream_text",
+        "stop_text"
+      ],
+      "R03": [
+        "module_replacement_rejected",
+        "module_removal_rejected"
+      ],
+      "R06": [
+        "connected_without_separator_valid",
+        "empty_payload_rejected",
+        "oversized_result_protocol_partial"
+      ]
+    },
+    "projected_worker_control_counts": {
+      "Q": 51,
+      "R": 116,
+      "C": 23
+    },
+    "count_interpretation": "Projected exact totals from approved additions; must be independently reconciled to frozen source before Ready.",
+    "independent_expectations": "sro-stop-independent-fixtures.json#/recovery_r1",
+    "failure_no_pass": true,
+    "no_real_subject_io": true,
+    "complete_controller_ready": false
+  }
 }

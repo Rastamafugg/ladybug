@@ -37,5 +37,72 @@
     "default_legacy_response_schema_changed": false,
     "one_reader_maximum": 1,
     "extra_reader_for_queries_allowed": false
+  },
+  "recovery_r1": {
+    "schema": "ladybug.feat010.sro.recovery-r1-expectations.v1",
+    "provenance": "Parent-authored from approved contracts and retained raw event literals before executing the repaired subject.",
+    "signal": {
+      "command": "target remote 127.0.0.1:65520",
+      "reason": "signal-received",
+      "signal_name": "SIGINT",
+      "thread_id": "1",
+      "pc": "0x0000c002",
+      "observation_generation": 1
+    },
+    "breakpoint": {
+      "command": "continue",
+      "reason": "breakpoint-hit",
+      "number": "2",
+      "disposition": "del",
+      "thread_id": "1",
+      "pc": "0x00000350",
+      "observation_generation": 1
+    },
+    "mi_parser": {
+      "valid": "1^connected",
+      "malformed": "1^connected,",
+      "valid_class": "connected",
+      "malformed_parse_error": "empty MI result payload after delimiter",
+      "malformed_admission": "UNKNOWN",
+      "malformed_validated_stop": null
+    },
+    "display": {
+      "token_and_prompt": "",
+      "tokenized_error": "Error: bad command\n",
+      "console_stream": "hello\n",
+      "stop": "[Stopped: signal-received]\n"
+    },
+    "overflow": {
+      "maximum_line_bytes": 262144,
+      "failure_category": "PROTOCOL",
+      "status": "FAIL",
+      "partial_evidence_required": true,
+      "fabricated_complete_rows_allowed": false,
+      "cap_increase_allowed": false
+    },
+    "exception_capture": {
+      "before_call_service_entries": 0,
+      "after_call_minimum_service_entries": 1,
+      "failure_retained": true,
+      "cleanup_retained": true
+    },
+    "module_restoration": {
+      "names": [
+        "gdb",
+        "json",
+        "server"
+      ],
+      "positive": "ORIGINAL_IDENTITY_AND_PRESENCE",
+      "negative_replacement": "REJECT",
+      "negative_removal": "REJECT"
+    },
+    "launch_argv": [
+      "wsl.exe",
+      "--exec",
+      "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
+      "-B",
+      "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py",
+      "--supervisor"
+    ]
   }
 }

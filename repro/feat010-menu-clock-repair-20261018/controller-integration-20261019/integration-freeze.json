@@ -1,13 +1,13 @@
 {
   "schema": "ladybug.feat010.controller-integration.freeze.v1",
-  "status": "SRO_SOURCE_FROZEN_READY",
+  "status": "RECOVERY_R1_SOURCE_PREPARATION",
   "approval_proposal_commit": "57e121d9",
-  "approval": "User approves fixed read-only GDB-Python baseline query and amended SRO-Q/R cards; five-file scope/revised observation contract and SRO-C approval retained.",
+  "approval": "User approves revised bounded offline recovery scope and SRO-P/Q-R1/R-R1/C-R1 cards; runtime remains paused.",
   "runtime_ready": false,
   "runtime_attempts_authorized": 0,
   "installation_authorized": false,
-  "qualification_dispatch_authorized": true,
-  "source_assignment": "Complete parent source review of disjoint Luna Extra High service, host and Python source. Ordered one-shot SRO-Q/R/C authorized by retained approved cards; first unexpected failure stops. Runtime/installation remain paused.",
+  "qualification_dispatch_authorized": false,
+  "source_assignment": "Sequential Luna Extra High source preparation; parent reviews complete diffs and independent fixtures before freeze and ordered offline gates. No executable card Ready yet.",
   "linux_node": {
     "path": "/home/rastamafugg/.nvm/versions/node/v20.19.5/bin/node",
     "sha256": "8d01d4c50e7a9047d70196f8fc6f1b165069065b44bd9402491544bd70586c7d"
@@ -234,73 +234,7 @@
     "E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\stutter-trace-window.py.txt": "4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
     "E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\stutter-observer.py.txt": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d"
   },
-  "execution_freeze": {
-    "authorized": true,
-    "source_sha256": {
-      "service/gdb.py": "e77ccf7b6aee903c9ac10a77e1acc7902f73f466d6d1b7c2913bd35b73b8946a",
-      "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
-      "stop-q.py": "fe8b4b90e0e387e565e9883015f43d9dc96f8534a892c8becec2871913da0833",
-      "run-integration-q.ps1": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec"
-    },
-    "fixture_sha256": {
-      "evidence/sro-qualification-case-contract.json": "ead7fe18333107f8766ac1cf6fe37ee57c82bbf639e0283a105fa82327cc3b33",
-      "evidence/sro-baseline-independent-fixtures.json": "be9032ccfbb8fa98212607c9ad3f3e645e014f8b8c98c19531ec770252560e4b",
-      "evidence/sro-stop-independent-fixtures.json": "ac01c0fd25142671fde3ef91eabf6e461697359dd88c1c321560894ddb44c7aa",
-      "evidence/sro-natural-sequence-fixture.json": "040b8bd6874b3f6724692eaa21718ba66ae3bc61a3147f8a719b4724c902bc1b",
-      "evidence/sro-producer-literal-fixture.json": "5f1f70d761ab128dd6614c81d6f116343215319571823ded15344bc41332fc46"
-    },
-    "read_inputs_sha256": {
-      "stutter-runtime-gdb-transcript.json": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
-    },
-    "ticket_sha256": "cd106978ff17fb5d2b3215cd3871c15348ff7a0ebf9d590001b172784b3e58ea",
-    "phases": {
-      "stop-observation-admission": {
-        "case_ids": [
-          "Q01",
-          "Q02",
-          "Q03",
-          "Q04",
-          "Q05"
-        ],
-        "maximum_ms": 30000,
-        "attempts": 1
-      },
-      "stop-observation-reader": {
-        "case_ids": [
-          "R01",
-          "R02",
-          "R03",
-          "R04",
-          "R05",
-          "R06",
-          "R07",
-          "R08",
-          "R09",
-          "R10",
-          "R11",
-          "R12",
-          "R13",
-          "R14",
-          "R15",
-          "R16"
-        ],
-        "maximum_ms": 60000,
-        "attempts": 1
-      },
-      "stop-observation-compatibility": {
-        "case_ids": [
-          "C01",
-          "C02",
-          "C03",
-          "C04",
-          "C05",
-          "C06"
-        ],
-        "maximum_ms": 60000,
-        "attempts": 1
-      }
-    }
-  },
+  "execution_freeze": null,
   "python_source_commit": "9190b34f918260b13857923ec3742896b1b5135b",
   "reviewed_python_sha256": {
     "python/analysis.py": "f6776ddd7db094d13609bcb30bd668236ed09d0bff28c5f987cfe9a7a06bd8f3",
@@ -335,5 +269,24 @@
       "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456"
     },
     "initial_implementation_commit": "f5616b31"
+  },
+  "recovery_preflight": {
+    "status": "SOURCE_PREPARATION_NOT_READY",
+    "path": "run-recovery-preflight.ps1",
+    "source_sha256": "a317ca8810e3be7701c5e69b917b1e2587337515c856da4ca6def7c7f6bd41ee",
+    "maximum_ms": 30000,
+    "host_path": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "host_sha256": "60c9b29843624dd8af6b6a7b26147753be6aeef65098b9a503cc50850afe410f",
+    "ps_version": "5.1.26100.8875",
+    "ps_version_provenance": "Read-only registry observation; actual runtime equality must pass SRO-P, not assumed",
+    "wsl_path": "C:\\Windows\\system32\\wsl.exe",
+    "wsl_sha256": "fcd08205b608b5c4831e0dcb1801dd274436cd2c8420815f18ae58a085891a18",
+    "source_files": {
+      "service/gdb.py": "a95b49fe2ad51834b6ef10c38c2a96ca94d31c3dd32098373d530729b4ab1e93",
+      "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
+      "stop-q.py": "fe8b4b90e0e387e565e9883015f43d9dc96f8534a892c8becec2871913da0833",
+      "run-integration-q.ps1": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec"
+    },
+    "dispatch_authorized": false
   }
 }

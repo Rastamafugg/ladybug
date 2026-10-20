@@ -35,7 +35,7 @@
   "host_claim_keys": [
     "exclusive",
     "collision_preserved",
-    "launch_allowlist"
+    "launch_argv"
   ],
   "go_keys": [
     "kind",
@@ -179,9 +179,10 @@
   ],
   "claim_launch_allowlist": [
     "wsl.exe",
+    "--exec",
     "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python",
     "-B",
-    "stop-q.py",
+    "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py",
     "--supervisor"
   ],
   "frozen_sources": [
@@ -221,5 +222,15 @@
     "real_gdb_calls": "strict integer 0",
     "real_network_calls": "strict integer 0"
   },
-  "observation_shape": "Case observations dictionary contains mandatory subcontrols plus retained case evidence. Exact ordered subcontrols use CASE_SUBCONTROLS; each exact {id,status,observed}, status PASS and observed key present. No unexecuted expected row may be manufactured."
+  "observation_shape": "Case observations dictionary contains mandatory subcontrols plus retained case evidence. Exact ordered subcontrols use CASE_SUBCONTROLS; each exact {id,status,observed}, status PASS and observed key present. No unexecuted expected row may be manufactured.",
+  "recovery_r1": {
+    "status": "SOURCE_PREPARATION_NOT_READY",
+    "exact_argv_binding_required": true,
+    "host_streams_cap_during_read": true,
+    "predecessor_requires_parent_observed_exit_zero": true,
+    "receipt_alone_is_completion": false,
+    "preflight": "run-recovery-preflight.ps1",
+    "preflight_maximum_ms": 30000,
+    "no_runtime": true
+  }
 }
