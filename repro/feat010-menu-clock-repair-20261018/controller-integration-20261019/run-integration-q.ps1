@@ -48,7 +48,11 @@ $script:HostOracleRowIds = @(
     'FINAL_C06_VALID', 'FINAL_C06_MISSING', 'FINAL_C06_WORKER_WAIT_FALSE', 'FINAL_C06_DRIVER_WAIT_FALSE', 'FINAL_C06_MISSING_CONTROL', 'FINAL_C06_DUPLICATE_CONTROL', 'FINAL_C06_PRESERVATION_FALSE',
     'JSON_UNIQUE_VALID', 'JSON_DUPLICATE_KEY', 'JSON_ESCAPED_DUPLICATE_KEY', 'JSON_NESTED_DUPLICATE_KEY', 'JSON_MALFORMED',
     'PREV_VALID', 'PREV_MISSING_READY', 'PREV_MISSING_CASE', 'PREV_MISSING_HOST_ORACLE', 'PREV_ALTERED_CLAIM_NONCE', 'PREV_ALTERED_TERMINAL_BINDING', 'PREV_ALTERED_FINAL_ADMISSION', 'PREV_ALTERED_HOST_ORACLE', 'PREV_DUPLICATE_HOST_ORACLE',
-    'CLAIM_COLLISION_PRESERVES_BYTES'
+    'CLAIM_VALID', 'CLAIM_CHANGED_ARGUMENT', 'CLAIM_CHANGED_PATH',
+    'READY_EXTRA_FIELD', 'READY_FLOAT_ELAPSED', 'TERM_EXTRA_FIELD', 'TERM_FLOAT_PHASE_ELAPSED', 'FINAL_FLOAT_ELAPSED',
+    'PREV_JSON_TIMESTAMP_ROUNDTRIP', 'PREV_JSON_TIMESTAMP_TYPED_NEGATIVE',
+    'STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE', 'STREAM_STDERR_CAP_NO_NEWLINE', 'STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE',
+    'FINAL_POSTWRITE_ADMISSION_FAILURE', 'FINAL_MARKER_WRITE_FAILURE_NONZERO', 'CLAIM_COLLISION_PRESERVES_BYTES'
 )
 $script:WorkerCaseIds = @{
     'stop-observation-admission' = @('Q01', 'Q02', 'Q03', 'Q04', 'Q05')
@@ -66,17 +70,17 @@ $script:ExpectedByCase = @{
 }
 $script:FailureCategories = @('ASSERTION','SETUP','TIMEOUT','CONTAINMENT','PROTOCOL','INTERNAL','MISSING_COVERAGE','CLEANUP')
 $script:CaseSubcontrols = @{
-    Q01 = @('valid','owner','session','generation','token','sequence','boolean','mi_error','current_state','cause_id')
+    Q01 = @('valid','owner','session','generation','token','sequence','boolean','mi_error','current_state','cause_id','coherent_copy','command','nested_generation','nested_type','error_code','overflow_evidence','extra_field','float')
     Q02 = @('capture_hash','formatted_attach_is_unknown','no_native_signal_field')
     Q03 = @('same_raw_event','different_hypothetical_cause','same_event_only_classification')
-    Q04 = @('exclusive_claim','collision_preserved','pinned_allowlist','popen_type_preserved','popen_denied','no_real_factory')
+    Q04 = @('exclusive_claim','collision_preserved','pinned_allowlist','popen_type_preserved','popen_denied','no_real_factory','changed_argument_rejected','changed_path_rejected')
     Q05 = @('baseline-zero','baseline-connection','baseline-bool','baseline-string','baseline-null','baseline-missing','baseline-nonce','baseline-owner','baseline-session','baseline-generation','baseline-stream','baseline-duplicate','baseline-malformed','baseline-truncated','baseline-python','baseline-api','baseline-mi-error','baseline-token','baseline-invalidated')
-    R01 = @('startup','claim','baseline','attach','fresh_attach_state','pre_continue_state','breakpoint','continue','fresh_continue_state','reader_count','raw_count','process_exit','reader_exit','no_cause_claim')
+    R01 = @('startup','claim','baseline','attach','fresh_attach_state','pre_continue_state','breakpoint','continue','fresh_continue_state','reader_count','raw_count','process_exit','reader_exit','no_cause_claim','exception_before_call_capture_cleanup','exception_after_call_capture_cleanup','token_and_prompt_text','tokenized_error_text','console_stream_text','stop_text')
     R02 = @('historical_source_pin','missing_claim_api','missing_exec_api','missing_stop_api','not_setup_failure')
-    R03 = @('literal_hash','empty_connections_once','one_connection_once','exact_zero_stdout','exact_one_stdout','module_restored','no_io')
+    R03 = @('literal_hash','empty_connections_once','one_connection_once','exact_zero_stdout','exact_one_stdout','module_restored','no_io','module_replacement_rejected','module_removal_rejected')
     R04 = @('baseline-control-zero','baseline-control-connection','baseline-control-bool','baseline-control-string','baseline-control-null','baseline-control-missing','baseline-control-nonce','baseline-control-owner','baseline-control-session','baseline-control-generation','baseline-control-stream','baseline-control-duplicate','baseline-control-malformed','baseline-control-truncated','baseline-control-python','baseline-control-api','baseline-control-mi-error','baseline-control-token','baseline-control-invalidated')
     R05 = @('preclaim_user_send','preclaim_interrupt','stale_stop','buffered_output','no_retroactive_claim')
-    R06 = @('wrong_token','duplicate_result','pre_result_prompt','mi_error','no_validated_result')
+    R06 = @('wrong_token','duplicate_result','pre_result_prompt','mi_error','no_validated_result','connected_without_separator_valid','empty_payload_rejected','oversized_result_protocol_partial')
     R07 = @('attach_missing_sigint_unknown','continue_without_signal_valid_breakpoint','event_only')
     R08 = @('wrong_breakpoint','disabled_breakpoint','missing_breakpoint','missing_query','no_continue_write')
     R09 = @('wrong_hit_number','wrong_thread','wrong_pc','running_state','unsupported_state','generation_change')
@@ -94,7 +98,7 @@ $script:CaseSubcontrols = @{
     C05 = @('prestart_tombstone','delayed_start_rejected','zero_factory','no_observer_reference')
     C06 = @('worker_wait_confirmed','worker_exit_zero','wsl_wait_confirmed','wsl_exit_zero','preservation_equal')
 }
-$script:LaunchAllowlist = @('wsl.exe', $script:PythonPath, '-B', 'stop-q.py', '--supervisor')
+$script:LaunchArgv = @('wsl.exe', '--exec', $script:PythonPath, '-B', '/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py', '--supervisor')
 $script:GoReserveMs = 10000
 $script:DriverWaitReserveMs = 2500
 $script:EvidenceReserveMs = 1500
@@ -103,8 +107,9 @@ $script:ProtocolLineMaximumBytes = 262144
 $script:Driver = $null
 $script:DriverStarted = $false
 $script:DriverIdentity = $null
-$script:StdoutTask = $null
-$script:StderrTask = $null
+$script:StdoutState = $null
+$script:StderrState = $null
+$script:DriverStreamCapture = [pscustomobject]@{ stdout = $null; stderr = $null }
 $script:ProtocolRecords = New-Object System.Collections.ArrayList
 $script:ProtocolLines = New-Object System.Collections.ArrayList
 $script:FailureCategory = $null
@@ -122,9 +127,11 @@ $script:FixtureSha256 = [ordered]@{}
 $script:ReadInputsSha256 = [ordered]@{}
 $script:HostBefore = $null
 $script:HostAfter = $null
-$script:ClaimPath = Join-Path $script:EvidenceDirectory ($Phase + '.claim')
-$script:ReceiptPath = Join-Path $script:EvidenceDirectory ($Phase + '.json')
-$script:OverrunPath = Join-Path $script:EvidenceDirectory ($Phase + '-overrun.json')
+$script:HostRuntime = $null
+$script:EvidenceNamePrefix = 'recovery-r1-'
+$script:ClaimPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '.claim')
+$script:ReceiptPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '.json')
+$script:OverrunPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $Phase + '-overrun.json')
 $script:ClaimCreated = $false
 $script:DriverExitConfirmed = $false
 $script:DriverExitCode = $null
@@ -265,6 +272,12 @@ function Test-FreezeEnvelope {
     if (-not (Test-HasProperties $Value @('schema','status','runtime_ready','runtime_attempts_authorized','installation_authorized','qualification_dispatch_authorized','python','protected_count','protected_files_sha256','qualified_service_root','qualified_seven_inputs_sha256','execution_freeze'))) { return $false }
     if ($Value.schema -cne 'ladybug.feat010.controller-integration.freeze.v1' -or $Value.runtime_ready -isnot [bool] -or $Value.runtime_ready -ne $false -or -not (Test-ExactInteger $Value.runtime_attempts_authorized) -or $Value.runtime_attempts_authorized -ne 0 -or $Value.installation_authorized -isnot [bool] -or $Value.installation_authorized -ne $false) { return $false }
     if ($Value.qualification_dispatch_authorized -isnot [bool] -or $Value.qualification_dispatch_authorized -ne $true) { return $false }
+    if (-not (Test-HasProperties $Value @('recovery_preflight'))) { return $false }
+    $hostPins = $Value.recovery_preflight
+    if (-not (Test-HasProperties $hostPins @('host_path','host_sha256','ps_version','wsl_path','wsl_sha256')) -or
+        $hostPins.host_path -isnot [string] -or $hostPins.host_path.Length -eq 0 -or -not (Test-Sha256 $hostPins.host_sha256) -or
+        $hostPins.ps_version -isnot [string] -or $hostPins.ps_version.Length -eq 0 -or
+        $hostPins.wsl_path -isnot [string] -or $hostPins.wsl_path.Length -eq 0 -or -not (Test-Sha256 $hostPins.wsl_sha256)) { return $false }
     if (-not (Test-ObjectShape $Value.python @('path','resolved','sha256')) -or $Value.python.path -cne $script:PythonPath -or $Value.python.resolved -cne $script:PythonResolved -or $Value.python.sha256 -cne $script:PythonSha256) { return $false }
     if (-not (Test-ExactInteger $Value.protected_count) -or $Value.protected_count -ne 199 -or $null -eq $Value.protected_files_sha256) { return $false }
     $protectedNames = @(Get-PropertyNames $Value.protected_files_sha256)
@@ -291,9 +304,9 @@ function Test-FreezeEnvelope {
 
 function Test-HostClaim {
     param([object]$Claim)
-    if (-not (Test-ObjectShape $Claim @('exclusive','collision_preserved','launch_allowlist'))) { return $false }
+    if (-not (Test-ObjectShape $Claim @('exclusive','collision_preserved','launch_argv'))) { return $false }
     if ($Claim.exclusive -isnot [bool] -or $Claim.exclusive -ne $true -or $Claim.collision_preserved -isnot [bool] -or $Claim.collision_preserved -ne $true) { return $false }
-    return (Test-StringArray $Claim.launch_allowlist $script:LaunchAllowlist)
+    return (Test-StringArray $Claim.launch_argv $script:LaunchArgv)
 }
 
 function Test-AdmissionEnvelope {
@@ -416,10 +429,44 @@ function Test-FinalAdmission {
     return $true
 }
 
+function Get-PostWriteFinalOutcome {
+    param([object]$PostWriteAdmissionPassed, [object]$OverrunMarkerWritten)
+    $admitted = (Test-ExactBoolean $PostWriteAdmissionPassed) -and $PostWriteAdmissionPassed -eq $true
+    $markerWritten = (Test-ExactBoolean $OverrunMarkerWritten) -and $OverrunMarkerWritten -eq $true
+    $success = ($admitted -and $markerWritten)
+    return [pscustomobject]@{
+        success = [bool]$success
+        pass_marker_allowed = [bool]$success
+        exit_code = if ($success) { 0 } else { 1 }
+    }
+}
+
 function Get-FileSha256 {
     param([string]$Path)
     if (-not [System.IO.File]::Exists($Path)) { throw ('pinned file is missing: ' + $Path) }
     return (Get-FileHash -LiteralPath $Path -Algorithm SHA256).Hash.ToLowerInvariant()
+}
+
+function Assert-HostRuntimePin {
+    param([object]$Freeze)
+    $pins = $Freeze.recovery_preflight
+    $process = [System.Diagnostics.Process]::GetCurrentProcess()
+    $actualHostPath = [System.IO.Path]::GetFullPath($process.MainModule.FileName)
+    $expectedHostPath = [System.IO.Path]::GetFullPath([string]$pins.host_path)
+    if (-not [string]::Equals($actualHostPath, $expectedHostPath, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'current PowerShell image path differs from the parent runtime pin' }
+    $actualPowerShellVersion = [string]$PSVersionTable.PSVersion.ToString()
+    if ($actualPowerShellVersion -cne [string]$pins.ps_version) { throw 'current Windows PowerShell version differs from the parent runtime pin' }
+    $wslCommand = Get-Command -Name 'wsl.exe' -CommandType Application -ErrorAction Stop | Select-Object -First 1
+    $actualWslPath = [System.IO.Path]::GetFullPath([string]$wslCommand.Source)
+    $expectedWslPath = [System.IO.Path]::GetFullPath([string]$pins.wsl_path)
+    if (-not [string]::Equals($actualWslPath, $expectedWslPath, [System.StringComparison]::OrdinalIgnoreCase)) { throw 'resolved wsl.exe path differs from the parent runtime pin' }
+    $actualHostHash = Get-FileSha256 $actualHostPath
+    $actualWslHash = Get-FileSha256 $actualWslPath
+    if ($actualHostHash -cne [string]$pins.host_sha256 -or $actualWslHash -cne [string]$pins.wsl_sha256) { throw 'PowerShell or wsl.exe image hash differs from the parent runtime pin' }
+    $script:HostRuntime = [pscustomobject]@{
+        host_path = $actualHostPath; host_sha256 = $actualHostHash; ps_version = $actualPowerShellVersion
+        wsl_path = $actualWslPath; wsl_sha256 = $actualWslHash
+    }
 }
 
 function Resolve-ProtectedPath {
@@ -632,22 +679,289 @@ function Read-JsonLine {
     return $record
 }
 
+function New-StreamPumpState {
+    param([System.IO.Stream]$Stream, [string]$Name, [int]$MaximumRetainedCharacters)
+    $encoding = New-Object System.Text.UTF8Encoding($false, $false)
+    return [pscustomobject]@{
+        name = $Name; stream = $Stream; buffer = (New-Object byte[] 4096); task = $null
+        offset = 0; count = 0; eof = $false; read_error = $null
+        observed_bytes = [long]0; hash = [System.Security.Cryptography.SHA256]::Create(); hash_final = $false; sha256 = $null
+        decoder = $encoding.GetDecoder(); retained = (New-Object System.Text.StringBuilder); tail = (New-Object System.Text.StringBuilder)
+        maximum_characters = $MaximumRetainedCharacters; truncated = $false
+        mode = if ($Name -ceq 'stdout') { 'protocol' } else { 'diagnostic' }
+        line = (New-Object System.IO.MemoryStream); pending_cr = $false; protocol_overflow = $false; protocol_error = $false; protocol_line_bytes = [long]0; protocol_overflow_observed_bytes = [long]0; partial_protocol = $null; extra_stdout = $false
+    }
+}
+
+function Complete-StreamHash {
+    param([object]$State)
+    if ($State.hash_final) { return }
+    $empty = New-Object byte[] 0
+    [void]$State.hash.TransformFinalBlock($empty, 0, 0)
+    $State.sha256 = [System.BitConverter]::ToString($State.hash.Hash).Replace('-', '').ToLowerInvariant()
+    $State.hash_final = $true
+}
+
+function Add-StreamRetainedText {
+    param([object]$State, [string]$Text)
+    if ($null -eq $Text -or $Text.Length -eq 0) { return }
+    $maximum = [int]$State.maximum_characters
+    if (-not $State.truncated -and $State.retained.Length + $Text.Length -le $maximum) {
+        [void]$State.retained.Append($Text)
+        return
+    }
+    if (-not $State.truncated) {
+        $combined = $State.retained.ToString() + $Text
+        $headCount = [int][Math]::Floor($maximum / 2)
+        $tailCount = $maximum - $headCount
+        [void]$State.retained.Clear()
+        [void]$State.tail.Clear()
+        [void]$State.retained.Append($combined.Substring(0, $headCount))
+        [void]$State.tail.Append($combined.Substring([Math]::Max(0, $combined.Length - $tailCount)))
+        $State.truncated = $true
+        return
+    }
+    [void]$State.tail.Append($Text)
+    $tailMaximum = [int][Math]::Ceiling($maximum / 2)
+    if ($State.tail.Length -gt $tailMaximum) { [void]$State.tail.Remove(0, $State.tail.Length - $tailMaximum) }
+}
+
+function Complete-StreamDecoder {
+    param([object]$State)
+    if ($State.name -ceq 'stdout' -and $State.mode -ceq 'protocol') { return }
+    $characters = New-Object char[] 16
+    $empty = New-Object byte[] 0
+    $count = $State.decoder.GetChars($empty, 0, 0, $characters, 0, $true)
+    if ($count -gt 0) { Add-StreamRetainedText $State (New-Object System.String($characters, 0, $count)) }
+}
+
+function Complete-StreamRead {
+    param([object]$State)
+    if ($null -eq $State.task -or -not $State.task.IsCompleted) { return }
+    $task = $State.task
+    $State.task = $null
+    try { $readCount = [int]$task.GetAwaiter().GetResult() }
+    catch {
+        $State.read_error = $_.Exception.Message
+        Complete-StreamHash $State
+        Complete-StreamDecoder $State
+        return
+    }
+    if ($readCount -eq 0) {
+        $State.eof = $true
+        Complete-StreamHash $State
+        Complete-StreamDecoder $State
+        return
+    }
+    [void]$State.hash.TransformBlock($State.buffer, 0, $readCount, $State.buffer, 0)
+    $State.observed_bytes = [long]$State.observed_bytes + $readCount
+    $State.offset = 0
+    $State.count = $readCount
+}
+
+function Start-StreamRead {
+    param([object]$State)
+    if ($State.offset -lt $State.count) { return }
+    $State.offset = 0
+    $State.count = 0
+    if ($State.eof -or $null -ne $State.read_error -or $null -ne $State.task) { return }
+    try { $State.task = $State.stream.ReadAsync($State.buffer, 0, $State.buffer.Length) }
+    catch {
+        $State.read_error = $_.Exception.Message
+        Complete-StreamHash $State
+        Complete-StreamDecoder $State
+    }
+}
+
+function Consume-StreamTextChunk {
+    param([object]$State)
+    if ($State.offset -ge $State.count) { return }
+    $remaining = $State.count - $State.offset
+    $characters = New-Object char[] 8192
+    $decoded = $State.decoder.GetChars($State.buffer, $State.offset, $remaining, $characters, 0, $false)
+    $State.offset = $State.count
+    if ($decoded -gt 0) { Add-StreamRetainedText $State (New-Object System.String($characters, 0, $decoded)) }
+    if ($State.name -ceq 'stdout' -and $remaining -gt 0) { $State.extra_stdout = $true }
+}
+
+function Save-PartialProtocolPrefix {
+    param([object]$State, [long]$ObservedLineBytes, [bool]$NewlineSeen = $false)
+    if ($null -ne $State.partial_protocol) { return }
+    $raw = $State.line.ToArray()
+    $prefixBytes = [int][Math]::Min(16384, $raw.Length)
+    $sample = New-Object byte[] $prefixBytes
+    if ($prefixBytes -gt 0) { [System.Array]::Copy($raw, 0, $sample, 0, $prefixBytes) }
+    $State.partial_protocol = [pscustomobject]@{
+        line_bytes_observed_at_failure = [long]$ObservedLineBytes
+        retained_line_prefix_bytes = [int]$raw.Length
+        retained_line_prefix_sha256 = Get-BytesSha256 $raw
+        sample_bytes = $prefixBytes
+        sample_base64 = [System.Convert]::ToBase64String($sample)
+        sample_sha256 = Get-BytesSha256 $sample
+        newline_seen = [bool]$NewlineSeen; stream_eof = $null; observed_stream_bytes = [long]$State.observed_bytes
+    }
+}
+
+function Get-ProtocolLineFromBuffer {
+    param([object]$State, [string]$Label)
+    while ($State.offset -lt $State.count) {
+        $byte = [int]$State.buffer[$State.offset]
+        $State.offset++
+        if ($byte -eq 10) {
+            $State.pending_cr = $false
+            $lineBytes = $State.line.ToArray()
+            try { $line = (New-Object System.Text.UTF8Encoding($false, $true)).GetString($lineBytes) }
+            catch {
+                $State.protocol_error = $true
+                Save-PartialProtocolPrefix $State ([long]$lineBytes.Length) $true
+                throw ($Label + ' was not valid UTF-8 protocol data')
+            }
+            $State.line.SetLength(0)
+            $State.protocol_line_bytes = [long]0
+            if (-not (Test-ProtocolLineWithinLimit $line)) { throw ($Label + ' JSON line exceeded the bounded 262144-byte or character limit') }
+            [void]$script:ProtocolLines.Add($line)
+            try { $record = Read-JsonLine $line $Label }
+            catch { $State.protocol_error = $true; throw }
+            if ($record.kind -ceq 'TERMINAL') { $State.mode = 'tail' }
+            return $record
+        }
+        if ($State.pending_cr) {
+            if ($State.line.Length -ge $script:ProtocolLineMaximumBytes) { $State.protocol_overflow = $true; $State.protocol_overflow_observed_bytes = [long]$State.protocol_line_bytes + 2; Save-PartialProtocolPrefix $State $State.protocol_overflow_observed_bytes; throw ($Label + ' JSON line exceeded the bounded 262144-byte protocol limit') }
+            $State.line.WriteByte([byte]13)
+            $State.protocol_line_bytes++
+            $State.pending_cr = $false
+        }
+        if ($byte -eq 13) { $State.pending_cr = $true; continue }
+        if ($State.line.Length -ge $script:ProtocolLineMaximumBytes) { $State.protocol_overflow = $true; $State.protocol_overflow_observed_bytes = [long]$State.protocol_line_bytes + 1; Save-PartialProtocolPrefix $State $State.protocol_overflow_observed_bytes; throw ($Label + ' JSON line exceeded the bounded 262144-byte protocol limit') }
+        $State.line.WriteByte([byte]$byte)
+        $State.protocol_line_bytes++
+    }
+    return $null
+}
+
+function Get-StreamRetainedText {
+    param([object]$State)
+    if ($null -eq $State) { return '' }
+    if (-not $State.truncated) { return $State.retained.ToString() }
+    $marker = "`n<stream truncated; observed_bytes=$($State.observed_bytes); sha256=$($State.sha256); eof=$($State.eof)>`n"
+    $available = [int]$State.maximum_characters - $marker.Length
+    if ($available -lt 0) { $marker = $marker.Substring(0, [int]$State.maximum_characters); $available = 0 }
+    $headCount = [int][Math]::Min($State.retained.Length, [Math]::Floor($available / 2))
+    $tailCount = [int][Math]::Min($State.tail.Length, $available - $headCount)
+    $head = if ($headCount -gt 0) { $State.retained.ToString(0, $headCount) } else { '' }
+    $tail = if ($tailCount -gt 0) { $State.tail.ToString($State.tail.Length - $tailCount, $tailCount) } else { '' }
+    return ($head + $marker + $tail)
+}
+
+function Get-StreamCaptureSummary {
+    param([object]$State)
+    if ($null -eq $State) { return $null }
+    if (-not $State.hash_final) { Complete-StreamHash $State }
+    $retainedText = Get-StreamRetainedText $State
+    return [pscustomobject]@{
+        observed_bytes = [long]$State.observed_bytes; sha256 = [string]$State.sha256
+        eof = [bool]$State.eof; partial = [bool](-not $State.eof)
+        retained_characters = [int]$retainedText.Length; truncated = [bool]$State.truncated
+        protocol_overflow = [bool]$State.protocol_overflow; unexpected_stdout = [bool]$State.extra_stdout
+        read_error = if ($null -ne $State.read_error) { Limit-CleanupDetail ([string]$State.read_error) } else { $null }
+    }
+}
+
+function Invoke-StreamOracleControl {
+    param([string]$Id)
+    $name = if ($Id -ceq 'STREAM_STDERR_CAP_NO_NEWLINE') { 'stderr' } else { 'stdout' }
+    $count = if ($Id -ceq 'STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE') { 262145 } else { 16385 }
+    $fill = if ($Id -ceq 'STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE') { 65 } elseif ($Id -ceq 'STREAM_STDERR_CAP_NO_NEWLINE') { 83 } else { 84 }
+    $bytes = New-Object byte[] $count
+    for ($i = 0; $i -lt $bytes.Length; $i++) { $bytes[$i] = [byte]$fill }
+    $memory = New-Object System.IO.MemoryStream
+    $memory.Write($bytes, 0, $bytes.Length)
+    $memory.Position = 0
+    $state = New-StreamPumpState $memory $name 16384
+    if ($Id -ceq 'STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE') { $state.mode = 'tail' }
+    $classification = 'ACCEPT'
+    $failure = $null
+    while (-not $state.eof) {
+        Start-StreamRead $state
+        if ($null -eq $state.task) { $failure = 'stream fixture ended without EOF state'; break }
+        $remaining = [int][Math]::Floor([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs - $script:Clock.ElapsedMilliseconds)
+        if ($remaining -le 0 -or -not $state.task.Wait($remaining)) { $failure = 'bounded host stream control reached the existing phase cutoff'; break }
+        Complete-StreamRead $state
+        if ($null -ne $state.read_error) { $failure = $state.read_error; break }
+        if ($name -ceq 'stdout' -and $state.mode -ceq 'protocol' -and $state.offset -lt $state.count) {
+            try { [void](Get-ProtocolLineFromBuffer $state 'stream oracle') }
+            catch {
+                if ($state.protocol_overflow) {
+                    $classification = 'PROTOCOL'
+                    Save-PartialProtocolPrefix $state $state.protocol_overflow_observed_bytes
+                    $state.mode = 'tail'
+                    $state.pending_cr = $false
+                    $state.line.SetLength(0)
+                } else { $failure = $_.Exception.Message }
+            }
+        }
+        if ($state.offset -lt $state.count) { Consume-StreamTextChunk $state }
+    }
+    $summary = Get-StreamCaptureSummary $state
+    $expectedHash = Get-BytesSha256 $bytes
+    $passed = ($null -eq $failure -and $summary.observed_bytes -eq $count -and $summary.sha256 -ceq $expectedHash -and $summary.eof -and -not $summary.partial -and $summary.retained_characters -le 16384)
+    if ($Id -ceq 'STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE') {
+        $passed = ($passed -and $classification -ceq 'PROTOCOL' -and $state.protocol_overflow -and $state.line.Length -eq 0 -and
+            $null -ne $state.partial_protocol -and $state.partial_protocol.retained_line_prefix_bytes -eq 262144 -and
+            $state.partial_protocol.line_bytes_observed_at_failure -eq 262145 -and $state.partial_protocol.sample_bytes -eq 16384 -and
+            $state.partial_protocol.newline_seen -eq $false -and $summary.unexpected_stdout -eq $false)
+    } elseif ($Id -ceq 'STREAM_STDERR_CAP_NO_NEWLINE') {
+        $passed = ($passed -and $state.truncated -and -not $summary.unexpected_stdout -and -not $state.protocol_overflow)
+    } else {
+        $passed = ($passed -and $summary.unexpected_stdout -and $state.truncated -and -not $state.protocol_overflow)
+        $classification = if ($summary.unexpected_stdout) { 'PROTOCOL' } else { 'ACCEPT' }
+        $passed = ($passed -and $classification -ceq 'PROTOCOL')
+    }
+    $expected = Get-HostOracleExpected $Id
+    $observed = if ($passed) { $expected } else { 'MISMATCH' }
+    $reason = [pscustomobject]@{ classification = $classification; failure = $failure; stream = $summary; partial_protocol = $state.partial_protocol }
+    $memory.Dispose()
+    return [pscustomobject]@{ id = $Id; expected = $expected; observed = $observed; status = $(if ($passed) { 'PASS' } else { 'FAIL' }); reason = (ConvertTo-Json -InputObject $reason -Depth 8 -Compress) }
+}
+
 function Read-ProtocolLine {
     param([int]$DeadlineElapsedMs, [string]$Label)
-    $remaining = $DeadlineElapsedMs - [int]$script:Clock.ElapsedMilliseconds
-    if ($remaining -le 0) { throw ($Label + ' deadline expired before read') }
-    $script:StdoutTask = $script:Driver.StandardOutput.ReadLineAsync()
-    $script:StdoutReadPending = $true
-    try { $completed = $script:StdoutTask.Wait($remaining) } catch { throw ($Label + ' stream read failed: ' + $_.Exception.Message) }
-    if (-not $completed) { throw ($Label + ' timed out at the phase boundary') }
-    try { $line = $script:StdoutTask.GetAwaiter().GetResult() } catch { throw ($Label + ' stream read failed: ' + $_.Exception.Message) }
-    $script:StdoutReadPending = $false
-    if ($null -ne $line -and -not (Test-ProtocolLineWithinLimit $line)) {
-        [void]$script:ProtocolLines.Add((Limit-RetainedText $line 65536))
-        throw ($Label + ' JSON line exceeded the bounded 262144-byte protocol-line limit')
+    $stdout = $script:StdoutState
+    $stderr = $script:StderrState
+    if ($null -eq $stdout -or $null -eq $stderr) { throw 'bounded stream pumps were not initialized before protocol read' }
+    while ($true) {
+        if ([int]$script:Clock.ElapsedMilliseconds -ge $DeadlineElapsedMs) { throw ($Label + ' timed out at its absolute phase cutoff') }
+        foreach ($state in @($stderr, $stdout)) { Complete-StreamRead $state }
+        if ($null -ne $stderr.read_error) { throw ('stderr stream read failed: ' + $stderr.read_error) }
+        if ($stderr.offset -lt $stderr.count) { Consume-StreamTextChunk $stderr }
+        if ($null -ne $stdout.read_error) { throw ($Label + ' stream read failed: ' + $stdout.read_error) }
+        if ($stdout.mode -cne 'protocol') { throw ($Label + ' was requested after stdout entered bounded tail capture') }
+        if ($stdout.offset -lt $stdout.count) {
+            $record = Get-ProtocolLineFromBuffer $stdout $Label
+            if ($null -ne $record) { return $record }
+        }
+        if ($stdout.eof -and $stdout.offset -ge $stdout.count) {
+            if ($stdout.pending_cr) {
+                $stdout.pending_cr = $false
+                if ($stdout.line.Length -ge $script:ProtocolLineMaximumBytes) { $stdout.protocol_overflow = $true; $stdout.protocol_overflow_observed_bytes = [long]$stdout.protocol_line_bytes + 1; Save-PartialProtocolPrefix $stdout $stdout.protocol_overflow_observed_bytes; throw ($Label + ' JSON line exceeded the bounded 262144-byte protocol limit') }
+                $stdout.line.WriteByte([byte]13)
+                $stdout.protocol_line_bytes++
+            }
+            if ($stdout.line.Length -gt 0) { throw ($Label + ' ended before its required newline') }
+            throw ($Label + ' reached stdout EOF before a record')
+        }
+        Start-StreamRead $stderr
+        Start-StreamRead $stdout
+        $tasks = @()
+        if ($null -ne $stdout.task) { $tasks += [System.Threading.Tasks.Task]$stdout.task }
+        if ($null -ne $stderr.task) { $tasks += [System.Threading.Tasks.Task]$stderr.task }
+        if ($tasks.Count -eq 0) { throw ($Label + ' has no pending bounded stream read') }
+        $remaining = [int][Math]::Floor($DeadlineElapsedMs - $script:Clock.ElapsedMilliseconds)
+        if ($remaining -le 0) { throw ($Label + ' timed out at its absolute phase cutoff') }
+        try { $completedIndex = [System.Threading.Tasks.Task]::WaitAny([System.Threading.Tasks.Task[]]$tasks, $remaining) }
+        catch { throw ($Label + ' stream wait failed: ' + $_.Exception.Message) }
+        if ($completedIndex -lt 0) { throw ($Label + ' timed out at its absolute phase cutoff') }
     }
-    [void]$script:ProtocolLines.Add($line)
-    return Read-JsonLine $line $Label
 }
 
 function Write-ProtocolLine {
@@ -673,6 +987,20 @@ function Get-SyntheticSnapshot {
 function Copy-JsonValue {
     param([object]$Value)
     return (ConvertFrom-Json -InputObject (ConvertTo-Json -InputObject $Value -Depth 100 -Compress) -ErrorAction Stop)
+}
+
+function ConvertFrom-HostEvidenceJson {
+    param([string]$Json)
+    $value = ConvertFrom-Json -InputObject $Json -ErrorAction Stop
+    foreach ($name in @('started_utc','evidence_written_utc')) {
+        $property = $value.PSObject.Properties[$name]
+        if ($null -eq $property) { continue }
+        $pattern = '"' + [regex]::Escape($name) + '"\s*:\s*"([^"\\]*)"'
+        $match = [regex]::Match($Json, $pattern)
+        if (-not $match.Success) { throw ('host evidence timestamp was not a plain JSON string: ' + $name) }
+        $property.Value = $match.Groups[1].Value
+    }
+    return $value
 }
 
 function New-SyntheticCase {
@@ -719,7 +1047,7 @@ function New-SyntheticOracleRows {
         if ($id -ceq 'CLAIM_COLLISION_PRESERVES_BYTES') {
             [void]$rows.Add([pscustomobject]@{ id = $id; expected = 'REJECT_AND_PRESERVE'; observed = 'REJECT_AND_PRESERVE'; status = 'PASS'; original_sha256 = ('a' * 64); after_sha256 = ('a' * 64) })
         } else {
-            $expected = if ($id -match '(_VALID$|^PREV_VALID$|^TERM_FAIL_UNCONFIRMED_NULL_EXIT$)') { 'ACCEPT' } else { 'REJECT' }
+            $expected = Get-HostOracleExpected $id
             [void]$rows.Add([pscustomobject]@{ id = $id; expected = $expected; observed = $expected; status = 'PASS'; reason = 'synthetic retained-shape oracle row' })
         }
     }
@@ -728,7 +1056,7 @@ function New-SyntheticOracleRows {
 
 function New-SyntheticRetainedProof {
     $records = New-SyntheticRecords 'stop-observation-admission'
-    $hostClaim = [pscustomobject]@{ exclusive = $true; collision_preserved = $true; launch_allowlist = $script:LaunchAllowlist }
+    $hostClaim = [pscustomobject]@{ exclusive = $true; collision_preserved = $true; launch_argv = $script:LaunchArgv }
     $started = [DateTime]::UtcNow.ToString('o')
     $claim = [pscustomobject]@{ phase = 'stop-observation-admission'; nonce = $records.nonce; manifest_sha256 = $records.manifest; attempt = 1; started_utc = $started }
     $receipt = [pscustomobject]@{
@@ -761,11 +1089,17 @@ function Test-HostOracleProof {
             if (-not (Test-ObjectShape $row @('id','expected','observed','status','original_sha256','after_sha256')) -or $row.id -cne $id -or $row.expected -cne 'REJECT_AND_PRESERVE' -or $row.observed -cne 'REJECT_AND_PRESERVE' -or $row.status -cne 'PASS' -or -not (Test-Sha256 $row.original_sha256) -or $row.original_sha256 -cne $row.after_sha256) { return $false }
         } else {
             if (-not (Test-ObjectShape $row @('id','expected','observed','status','reason')) -or $row.id -cne $id -or $row.status -cne 'PASS') { return $false }
-            $expected = if ($id -match '(_VALID$|^PREV_VALID$|^TERM_FAIL_UNCONFIRMED_NULL_EXIT$)') { 'ACCEPT' } else { 'REJECT' }
+            $expected = Get-HostOracleExpected $id
             if ($row.expected -cne $expected -or $row.observed -cne $expected -or ($null -ne $row.reason -and $row.reason -isnot [string])) { return $false }
         }
     }
     return $true
+}
+
+function Get-HostOracleExpected {
+    param([string]$Id)
+    if ($Id -match '(_VALID$|^PREV_VALID$|^TERM_FAIL_UNCONFIRMED_NULL_EXIT$|^PREV_JSON_TIMESTAMP_ROUNDTRIP$|^STREAM_STDERR_CAP_NO_NEWLINE$)') { return 'ACCEPT' }
+    return 'REJECT'
 }
 
 function Test-RetainedPhaseEvidence {
@@ -828,6 +1162,8 @@ function Invoke-OracleControl {
         $accepted = Test-RetainedPhaseEvidence $Value.claim $Value.receipt 'stop-observation-admission' $Context.manifest $Context.ticket $Context.snapshot.source_sha256 $Context.snapshot.fixture_sha256 $Context.snapshot.read_inputs_sha256 $Context.snapshot ([ref]$reason)
     } elseif ($Validator -ceq 'json') {
         $accepted = Test-JsonWithUniqueKeys $Value $script:ProtocolLineMaximumCharacters
+    } elseif ($Validator -ceq 'claim') {
+        $accepted = Test-HostClaim $Value
     } else {
         $accepted = Test-FinalAdmission $Value.terminal $Context $Value.driver_wait $Value.driver_exit $Value.preservation_equal $Value.finalized $Value.elapsed_ms 30000 ([ref]$reason)
     }
@@ -949,6 +1285,51 @@ function Invoke-HostOracle {
         }
         [void]$results.Add((Invoke-OracleControl $id 'retained' $copy $false $retainedContext))
     }
+    [void]$results.Add((Invoke-OracleControl 'CLAIM_VALID' 'claim' $ActualHostClaim $true $context))
+    foreach ($id in @('CLAIM_CHANGED_ARGUMENT','CLAIM_CHANGED_PATH')) {
+        $copy = Copy-JsonValue $ActualHostClaim
+        $argv = @($copy.launch_argv)
+        if ($id -ceq 'CLAIM_CHANGED_ARGUMENT') { $argv[5] = '--version' } else { $argv[4] = '/mnt/e/projects/ladybug/repro/changed/stop-q.py' }
+        $copy.launch_argv = $argv
+        [void]$results.Add((Invoke-OracleControl $id 'claim' $copy $false $context))
+    }
+    foreach ($id in @('READY_EXTRA_FIELD','READY_FLOAT_ELAPSED')) {
+        $copy = Copy-JsonValue $context.ready
+        if ($id -ceq 'READY_EXTRA_FIELD') { Add-Member -InputObject $copy -MemberType NoteProperty -Name extra_field -Value $true }
+        else { $copy.supervisor_elapsed_ms = [double]4.25 }
+        [void]$results.Add((Invoke-OracleControl $id 'ready' $copy $false $context))
+    }
+    foreach ($id in @('TERM_EXTRA_FIELD','TERM_FLOAT_PHASE_ELAPSED')) {
+        $copy = Copy-JsonValue $context.terminal
+        if ($id -ceq 'TERM_EXTRA_FIELD') { Add-Member -InputObject $copy -MemberType NoteProperty -Name extra_field -Value $true }
+        else { $copy.phase_elapsed_ms = [double]80.5 }
+        [void]$results.Add((Invoke-OracleControl $id 'terminal' $copy $false $context))
+    }
+    $floatFinal = Copy-JsonValue $finalValid
+    $floatFinal.elapsed_ms = [double]100.5
+    [void]$results.Add((Invoke-OracleControl 'FINAL_FLOAT_ELAPSED' 'final' $floatFinal $false $finalContext))
+    $claimJson = ConvertTo-Json -InputObject $retained.claim -Depth 100 -Compress
+    $receiptJson = ConvertTo-Json -InputObject $retained.receipt -Depth 100 -Compress
+    $roundtrip = [pscustomobject]@{
+        claim = ConvertFrom-HostEvidenceJson $claimJson
+        receipt = ConvertFrom-HostEvidenceJson $receiptJson
+    }
+    $roundtripAccepted = ($roundtrip.claim.started_utc -is [string] -and $roundtrip.claim.started_utc -ceq $retained.claim.started_utc -and
+        $roundtrip.receipt.evidence_written_utc -is [string] -and $roundtrip.receipt.evidence_written_utc -ceq $retained.receipt.evidence_written_utc)
+    if ($roundtripAccepted) { [void]$results.Add((Invoke-OracleControl 'PREV_JSON_TIMESTAMP_ROUNDTRIP' 'retained' $roundtrip $true $retainedContext)) }
+    else { [void]$results.Add([pscustomobject]@{ id = 'PREV_JSON_TIMESTAMP_ROUNDTRIP'; expected = 'ACCEPT'; observed = 'REJECT'; status = 'FAIL'; reason = 'timestamp string type or value changed during actual host JSON round trip' }) }
+    $typedTimestamp = [pscustomobject]@{ claim = (Copy-JsonValue $retained.claim); receipt = (Copy-JsonValue $retained.receipt) }
+    $typedTimestamp.claim.started_utc = [DateTime]::UtcNow
+    [void]$results.Add((Invoke-OracleControl 'PREV_JSON_TIMESTAMP_TYPED_NEGATIVE' 'retained' $typedTimestamp $false $retainedContext))
+    foreach ($id in @('STREAM_STDOUT_PROTOCOL_OVERSIZE_NO_NEWLINE','STREAM_STDERR_CAP_NO_NEWLINE','STREAM_STDOUT_TAIL_OVERSIZE_NO_NEWLINE')) {
+        [void]$results.Add((Invoke-StreamOracleControl $id))
+    }
+    foreach ($id in @('FINAL_POSTWRITE_ADMISSION_FAILURE','FINAL_MARKER_WRITE_FAILURE_NONZERO')) {
+        $markerWrite = ($id -ceq 'FINAL_POSTWRITE_ADMISSION_FAILURE')
+        $outcome = Get-PostWriteFinalOutcome $false $markerWrite
+        $controlPassed = (-not $outcome.pass_marker_allowed -and -not $outcome.success -and $outcome.exit_code -ne 0)
+        [void]$results.Add([pscustomobject]@{ id = $id; expected = 'REJECT'; observed = $(if ($controlPassed) { 'REJECT' } else { 'ACCEPT' }); status = $(if ($controlPassed) { 'PASS' } else { 'FAIL' }); reason = 'post-write failure cannot authorize PASS; enclosing host returns failure for parent-observed exit' })
+    }
     if (-not (Test-HostClaim $ActualHostClaim)) { throw 'host claim object failed its actual claim validator' }
     $collision = $script:ClaimCollision
     $collisionPassed = ($null -ne $collision -and $collision.rejected -is [bool] -and $collision.rejected -eq $true -and $collision.original_preserved -is [bool] -and $collision.original_preserved -eq $true)
@@ -1028,17 +1409,17 @@ function Assert-PreviousPhase {
     if ($index -le 0) { return }
     for ($i = 0; $i -lt $index; $i++) {
         $prior = $script:PhaseOrder[$i]
-        $receiptPath = Join-Path $script:EvidenceDirectory ($prior + '.json')
-        $claimPath = Join-Path $script:EvidenceDirectory ($prior + '.claim')
-        $overrunPath = Join-Path $script:EvidenceDirectory ($prior + '-overrun.json')
+        $receiptPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '.json')
+        $claimPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '.claim')
+        $overrunPath = Join-Path $script:EvidenceDirectory ($script:EvidenceNamePrefix + $prior + '-overrun.json')
         if (-not [System.IO.File]::Exists($receiptPath) -or -not [System.IO.File]::Exists($claimPath) -or [System.IO.File]::Exists($overrunPath)) { throw ('matching predecessor PASS is absent or invalid: ' + $prior) }
         try {
             $encoding = New-Object System.Text.UTF8Encoding($false, $true)
             $claimRaw = [System.IO.File]::ReadAllText($claimPath, $encoding)
             $receiptRaw = [System.IO.File]::ReadAllText($receiptPath, $encoding)
             if (-not (Test-JsonWithUniqueKeys $claimRaw) -or -not (Test-JsonWithUniqueKeys $receiptRaw)) { throw 'claim or receipt contained malformed JSON or duplicate object keys' }
-            $claim = ConvertFrom-Json -InputObject $claimRaw -ErrorAction Stop
-            $receipt = ConvertFrom-Json -InputObject $receiptRaw -ErrorAction Stop
+            $claim = ConvertFrom-HostEvidenceJson $claimRaw
+            $receipt = ConvertFrom-HostEvidenceJson $receiptRaw
         } catch { throw ('predecessor evidence is not valid unique-key UTF-8 JSON: ' + $prior + ': ' + $_.Exception.Message) }
         $reason = $null
         if (-not (Test-RetainedPhaseEvidence $claim $receipt $prior $Manifest $Ticket $Sources $Fixtures $ReadInputs $script:HostBefore ([ref]$reason))) { throw ('predecessor evidence failed strict nested admission: ' + $prior + ': ' + $reason) }
@@ -1053,6 +1434,7 @@ function Read-AndValidateFreeze {
     try { $script:Freeze = ConvertFrom-Json -InputObject $raw -ErrorAction Stop } catch { throw ('integration freeze JSON is invalid: ' + $_.Exception.Message) }
     $reason = $null
     if (-not (Test-FreezeEnvelope $script:Freeze ([ref]$reason))) { throw ('parent freeze is not fully authorized for this one-shot source-profile gate: ' + $reason) }
+    Assert-HostRuntimePin $script:Freeze
     $script:Execution = $script:Freeze.execution_freeze
     $script:TicketSha256 = [string]$script:Execution.ticket_sha256
     if ((Get-FileSha256 $script:TicketPath) -cne $script:TicketSha256) { throw 'canonical FEAT-010 ticket differs from execution freeze' }
@@ -1066,10 +1448,10 @@ function Read-AndValidateFreeze {
 }
 
 function Start-PinnedSupervisor {
+    if ($null -eq $script:HostRuntime -or -not (Test-StringArray $script:HostClaim.launch_argv $script:LaunchArgv) -or $script:LaunchArgv[0] -cne 'wsl.exe') { throw 'actual launch vector is not the checked parent-bound six-token claim' }
     $psi = New-Object System.Diagnostics.ProcessStartInfo
-    $psi.FileName = 'wsl.exe'
-    $scriptPath = '/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py'
-    $psi.Arguments = '--exec ' + $script:PythonPath + ' -B ' + $scriptPath + ' --supervisor'
+    $psi.FileName = $script:HostRuntime.wsl_path
+    $psi.Arguments = [string]::Join(' ', [string[]]@($script:LaunchArgv[1..($script:LaunchArgv.Count - 1)]))
     $psi.UseShellExecute = $false
     $psi.CreateNoWindow = $true
     $psi.RedirectStandardInput = $true
@@ -1092,12 +1474,15 @@ function Start-PinnedSupervisor {
         else { $driverIdentityError += '; start-time capture failed: ' + $_.Exception.Message }
     }
     $script:DriverIdentity = [pscustomobject]@{
-        requested_image = 'wsl.exe'
+        requested_image = $script:HostRuntime.wsl_path
         pid = $driverPid
         start_time_utc_ticks = $driverStartTicks
         capture_error = $driverIdentityError
     }
-    $script:StderrTask = $script:Driver.StandardError.ReadToEndAsync()
+    $script:StdoutState = New-StreamPumpState $script:Driver.StandardOutput.BaseStream 'stdout' 16384
+    $script:StderrState = New-StreamPumpState $script:Driver.StandardError.BaseStream 'stderr' 16384
+    Start-StreamRead $script:StdoutState
+    Start-StreamRead $script:StderrState
 }
 
 function Retain-UnresolvedDriverCleanup {
@@ -1113,6 +1498,7 @@ function Retain-UnresolvedDriverCleanup {
         last_proven_protocol_marker = $lastMarker
         protocol_records = @($script:ProtocolRecords.ToArray())
         protocol_lines = @($script:ProtocolLines.ToArray())
+        stream_capture = $script:DriverStreamCapture
         stdout_read_pending = [bool]$script:StdoutReadPending
         wait_error = $WaitError
     }
@@ -1133,7 +1519,7 @@ function Send-InitAndGo {
     $terminalCutoff = $phaseLimit - $script:DriverWaitReserveMs - $script:EvidenceReserveMs
     $ready = Read-ProtocolLine $terminalCutoff 'READY'
     $reason = $null
-    if (-not (Test-AdmissionEnvelope $ready $Phase $Nonce $script:ManifestSha256 $script:TicketSha256 ([pscustomobject]$script:SourceSha256) ([pscustomobject]$script:FixtureSha256) ([pscustomobject]$script:ReadInputsSha256) $phaseLimit ([ref]$reason)) { throw ('supervisor READY rejected: ' + $reason) }
+    if (-not (Test-AdmissionEnvelope $ready $Phase $Nonce $script:ManifestSha256 $script:TicketSha256 ([pscustomobject]$script:SourceSha256) ([pscustomobject]$script:FixtureSha256) ([pscustomobject]$script:ReadInputsSha256) $phaseLimit ([ref]$reason))) { throw ('supervisor READY rejected: ' + $reason) }
     $script:ReadyRecord = $ready
     $remaining = [int][Math]::Floor($terminalCutoff - $script:Clock.ElapsedMilliseconds)
     if ($remaining -le 0) { throw 'phase preflight left no positive relative GO budget' }
@@ -1144,79 +1530,120 @@ function Send-InitAndGo {
     $script:TerminalRecord = Read-ProtocolLine $terminalCutoff 'TERMINAL'
 }
 
-function Limit-RetainedText {
-    param([string]$Value, [int]$MaximumCharacters)
-    if ($null -eq $Value) { return '' }
-    if ($Value.Length -le $MaximumCharacters) { return $Value }
-    $head = [int][Math]::Floor($MaximumCharacters / 3)
-    $tail = $MaximumCharacters - $head
-    return ($Value.Substring(0, $head) + "`n<retained text truncated; original characters=" + $Value.Length + ">`n" + $Value.Substring($Value.Length - $tail, $tail))
+function Switch-StdoutToTail {
+    if ($null -eq $script:StdoutState -or $script:StdoutState.mode -ceq 'tail') { return }
+    if ($script:StdoutState.line.Length -gt 0 -or $script:StdoutState.pending_cr) {
+        $observedLineBytes = [long]$script:StdoutState.protocol_line_bytes
+        if ($script:StdoutState.pending_cr) { $observedLineBytes++ }
+        Save-PartialProtocolPrefix $script:StdoutState $observedLineBytes
+    }
+    $script:StdoutState.mode = 'tail'
+    $script:StdoutState.pending_cr = $false
+    $script:StdoutState.line.SetLength(0)
+}
+
+function Set-DriverStreamCapture {
+    $script:StdoutReadPending = ($null -ne $script:StdoutState -and $null -ne $script:StdoutState.task)
+    if ($null -ne $script:StdoutState.partial_protocol) {
+        $script:StdoutState.partial_protocol.stream_eof = [bool]$script:StdoutState.eof
+        $script:StdoutState.partial_protocol.observed_stream_bytes = [long]$script:StdoutState.observed_bytes
+    }
+    $script:DriverStreamCapture = [pscustomobject]@{
+        stdout = Get-StreamCaptureSummary $script:StdoutState
+        stderr = Get-StreamCaptureSummary $script:StderrState
+    }
+    $script:StdoutTail = Get-StreamRetainedText $script:StdoutState
+    $script:StderrText = Get-StreamRetainedText $script:StderrState
+}
+
+function Limit-CleanupDetail {
+    param([string]$Text)
+    if ($null -eq $Text) { return '' }
+    if ($Text.Length -le 4096) { return $Text }
+    $marker = '<cleanup detail truncated>'
+    return ($Text.Substring(0, 4096 - $marker.Length) + $marker)
+}
+
+function Capture-DriverFailureEvidence {
+    param([string]$PrimaryError, [string]$CleanupError)
+    $streamSummaryError = $null
+    try { Set-DriverStreamCapture } catch { $streamSummaryError = $_.Exception.Message }
+    $protocolFailure = ($null -ne $script:StdoutState -and ($script:StdoutState.protocol_overflow -or $script:StdoutState.protocol_error -or $script:StdoutState.extra_stdout))
+    if ($protocolFailure) {
+        $script:TransportFailureCategory = 'PROTOCOL'
+        $script:FailureCategory = 'PROTOCOL'
+    }
+    $cleanupDetail = $CleanupError
+    if ($null -ne $streamSummaryError) { $cleanupDetail = [string]$cleanupDetail + '; stream summary failed: ' + $streamSummaryError }
+    $detail = [pscustomobject]@{
+        primary_error = $PrimaryError
+        bound_failure_detail = $script:FailureDetail
+        cleanup_secondary_error = Limit-CleanupDetail $cleanupDetail
+        observed_streams = $script:DriverStreamCapture
+        partial_protocol = if ($null -ne $script:StdoutState) { $script:StdoutState.partial_protocol } else { $null }
+    }
+    $combined = ConvertTo-Json -InputObject $detail -Depth 20 -Compress
+    $script:TransportFailureDetail = $combined
+    $script:FailureDetail = $combined
+}
+
+function Pump-DriverUntilExit {
+    param([int]$WaitCutoff)
+    if ($null -eq $script:Driver -or $null -eq $script:StdoutState -or $null -eq $script:StderrState) { return $false }
+    Switch-StdoutToTail
+    while ($true) {
+        foreach ($state in @($script:StdoutState, $script:StderrState)) {
+            Complete-StreamRead $state
+            if ($state.offset -lt $state.count) { Consume-StreamTextChunk $state }
+            Start-StreamRead $state
+        }
+        try {
+            if ($script:Driver.WaitForExit(0)) {
+                $script:DriverExitConfirmed = $true
+                $script:DriverExitCode = $script:Driver.ExitCode
+            }
+        } catch { $script:DriverIdentity.capture_error = 'exit observation failed: ' + $_.Exception.Message }
+        if ($script:DriverExitConfirmed -and $script:StdoutState.eof -and $script:StdoutState.offset -ge $script:StdoutState.count -and $script:StderrState.eof -and $script:StderrState.offset -ge $script:StderrState.count) { return $true }
+        $remaining = [int][Math]::Floor($WaitCutoff - $script:Clock.ElapsedMilliseconds)
+        if ($remaining -le 0) { return $false }
+        $tasks = @()
+        if ($null -ne $script:StdoutState.task) { $tasks += [System.Threading.Tasks.Task]$script:StdoutState.task }
+        if ($null -ne $script:StderrState.task) { $tasks += [System.Threading.Tasks.Task]$script:StderrState.task }
+        $slice = [int][Math]::Min(50, $remaining)
+        if ($tasks.Count -gt 0) {
+            try { [void][System.Threading.Tasks.Task]::WaitAny([System.Threading.Tasks.Task[]]$tasks, $slice) }
+            catch { return $false }
+        } else {
+            try { [void]$script:Driver.WaitForExit($slice) } catch { return $false }
+        }
+    }
 }
 
 function Drain-DriverStreams {
     param([int]$WaitCutoff, [bool]$RequireNoExtraOutput)
     if ($script:DriverStreamsDrained) { return }
     if ($null -eq $script:Driver) { return }
-    $streamFailure = $null
-    $extraStdout = $false
-    if ($script:StdoutReadPending -and $null -ne $script:StdoutTask) {
-        $remaining = [int][Math]::Floor($WaitCutoff - $script:Clock.ElapsedMilliseconds)
-        try {
-            if ($remaining -le 0 -or -not $script:StdoutTask.Wait($remaining)) { throw 'pending stdout protocol read did not finish within the evidence reserve' }
-            $lateLine = $script:StdoutTask.GetAwaiter().GetResult()
-            $script:StdoutReadPending = $false
-            if ($null -ne $lateLine) {
-                if (-not (Test-ProtocolLineWithinLimit $lateLine)) { [void]$script:ProtocolLines.Add((Limit-RetainedText $lateLine 65536)); throw 'late stdout protocol line exceeded the bounded 262144-byte protocol-line limit' }
-                [void]$script:ProtocolLines.Add($lateLine)
-                try {
-                    $lateRecord = Read-JsonLine $lateLine 'late stdout line'
-                    if ($lateRecord.kind -ceq 'READY' -and $null -eq $script:ReadyRecord) { $script:ReadyRecord = $lateRecord }
-                    if ($lateRecord.kind -ceq 'TERMINAL' -and $null -eq $script:TerminalRecord) { $script:TerminalRecord = $lateRecord }
-                } catch { $streamFailure = 'late stdout line could not be parsed: ' + $_.Exception.Message }
-            }
-        } catch {
-            $script:StdoutReadPending = $false
-            if ($null -eq $streamFailure) { $streamFailure = $_.Exception.Message }
-        }
-    }
-    $tailText = ''
-    try {
-        $remaining = [int][Math]::Floor($WaitCutoff - $script:Clock.ElapsedMilliseconds)
-        if ($remaining -le 0) { throw 'no deadline remained to drain stdout after direct process wait' }
-        $tailTask = $script:Driver.StandardOutput.ReadToEndAsync()
-        if (-not $tailTask.Wait($remaining)) { throw 'stdout drain exceeded the direct process wait boundary' }
-        $tailText = $tailTask.GetAwaiter().GetResult()
-        $script:StdoutTail = Limit-RetainedText $tailText 16384
-        $extraStdout = ($tailText.Length -gt 0)
-    } catch {
-        if ($null -eq $streamFailure) { $streamFailure = 'stdout drain failed: ' + $_.Exception.Message }
-    }
-    try {
-        $remaining = [int][Math]::Floor($WaitCutoff - $script:Clock.ElapsedMilliseconds)
-        if ($null -ne $script:StderrTask) {
-            if ($remaining -le 0 -or -not $script:StderrTask.Wait($remaining)) { throw 'stderr drain exceeded the direct process wait boundary' }
-            $script:StderrText = Limit-RetainedText ($script:StderrTask.GetAwaiter().GetResult()) 16384
-        }
-    } catch {
-        if ($null -eq $streamFailure) { $streamFailure = 'stderr drain failed: ' + $_.Exception.Message }
+    $reapedAndDrained = Pump-DriverUntilExit $WaitCutoff
+    Set-DriverStreamCapture
+    $script:DriverStreamsDrained = ($script:StdoutState.eof -and $script:StderrState.eof -and $script:StdoutState.offset -ge $script:StdoutState.count -and $script:StderrState.offset -ge $script:StderrState.count)
+    if ($null -ne $script:StdoutState.read_error) { throw ('stdout stream drain failed: ' + $script:StdoutState.read_error) }
+    if ($null -ne $script:StderrState.read_error) { throw ('stderr stream drain failed: ' + $script:StderrState.read_error) }
+    if (-not $reapedAndDrained) { throw 'direct wsl.exe exit and both bounded stream EOFs were not confirmed before the evidence reserve' }
+    if (-not $script:DriverStreamsDrained) { throw 'stdout or stderr did not reach EOF before the evidence reserve' }
+    if ($RequireNoExtraOutput -and $script:StdoutState.extra_stdout) {
+        throw ('supervisor emitted unexpected stdout after TERMINAL: ' + (ConvertTo-Json -InputObject $script:DriverStreamCapture.stdout -Compress))
     }
     try { $script:Driver.StandardOutput.Dispose() } catch { }
     try { $script:Driver.StandardError.Dispose() } catch { }
-    $script:DriverStreamsDrained = $true
-    if ($null -ne $streamFailure) { throw $streamFailure }
-    if ($RequireNoExtraOutput -and $extraStdout) { throw 'supervisor emitted unexpected stdout after TERMINAL' }
 }
 
 function Confirm-DirectDriverExit {
     $phaseLimit = [int]$script:PhaseLimits[$Phase]
     $waitCutoff = $phaseLimit - $script:EvidenceReserveMs
     $remaining = [int][Math]::Floor($waitCutoff - $script:Clock.ElapsedMilliseconds)
-    if ($remaining -le 0) { throw 'no host deadline budget remains for the direct WSL process wait' }
-    if (-not $script:Driver.WaitForExit($remaining)) { throw 'direct wsl.exe wait was not confirmed before the evidence reserve' }
-    $script:DriverExitConfirmed = $true
-    $script:DriverExitCode = $script:Driver.ExitCode
+    if ($remaining -le 0) { throw 'no host deadline budget remains for the direct WSL process and stream wait' }
+    Drain-DriverStreams $waitCutoff $true
     if (-not (Test-ExactInteger $script:DriverExitCode)) { throw 'direct wsl.exe exit code is not an integer' }
-    Drain-DriverStreams $waitCutoff ($script:DriverExitCode -eq 0)
     if ($script:DriverExitCode -ne 0) { throw ('direct wsl.exe exited nonzero: ' + $script:DriverExitCode) }
 }
 
@@ -1279,8 +1706,8 @@ function Invoke-Phase {
         $script:ClaimCreated = $true
         $script:ClaimCollision = Test-ClaimCollisionPreservation $script:ClaimPath $nonce
         $collisionPreserved = ($script:ClaimCollision.rejected -and $script:ClaimCollision.original_preserved)
-        $script:HostClaim = [pscustomobject]@{ exclusive = $true; collision_preserved = [bool]$collisionPreserved; launch_allowlist = $script:LaunchAllowlist }
-        if (-not (Test-HostClaim $script:HostClaim)) { throw 'host launch claim does not match fixed allowlist contract' }
+        $script:HostClaim = [pscustomobject]@{ exclusive = $true; collision_preserved = [bool]$collisionPreserved; launch_argv = $script:LaunchArgv }
+        if (-not (Test-HostClaim $script:HostClaim)) { throw 'host launch claim does not match fixed exact argv contract' }
         if ($Phase -ceq 'stop-observation-admission') { $script:HostOracle = Invoke-HostOracle $script:HostClaim $script:ClaimPath $nonce }
         $remainingPreflight = ([int]$script:PhaseLimits[$Phase] - $script:GoReserveMs - $script:DriverWaitReserveMs - $script:EvidenceReserveMs) - [int]$script:Clock.ElapsedMilliseconds
         if ($remainingPreflight -le 0) { throw 'preflight exceeded the fixed phase budget reserve' }
@@ -1302,31 +1729,25 @@ function Invoke-Phase {
     } catch {
         $caughtMessage = $_.Exception.Message
         $caughtDetail = $_.Exception.ToString()
-        if ($null -eq $script:TransportFailureCategory) { $script:TransportFailureCategory = 'HOST_OR_OBSERVER_FAILURE' }
+        if ($null -eq $script:TransportFailureCategory) {
+            $script:TransportFailureCategory = if ($null -ne $script:StdoutState -and ($script:StdoutState.protocol_overflow -or $script:StdoutState.protocol_error -or $script:StdoutState.extra_stdout)) { 'PROTOCOL' } else { 'HOST_OR_OBSERVER_FAILURE' }
+        }
         if ($null -eq $script:TransportFailureMessage) { $script:TransportFailureMessage = $caughtMessage }
         if ($null -eq $script:TransportFailureDetail) { $script:TransportFailureDetail = $caughtDetail }
         if ($null -eq $script:FailureCategory) { $script:FailureCategory = $script:TransportFailureCategory }
         if ($null -eq $script:FailureMessage) { $script:FailureMessage = $script:TransportFailureMessage }
         if ($null -eq $script:FailureDetail) { $script:FailureDetail = $script:TransportFailureDetail }
+        $cleanupError = $null
         if ($null -ne $script:Driver -and $script:DriverStarted) {
             try { $script:Driver.StandardInput.Close() } catch { }
-            $waitRemaining = [int][Math]::Floor([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs - $script:Clock.ElapsedMilliseconds)
             try {
-                $waitForMs = [int][Math]::Max(0, $waitRemaining)
-                if ($script:Driver.WaitForExit($waitForMs)) {
-                    $script:DriverExitConfirmed = $true
-                    $script:DriverExitCode = $script:Driver.ExitCode
-                    try { Drain-DriverStreams ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs) $false }
-                    catch {
-                        if ($null -eq $script:TransportFailureDetail) { $script:TransportFailureDetail = 'stream cleanup: ' + $_.Exception.Message }
-                    }
-                } else {
-                    $waitFailure = 'direct wsl.exe WaitForExit was not confirmed before the evidence reserve'
-                    if ($null -eq $script:TransportFailureDetail) { $script:TransportFailureDetail = $waitFailure }
-                    Retain-UnresolvedDriverCleanup $waitFailure
-                }
+                Drain-DriverStreams ([int]$script:PhaseLimits[$Phase] - $script:EvidenceReserveMs) $false
             } catch {
-                $waitFailure = 'direct wsl.exe wait failed: ' + $_.Exception.Message
+                $cleanupError = $_.Exception.ToString()
+                if ($null -eq $script:TransportFailureDetail) { $script:TransportFailureDetail = 'bounded stream cleanup: ' + $_.Exception.Message }
+            }
+            if (-not $script:DriverExitConfirmed) {
+                $waitFailure = 'direct wsl.exe exit was not confirmed before the existing evidence reserve'
                 if ($null -eq $script:TransportFailureDetail) { $script:TransportFailureDetail = $waitFailure }
                 Retain-UnresolvedDriverCleanup $waitFailure
             }
@@ -1335,6 +1756,7 @@ function Invoke-Phase {
             try { $script:HostAfter = Get-HostPreservationSnapshot $script:Freeze $script:Execution $script:ManifestSha256 } catch { $script:PreservationError = $_.Exception.Message }
         }
         Set-BoundSupervisorFailureClassification
+        Capture-DriverFailureEvidence $caughtDetail $cleanupError
         $success = $false
     }
     if (-not $script:ClaimCreated) {
@@ -1362,6 +1784,8 @@ function Invoke-Phase {
         return [bool]$false
     }
     if ($success) {
+        $postWriteAdmission = $true
+        $overrunMarkerWritten = $true
         $elapsedAfterWrite = [long][Math]::Ceiling($script:Clock.Elapsed.TotalMilliseconds)
         $finalizationComplete = [System.IO.File]::Exists($script:ReceiptPath)
         $finalContext = [pscustomobject]@{ phase = $Phase; host_case = if (@($script:HostCases).Count -gt 0) { $script:HostCases[0] } else { $null } }
@@ -1381,6 +1805,7 @@ function Invoke-Phase {
             try {
                 Write-JsonCreateNew $script:OverrunPath ([pscustomobject]@{ phase = $Phase; nonce = $nonce; elapsed_ms = $elapsedAfterWrite; maximum_ms = [int]$script:PhaseLimits[$Phase]; failure_category = $script:FailureCategory; failure_message = $script:FailureMessage; failure_detail = $script:FailureDetail; receipt_path = $script:ReceiptPath })
             } catch {
+                $overrunMarkerWritten = $false
                 $script:TransportFailureCategory = 'EVIDENCE_FINALIZATION_FAILURE'
                 $script:TransportFailureMessage = 'post-write final admission failed and its exclusive overrun marker could not be retained'
                 $script:TransportFailureDetail = $_.Exception.ToString()
@@ -1389,8 +1814,10 @@ function Invoke-Phase {
                 $script:FailureDetail = ConvertTo-Json -InputObject ([pscustomobject]@{ final_admission = $finalReason; marker_write_error = $script:TransportFailureDetail; receipt_path = $script:ReceiptPath }) -Depth 20 -Compress
             }
         }
+        $finalOutcome = Get-PostWriteFinalOutcome $postWriteAdmission $overrunMarkerWritten
+        if (-not $finalOutcome.success) { $success = $false }
     }
-    if ($success) {
+    if ($success -and (Get-PostWriteFinalOutcome $true $true).pass_marker_allowed) {
         [System.Console]::Error.WriteLine('SRO_PHASE_PASS ' + $Phase + ' ' + $nonce)
         return [bool]$true
     }
