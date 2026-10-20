@@ -1,13 +1,13 @@
 {
   "schema": "ladybug.feat010.controller-integration.freeze.v1",
-  "status": "SERVICE_SOURCE_REVIEWED_QUALIFIER_SOURCE_PREPARATION",
+  "status": "SRO_SOURCE_FROZEN_READY",
   "approval_proposal_commit": "57e121d9",
   "approval": "User approves fixed read-only GDB-Python baseline query and amended SRO-Q/R cards; five-file scope/revised observation contract and SRO-C approval retained.",
   "runtime_ready": false,
   "runtime_attempts_authorized": 0,
   "installation_authorized": false,
-  "qualification_dispatch_authorized": false,
-  "source_assignment": "Resumed 2026-10-20: two disjoint Ready Luna Extra High source steps, sro_python_resume owns stop-q.py and sro_host_resume owns run-integration-q.ps1. Parent owns manifest/fixture/wiki integration and fixed source-reference orchestration contract. No executable checks, staging or commit before full parent review. Runtime paused.",
+  "qualification_dispatch_authorized": true,
+  "source_assignment": "Complete parent source review of disjoint Luna Extra High service, host and Python source. Ordered one-shot SRO-Q/R/C authorized by retained approved cards; first unexpected failure stops. Runtime/installation remain paused.",
   "linux_node": {
     "path": "/home/rastamafugg/.nvm/versions/node/v20.19.5/bin/node",
     "sha256": "8d01d4c50e7a9047d70196f8fc6f1b165069065b44bd9402491544bd70586c7d"
@@ -234,7 +234,73 @@
     "E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\stutter-trace-window.py.txt": "4449251c82b2712eee87ea90462fc9f283588b606be8b5f2a8f2162a0852b936",
     "E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\stutter-observer.py.txt": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d"
   },
-  "execution_freeze": null,
+  "execution_freeze": {
+    "authorized": true,
+    "source_sha256": {
+      "service/gdb.py": "e77ccf7b6aee903c9ac10a77e1acc7902f73f466d6d1b7c2913bd35b73b8946a",
+      "service/server.py": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
+      "stop-q.py": "fe8b4b90e0e387e565e9883015f43d9dc96f8534a892c8becec2871913da0833",
+      "run-integration-q.ps1": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec"
+    },
+    "fixture_sha256": {
+      "evidence/sro-qualification-case-contract.json": "ead7fe18333107f8766ac1cf6fe37ee57c82bbf639e0283a105fa82327cc3b33",
+      "evidence/sro-baseline-independent-fixtures.json": "be9032ccfbb8fa98212607c9ad3f3e645e014f8b8c98c19531ec770252560e4b",
+      "evidence/sro-stop-independent-fixtures.json": "ac01c0fd25142671fde3ef91eabf6e461697359dd88c1c321560894ddb44c7aa",
+      "evidence/sro-natural-sequence-fixture.json": "040b8bd6874b3f6724692eaa21718ba66ae3bc61a3147f8a719b4724c902bc1b",
+      "evidence/sro-producer-literal-fixture.json": "5f1f70d761ab128dd6614c81d6f116343215319571823ded15344bc41332fc46"
+    },
+    "read_inputs_sha256": {
+      "stutter-runtime-gdb-transcript.json": "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
+    },
+    "ticket_sha256": "cd106978ff17fb5d2b3215cd3871c15348ff7a0ebf9d590001b172784b3e58ea",
+    "phases": {
+      "stop-observation-admission": {
+        "case_ids": [
+          "Q01",
+          "Q02",
+          "Q03",
+          "Q04",
+          "Q05"
+        ],
+        "maximum_ms": 30000,
+        "attempts": 1
+      },
+      "stop-observation-reader": {
+        "case_ids": [
+          "R01",
+          "R02",
+          "R03",
+          "R04",
+          "R05",
+          "R06",
+          "R07",
+          "R08",
+          "R09",
+          "R10",
+          "R11",
+          "R12",
+          "R13",
+          "R14",
+          "R15",
+          "R16"
+        ],
+        "maximum_ms": 60000,
+        "attempts": 1
+      },
+      "stop-observation-compatibility": {
+        "case_ids": [
+          "C01",
+          "C02",
+          "C03",
+          "C04",
+          "C05",
+          "C06"
+        ],
+        "maximum_ms": 60000,
+        "attempts": 1
+      }
+    }
+  },
   "python_source_commit": "9190b34f918260b13857923ec3742896b1b5135b",
   "reviewed_python_sha256": {
     "python/analysis.py": "f6776ddd7db094d13609bcb30bd668236ed09d0bff28c5f987cfe9a7a06bd8f3",
