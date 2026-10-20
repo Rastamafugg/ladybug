@@ -626,7 +626,12 @@ async def _run_natural_sequence(
         server.manager = manager
         world.manager = manager
         if failure_injection == "before-call":
-            raise RuntimeError("controlled natural-sequence failure before service call")
+            raise QualificationFailure(
+                "R01", "exception_before_call_capture_cleanup",
+                "controlled natural-sequence failure before service call",
+                observed=None,
+                category=context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["primary_category"],
+            )
         start = await server.start_owned_session(natural["owner_id"], budget_ms=8000)
         sid = start.get("session_id") if type(start) is dict else None
         lease = manager._owned_leases.get(natural["owner_id"])
@@ -638,7 +643,11 @@ async def _run_natural_sequence(
             async def held_response() -> None:
                 await asyncio.Event().wait()
             world.pending_response_tasks.append(asyncio.create_task(held_response()))
-            raise RuntimeError("controlled natural-sequence failure after fake service call")
+            exception_capture = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]
+            raise QualificationFailure(
+                "R01", "exception_after_call_capture_cleanup", exception_capture["primary_message"],
+                observed=exception_capture["primary_observed"], category=exception_capture["primary_category"],
+            )
         claim = await server.claim_observed_session(natural["owner_id"], sid, budget_ms=5000)
         attach = await server.exec_owned_session(
             natural["owner_id"], sid, "attach-001", natural["attach_command"],
@@ -697,6 +706,8 @@ async def _run_natural_sequence(
             capture_completed = True
         except BaseException as exc:
             finalization_errors.append("partial evidence capture: " + type(exc).__name__ + ": " + str(exc))
+        if primary_exception is not None and finalization_errors:
+            primary_exception._qualification_finalization_errors = list(finalization_errors)
         if diagnostics is not None:
             owner_lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
             pending_count = sum(not task.done() for task in world.pending_response_tasks)
@@ -740,6 +751,7 @@ def _run_r01(context: dict[str, Any]) -> dict[str, Any]:
     run = asyncio.run(_run_natural_sequence(context))
     natural = context["fixture_data"]["natural"]
     stop = context["fixture_data"]["stop"]
+    recovery = context["fixture_data"]["stop"]["recovery_r1"]
     start, claim, attach = run["start"], run["claim"], run["attach"]
     continuation, cleanup = run["continuation"], run["cleanup"]
     session, process, world = run["session"], run["process"], run["world"]
@@ -782,54 +794,79 @@ def _run_r01(context: dict[str, Any]) -> dict[str, Any]:
     _assert("R01", "no_cause_claim", type(attach) is dict and type(continuation) is dict and "cause_command_id" not in attach and "cause_command_id" not in continuation and attach.get("stop_observation") == "SESSION_EVENT_ONLY" and continuation.get("stop_observation") == "SESSION_EVENT_ONLY" and call_ids == ["claim:baseline", "attach-001:state-before", "attach-001", "attach-001:state-after", "continue-001:state-before", "continue-001:breakpoint-before", "continue-001", "continue-001:state-after"], "ledger asserts causal attribution or omitted/reordered a fixed transaction", {"call_ids": call_ids})
 
     def exception_probe(injection: str) -> dict[str, Any]:
-        diagnostics: dict[str, Any] = {}
-        try:
-            asyncio.run(_run_natural_sequence(context, failure_injection=injection, diagnostics=diagnostics))
-        except BaseException as exc:
-            raised = {"type": type(exc).__name__, "message": str(exc)}
-        else:
-            raised = None
-        claim_diagnostics: dict[str, Any] = {}
-        try:
-            asyncio.run(_claim_probe_async(context, failure_injection=injection, diagnostics=claim_diagnostics))
-        except BaseException as exc:
-            claim_raised = {"type": type(exc).__name__, "message": str(exc)}
-        else:
-            claim_raised = None
-        return {"raised": raised, "diagnostics": diagnostics, "claim_raised": claim_raised, "claim_diagnostics": claim_diagnostics}
+        exception_capture = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]
+        captured: list[dict[str, Any]] = []
+
+        def invoke_with_capture_failure(run: Any) -> dict[str, Any]:
+            global _capture_run
+            original_capture_run = _capture_run
+
+            def capture_then_fail(world: Any, service_calls: list[dict[str, Any]], session: Any = None, hooks: Any = None) -> None:
+                original_capture_run(world, service_calls, session, hooks)
+                owner_id = context["fixture_data"]["natural"]["owner_id"]
+                manager = getattr(world, "manager", None)
+                owner_lease = manager._owned_leases.get(owner_id) if manager is not None else None
+                pending_count = sum(not task.done() for task in getattr(world, "pending_response_tasks", ()))
+                processes = list(getattr(world, "processes", ()))
+                process_wait_calls = [process.wait_calls for process in processes]
+                resources_clear = (
+                    all(process.returncode is not None and process.wait_calls >= 1 for process in processes)
+                    and pending_count == 0
+                    and (owner_lease is None or owner_lease.state in ("EXITED", "CANCELLED_BEFORE_START"))
+                )
+                captured.append({
+                    "capture_completed_before_injected_failure": True,
+                    "service_call_entries": sum(item.get("event") == "enter" for item in service_calls),
+                    "process_wait_calls": process_wait_calls,
+                    "resources_clear": resources_clear,
+                    "pending_tasks_remaining": pending_count,
+                })
+                raise RuntimeError(exception_capture["secondary_message"])
+
+            _capture_run = capture_then_fail
+            try:
+                try:
+                    asyncio.run(run())
+                except BaseException as exc:
+                    return {
+                        "raised": {"type": type(exc).__name__, "message": str(exc)},
+                        "failure": _failure_for_exception(exc, "stop-observation-reader", "R01"),
+                    }
+                return {"raised": None, "failure": None}
+            finally:
+                _capture_run = original_capture_run
+
+        natural_result = invoke_with_capture_failure(
+            lambda: _run_natural_sequence(context, failure_injection=injection, diagnostics=None)
+        )
+        claim_result = invoke_with_capture_failure(
+            lambda: _claim_probe_async(context, failure_injection=injection, diagnostics=None)
+        )
+        natural_result["capture"] = captured[0] if len(captured) > 0 else None
+        claim_result["capture"] = captured[1] if len(captured) > 1 else None
+        return {"natural": natural_result, "claim": claim_result}
 
     before_exception = exception_probe("before-call")
-    before_diagnostics = before_exception["diagnostics"]
-    before_claim_diagnostics = before_exception["claim_diagnostics"]
-    before_cleanup_retained = (before_diagnostics.get("resources_clear") is True
-                               and before_diagnostics.get("capture_completed") is True
-                               and before_diagnostics.get("finalization_errors") == [])
-    before_claim_cleanup_retained = (before_claim_diagnostics.get("resources_clear") is True
-                                     and before_claim_diagnostics.get("capture_completed") is True
-                                     and before_claim_diagnostics.get("finalization_errors") == [])
-    before_expected_exception = {"type": "RuntimeError", "message": "controlled natural-sequence failure before service call"}
+    before_natural = before_exception["natural"]
+    before_claim = before_exception["claim"]
+    before_expected_exception = {"type": recovery["exception_capture"]["primary_type"], "message": "controlled natural-sequence failure before service call"}
+    before_expected_observed = recovery["exception_capture"]["before_failure_observed"]
     before_expected_entries = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["before_call_service_entries"]
-    _assert("R01", "exception_before_call_capture_cleanup", before_exception["raised"] == before_expected_exception and before_diagnostics.get("failure_retained") is True and before_diagnostics.get("service_call_entries") == before_expected_entries and before_cleanup_retained and before_exception["claim_raised"] == before_expected_exception and before_claim_diagnostics.get("failure_retained") is True and before_claim_diagnostics.get("service_call_entries") == before_expected_entries and before_claim_cleanup_retained, "pre-call exception lost its failure or truthful partial capture/cleanup state in a natural or claim probe", before_exception)
+    before_natural_capture = before_natural.get("capture")
+    before_claim_capture = before_claim.get("capture")
+    _assert("R01", "exception_before_call_capture_cleanup", before_natural.get("raised") == before_expected_exception and before_natural.get("failure", {}).get("category") == recovery["exception_capture"]["primary_category"] and before_natural.get("failure", {}).get("case_id") == "R01" and before_natural.get("failure", {}).get("subcontrol") == "exception_before_call_capture_cleanup" and before_natural.get("failure", {}).get("observed") == before_expected_observed and before_natural.get("failure", {}).get("message") == before_expected_exception["message"] and type(before_natural_capture) is dict and before_natural_capture.get("capture_completed_before_injected_failure") is True and before_natural_capture.get("service_call_entries") == before_expected_entries and before_natural_capture.get("resources_clear") is True and before_natural_capture.get("pending_tasks_remaining") == 0 and before_claim.get("raised") == before_expected_exception and before_claim.get("failure", {}).get("category") == recovery["exception_capture"]["primary_category"] and before_claim.get("failure", {}).get("case_id") == "R01" and before_claim.get("failure", {}).get("subcontrol") == "exception_before_call_capture_cleanup" and before_claim.get("failure", {}).get("observed") == before_expected_observed and before_claim.get("failure", {}).get("message") == before_expected_exception["message"] and type(before_claim_capture) is dict and before_claim_capture.get("capture_completed_before_injected_failure") is True and before_claim_capture.get("service_call_entries") == before_expected_entries and before_claim_capture.get("resources_clear") is True and before_claim_capture.get("pending_tasks_remaining") == 0, "pre-call exception or secondary finalization error was not preserved with truthful capture/cleanup state in a natural or claim probe", before_exception)
 
     after_exception = exception_probe("after-call")
-    after_diagnostics = after_exception["diagnostics"]
-    after_cleanup = after_diagnostics.get("cleanup_result")
-    after_claim_diagnostics = after_exception["claim_diagnostics"]
-    after_cleanup_retained = (after_diagnostics.get("resources_clear") is True
-                              and after_diagnostics.get("capture_completed") is True
-                              and after_diagnostics.get("finalization_errors") == []
-                              and type(after_cleanup) is dict and after_cleanup.get("exit_confirmed") is True)
-    after_claim_cleanup_retained = (after_claim_diagnostics.get("resources_clear") is True
-                                    and after_claim_diagnostics.get("capture_completed") is True
-                                    and after_claim_diagnostics.get("finalization_errors") == []
-                                    and after_claim_diagnostics.get("pending_tasks_remaining") == 0
-                                    and type(after_claim_diagnostics.get("cleanup_result")) is dict)
-    after_expected_exception = {"type": "RuntimeError", "message": "controlled natural-sequence failure after fake service call"}
+    after_natural = after_exception["natural"]
+    after_claim = after_exception["claim"]
+    after_expected_exception = {"type": recovery["exception_capture"]["primary_type"], "message": recovery["exception_capture"]["primary_message"]}
+    after_expected_observed = recovery["exception_capture"]["failure_observed"]
     after_minimum_entries = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["after_call_minimum_service_entries"]
-    _assert("R01", "exception_after_call_capture_cleanup", after_exception["raised"] == after_expected_exception and after_diagnostics.get("failure_retained") is True and after_diagnostics.get("service_call_entries", 0) >= after_minimum_entries and after_diagnostics.get("cleanup_attempted") is True and after_diagnostics.get("pending_tasks_remaining") == 0 and after_cleanup_retained and after_exception["claim_raised"] == after_expected_exception and after_claim_diagnostics.get("failure_retained") is True and after_claim_diagnostics.get("service_call_entries", 0) >= after_minimum_entries and after_claim_cleanup_retained, "post-call exception did not preserve failure, partial ledger and confirmed cleanup in a natural or claim probe", after_exception)
+    after_natural_capture = after_natural.get("capture")
+    after_claim_capture = after_claim.get("capture")
+    _assert("R01", "exception_after_call_capture_cleanup", after_natural.get("raised") == after_expected_exception and after_natural.get("failure", {}).get("category") == recovery["exception_capture"]["primary_category"] and after_natural.get("failure", {}).get("case_id") == "R01" and after_natural.get("failure", {}).get("subcontrol") == "exception_after_call_capture_cleanup" and after_natural.get("failure", {}).get("observed") == after_expected_observed and after_natural.get("failure", {}).get("message") == after_expected_exception["message"] and type(after_natural_capture) is dict and after_natural_capture.get("capture_completed_before_injected_failure") is True and after_natural_capture.get("service_call_entries", 0) >= after_minimum_entries and after_natural_capture.get("resources_clear") is True and after_natural_capture.get("pending_tasks_remaining") == 0 and after_claim.get("raised") == after_expected_exception and after_claim.get("failure", {}).get("category") == recovery["exception_capture"]["primary_category"] and after_claim.get("failure", {}).get("case_id") == "R01" and after_claim.get("failure", {}).get("subcontrol") == "exception_after_call_capture_cleanup" and after_claim.get("failure", {}).get("observed") == after_expected_observed and after_claim.get("failure", {}).get("message") == after_expected_exception["message"] and type(after_claim_capture) is dict and after_claim_capture.get("capture_completed_before_injected_failure") is True and after_claim_capture.get("service_call_entries", 0) >= after_minimum_entries and after_claim_capture.get("resources_clear") is True and after_claim_capture.get("pending_tasks_remaining") == 0, "post-call exception or secondary finalization error did not preserve failure, partial ledger and cleanup in a natural or claim probe", after_exception)
 
     service_gdb = run["gdb_module"]
-    recovery = context["fixture_data"]["stop"]["recovery_r1"]
     display_records = {
         "token_and_prompt": [service_gdb._parse_mi_record(b"1^done\n", 1), service_gdb._parse_mi_record(b"(gdb)\n", 2)],
         "tokenized_error": [service_gdb._parse_mi_record(b'1^error,msg="bad command"\n', 3)],
@@ -940,7 +977,12 @@ async def _claim_probe_async(
         server.manager = manager
         world.manager = manager
         if failure_injection == "before-call":
-            raise RuntimeError("controlled natural-sequence failure before service call")
+            raise QualificationFailure(
+                "R01", "exception_before_call_capture_cleanup",
+                "controlled natural-sequence failure before service call",
+                observed=None,
+                category=context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["primary_category"],
+            )
         start_attempted = True
         started = await server.start_owned_session(natural["owner_id"], budget_ms=8000)
         sid = started.get("session_id") if type(started) is dict else None
@@ -950,7 +992,11 @@ async def _claim_probe_async(
         if process is not None:
             process.session = session
         if failure_injection == "after-call":
-            raise RuntimeError("controlled natural-sequence failure after fake service call")
+            exception_capture = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]
+            raise QualificationFailure(
+                "R01", "exception_after_call_capture_cleanup", exception_capture["primary_message"],
+                observed=exception_capture["primary_observed"], category=exception_capture["primary_category"],
+            )
         if preclaim == "send":
             legacy_output = await server.exec_command(sid, "info version", timeout=0.5)
         elif preclaim == "interrupt":
@@ -1152,6 +1198,8 @@ async def _claim_probe_async(
             capture_completed = True
         except BaseException as exc:
             finalization_errors.append("partial evidence capture: " + type(exc).__name__ + ": " + str(exc))
+        if primary_exception is not None and finalization_errors:
+            primary_exception._qualification_finalization_errors = list(finalization_errors)
         if diagnostics is not None:
             owner_lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
             pending_count = sum(not task.done() for task in world.pending_response_tasks)
@@ -3041,6 +3089,9 @@ def _failure_for_exception(exc: BaseException, phase: str, current_case: str | N
             subcontrol = next((item for item in CASE_SUBCONTROLS[current_case] if item not in executed), CASE_SUBCONTROLS[current_case][-1])
             if not executed:
                 category = "SETUP"
+    finalization_errors = getattr(exc, "_qualification_finalization_errors", None)
+    if type(finalization_errors) is list and finalization_errors:
+        observed = {"primary_observed": observed, "finalization_errors": list(finalization_errors)}
     return _failure(category, case_id, subcontrol, message, observed)
 
 
