@@ -397,6 +397,7 @@ class GdbSession:
     _observation_generation: int = field(default=0, repr=False)
     _state_generation: int = field(default=0, repr=False)
     _observation_nonce: str | None = field(default=None, repr=False)
+    _observation_claim_ack: dict[str, Any] | None = field(default=None, repr=False)
     _observation_task: asyncio.Task | None = field(default=None, repr=False)
     _observation_eof: bool = field(default=False, repr=False)
     _observation_reader_error: str | None = field(default=None, repr=False)
@@ -1453,6 +1454,51 @@ class GdbManager:
         return result
 
     @staticmethod
+    def _copy_observation_claim_response(
+        response: dict[str, Any],
+    ) -> dict[str, Any]:
+        def copy_value(value: Any) -> Any:
+            if isinstance(value, dict):
+                return {key: copy_value(item) for key, item in value.items()}
+            if isinstance(value, list):
+                return [copy_value(item) for item in value]
+            if isinstance(value, tuple):
+                return tuple(copy_value(item) for item in value)
+            return value
+
+        return {key: copy_value(value) for key, value in response.items()}
+
+    def _observation_claim_reader_is_live(
+        self,
+        lease: _ServiceLease,
+        session: GdbSession,
+        owner_id: str,
+        session_id: str,
+    ) -> bool:
+        reader = session._observation_task
+        return (
+            lease.owner_id == owner_id
+            and lease.state == "ACTIVE"
+            and not lease.stop_requested
+            and lease.session is session
+            and lease.session_id == session_id
+            and self._sessions.get(session_id) is session
+            and session.id == session_id
+            and session._owned_active
+            and not session._closing
+            and not session._exit_confirmed
+            and session.process.returncode is None
+            and session._observation_owner_id == owner_id
+            and session._observation_state in ("claim-pending", "claimed")
+            and reader is not None
+            and not reader.done()
+            and not session._observation_invalidated
+            and not session._observation_tainted
+            and not session._observation_eof
+            and session._observation_reader_error is None
+        )
+
+    @staticmethod
     def _validate_owner(owner_id: str) -> None:
         if not isinstance(owner_id, str) or owner_id == "":
             raise GdbError("owner_id must be a nonempty string")
@@ -1799,7 +1845,78 @@ class GdbManager:
         if not session._owned_active or lease.state != "ACTIVE":
             raise GdbError("OWNED_STARTUP_NOT_COMPLETE")
         if session._observation_state != "legacy":
-            raise GdbError("OBSERVATION_CLAIM_IS_SINGLE_USE")
+            if (
+                session._observation_state not in ("claim-pending", "claimed")
+                or not self._observation_claim_reader_is_live(
+                    lease, session, owner_id, session_id
+                )
+            ):
+                raise GdbError("OBSERVATION_CLAIM_IS_SINGLE_USE")
+            _ensure_before_deadline(deadline)
+            if session._observation_state == "claim-pending":
+                call = (
+                    session._observation_active_transaction
+                    if isinstance(session._observation_active_transaction, dict)
+                    and session._observation_active_transaction.get("call_id")
+                    == "claim:baseline"
+                    else None
+                )
+                result = call.get("result") if isinstance(call, dict) else None
+                pending_response = {
+                    "schema": "ladybug.feat010.observed-claim.v1",
+                    "owner_id": owner_id,
+                    "session_id": session_id,
+                    "state": "UNKNOWN",
+                    "baseline_validated": False,
+                    "reader_owner": "observation",
+                    "generation": session._observation_generation,
+                    "observation_generation": session._observation_generation,
+                    "state_generation": session._state_generation,
+                    "nonce": session._observation_nonce,
+                    "baseline": None,
+                    "mi_result": result,
+                    "mi_error": (
+                        result
+                        if isinstance(result, dict)
+                        and result.get("class") == "error"
+                        else None
+                    ),
+                    "call_ledger": [call] if call is not None else [],
+                    "raw_records": (
+                        call.get("records", []) if isinstance(call, dict) else []
+                    ),
+                    "overflow_evidence": session._observation_overflow_evidence,
+                    "error_code": "CLAIM_BASELINE_PENDING",
+                }
+                pending_result = self._copy_observation_claim_response(
+                    pending_response
+                )
+                _ensure_before_deadline(deadline)
+                return pending_result
+
+            acknowledgement = session._observation_claim_ack
+            if (
+                not isinstance(acknowledgement, dict)
+                or acknowledgement.get("schema")
+                != "ladybug.feat010.observed-claim.v1"
+                or acknowledgement.get("owner_id") != owner_id
+                or acknowledgement.get("session_id") != session_id
+                or acknowledgement.get("state") != "CLAIMED"
+                or acknowledgement.get("baseline_validated") is not True
+                or acknowledgement.get("reader_owner") != "observation"
+                or acknowledgement.get("generation")
+                != session._observation_generation
+                or acknowledgement.get("observation_generation")
+                != session._observation_generation
+                or acknowledgement.get("nonce") != session._observation_nonce
+            ):
+                raise GdbError("OBSERVATION_CLAIM_IS_SINGLE_USE")
+            _ensure_before_deadline(deadline)
+            replayed_acknowledgement = self._copy_observation_claim_response(
+                acknowledgement
+            )
+            _ensure_before_deadline(deadline)
+            return replayed_acknowledgement
         if (
             session._legacy_send_history != 0
             or session._legacy_interrupt_history != 0
@@ -1854,7 +1971,7 @@ class GdbManager:
             session._observation_state = "claimed"
             call = baseline["call"]
             result = baseline["mi_result"]
-            return {
+            acknowledgement = {
                 "schema": "ladybug.feat010.observed-claim.v1",
                 "owner_id": owner_id,
                 "session_id": session_id,
@@ -1874,6 +1991,15 @@ class GdbManager:
                 "overflow_evidence": session._observation_overflow_evidence,
                 "error_code": None,
             }
+            retained_acknowledgement = self._copy_observation_claim_response(
+                acknowledgement
+            )
+            returned_acknowledgement = self._copy_observation_claim_response(
+                acknowledgement
+            )
+            _ensure_before_deadline(deadline)
+            session._observation_claim_ack = retained_acknowledgement
+            return returned_acknowledgement
         except asyncio.CancelledError:
             session._mark_observation_invalid("CLAIM_CANCELLED")
             raise
