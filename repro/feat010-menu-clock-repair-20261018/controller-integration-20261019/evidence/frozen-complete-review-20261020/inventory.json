@@ -1,0 +1,120 @@
+{
+  "schema": "ladybug.feat010.frozen-source-review.v1",
+  "date": "2026-10-20",
+  "method": "Read-only full-source and retained-evidence review; no executable qualification",
+  "reviewers": [
+    "parent",
+    "Luna Extra High host reviewer",
+    "Luna Extra High qualifier reviewer",
+    "Luna Extra High service reviewer"
+  ],
+  "verdict": "NOT_READY",
+  "runtime_attempts": 0,
+  "production_changes": 0,
+  "source_repairs": 0,
+  "gate_results": {
+    "SRO_R": "NOT_RUN",
+    "SRO_Q": "FAIL_SETUP_OBSERVER: retained first attempt only",
+    "SRO_C": "NOT_RUN"
+  },
+  "frozen_inputs": [
+    {
+      "path": "service/gdb.py",
+      "sha256": "e77ccf7b6aee903c9ac10a77e1acc7902f73f466d6d1b7c2913bd35b73b8946a",
+      "bytes": 96725,
+      "lines": 2232
+    },
+    {
+      "path": "service/server.py",
+      "sha256": "822efd8d34c5f76ebff1a5b8c1b4a29c28e216994e6272ba7d4fef9e28a20456",
+      "bytes": 13706,
+      "lines": 434
+    },
+    {
+      "path": "stop-q.py",
+      "sha256": "fe8b4b90e0e387e565e9883015f43d9dc96f8534a892c8becec2871913da0833",
+      "bytes": 198469,
+      "lines": 2841
+    },
+    {
+      "path": "run-integration-q.ps1",
+      "sha256": "b5968aec79512e7c7c31e430cd6208a13b91f20f1b233fcb790e018569ab4eec",
+      "bytes": 105944,
+      "lines": 1402
+    },
+    {
+      "path": "python/analysis.py",
+      "sha256": "f6776ddd7db094d13609bcb30bd668236ed09d0bff28c5f987cfe9a7a06bd8f3",
+      "bytes": 22295,
+      "lines": 478
+    },
+    {
+      "path": "python/stutter-runtime-guard.py",
+      "sha256": "70460d25d0f20cb2946dbf49a8684dabd5e1653b96bfe78aedf465969d89a0f0",
+      "bytes": 27988,
+      "lines": 581
+    },
+    {
+      "path": "python/stutter-trace-window.py",
+      "sha256": "349bd26405d96ef9ad3862af364fa3d7b680d6b51393be0b5ff050281bc90b5c",
+      "bytes": 10498,
+      "lines": 234
+    },
+    {
+      "path": "python/stutter-observer.py",
+      "sha256": "8e278fc447dfcd8994679476ae78eaa1788a5b2beb2d42ef023d2bdc49dad72d",
+      "bytes": 10998,
+      "lines": 240
+    },
+    {
+      "path": "integration-freeze.json",
+      "sha256": "d1175b585529ccf7a6331d625475230926672b2a2197e3b2cb5f44f5206dad23",
+      "bytes": 48266,
+      "lines": 339
+    },
+    {
+      "path": "evidence/sro-qualification-case-contract.json",
+      "sha256": "ead7fe18333107f8766ac1cf6fe37ee57c82bbf639e0283a105fa82327cc3b33",
+      "bytes": 5996,
+      "lines": 157
+    },
+    {
+      "path": "evidence/sro-baseline-independent-fixtures.json",
+      "sha256": "be9032ccfbb8fa98212607c9ad3f3e645e014f8b8c98c19531ec770252560e4b",
+      "bytes": 3520,
+      "lines": 123
+    },
+    {
+      "path": "evidence/sro-stop-independent-fixtures.json",
+      "sha256": "ac01c0fd25142671fde3ef91eabf6e461697359dd88c1c321560894ddb44c7aa",
+      "bytes": 2169,
+      "lines": 41
+    },
+    {
+      "path": "evidence/sro-natural-sequence-fixture.json",
+      "sha256": "040b8bd6874b3f6724692eaa21718ba66ae3bc61a3147f8a719b4724c902bc1b",
+      "bytes": 2047,
+      "lines": 75
+    },
+    {
+      "path": "evidence/sro-producer-literal-fixture.json",
+      "sha256": "5f1f70d761ab128dd6614c81d6f116343215319571823ded15344bc41332fc46",
+      "bytes": 1655,
+      "lines": 28
+    },
+    {
+      "path": "evidence/sro-orchestration-source-contract.json",
+      "sha256": "9a9fd65eb5291ae630aca0e9080ec70d5b8f202541afb091a5319b837de4a033",
+      "bytes": 6776,
+      "lines": 225
+    }
+  ],
+  "historical_inputs_preserved": true,
+  "full_controller_missing": [
+    "controller-v3.mjs",
+    "controller-q.mjs",
+    "python-q.py",
+    "guard-q.py"
+  ],
+  "note": "Four of the original13 planned inputs are absent; existing guard source is present but its approved exit-proof repair is unimplemented. No missing artifact is passing evidence."
+}
