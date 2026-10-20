@@ -1191,7 +1191,11 @@ class GdbSession:
             except Exception:
                 pass
         reader_exit_confirmed = bool(task is not None and task.done() and self._observation_eof)
-        cleanup_complete = process_exit_confirmed and reader_exit_confirmed
+        cleanup_complete = (
+            process_exit_confirmed
+            and reader_exit_confirmed
+            and asyncio.get_running_loop().time() < deadline
+        )
         if cleanup_complete:
             self._observation_state = "closed"
         if self._observation_exit_callback is not None:
