@@ -1,0 +1,50 @@
+{
+  "schema": "ladybug.feat010.fsa-offline-summary.v1",
+  "status": "FSA_P_SETUP_FAILURE_STOPPED",
+  "revision": "e92582fa",
+  "source_commits": [
+    "42c50c21",
+    "2d7c24f3",
+    "6b3222ea"
+  ],
+  "preflight_sha256": "b3163ccd1c6a702ed17fc79f11776f4b52b27fcdd5eb2de0f4719a801e68bc9f",
+  "host_sha256": "a4f899f91fe2b45858b7604d74b0ec1f58e2d8f7fdecb2c743a889f6c1818e7a",
+  "descriptor_sha256": "493ffe9524977bb07376f55ef521a4d5e691539be5b7624f6194bab2d36043c0",
+  "executed_manifest_sha256": "fc776544ba9fbd24d06a3ecd7d60f0e22856a2a5b730da4fa51b52908466e5d9",
+  "command_body": "$ErrorActionPreference = 'Stop'\n$phaseWatch = [System.Diagnostics.Stopwatch]::StartNew()\n$maximumMs = 30000\n$evidenceReserveMs = 500\n$runner = New-Object System.Diagnostics.Process\n$runner.StartInfo = New-Object System.Diagnostics.ProcessStartInfo\n$runner.StartInfo.FileName = 'C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe'\n$runner.StartInfo.Arguments = '-NoProfile -File \"E:\\projects\\ladybug\\repro\\feat010-menu-clock-repair-20261018\\controller-integration-20261019\\run-recovery-preflight.ps1\"'\n$runner.StartInfo.UseShellExecute = $false\n$runner.StartInfo.CreateNoWindow = $true\n$runner.StartInfo.RedirectStandardOutput = $false\n$runner.StartInfo.RedirectStandardError = $false\n$started = $false\n$exitConfirmed = $false\n$nativeExitCode = $null\n$runnerPid = $null\n$runnerStartTicks = $null\n$failure = $null\ntry {\n    if ((Get-FileHash -LiteralPath $runner.StartInfo.FileName -Algorithm SHA256).Hash.ToLowerInvariant() -cne '60c9b29843624dd8af6b6a7b26147753be6aeef65098b9a503cc50850afe410f') { throw 'Pinned native PowerShell image mismatch' }\n    $started = $runner.Start()\n    if (-not $started) { throw 'Native runner did not start' }\n    $runnerPid = $runner.Id\n    $runnerStartTicks = $runner.StartTime.ToUniversalTime().Ticks\n    $remainingMs = [int][Math]::Floor($maximumMs - $evidenceReserveMs - $phaseWatch.ElapsedMilliseconds)\n    if ($remainingMs -le 0) { throw 'No positive native wait budget remains' }\n    $exitConfirmed = $runner.WaitForExit($remainingMs)\n    if (-not $exitConfirmed) { throw 'Native runner exit unconfirmed at evidence reserve' }\n    $nativeExitCode = $runner.ExitCode\n    if ($nativeExitCode -isnot [int] -or $nativeExitCode -ne 0) { throw 'Native runner exit was not integer zero' }\n} catch {\n    $failure = $_.Exception.Message\n}\n$observed = [ordered]@{phase = 'P'; native_started = $started; pid = $runnerPid; start_ticks_utc = $runnerStartTicks; direct_exit_confirmed = $exitConfirmed; native_exit_code = $nativeExitCode; native_runner_start_to_observed_exit_ms = $phaseWatch.ElapsedMilliseconds; maximum_ms = $maximumMs; evidence_reserve_ms = $evidenceReserveMs; failure = $failure; unresolved_child = ($started -and -not $exitConfirmed); kill_attempted = $false}\n[Console]::Error.WriteLine('PARENT_NATIVE_EXIT ' + (ConvertTo-Json -InputObject $observed -Compress))\nif ($null -ne $failure -or -not $exitConfirmed -or $phaseWatch.ElapsedMilliseconds -ge $maximumMs) { exit 1 }\nexit 0",
+  "tool_arguments": {
+    "shell": "C:\\Windows\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+    "login": false,
+    "workdir": "E:/projects/ladybug",
+    "yield_time_ms": 10000,
+    "max_output_tokens": 12000
+  },
+  "tool_response": "evidence/admission-r2-preflight-tool-response.json",
+  "receipt": "evidence/admission-r2-preflight-result.json",
+  "native_exit_code": 1,
+  "native_exit_confirmed": true,
+  "native_elapsed_ms": 1566,
+  "tool_wall_seconds": 1.7823148,
+  "maximum_ms": 30000,
+  "unresolved_child": false,
+  "preflight_compiler_child_started": false,
+  "result_class": "SETUP_OR_OBSERVER_FAILURE",
+  "failure": "Get-FileHash was unresolved in the spawned -NoProfile preflight process; outer monitor completed its own hash check. Cause not established.",
+  "last_proven_marker": "invocation-path true; 16 positive pin string baselines observed; no mutation/vector/parser/compiler check executed",
+  "coverage": {
+    "preflight_attempts": 1,
+    "powershell_document_reads": 2,
+    "pin_positive_baselines": 16,
+    "pin_negative_attempts": 0,
+    "powershell_vectors": 0,
+    "python_vectors": 0,
+    "host_rows": 0,
+    "Q": "NOT_RUN",
+    "R": "NOT_RUN",
+    "C": "NOT_RUN"
+  },
+  "runtime_attempts": 0,
+  "capacity_delta": 0,
+  "retry_authorized": false,
+  "observation_gap": "Wrapper output contains only PARENT_NATIVE_EXIT, not a child SRO_P_FAIL marker; receipt supplies the setup failure. Child diagnostic propagation remains unqualified, not assumed working."
+}
