@@ -39,6 +39,8 @@ WSL_WORKSPACE_ROOT = Path("/mnt/e/projects/ladybug")
 PYTHON_PATH = "/home/rastamafugg/.local/share/uv/tools/gdb-mcp/bin/python"
 PYTHON_RESOLVED = "/home/rastamafugg/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
 PYTHON_SHA256 = "339de109f072e52523066d97a2b3372e358a10cc00c6a9df62c28a6618061900"
+WSL_STOPQ_PATH = "/mnt/e/projects/ladybug/repro/feat010-menu-clock-repair-20261018/controller-integration-20261019/stop-q.py"
+PINNED_LAUNCH_ARGV = ("wsl.exe", "--exec", PYTHON_PATH, "-B", WSL_STOPQ_PATH, "--supervisor")
 TRANSCRIPT_SHA256 = "1617ba0bde61ca2bafe2d4603ae5d8f295c21b8efd3ef921d3f092b7560fef20"
 PRODUCER_SHA256 = "5d745ba536497f8621263c5fd259281c2d58a9a28aaf4adc3679f1b50fe7b0bd"
 INTERPRETER_EXECUTABLE = "/home/rastamafugg/.local/share/uv/python/cpython-3.12.13-linux-x86_64-gnu/bin/python3.12"
@@ -122,17 +124,17 @@ EXPECTED_BY_CASE = {
     "C06": "DIRECT_EXITS_CONFIRMED_NO_REAL_SUBJECT",
 }
 CASE_SUBCONTROLS = {
-    "Q01": ("valid", "owner", "session", "generation", "token", "sequence", "boolean", "mi_error", "current_state", "cause_id"),
+    "Q01": ("valid", "owner", "session", "generation", "token", "sequence", "boolean", "mi_error", "current_state", "cause_id", "coherent_copy", "command", "nested_generation", "nested_type", "error_code", "overflow_evidence", "extra_field", "float"),
     "Q02": ("capture_hash", "formatted_attach_is_unknown", "no_native_signal_field"),
     "Q03": ("same_raw_event", "different_hypothetical_cause", "same_event_only_classification"),
-    "Q04": ("exclusive_claim", "collision_preserved", "pinned_allowlist", "popen_type_preserved", "popen_denied", "no_real_factory"),
+    "Q04": ("exclusive_claim", "collision_preserved", "pinned_allowlist", "popen_type_preserved", "popen_denied", "no_real_factory", "changed_argument_rejected", "changed_path_rejected"),
     "Q05": tuple("baseline-" + value for value in ("zero", "connection", "bool", "string", "null", "missing", "nonce", "owner", "session", "generation", "stream", "duplicate", "malformed", "truncated", "python", "api", "mi-error", "token", "invalidated")),
-    "R01": ("startup", "claim", "baseline", "attach", "fresh_attach_state", "pre_continue_state", "breakpoint", "continue", "fresh_continue_state", "reader_count", "raw_count", "process_exit", "reader_exit", "no_cause_claim"),
+    "R01": ("startup", "claim", "baseline", "attach", "fresh_attach_state", "pre_continue_state", "breakpoint", "continue", "fresh_continue_state", "reader_count", "raw_count", "process_exit", "reader_exit", "no_cause_claim", "exception_before_call_capture_cleanup", "exception_after_call_capture_cleanup", "token_and_prompt_text", "tokenized_error_text", "console_stream_text", "stop_text"),
     "R02": ("historical_source_pin", "missing_claim_api", "missing_exec_api", "missing_stop_api", "not_setup_failure"),
-    "R03": ("literal_hash", "empty_connections_once", "one_connection_once", "exact_zero_stdout", "exact_one_stdout", "module_restored", "no_io"),
+    "R03": ("literal_hash", "empty_connections_once", "one_connection_once", "exact_zero_stdout", "exact_one_stdout", "module_restored", "no_io", "module_replacement_rejected", "module_removal_rejected"),
     "R04": tuple("baseline-control-" + value for value in ("zero", "connection", "bool", "string", "null", "missing", "nonce", "owner", "session", "generation", "stream", "duplicate", "malformed", "truncated", "python", "api", "mi-error", "token", "invalidated")),
     "R05": ("preclaim_user_send", "preclaim_interrupt", "stale_stop", "buffered_output", "no_retroactive_claim"),
-    "R06": ("wrong_token", "duplicate_result", "pre_result_prompt", "mi_error", "no_validated_result"),
+    "R06": ("wrong_token", "duplicate_result", "pre_result_prompt", "mi_error", "no_validated_result", "connected_without_separator_valid", "empty_payload_rejected", "oversized_result_protocol_partial"),
     "R07": ("attach_missing_sigint_unknown", "continue_without_signal_valid_breakpoint", "event_only"),
     "R08": ("wrong_breakpoint", "disabled_breakpoint", "missing_breakpoint", "missing_query", "no_continue_write"),
     "R09": ("wrong_hit_number", "wrong_thread", "wrong_pc", "running_state", "unsupported_state", "generation_change"),
@@ -439,6 +441,8 @@ class _ProtocolWorld:
             event = self.action_mode.get("attach_event", self.stop["attach"]["raw_event"])
             result_class = self.action_mode.get("attach_result", "connected")
             events = self.action_events.get("attach", [event] if event else [])
+            if self.transaction_fault_by_kind.get("attach") == "empty-result-payload":
+                return ("".join(item + "\n" for item in events) + token + "^connected,\n(gdb)\n").encode("ascii")
             return (token + "^" + result_class + "\n" + "".join(item + "\n" for item in events) + "(gdb)\n").encode("ascii")
         if kind == "continue":
             self.action_count += 1
@@ -576,7 +580,10 @@ def _load_actual_service() -> tuple[ModuleType, ModuleType]:
     return gdb_module, server_module
 
 
-async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
+async def _run_natural_sequence(
+    context: dict[str, Any], *, failure_injection: str | None = None,
+    diagnostics: dict[str, Any] | None = None,
+) -> dict[str, Any]:
     helper = _load_historical_helpers(context)
     natural = context["fixture_data"]["natural"]
     stop = context["fixture_data"]["stop"]
@@ -594,6 +601,11 @@ async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
     continuation: Any = None
     cleanup: Any = None
     session = None
+    sid: str | None = None
+    primary_exception: BaseException | None = None
+    finalization_errors: list[str] = []
+    cleanup_attempted = False
+    capture_completed = False
     process = None
     try:
         # Denial hooks are active before candidate module source is executed.
@@ -602,17 +614,19 @@ async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
         fixed_values = iter((natural["startup_uuid_hex"], natural["nonce_uuid_hex"]))
         gdb.uuid = type("_FixedUuidModule", (), {"uuid4": staticmethod(lambda: _FixedUUID(next(fixed_values)))})
         for owner, methods in (
-            (gdb.GdbManager, ("start_owned_session", "claim_observed_session", "exec_owned_session", "stop_observed_session")),
+            (gdb.GdbManager, ("start_owned_session", "claim_observed_session", "exec_owned_session", "stop_session_by_owner", "stop_observed_session")),
             (gdb.GdbSession, ("_baseline_until", "_observation_request_until", "_thread_state_until", "_breakpoint_until", "_owned_exec_operation", "_observation_reader", "stop_observed_until")),
         ):
             for name in methods:
                 ledger.wrap_async(owner, name, owner.__name__ + "." + name)
-        for name in ("start_owned_session", "claim_observed_session", "exec_owned_session", "stop_observed_session"):
+        for name in ("start_owned_session", "claim_observed_session", "exec_owned_session", "stop_session_by_owner", "stop_observed_session"):
             ledger.wrap_async(server, name, "server." + name)
         manager = gdb.GdbManager()
         manager_wrap_original = manager
         server.manager = manager
         world.manager = manager
+        if failure_injection == "before-call":
+            raise RuntimeError("controlled natural-sequence failure before service call")
         start = await server.start_owned_session(natural["owner_id"], budget_ms=8000)
         sid = start.get("session_id") if type(start) is dict else None
         lease = manager._owned_leases.get(natural["owner_id"])
@@ -620,6 +634,11 @@ async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
         process = session.process if session is not None else (world.processes[-1] if world.processes else None)
         if process is not None:
             process.session = session
+        if failure_injection == "after-call":
+            async def held_response() -> None:
+                await asyncio.Event().wait()
+            world.pending_response_tasks.append(asyncio.create_task(held_response()))
+            raise RuntimeError("controlled natural-sequence failure after fake service call")
         claim = await server.claim_observed_session(natural["owner_id"], sid, budget_ms=5000)
         attach = await server.exec_owned_session(
             natural["owner_id"], sid, "attach-001", natural["attach_command"],
@@ -634,13 +653,73 @@ async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
         session = lease.session if lease is not None else None
         process = session.process if session is not None else None
         cleanup = await server.stop_observed_session(natural["owner_id"], sid, budget_ms=7000)
+    except BaseException as exc:
+        primary_exception = exc
+        raise
     finally:
-        if process is not None and process.returncode is None:
-            process.finish(0)
-        hooks.restore()
-        if gdb is not None and original_uuid_module is not None:
-            gdb.uuid = original_uuid_module
-    _capture_run(world, ledger.rows, session, hooks)
+        try:
+            lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
+            if lease is not None:
+                if session is None:
+                    session = lease.session
+                if process is None and session is not None:
+                    process = session.process
+                if cleanup is None and server is not None:
+                    cleanup_attempted = True
+                    if session is not None and session._observation_task is not None and sid is not None:
+                        cleanup = await server.stop_observed_session(natural["owner_id"], sid, budget_ms=7000)
+                    else:
+                        cleanup = await server.stop_session_by_owner(natural["owner_id"], budget_ms=7000)
+            if process is not None and process.returncode is None:
+                process.finish(0)
+        except BaseException as exc:
+            finalization_errors.append("cleanup: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            if world.pending_response_tasks:
+                _done, pending = await asyncio.wait(world.pending_response_tasks, timeout=1.0)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
+        except BaseException as exc:
+            finalization_errors.append("pending-task cleanup: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            hooks.restore()
+        except BaseException as exc:
+            finalization_errors.append("hook restore: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            if gdb is not None and original_uuid_module is not None:
+                gdb.uuid = original_uuid_module
+        except BaseException as exc:
+            finalization_errors.append("UUID restore: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            _capture_run(world, ledger.rows, session, hooks)
+            capture_completed = True
+        except BaseException as exc:
+            finalization_errors.append("partial evidence capture: " + type(exc).__name__ + ": " + str(exc))
+        if diagnostics is not None:
+            owner_lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
+            pending_count = sum(not task.done() for task in world.pending_response_tasks)
+            resources_clear = (
+                (process is None or process.returncode is not None)
+                and pending_count == 0
+                and (owner_lease is None or owner_lease.state in ("EXITED", "CANCELLED_BEFORE_START"))
+            )
+            diagnostics.update({
+                "exception_type": type(primary_exception).__name__ if primary_exception is not None else None,
+                "exception_message": str(primary_exception) if primary_exception is not None else None,
+                "service_ledger_entries": len(ledger.rows),
+                "service_call_entries": sum(item.get("event") == "enter" for item in ledger.rows),
+                "cleanup_attempted": cleanup_attempted,
+                "cleanup_result": cleanup,
+                "pending_tasks_remaining": pending_count,
+                "resources_clear": resources_clear,
+                "failure_retained": primary_exception is not None and str(primary_exception).startswith("controlled natural-sequence failure"),
+                "capture_completed": capture_completed,
+                "finalization_errors": list(finalization_errors),
+            })
+        if primary_exception is None and finalization_errors:
+            raise RuntimeError("natural-sequence finalization failed: " + "; ".join(finalization_errors))
     return {
         "start": start,
         "claim": claim,
@@ -653,6 +732,7 @@ async def _run_natural_sequence(context: dict[str, Any]) -> dict[str, Any]:
         "deny_hooks": hooks,
         "actual_method_ledger": ledger.rows,
         "manager": manager_wrap_original,
+        "gdb_module": gdb,
     }
 
 
@@ -668,14 +748,18 @@ def _run_r01(context: dict[str, Any]) -> dict[str, Any]:
     _assert("R01", "baseline", type(claim.get("baseline")) is dict and claim["baseline"] == world.baseline_payload and claim.get("mi_result", {}).get("class") == "done" and claim.get("mi_result", {}).get("token") == "1", "claim baseline does not match independent owner/session/generation/nonce payload", claim)
     attach_record = attach.get("stop_record") if type(attach) is dict else None
     attach_thread = attach.get("current_state") if type(attach) is dict else None
-    _assert("R01", "attach", type(attach) is dict and attach.get("state") == "VALIDATED_OBSERVATION" and attach.get("mi_result", {}).get("class") == "connected" and attach.get("mi_result", {}).get("token") == "3" and attach_record.get("raw") == stop["attach"]["raw_event"], "attach response/event was not raw-bound and state-validated", attach)
+    _attach_fixture, attach_binding = _owned_exec_oracle_fixture(context, "signal")
+    attach_oracle_valid = _oracle_envelope_valid(attach, attach_binding)
+    _assert("R01", "attach", type(attach) is dict and attach.get("state") == "VALIDATED_OBSERVATION" and attach.get("mi_result", {}).get("class") == "connected" and attach.get("mi_result", {}).get("token") == "3" and attach_record.get("raw") == stop["attach"]["raw_event"] and attach_oracle_valid, "attach response/event did not match the fixture-bound raw/parsed owned-exec oracle", {"response": attach, "oracle_valid": attach_oracle_valid})
     _assert("R01", "fresh_attach_state", type(attach_thread) is dict and attach_thread.get("thread_id") == stop["thread_id"] and attach_thread.get("thread_state") == "stopped" and int(attach_thread.get("pc", "0"), 16) == stop["attach"]["expected_pc"], "fresh attach thread state differs from parent fixture", attach_thread)
     precontinue = next((call for call in session._observation_call_ledger if call.get("call_id") == "continue-001:state-before"), None) if session is not None else None
     _assert("R01", "pre_continue_state", type(precontinue) is dict and precontinue.get("result", {}).get("class") == "done" and precontinue.get("result", {}).get("token") == "5" and precontinue.get("state_generation_before") == 2, "pre-continue thread query did not bind the expected state generation", precontinue)
     pre_break = next((call for call in session._observation_call_ledger if call.get("call_id") == "continue-001:breakpoint-before"), None) if session is not None else None
     _assert("R01", "breakpoint", type(pre_break) is dict and pre_break.get("result", {}).get("class") == "done" and pre_break.get("result", {}).get("token") == "6" and "BreakpointTable" in pre_break.get("result", {}).get("fields", {}), "pre-resume breakpoint identity was not queried with its own MI token", pre_break)
     cont_record = continuation.get("stop_record") if type(continuation) is dict else None
-    _assert("R01", "continue", type(continuation) is dict and continuation.get("state") == "VALIDATED_OBSERVATION" and continuation.get("mi_result", {}).get("class") == "running" and continuation.get("mi_result", {}).get("token") == "7" and cont_record.get("raw") == stop["continuation"]["raw_event"], "continue did not validate the independent raw breakpoint observation", continuation)
+    _continue_fixture, continue_binding = _owned_exec_oracle_fixture(context, "breakpoint")
+    continue_oracle_valid = _oracle_envelope_valid(continuation, continue_binding)
+    _assert("R01", "continue", type(continuation) is dict and continuation.get("state") == "VALIDATED_OBSERVATION" and continuation.get("mi_result", {}).get("class") == "running" and continuation.get("mi_result", {}).get("token") == "7" and cont_record.get("raw") == stop["continuation"]["raw_event"] and continue_oracle_valid, "continue response/event did not match the fixture-bound raw/parsed owned-exec oracle", {"response": continuation, "oracle_valid": continue_oracle_valid})
     post_state = continuation.get("current_state") if type(continuation) is dict else None
     _assert("R01", "fresh_continue_state", type(post_state) is dict and post_state.get("thread_id") == stop["thread_id"] and post_state.get("thread_state") == "stopped" and int(post_state.get("pc", "0"), 16) == stop["continuation"]["expected_pc"] and continuation.get("validated_stop", {}).get("observation") == "SESSION_EVENT_ONLY", "fresh continuation PC/thread does not match the independent fixture", post_state)
     reader = process.stdout if process is not None else None
@@ -696,8 +780,75 @@ def _run_r01(context: dict[str, Any]) -> dict[str, Any]:
     _assert("R01", "reader_exit", type(cleanup) is dict and cleanup.get("reader_exit_confirmed") is True and cleanup.get("cleanup_complete") is True and session is not None and session._observation_eof, "observer EOF/join was not independently confirmed", cleanup)
     call_ids = [call.get("call_id") for call in session._observation_call_ledger] if session is not None else []
     _assert("R01", "no_cause_claim", type(attach) is dict and type(continuation) is dict and "cause_command_id" not in attach and "cause_command_id" not in continuation and attach.get("stop_observation") == "SESSION_EVENT_ONLY" and continuation.get("stop_observation") == "SESSION_EVENT_ONLY" and call_ids == ["claim:baseline", "attach-001:state-before", "attach-001", "attach-001:state-after", "continue-001:state-before", "continue-001:breakpoint-before", "continue-001", "continue-001:state-after"], "ledger asserts causal attribution or omitted/reordered a fixed transaction", {"call_ids": call_ids})
+
+    def exception_probe(injection: str) -> dict[str, Any]:
+        diagnostics: dict[str, Any] = {}
+        try:
+            asyncio.run(_run_natural_sequence(context, failure_injection=injection, diagnostics=diagnostics))
+        except BaseException as exc:
+            raised = {"type": type(exc).__name__, "message": str(exc)}
+        else:
+            raised = None
+        claim_diagnostics: dict[str, Any] = {}
+        try:
+            asyncio.run(_claim_probe_async(context, failure_injection=injection, diagnostics=claim_diagnostics))
+        except BaseException as exc:
+            claim_raised = {"type": type(exc).__name__, "message": str(exc)}
+        else:
+            claim_raised = None
+        return {"raised": raised, "diagnostics": diagnostics, "claim_raised": claim_raised, "claim_diagnostics": claim_diagnostics}
+
+    before_exception = exception_probe("before-call")
+    before_diagnostics = before_exception["diagnostics"]
+    before_claim_diagnostics = before_exception["claim_diagnostics"]
+    before_cleanup_retained = (before_diagnostics.get("resources_clear") is True
+                               and before_diagnostics.get("capture_completed") is True
+                               and before_diagnostics.get("finalization_errors") == [])
+    before_claim_cleanup_retained = (before_claim_diagnostics.get("resources_clear") is True
+                                     and before_claim_diagnostics.get("capture_completed") is True
+                                     and before_claim_diagnostics.get("finalization_errors") == [])
+    before_expected_exception = {"type": "RuntimeError", "message": "controlled natural-sequence failure before service call"}
+    before_expected_entries = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["before_call_service_entries"]
+    _assert("R01", "exception_before_call_capture_cleanup", before_exception["raised"] == before_expected_exception and before_diagnostics.get("failure_retained") is True and before_diagnostics.get("service_call_entries") == before_expected_entries and before_cleanup_retained and before_exception["claim_raised"] == before_expected_exception and before_claim_diagnostics.get("failure_retained") is True and before_claim_diagnostics.get("service_call_entries") == before_expected_entries and before_claim_cleanup_retained, "pre-call exception lost its failure or truthful partial capture/cleanup state in a natural or claim probe", before_exception)
+
+    after_exception = exception_probe("after-call")
+    after_diagnostics = after_exception["diagnostics"]
+    after_cleanup = after_diagnostics.get("cleanup_result")
+    after_claim_diagnostics = after_exception["claim_diagnostics"]
+    after_cleanup_retained = (after_diagnostics.get("resources_clear") is True
+                              and after_diagnostics.get("capture_completed") is True
+                              and after_diagnostics.get("finalization_errors") == []
+                              and type(after_cleanup) is dict and after_cleanup.get("exit_confirmed") is True)
+    after_claim_cleanup_retained = (after_claim_diagnostics.get("resources_clear") is True
+                                    and after_claim_diagnostics.get("capture_completed") is True
+                                    and after_claim_diagnostics.get("finalization_errors") == []
+                                    and after_claim_diagnostics.get("pending_tasks_remaining") == 0
+                                    and type(after_claim_diagnostics.get("cleanup_result")) is dict)
+    after_expected_exception = {"type": "RuntimeError", "message": "controlled natural-sequence failure after fake service call"}
+    after_minimum_entries = context["fixture_data"]["stop"]["recovery_r1"]["exception_capture"]["after_call_minimum_service_entries"]
+    _assert("R01", "exception_after_call_capture_cleanup", after_exception["raised"] == after_expected_exception and after_diagnostics.get("failure_retained") is True and after_diagnostics.get("service_call_entries", 0) >= after_minimum_entries and after_diagnostics.get("cleanup_attempted") is True and after_diagnostics.get("pending_tasks_remaining") == 0 and after_cleanup_retained and after_exception["claim_raised"] == after_expected_exception and after_claim_diagnostics.get("failure_retained") is True and after_claim_diagnostics.get("service_call_entries", 0) >= after_minimum_entries and after_claim_cleanup_retained, "post-call exception did not preserve failure, partial ledger and confirmed cleanup in a natural or claim probe", after_exception)
+
+    service_gdb = run["gdb_module"]
+    recovery = context["fixture_data"]["stop"]["recovery_r1"]
+    display_records = {
+        "token_and_prompt": [service_gdb._parse_mi_record(b"1^done\n", 1), service_gdb._parse_mi_record(b"(gdb)\n", 2)],
+        "tokenized_error": [service_gdb._parse_mi_record(b'1^error,msg="bad command"\n', 3)],
+        "console_stream": [service_gdb._parse_mi_record(b'~"hello\\n"\n', 4)],
+        "stop": [service_gdb._parse_mi_record(b'*stopped,reason="signal-received"\n', 5)],
+    }
+    display_outputs = {name: service_gdb._format_observation_output(records) for name, records in display_records.items()}
+    display_expected = {
+        "token_and_prompt": recovery["display"]["token_and_prompt"],
+        "tokenized_error": recovery["display"]["tokenized_error"],
+        "console_stream": recovery["display"]["console_stream"],
+        "stop": recovery["display"]["stop"],
+    }
+    _assert("R01", "token_and_prompt_text", display_outputs["token_and_prompt"] == display_expected["token_and_prompt"], "actual service token/prompt formatting differs from exact independent text", display_outputs["token_and_prompt"])
+    _assert("R01", "tokenized_error_text", display_outputs["tokenized_error"] == display_expected["tokenized_error"], "actual service tokenized error formatting differs from exact independent text", display_outputs["tokenized_error"])
+    _assert("R01", "console_stream_text", display_outputs["console_stream"] == display_expected["console_stream"], "actual service console stream formatting differs from exact independent text", display_outputs["console_stream"])
+    _assert("R01", "stop_text", display_outputs["stop"] == display_expected["stop"], "actual service stop formatting differs from exact independent text", display_outputs["stop"])
     subcontrols = _passed_controls("R01")
-    return _case("R01", {"subcontrols": subcontrols, "start": start, "claim": claim, "attach": attach, "continue": continuation, "cleanup": cleanup, "actual_method_ledger": run["actual_method_ledger"], "factory_calls": len(world.factory_calls), "fixed_fake_factory_calls": run["deny_hooks"].allowed_factory_calls, "real_factory_calls": world.real_calls, "real_gdb_calls": world.real_calls, "reader_metrics": reader_metrics, "raw_record_count": session._observation_record_count if session else None})
+    return _case("R01", {"subcontrols": subcontrols, "start": start, "claim": claim, "attach": attach, "continue": continuation, "cleanup": cleanup, "actual_method_ledger": run["actual_method_ledger"], "exception_controls": {"before_call": before_exception, "after_call": after_exception}, "service_display": {"expected": display_expected, "observed": display_outputs}, "factory_calls": len(world.factory_calls), "fixed_fake_factory_calls": run["deny_hooks"].allowed_factory_calls, "real_factory_calls": world.real_calls, "real_gdb_calls": world.real_calls, "reader_metrics": reader_metrics, "raw_record_count": session._observation_record_count if session else None})
 
 
 async def _claim_probe_async(
@@ -718,6 +869,7 @@ async def _claim_probe_async(
     repeat_stop: bool = False, join_blocked_reader_after_stop: bool = False,
     held_observation_lock: str | None = None,
     stop_during_pending_command: bool = False,
+    failure_injection: str | None = None, diagnostics: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     helper = _load_historical_helpers(context)
     natural = context["fixture_data"]["natural"]
@@ -747,6 +899,7 @@ async def _claim_probe_async(
     ledger = _ActualLedger()
     manager: Any = None
     started: Any = None
+    sid: str | None = None
     claim: Any = None
     action: Any = None
     actions: list[Any] = []
@@ -765,6 +918,10 @@ async def _claim_probe_async(
     cleanup: Any = None
     process = None
     session = None
+    start_attempted = False
+    primary_exception: BaseException | None = None
+    finalization_errors: list[str] = []
+    capture_completed = False
     try:
         # Candidate source import is inside the process/network denial scope.
         gdb, server = _load_actual_service()
@@ -782,6 +939,9 @@ async def _claim_probe_async(
         manager = gdb.GdbManager()
         server.manager = manager
         world.manager = manager
+        if failure_injection == "before-call":
+            raise RuntimeError("controlled natural-sequence failure before service call")
+        start_attempted = True
         started = await server.start_owned_session(natural["owner_id"], budget_ms=8000)
         sid = started.get("session_id") if type(started) is dict else None
         lease = manager._owned_leases.get(natural["owner_id"])
@@ -789,6 +949,8 @@ async def _claim_probe_async(
         process = session.process if session is not None else None
         if process is not None:
             process.session = session
+        if failure_injection == "after-call":
+            raise RuntimeError("controlled natural-sequence failure after fake service call")
         if preclaim == "send":
             legacy_output = await server.exec_command(sid, "info version", timeout=0.5)
         elif preclaim == "interrupt":
@@ -945,19 +1107,70 @@ async def _claim_probe_async(
                     later_reader_join = False
         else:
             cleanup = await server.stop_session_by_owner(natural["owner_id"], budget_ms=7000)
+    except BaseException as exc:
+        primary_exception = exc
+        raise
     finally:
-        if process is not None and process.returncode is None:
-            process.finish(0)
-        hooks.restore()
-        if gdb is not None and original_uuid_module is not None:
-            gdb.uuid = original_uuid_module
-    if world.pending_response_tasks:
-        _done, pending = await asyncio.wait(world.pending_response_tasks, timeout=1.0)
-        for task in pending:
-            task.cancel()
-        if pending:
-            await asyncio.gather(*pending, return_exceptions=True)
-    _capture_run(world, ledger.rows, session, hooks)
+        try:
+            lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
+            if lease is not None:
+                if session is None:
+                    session = lease.session
+                if process is None and session is not None:
+                    process = session.process
+                if sid is None and session is not None:
+                    sid = session.id
+            if cleanup is None and server is not None and manager is not None and start_attempted:
+                cleanup = await server.stop_session_by_owner(natural["owner_id"], budget_ms=7000)
+        except BaseException as exc:
+            finalization_errors.append("owned-session cleanup: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            if process is not None and process.returncode is None:
+                process.finish(0)
+        except BaseException as exc:
+            finalization_errors.append("process finish: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            if world.pending_response_tasks:
+                _done, pending = await asyncio.wait(world.pending_response_tasks, timeout=1.0)
+                for task in pending:
+                    task.cancel()
+                if pending:
+                    await asyncio.gather(*pending, return_exceptions=True)
+        except BaseException as exc:
+            finalization_errors.append("pending-task cleanup: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            hooks.restore()
+        except BaseException as exc:
+            finalization_errors.append("hook restore: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            if gdb is not None and original_uuid_module is not None:
+                gdb.uuid = original_uuid_module
+        except BaseException as exc:
+            finalization_errors.append("UUID restore: " + type(exc).__name__ + ": " + str(exc))
+        try:
+            _capture_run(world, ledger.rows, session, hooks)
+            capture_completed = True
+        except BaseException as exc:
+            finalization_errors.append("partial evidence capture: " + type(exc).__name__ + ": " + str(exc))
+        if diagnostics is not None:
+            owner_lease = manager._owned_leases.get(natural["owner_id"]) if manager is not None else None
+            pending_count = sum(not task.done() for task in world.pending_response_tasks)
+            diagnostics.update({
+                "exception_type": type(primary_exception).__name__ if primary_exception is not None else None,
+                "exception_message": str(primary_exception) if primary_exception is not None else None,
+                "service_ledger_entries": len(ledger.rows),
+                "service_call_entries": sum(item.get("event") == "enter" for item in ledger.rows),
+                "cleanup_result": cleanup,
+                "pending_tasks_remaining": pending_count,
+                "resources_clear": (process is None or process.returncode is not None)
+                    and pending_count == 0
+                    and (owner_lease is None or owner_lease.state in ("EXITED", "CANCELLED_BEFORE_START")),
+                "failure_retained": primary_exception is not None and str(primary_exception).startswith("controlled natural-sequence failure"),
+                "capture_completed": capture_completed,
+                "finalization_errors": list(finalization_errors),
+            })
+        if primary_exception is None and finalization_errors:
+            raise RuntimeError("claim-probe finalization failed: " + "; ".join(finalization_errors))
     return {
         "start": started, "claim": claim, "action": action, "preclaim_error": preclaim_error,
         "actions": actions,
@@ -971,6 +1184,8 @@ async def _claim_probe_async(
         "reader_task_done_at_first_stop": reader_task_done_at_first_stop,
         "reader_eof_at_first_stop": reader_eof_at_first_stop,
         "stop_during_action": stop_during_action_result,
+        "gdb_module": gdb,
+        "server_module": server,
     }
 
 
@@ -1063,12 +1278,32 @@ def _run_r02(context: dict[str, Any]) -> dict[str, Any]:
     return _case("R02", {"subcontrols": _passed_controls("R02"), "historical_hashes": {path: context["qualified_sha256"][path] for path in ("candidate/gdb.py", "candidate/server.py")}, "capabilities": observed, "denial_counts": hooks.counts, "real_factory_calls": hooks.allowed_factory_calls})
 
 
+def _snapshot_modules(names: tuple[str, ...]) -> dict[str, tuple[bool, Any]]:
+    return {name: (name in sys.modules, sys.modules.get(name)) for name in names}
+
+
+def _module_snapshot_matches(modules: Any, snapshot: dict[str, tuple[bool, Any]]) -> bool:
+    if not isinstance(modules, dict):
+        return False
+    for name, (was_present, original) in snapshot.items():
+        if (name in modules) is not was_present:
+            return False
+        if was_present and modules.get(name) is not original:
+            return False
+    return True
+
+
+def _restore_modules(snapshot: dict[str, tuple[bool, Any]]) -> None:
+    for name, (was_present, original) in snapshot.items():
+        if was_present:
+            sys.modules[name] = original
+        else:
+            sys.modules.pop(name, None)
+
+
 def _run_r03(context: dict[str, Any]) -> dict[str, Any]:
     fixture = context["fixture_data"]["producer"]
-    original_gdb = sys.modules.get("gdb")
-    original_gdb_present = "gdb" in sys.modules
-    original_server = sys.modules.get("server")
-    original_server_present = "server" in sys.modules
+    original_modules = _snapshot_modules(("gdb", "json", "server"))
     helper = _load_historical_helpers(context)
     hooks = helper.DenyHooks()
     async def denied_factory(*_args: Any, **_kwargs: Any) -> Any:
@@ -1138,20 +1373,22 @@ def _run_r03(context: dict[str, Any]) -> dict[str, Any]:
             runs.append({"connections": count, "calls": state["calls"], "stdout": "".join(captured), "expected": expected_stdout})
             sys.modules["gdb"] = candidate_gdb
     finally:
-        hooks.restore()
-        if original_gdb_present:
-            sys.modules["gdb"] = original_gdb
-        else:
-            sys.modules.pop("gdb", None)
-        if original_server_present:
-            sys.modules["server"] = original_server
-        else:
-            sys.modules.pop("server", None)
+        try:
+            hooks.restore()
+        finally:
+            _restore_modules(original_modules)
     _assert("R03", "empty_connections_once", runs[0]["calls"] == 1 and runs[0]["connections"] == 0, "empty fake connections fixture did not call once", runs[0])
     _assert("R03", "one_connection_once", runs[1]["calls"] == 1 and runs[1]["connections"] == 1, "one-connection fake fixture did not call once", runs[1])
     _assert("R03", "exact_zero_stdout", runs[0]["stdout"] == runs[0]["expected"], "producer zero stdout differs from independent expected literal", runs[0])
     _assert("R03", "exact_one_stdout", runs[1]["stdout"] == runs[1]["expected"], "producer one stdout differs from independent expected literal", runs[1])
-    _assert("R03", "module_restored", ("gdb" in sys.modules) == original_gdb_present and ("json" in sys.modules) == original_json_present and (not original_gdb_present or sys.modules["gdb"] is original_gdb) and (not original_json_present or sys.modules["json"] is original_json), "fake producer modules were not restored")
+    restored = _module_snapshot_matches(sys.modules, original_modules)
+    _assert("R03", "module_restored", restored, "original gdb/json/server module presence and identities were not restored", {name: (present, id(module) if present else None) for name, (present, module) in original_modules.items()})
+    replacement_modules = dict(sys.modules)
+    replacement_modules["json"] = ModuleType("json")
+    replacement_rejected = not _module_snapshot_matches(replacement_modules, original_modules)
+    removed_modules = dict(sys.modules)
+    removed_modules.pop("json", None)
+    removal_rejected = not _module_snapshot_matches(removed_modules, original_modules)
     denied_counts = dict(hooks.counts)
     process_attempts = sum(count for name, count in denied_counts.items() if name.startswith(("subprocess.", "asyncio.create_subprocess_shell", "os.")))
     network_attempts = sum(count for name, count in denied_counts.items() if name.startswith("socket."))
@@ -1159,6 +1396,8 @@ def _run_r03(context: dict[str, Any]) -> dict[str, Any]:
     _PHASE_LEDGER["real_gdb_calls"] += producer_imports["real_gdb"] + process_attempts
     _PHASE_LEDGER["real_network_calls"] += network_attempts
     _assert("R03", "no_io", set(("__import__", "len", "print")) == set(safe_builtins) and type(fake_gdb).__name__ == "module" and hooks.allowed_factory_calls == 0 and producer_imports == {"fake_gdb": 2, "real_gdb": 0} and not denied_counts, "producer sandbox used an unexpected built-in, factory or denied operation", {"builtins": sorted(safe_builtins), "factory_calls": hooks.allowed_factory_calls, "producer_imports": producer_imports, "denied_counts": denied_counts})
+    _assert("R03", "module_replacement_rejected", replacement_rejected, "module binding oracle admitted a replacement module", {"positive": restored, "negative": _module_snapshot_matches(replacement_modules, original_modules)})
+    _assert("R03", "module_removal_rejected", removal_rejected, "module binding oracle admitted a removed module", {"positive": restored, "negative": _module_snapshot_matches(removed_modules, original_modules)})
     return _case("R03", {"subcontrols": _passed_controls("R03"), "source_sha256": generated_sha256, "runs": runs, "real_gdb_calls": producer_imports["real_gdb"], "real_subprocess_calls": process_attempts, "real_network_calls": network_attempts, "denied_counts": denied_counts})
 
 
@@ -1248,11 +1487,32 @@ def _run_r06(context: dict[str, Any]) -> dict[str, Any]:
     preprompt = asyncio.run(_claim_probe_async(context, transaction_fault="pre-result-prompt"))
     mi_error = asyncio.run(_claim_probe_async(context, baseline_control="MI_ERROR"))
     missing = asyncio.run(_claim_probe_async(context, transaction_fault="missing-result"))
+    malformed_natural = context["fixture_data"]["natural"]
+    malformed = asyncio.run(_claim_probe_async(
+        context,
+        action_sequence=({
+            "kind": "attach", "command_id": "attach-001",
+            "command": malformed_natural["attach_command"], "stop_expectation": "signal",
+            "budget_ms": 1000,
+        },),
+        transaction_fault_by_kind={"attach": "empty-result-payload"},
+    ))
+    service_gdb = malformed.get("gdb_module")
+    recovery = context["fixture_data"]["stop"]["recovery_r1"]
+    mi_fixture = recovery["mi_parser"]
+    valid_record = service_gdb._parse_mi_record((mi_fixture["valid"] + "\n").encode("ascii"), 1)
+    malformed_record = service_gdb._parse_mi_record((mi_fixture["malformed"] + "\n").encode("ascii"), 2)
     wrong_call = wrong["claim"].get("call_ledger", [])[-1] if type(wrong["claim"]) is dict and wrong["claim"].get("call_ledger") else None
     duplicate_call = duplicate["claim"].get("call_ledger", [])[-1] if type(duplicate["claim"]) is dict and duplicate["claim"].get("call_ledger") else None
     pre_call = preprompt["claim"].get("call_ledger", [])[-1] if type(preprompt["claim"]) is dict and preprompt["claim"].get("call_ledger") else None
     mi_call = mi_error["claim"].get("call_ledger", [])[-1] if type(mi_error["claim"]) is dict and mi_error["claim"].get("call_ledger") else None
     missing_call = missing["claim"].get("call_ledger", [])[-1] if type(missing["claim"]) is dict and missing["claim"].get("call_ledger") else None
+    malformed_action = malformed["action"]
+    malformed_call = next((item for item in malformed_action.get("call_ledger", []) if type(item) is dict and item.get("call_id") == "attach-001"), None) if type(malformed_action) is dict else None
+    malformed_action_record = next((record for record in malformed_call.get("records", []) if type(record) is dict and record.get("parse_error") is not None), None) if type(malformed_call) is dict else None
+    malformed_raw_stop = next((record for record in malformed["session"]._observation_stops if type(record) is dict and record.get("raw") == context["fixture_data"]["stop"]["attach"]["raw_event"]), None) if malformed["session"] is not None else None
+    malformed_admission = malformed_action.get("state") if type(malformed_action) is dict else "ADMITTED"
+    malformed_validated_stop = malformed_action.get("validated_stop") if type(malformed_action) is dict else None
     _assert("R06", "wrong_token", wrong["claim"].get("state") == "UNKNOWN" and wrong["claim"].get("baseline_validated") is False and wrong["claim"].get("error_code") == "MI_RESULT_TOKEN_MISMATCH", "wrong-token MI result did not invalidate claim", wrong["claim"])
     _assert("R06", "duplicate_result", duplicate["claim"].get("state") == "UNKNOWN" and duplicate["claim"].get("baseline_validated") is False and type(duplicate_call) is dict and duplicate_call.get("protocol_error") == "DUPLICATE_MI_RESULT", "duplicate token result was accepted", duplicate["claim"])
     pre_records = pre_call.get("records", []) if type(pre_call) is dict else []
@@ -1262,7 +1522,34 @@ def _run_r06(context: dict[str, Any]) -> dict[str, Any]:
     _assert("R06", "pre_result_prompt", preprompt["claim"].get("state") == "CLAIMED" and prompt_before and prompt_after and type(pre_call.get("result")) is dict and pre_call["result"].get("token") == "1", "pre-result prompt was mistaken for the matching token result or final prompt", {"claim": preprompt["claim"], "records": pre_records})
     _assert("R06", "mi_error", mi_error["claim"].get("state") == "UNKNOWN" and type(mi_error["claim"].get("mi_error")) is dict and mi_error["claim"]["mi_error"].get("class") == "error" and type(mi_call) is dict, "MI error was converted into baseline or stop proof", mi_error["claim"])
     _assert("R06", "no_validated_result", missing["claim"].get("state") == "UNKNOWN" and missing["claim"].get("baseline_validated") is False and type(missing_call) is dict and missing_call.get("result") is None and "validated_stop" not in missing["claim"] and missing["session"] is not None and not missing["session"]._observation_stops, "missing command result or raw stop was promoted to proof", missing["claim"])
-    return _case("R06", {"subcontrols": _passed_controls("R06"), "wrong_token": wrong["claim"], "duplicate_result": duplicate["claim"], "pre_result_prompt": preprompt["claim"], "mi_error": mi_error["claim"], "missing_result": missing["claim"]})
+    _assert("R06", "connected_without_separator_valid", valid_record.get("kind") == "mi" and valid_record.get("class") == mi_fixture["valid_class"] and "parse_error" not in valid_record, "valid tokenized MI result was not parsed as the independent class", valid_record)
+    _assert("R06", "empty_payload_rejected", malformed_record.get("kind") == "mi" and malformed_record.get("class") == "connected" and malformed_record.get("parse_error") == mi_fixture["malformed_parse_error"] and malformed["claim"].get("state") == "CLAIMED" and malformed["claim"].get("baseline_validated") is True and type(malformed_action) is dict and malformed_action.get("state") == mi_fixture["malformed_admission"] and malformed_action.get("error_code") == "MALFORMED_MI_RESULT" and type(malformed_call) is dict and malformed_call.get("protocol_error") == "MALFORMED_MI_RESULT" and type(malformed_action_record) is dict and malformed_action_record.get("parse_error") == mi_fixture["malformed_parse_error"] and type(malformed_raw_stop) is dict and malformed_admission == mi_fixture["malformed_admission"] and malformed_validated_stop == mi_fixture["malformed_validated_stop"], "empty MI attach result was not rejected despite an otherwise-valid signal event", {"record": malformed_record, "call": malformed_call, "raw_action_record": malformed_action_record, "raw_signal_stop": malformed_raw_stop, "admission": malformed_admission, "validated_stop": malformed_validated_stop, "claim": malformed["claim"], "action": malformed_action})
+    overflow_case = recovery["overflow"]["case_input"]
+    overflow_source = {
+        "kind": "RESULT", "phase": "stop-observation-reader", "nonce": "0" * 32,
+        "manifest_sha256": "1" * 64, "ticket_sha256": "2" * 64,
+        "source_sha256": {}, "fixture_sha256": {}, "read_inputs_sha256": {},
+        "status": "FAIL", "cases": [overflow_case],
+        "ledgers": {
+            "service_calls": [{"method": "oversize-control", "payload": "x" * 9000} for _ in range(96)],
+            "factory_calls": [], "reader_count": 0, "raw_record_count": 0,
+            "real_factory_calls": 0, "real_gdb_calls": 0, "real_network_calls": 0,
+        },
+        "failure": _failure("ASSERTION", None, None, "synthetic oversize-control input"),
+    }
+    overflow_result, overflow_encoded, overflow_returncode = _encode_worker_result(overflow_source)
+    overflow_observed = overflow_result.get("failure", {}).get("observed", {})
+    overflow_init = {
+        name: overflow_source[name]
+        for name in ("phase", "nonce", "manifest_sha256", "ticket_sha256", "source_sha256", "fixture_sha256", "read_inputs_sha256")
+    }
+    overflow_validated = _validate_worker_result(overflow_result, overflow_init, 1)
+    overflow_retained_case = overflow_result.get("cases", [None])[0]
+    overflow_case_summary = overflow_observed.get("cases", {})
+    overflow_service_summary = overflow_observed.get("service_calls", {})
+    _assert("R06", "oversized_result_protocol_partial", len(overflow_encoded) <= PROTOCOL_LINE_LIMIT and overflow_returncode == 1 and overflow_validated.get("status") == recovery["overflow"]["status"] and overflow_result.get("failure", {}).get("category") == recovery["overflow"]["failure_category"] and overflow_observed.get("partial_evidence") is recovery["overflow"]["partial_evidence_required"] and overflow_observed.get("cap_increased") is recovery["overflow"]["cap_increase_allowed"] and overflow_result.get("cases") == [overflow_case] and overflow_retained_case == overflow_case and overflow_retained_case.get("status") == "FAIL" and overflow_retained_case.get("observations", {}).get("fixture_provenance") == overflow_case["observations"]["fixture_provenance"] and overflow_retained_case.get("observations", {}).get("subcontrols") == [] and overflow_case_summary.get("total") == 1 and overflow_case_summary.get("retained") == 1 and overflow_case_summary.get("omitted") == 0 and _is_digest(overflow_case_summary.get("omitted_sha256")) and overflow_service_summary.get("omitted", 0) > 0 and _is_digest(overflow_service_summary.get("omitted_sha256")), "oversized RESULT did not become bounded truthful partial protocol failure with retained synthetic FAIL row", {"encoded_bytes": len(overflow_encoded), "returncode": overflow_returncode, "status": overflow_validated.get("status"), "failure": overflow_result.get("failure"), "retained_case": overflow_retained_case, "retained_service_calls": len(overflow_result.get("ledgers", {}).get("service_calls", []))})
+
+    return _case("R06", {"subcontrols": _passed_controls("R06"), "wrong_token": wrong["claim"], "duplicate_result": duplicate["claim"], "pre_result_prompt": preprompt["claim"], "mi_error": mi_error["claim"], "missing_result": missing["claim"], "malformed_result": malformed["claim"], "mi_parser": {"valid": valid_record, "malformed": malformed_record}, "overflow_fallback": {"encoded_bytes": len(overflow_encoded), "retained_cases": len(overflow_result["cases"]), "retained_service_calls": len(overflow_result["ledgers"]["service_calls"]), "failure": overflow_result["failure"]}})
 
 
 class QualificationFailure(Exception):
@@ -1485,60 +1772,265 @@ def _event_only(event: dict[str, Any], hypothetical_cause: str | None) -> dict[s
     }
 
 
-def _oracle_envelope_valid(value: Any, binding: dict[str, Any]) -> bool:
-    fields = {
-        "schema", "owner_id", "session_id", "command_id", "state",
-        "observation_generation", "state_generation_before", "state_generation_after",
-        "command", "mi_result", "mi_error", "text", "stop_record", "stop_observation", "current_state",
-        "validated_stop", "call_ledger", "overflow_evidence", "error_code",
+def _fixture_mi_record(
+    raw: str, *, sequence: int, token: str | None, marker: str | None,
+    record_class: str | None, fields: dict[str, Any], binding: dict[str, Any],
+    state_generation: int, observation: str | None = None,
+) -> dict[str, Any]:
+    record = {
+        "sequence": sequence, "raw": raw,
+        "raw_b64": base64.b64encode((raw + "\n").encode("ascii")).decode("ascii"),
+        "kind": "mi", "token": token, "marker": marker, "class": record_class,
+        "fields": fields, "owner_id": binding["owner_id"], "session_id": binding["session_id"],
+        "observation_generation": binding["observation_generation"], "state_generation": state_generation,
     }
-    if type(value) is not dict or set(value) != fields:
+    if observation is not None:
+        record["observation"] = observation
+    return record
+
+
+def _fixture_prompt_record(binding: dict[str, Any], sequence: int, state_generation: int) -> dict[str, Any]:
+    raw = "(gdb)"
+    return {
+        "sequence": sequence, "raw": raw,
+        "raw_b64": base64.b64encode((raw + "\n").encode("ascii")).decode("ascii"),
+        "kind": "prompt", "token": None, "marker": None, "class": None, "fields": {},
+        "owner_id": binding["owner_id"], "session_id": binding["session_id"],
+        "observation_generation": binding["observation_generation"], "state_generation": state_generation,
+    }
+
+
+def _owned_exec_oracle_fixture(context: dict[str, Any], kind: str) -> tuple[dict[str, Any], dict[str, Any]]:
+    stop = context["fixture_data"]["stop"]
+    natural = context["fixture_data"]["natural"]
+    recovery = stop["recovery_r1"]
+    expected = recovery[kind]
+    action_kind = "attach" if kind == "signal" else "continue"
+    stop_kind = "attach" if kind == "signal" else "continuation"
+    state_kind = "post-attach-thread-info" if kind == "signal" else "post-continue-thread-info"
+    transactions = {item["kind"]: item for item in natural["transactions"]}
+    action = transactions[action_kind]
+    state = transactions[state_kind]
+    sequence = action["expected_stop_sequence"]
+    state_generation_after = action["expected_stop_state_generation"]
+    state_generation_before = natural["initial_state_generation"] if kind == "signal" else transactions["attach"]["expected_stop_state_generation"]
+    command_id = "attach-001" if kind == "signal" else "continue-001"
+    raw_event = stop[stop_kind]["raw_event"]
+    state_body = stop[stop_kind]["raw_state_result_body"]
+    action_raw = action["token"] + action["body"]
+    state_raw = state["token"] + state_body
+    action_sequence = sequence - (1 if kind == "signal" else 2)
+    state_sequence = sequence + 2
+    action_state_generation = state_generation_before + (1 if action.get("intermediate_running_event") else 0)
+    binding = {
+        "owner_id": natural["owner_id"], "session_id": natural["session_id"],
+        "command_id": command_id, "command": expected["command"],
+        "token": action["token"], "state_token": state["token"],
+        "sequence": sequence, "kind": kind, "raw_event": raw_event,
+        "reason": expected["reason"], "thread_id": expected["thread_id"], "pc": expected["pc"],
+        "observation_generation": natural["observation_generation"],
+        "result_class": expected["result_class"], "signal_name": expected.get("signal_name"),
+        "signal_meaning": expected.get("signal_meaning"), "stopped_threads": expected["stopped_threads"],
+        "breakpoint_number": expected.get("number"), "breakpoint_disposition": expected.get("disposition"),
+        "state_generation_before": state_generation_before, "state_generation_after": state_generation_after,
+        "action_state_generation": action_state_generation, "action_sequence": action_sequence,
+        "state_sequence": state_sequence, "action_raw": action_raw, "state_raw": state_raw,
+        "action_fields": {},
+        "mi_command": "-target-select remote 127.0.0.1:65520" if kind == "signal" else "-exec-continue",
+        "text": recovery["display"]["stop"] if kind == "signal" else recovery["display"]["token_and_prompt"],
+    }
+    thread_id, pc = binding["thread_id"], binding["pc"]
+    if kind == "signal":
+        stop_fields = {
+            "reason": binding["reason"], "signal-name": binding["signal_name"],
+            "signal-meaning": binding["signal_meaning"], "frame": {"addr": pc},
+            "thread-id": thread_id, "stopped-threads": binding["stopped_threads"],
+        }
+    else:
+        stop_fields = {
+            "reason": binding["reason"], "disp": binding["breakpoint_disposition"],
+            "bkptno": binding["breakpoint_number"], "frame": {"addr": pc},
+            "thread-id": thread_id, "stopped-threads": binding["stopped_threads"],
+        }
+    state_fields = {
+        "threads": [{
+            "id": thread_id, "target-id": "Thread " + thread_id,
+            "frame": {"level": "0", "addr": pc}, "state": "stopped",
+        }],
+        "current-thread-id": thread_id,
+    }
+    action_result = _fixture_mi_record(
+        action_raw, sequence=action_sequence, token=action["token"], marker="^",
+        record_class=expected["result_class"], fields={}, binding=binding,
+        state_generation=action_state_generation,
+    )
+    stop_record = _fixture_mi_record(
+        raw_event, sequence=sequence, token=None, marker="*", record_class="stopped",
+        fields=stop_fields, binding=binding, state_generation=state_generation_after,
+        observation="SESSION_EVENT_ONLY",
+    )
+    state_result = _fixture_mi_record(
+        state_raw, sequence=state_sequence, token=state["token"], marker="^",
+        record_class="done", fields=state_fields, binding=binding,
+        state_generation=state_generation_after,
+    )
+    action_prompt_sequence = sequence + 1 if kind == "signal" else action_sequence + 1
+    action_prompt = _fixture_prompt_record(
+        binding, action_prompt_sequence,
+        state_generation_after if kind == "signal" else action_state_generation,
+    )
+    action_records = [action_result, stop_record, action_prompt] if kind == "signal" else [
+        _fixture_mi_record(
+            action["intermediate_running_event"], sequence=action_sequence - 1,
+            token=None, marker="*", record_class="running", fields={"thread-id": "all"},
+            binding=binding, state_generation=action_state_generation,
+        ),
+        action_result, action_prompt,
+    ]
+    action_call = {
+        "call_id": command_id, "operation_id": command_id, "token": action["token"],
+        "mi_command": binding["mi_command"], "request_sequence": action_sequence - (1 if kind == "signal" else 2),
+        "observation_generation": binding["observation_generation"],
+        "state_generation_before": state_generation_before, "records": action_records,
+        "result": action_result, "prompt_sequence": action_prompt_sequence, "protocol_error": None,
+    }
+    state_prompt = _fixture_prompt_record(binding, state_sequence + 1, state_generation_after)
+    state_call = {
+        "call_id": command_id + ":state-after", "operation_id": command_id, "token": state["token"],
+        "mi_command": "-thread-info", "request_sequence": sequence + 1,
+        "observation_generation": binding["observation_generation"],
+        "state_generation_before": state_generation_after, "records": [state_result, state_prompt],
+        "result": state_result, "prompt_sequence": state_sequence + 1, "protocol_error": None,
+    }
+    oracle = {
+        "schema": "ladybug.feat010.owned-exec.v1", "owner_id": binding["owner_id"],
+        "session_id": binding["session_id"], "command_id": command_id,
+        "state": "VALIDATED_OBSERVATION", "observation_generation": binding["observation_generation"],
+        "state_generation_before": state_generation_before, "state_generation_after": state_generation_after,
+        "command": binding["command"], "mi_result": action_result, "mi_error": None,
+        "call_ledger": [action_call, state_call], "stop_record": stop_record,
+        "text": binding["text"], "stop_observation": "SESSION_EVENT_ONLY",
+        "current_state": {"thread_state": "stopped", "thread_id": thread_id, "pc": pc, "mi_result": state_result},
+        "validated_stop": {
+            "kind": kind, "reason": binding["reason"], "signal_name": binding["signal_name"],
+            "breakpoint_number": binding["breakpoint_number"], "pc": pc, "thread_id": thread_id,
+            "sequence": sequence, "observation_generation": binding["observation_generation"],
+            "state_generation": state_generation_after, "observation": "SESSION_EVENT_ONLY",
+        },
+        "overflow_evidence": None, "error_code": None,
+    }
+    binding["stop_fields"] = stop_fields
+    binding["state_fields"] = state_fields
+    return oracle, binding
+
+
+def _oracle_envelope_valid(value: Any, binding: dict[str, Any]) -> bool:
+    envelope_keys = {
+        "schema", "owner_id", "session_id", "command_id", "command", "state",
+        "observation_generation", "state_generation_before", "state_generation_after",
+        "mi_result", "mi_error", "text", "stop_record", "stop_observation",
+        "current_state", "validated_stop", "call_ledger", "overflow_evidence", "error_code",
+    }
+    record_base = {"sequence", "raw", "raw_b64", "kind", "token", "marker", "class", "fields"}
+    record_metadata = {"owner_id", "session_id", "observation_generation", "state_generation"}
+
+    def record_matches(
+        record: Any, *, raw: str, token: str | None, marker: str | None,
+        record_class: str | None, fields: dict[str, Any], state_generation: int,
+        sequence: int | None = None, after_sequence: int | None = None,
+        observation: str | None = None,
+    ) -> bool:
+        expected_keys = record_base | record_metadata | ({"observation"} if observation is not None else set())
+        if type(record) is not dict or set(record) != expected_keys:
+            return False
+        if (type(record.get("sequence")) is not int
+                or (sequence is not None and record["sequence"] != sequence)
+                or (after_sequence is not None and record["sequence"] <= after_sequence)):
+            return False
+        if (record.get("raw") != raw
+                or record.get("raw_b64") != base64.b64encode((raw + "\n").encode("ascii")).decode("ascii")
+                or record.get("kind") != "mi" or record.get("token") != token
+                or record.get("marker") != marker or record.get("class") != record_class
+                or record.get("fields") != fields):
+            return False
+        if (record.get("owner_id") != binding["owner_id"]
+                or record.get("session_id") != binding["session_id"]
+                or type(record.get("observation_generation")) is not int
+                or record.get("observation_generation") != binding["observation_generation"]
+                or type(record.get("state_generation")) is not int
+                or record.get("state_generation") != state_generation):
+            return False
+        return observation is None or record.get("observation") == observation
+
+    if type(value) is not dict or set(value) != envelope_keys:
         return False
-    if value.get("schema") != "ladybug.feat010.owned-exec.v1" or value.get("owner_id") != binding["owner_id"] or value.get("session_id") != binding["session_id"]:
+    if (value.get("schema") != "ladybug.feat010.owned-exec.v1"
+            or value.get("owner_id") != binding["owner_id"]
+            or value.get("session_id") != binding["session_id"]
+            or type(value.get("command_id")) is not str
+            or value.get("command_id") != binding["command_id"]
+            or value.get("command") != binding["command"]
+            or value.get("text") != binding["text"]):
         return False
-    if type(value.get("command_id")) is not str or value.get("command_id") != binding.get("command_id"):
+    if (value.get("state") != "VALIDATED_OBSERVATION"
+            or type(value.get("observation_generation")) is not int
+            or value.get("observation_generation") != binding["observation_generation"]
+            or type(value.get("state_generation_before")) is not int
+            or value.get("state_generation_before") != binding["state_generation_before"]
+            or type(value.get("state_generation_after")) is not int
+            or value.get("state_generation_after") != binding["state_generation_after"]
+            or value.get("mi_error") is not None or value.get("error_code") is not None
+            or value.get("overflow_evidence") is not None
+            or value.get("stop_observation") != "SESSION_EVENT_ONLY"):
         return False
-    if value.get("state") != "VALIDATED_OBSERVATION" or value.get("observation_generation") != 1 or type(value.get("observation_generation")) is not int:
+    if not record_matches(
+        value.get("mi_result"), raw=binding["action_raw"], token=binding["token"],
+        marker="^", record_class=binding["result_class"], fields=binding["action_fields"],
+        state_generation=binding["action_state_generation"], after_sequence=0,
+    ):
         return False
-    if type(value.get("state_generation_before")) is not int or type(value.get("state_generation_after")) is not int or value.get("state_generation_before") < 1 or value.get("state_generation_after") <= value.get("state_generation_before"):
+    if value["mi_result"]["sequence"] >= binding["sequence"]:
         return False
-    if value.get("mi_error") is not None or type(value.get("mi_result")) is not dict or value["mi_result"].get("class") not in ("connected", "running"):
-        return False
-    if value["mi_result"].get("token") != binding["token"] or type(value["mi_result"].get("token")) is not str:
-        return False
-    record = value.get("stop_record")
-    if type(record) is not dict or record.get("owner_id") != binding["owner_id"] or record.get("session_id") != binding["session_id"]:
-        return False
-    if record.get("observation_generation") != 1 or type(record.get("observation_generation")) is not int or type(record.get("state_generation")) is not int or record.get("state_generation") != value["state_generation_after"] or type(record.get("sequence")) is not int or record.get("sequence") != binding["sequence"]:
-        return False
-    if record.get("observation") != "SESSION_EVENT_ONLY" or record.get("marker") != "*" or record.get("class") != "stopped":
-        return False
-    fields = record.get("fields")
-    if type(fields) is not dict or fields.get("reason") not in ("signal-received", "breakpoint-hit") or not isinstance(fields.get("thread-id"), str):
-        return False
-    if fields.get("reason") == "signal-received" and (fields.get("signal-name") != "SIGINT" or binding.get("kind") != "signal"):
-        return False
-    if fields.get("reason") == "breakpoint-hit" and (fields.get("bkptno") != binding.get("breakpoint_number") or fields.get("disp") != binding.get("breakpoint_disposition") or binding.get("kind") != "breakpoint"):
-        return False
-    stop_frame = fields.get("frame")
-    if type(stop_frame) is not dict or type(stop_frame.get("addr")) is not str:
+    stop_record = value.get("stop_record")
+    if not record_matches(
+        stop_record, raw=binding["raw_event"], token=None, marker="*", record_class="stopped",
+        fields=binding["stop_fields"], state_generation=binding["state_generation_after"],
+        sequence=binding["sequence"], observation="SESSION_EVENT_ONLY",
+    ):
         return False
     current = value.get("current_state")
-    if type(current) is not dict or current.get("thread_state") != "stopped" or current.get("thread_id") != fields.get("thread-id") or current.get("pc") != stop_frame.get("addr"):
+    if (type(current) is not dict or set(current) != {"thread_state", "thread_id", "pc", "mi_result"}
+            or current.get("thread_state") != "stopped"
+            or current.get("thread_id") != binding["thread_id"]
+            or current.get("pc") != binding["pc"]):
         return False
-    state_result = current.get("mi_result")
-    state_fields = state_result.get("fields") if type(state_result) is dict else None
-    threads = state_fields.get("threads") if type(state_fields) is dict else None
-    current_thread_id = state_fields.get("current-thread-id") if type(state_fields) is dict else None
-    if type(state_result) is not dict or state_result.get("class") != "done" or type(state_result.get("token")) is not str or state_result.get("token") != binding.get("state_token"):
+    state_fields = binding["state_fields"]
+    if not record_matches(
+        current.get("mi_result"), raw=binding["state_raw"], token=binding["state_token"],
+        marker="^", record_class="done", fields=state_fields,
+        state_generation=binding["state_generation_after"], after_sequence=binding["sequence"],
+    ):
         return False
-    if type(threads) is not list or len(threads) != 1 or type(threads[0]) is not dict:
+    threads = state_fields.get("threads")
+    if (type(threads) is not list or len(threads) != 1 or type(threads[0]) is not dict
+            or set(threads[0]) != {"id", "target-id", "frame", "state"}
+            or threads[0].get("id") != binding["thread_id"]
+            or threads[0].get("state") != "stopped"
+            or type(threads[0].get("frame")) is not dict
+            or set(threads[0]["frame"]) != {"level", "addr"}
+            or threads[0]["frame"].get("addr") != binding["pc"]):
         return False
-    thread = threads[0]
-    frame = thread.get("frame")
-    if (thread.get("id") != fields.get("thread-id") or thread.get("state") != "stopped"
-            or type(frame) is not dict or frame.get("addr") != stop_frame.get("addr")
-            or current_thread_id != fields.get("thread-id")):
+    expected_validated = {
+        "kind": binding["kind"], "reason": binding["reason"],
+        "signal_name": binding["signal_name"], "breakpoint_number": binding["breakpoint_number"],
+        "pc": binding["pc"], "thread_id": binding["thread_id"], "sequence": binding["sequence"],
+        "observation_generation": binding["observation_generation"],
+        "state_generation": binding["state_generation_after"], "observation": "SESSION_EVENT_ONLY",
+    }
+    validated_stop = value.get("validated_stop")
+    if (type(validated_stop) is not dict or set(validated_stop) != set(expected_validated)
+            or any(type(validated_stop.get(name)) is not int for name in ("sequence", "observation_generation", "state_generation"))
+            or validated_stop != expected_validated):
         return False
     calls = value.get("call_ledger")
     if type(calls) is not list:
@@ -1547,76 +2039,90 @@ def _oracle_envelope_valid(value: Any, binding: dict[str, Any]) -> bool:
     action_calls = [call for call in calls if type(call) is dict and call.get("call_id") == binding["command_id"]]
     if len(state_calls) != 1 or len(action_calls) != 1:
         return False
-    if not (state_calls[0].get("token") == binding.get("state_token")
-            and state_calls[0].get("state_generation_before") == value["state_generation_after"]
-            and type(state_calls[0].get("result")) is dict and state_calls[0]["result"] == state_result
-            and action_calls[0].get("token") == binding["token"]
-            and type(action_calls[0].get("result")) is dict
-            and action_calls[0]["result"] == value["mi_result"]):
-        return False
-    raw_event = record.get("raw")
-    if type(raw_event) is not str:
-        return False
-    if raw_event != binding.get("raw_event"):
-        return False
-    if fields.get("reason") == "signal-received" and fields.get("signal-name") != "SIGINT":
-        return False
-    if fields.get("reason") == "breakpoint-hit" and (
-        fields.get("bkptno") != binding.get("breakpoint_number")
-        or fields.get("disp") != binding.get("breakpoint_disposition")
+
+    def call_matches(
+        call: dict[str, Any], *, call_id: str, token: str, mi_command: str,
+        state_generation_before: int, expected_result: dict[str, Any],
+    ) -> bool:
+        required = {"call_id", "operation_id", "token", "mi_command", "request_sequence", "observation_generation", "state_generation_before", "records", "result", "prompt_sequence", "protocol_error"}
+        records = call.get("records")
+        prompt_sequence = call.get("prompt_sequence")
+        if (not required.issubset(call)
+                or call.get("call_id") != call_id or call.get("operation_id") != binding["command_id"]
+                or call.get("token") != token or call.get("mi_command") != mi_command
+                or type(call.get("observation_generation")) is not int
+                or call.get("observation_generation") != binding["observation_generation"]
+                or type(call.get("state_generation_before")) is not int
+                or call.get("state_generation_before") != state_generation_before
+                or type(call.get("request_sequence")) is not int
+                or call.get("request_sequence") >= expected_result["sequence"]
+                or type(prompt_sequence) is not int or prompt_sequence <= expected_result["sequence"]
+                or call.get("protocol_error") is not None or call.get("result") != expected_result
+                or type(records) is not list
+                or not any(type(item) is dict and item == expected_result for item in records)
+                or not any(type(item) is dict and item.get("kind") == "prompt" and item.get("sequence") == prompt_sequence for item in records)):
+            return False
+        return True
+
+    if not call_matches(
+        action_calls[0], call_id=binding["command_id"], token=binding["token"],
+        mi_command=binding["mi_command"], state_generation_before=binding["state_generation_before"],
+        expected_result=value["mi_result"],
     ):
         return False
-    validated = value.get("validated_stop")
-    if type(validated) is not dict or validated.get("observation") != "SESSION_EVENT_ONLY" or validated.get("thread_id") != current.get("thread_id") or validated.get("pc") != current.get("pc") or validated.get("sequence") != record.get("sequence") or validated.get("state_generation") != value["state_generation_after"] or validated.get("kind") != binding.get("kind"):
-        return False
-    if value.get("stop_observation") != "SESSION_EVENT_ONLY" or len(action_calls) != 1 or action_calls[0].get("token") != binding["token"]:
-        return False
-    if "cause_command_id" in value or "cause_command_id" in validated:
+    if not call_matches(
+        state_calls[0], call_id=binding["command_id"] + ":state-after", token=binding["state_token"],
+        mi_command="-thread-info", state_generation_before=binding["state_generation_after"],
+        expected_result=current["mi_result"],
+    ):
         return False
     return True
 
 
-def _q01() -> dict[str, Any]:
-    binding = {"owner_id": "sro-owner", "session_id": "sro-session", "command_id": "attach-001", "token": "901", "state_token": "902", "sequence": 7, "kind": "signal", "raw_event": '*stopped,reason="signal-received",signal-name="SIGINT",signal-meaning="Interrupt",frame={addr="0x0000c002"},thread-id="1",stopped-threads="all"'}
-    baseline = {
-        "schema": "ladybug.feat010.owned-exec.v1", "owner_id": "sro-owner", "session_id": "sro-session",
-        "command_id": "attach-001", "state": "VALIDATED_OBSERVATION", "observation_generation": 1,
-        "state_generation_before": 1, "state_generation_after": 2,
-        "mi_result": {"token": "901", "class": "connected"}, "mi_error": None,
-        "call_ledger": [{"call_id": "attach-001", "token": "901", "result": {"token": "901", "class": "connected"}}, {"call_id": "attach-001:state-after", "token": "902", "state_generation_before": 2, "result": {"token": "902", "class": "done", "fields": {"threads": [{"id": "1", "state": "stopped", "frame": {"level": "0", "addr": "0x0000c002"}}], "current-thread-id": "1"}}}],
-        "stop_record": {"owner_id": "sro-owner", "session_id": "sro-session", "observation_generation": 1, "state_generation": 2, "sequence": 7, "observation": "SESSION_EVENT_ONLY", "marker": "*", "class": "stopped", "raw": '*stopped,reason="signal-received",signal-name="SIGINT",signal-meaning="Interrupt",frame={addr="0x0000c002"},thread-id="1",stopped-threads="all"', "fields": {"reason": "signal-received", "signal-name": "SIGINT", "signal-meaning": "Interrupt", "thread-id": "1", "frame": {"addr": "0x0000c002"}}},
-        "command": "target remote 127.0.0.1:65520", "text": "", "stop_observation": "SESSION_EVENT_ONLY", "current_state": {"thread_state": "stopped", "thread_id": "1", "pc": "0x0000c002", "mi_result": {"token": "902", "class": "done", "fields": {"threads": [{"id": "1", "state": "stopped", "frame": {"level": "0", "addr": "0x0000c002"}}], "current-thread-id": "1"}}},
-        "validated_stop": {"kind": "signal", "observation": "SESSION_EVENT_ONLY", "thread_id": "1", "pc": "0x0000c002", "sequence": 7, "observation_generation": 1, "state_generation": 2}, "overflow_evidence": None, "error_code": None,
-    }
-    signal_valid = _oracle_envelope_valid(baseline, binding)
-    breakpoint_binding = dict(binding, kind="breakpoint", token="903", state_token="904", raw_event='*stopped,reason="breakpoint-hit",disp="del",bkptno="2",frame={addr="0x00000350"},thread-id="1",stopped-threads="all"', breakpoint_number="2", breakpoint_disposition="del")
-    breakpoint = json.loads(json.dumps(baseline))
-    breakpoint["mi_result"] = {"token": "903", "class": "running"}
-    breakpoint["call_ledger"][0] = {"call_id": "attach-001", "token": "903", "result": {"token": "903", "class": "running"}}
-    breakpoint["call_ledger"][1] = {"call_id": "attach-001:state-after", "token": "904", "state_generation_before": 2, "result": {"token": "904", "class": "done", "fields": {"threads": [{"id": "1", "state": "stopped", "frame": {"level": "0", "addr": "0x00000350"}}], "current-thread-id": "1"}}}
-    breakpoint["stop_record"]["raw"] = breakpoint_binding["raw_event"]
-    breakpoint["stop_record"]["fields"] = {"reason": "breakpoint-hit", "disp": "del", "bkptno": "2", "thread-id": "1", "frame": {"addr": "0x00000350"}}
-    breakpoint["current_state"] = {"thread_state": "stopped", "thread_id": "1", "pc": "0x00000350", "mi_result": breakpoint["call_ledger"][1]["result"]}
-    breakpoint["validated_stop"] = {"kind": "breakpoint", "observation": "SESSION_EVENT_ONLY", "thread_id": "1", "pc": "0x00000350", "sequence": 7, "observation_generation": 1, "state_generation": 2}
+def _q01(context: dict[str, Any]) -> dict[str, Any]:
+    baseline, signal_binding = _owned_exec_oracle_fixture(context, "signal")
+    breakpoint, breakpoint_binding = _owned_exec_oracle_fixture(context, "breakpoint")
+    signal_valid = _oracle_envelope_valid(baseline, signal_binding)
     breakpoint_valid = _oracle_envelope_valid(breakpoint, breakpoint_binding)
-    _assert("Q01", "valid", signal_valid and breakpoint_valid, "complete independent raw SIGINT and breakpoint envelopes did not pass", {"signal": signal_valid, "breakpoint": breakpoint_valid})
+    _assert("Q01", "valid", signal_valid and breakpoint_valid, "independent fixture-bound raw signal and breakpoint envelopes did not pass", {"signal": signal_valid, "breakpoint": breakpoint_valid})
+
     mutations: list[tuple[str, dict[str, Any], dict[str, Any]]] = []
-    for name, path, bad in (
-        ("owner", ("owner_id",), "other-owner"),
-        ("session", ("session_id",), "other-session"),
-        ("generation", ("observation_generation",), True),
-    ):
-        value = json.loads(json.dumps(baseline))
-        value[path[0]] = bad
-        mutations.append((name, value, binding))
-    value = json.loads(json.dumps(baseline)); value["mi_result"]["token"] = "902"; mutations.append(("token", value, binding))
-    value = json.loads(json.dumps(baseline)); value["stop_record"]["sequence"] = 8; mutations.append(("sequence", value, binding))
-    value = json.loads(json.dumps(baseline)); value["state_generation_after"] = True; mutations.append(("boolean", value, binding))
-    value = json.loads(json.dumps(baseline)); value["mi_error"] = {"class": "error"}; mutations.append(("mi_error", value, binding))
-    value = json.loads(json.dumps(baseline)); value["current_state"] = None; mutations.append(("current_state", value, binding))
-    value = json.loads(json.dumps(baseline)); value["cause_command_id"] = "attach-001"; mutations.append(("cause_id", value, binding))
+    value = json.loads(json.dumps(baseline)); value["owner_id"] = "other-owner"; mutations.append(("owner", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["session_id"] = "other-session"; mutations.append(("session", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["observation_generation"] = True; mutations.append(("generation", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["mi_result"]["token"] = "902"; mutations.append(("token", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["stop_record"]["sequence"] += 1; mutations.append(("sequence", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["state_generation_after"] = True; mutations.append(("boolean", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["mi_error"] = {"class": "error"}; mutations.append(("mi_error", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["current_state"] = None; mutations.append(("current_state", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["cause_command_id"] = "attach-001"; mutations.append(("cause_id", value, signal_binding))
+
+    coherent = json.loads(json.dumps(baseline))
+    alternate_pc, alternate_thread = "0x0000c003", "2"
+    coherent_stop = coherent["stop_record"]
+    coherent_stop["fields"].update({"thread-id": alternate_thread, "frame": {"addr": alternate_pc}})
+    coherent["current_state"].update({"thread_id": alternate_thread, "pc": alternate_pc})
+    coherent_state = coherent["current_state"]["mi_result"]
+    coherent_state_raw = coherent_state["raw"].replace('id="1"', 'id="2"').replace("Thread 1", "Thread 2").replace(signal_binding["pc"], alternate_pc)
+    coherent_state["raw"] = coherent_state_raw
+    coherent_state["raw_b64"] = base64.b64encode((coherent_state_raw + "\n").encode("ascii")).decode("ascii")
+    coherent_state["fields"].update({"threads": [{"id": alternate_thread, "target-id": "Thread 2", "frame": {"level": "0", "addr": alternate_pc}, "state": "stopped"}], "current-thread-id": alternate_thread})
+    state_call = next(call for call in coherent["call_ledger"] if call["call_id"] == signal_binding["command_id"] + ":state-after")
+    state_call["result"] = coherent_state
+    state_call["records"] = [coherent_state if item.get("token") == signal_binding["state_token"] and item.get("marker") == "^" else item for item in state_call["records"]]
+    action_call = next(call for call in coherent["call_ledger"] if call["call_id"] == signal_binding["command_id"])
+    action_call["records"] = [coherent_stop if item.get("sequence") == signal_binding["sequence"] and item.get("marker") == "*" else item for item in action_call["records"]]
+    coherent["validated_stop"].update({"thread_id": alternate_thread, "pc": alternate_pc})
+    mutations.append(("coherent_copy", coherent, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["command"] = "continue"; mutations.append(("command", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["validated_stop"]["observation_generation"] = signal_binding["observation_generation"] + 1; mutations.append(("nested_generation", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["validated_stop"]["observation_generation"] = True; mutations.append(("nested_type", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["error_code"] = "UNEXPECTED_ERROR"; mutations.append(("error_code", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["overflow_evidence"] = {"overflow": True}; mutations.append(("overflow_evidence", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["validated_stop"]["unexpected"] = "extra"; mutations.append(("extra_field", value, signal_binding))
+    value = json.loads(json.dumps(baseline)); value["stop_record"]["sequence"] = float(value["stop_record"]["sequence"]); mutations.append(("float", value, signal_binding))
     for name, value, expected_binding in mutations:
-        _assert("Q01", name, not _oracle_envelope_valid(value, expected_binding), "single-field mutation was admitted", value)
+        _assert("Q01", name, not _oracle_envelope_valid(value, expected_binding), "single or coherent-copy mutation was admitted by independent fixture binding", value)
     return _case("Q01", {"subcontrols": _passed_controls("Q01")})
 
 
@@ -1769,6 +2275,10 @@ def _q05(fixtures: dict[str, Any]) -> dict[str, Any]:
     return _case("Q05", {"subcontrols": controls, "fixture_control_ids": list(expected_ids), "strict_zero_only": True, "positive_zero_observed": True})
 
 
+def _launch_argv_matches(argv: Any) -> bool:
+    return type(argv) is list and all(type(item) is str for item in argv) and argv == list(PINNED_LAUNCH_ARGV)
+
+
 def _q04(context: dict[str, Any], host_claim: dict[str, Any]) -> dict[str, Any]:
     helper = _load_historical_helpers(context)
     hooks = helper.DenyHooks()
@@ -1777,20 +2287,28 @@ def _q04(context: dict[str, Any], host_claim: dict[str, Any]) -> dict[str, Any]:
     hooks.install(fake_factory)
     try:
         denial = hooks.assert_popen_construction_denied("after_import")
-        _assert("Q04", "popen_type_preserved", hooks.denied_popen_type is not None and issubclass(hooks.denied_popen_type, hooks.original_popen_type), "denied Popen is not type-preserving")
-        _assert("Q04", "popen_denied", denial.get("denied") is True and denial.get("real_calls") == 0, "Popen escape denial did not record the exact block", denial)
-        _assert("Q04", "no_real_factory", hooks.allowed_factory_calls == 0 and hooks.counts.get("subprocess.Popen") == 1, "containment oracle unexpectedly reached a child factory", hooks.counts)
     finally:
         hooks.restore()
     _assert("Q04", "exclusive_claim", host_claim.get("exclusive") is True, "host did not create the one-shot phase claim", host_claim)
     _assert("Q04", "collision_preserved", host_claim.get("collision_preserved") is True, "host claim collision bytes were not preserved", host_claim)
-    _assert("Q04", "pinned_allowlist", host_claim.get("launch_allowlist") == ["wsl.exe", PYTHON_PATH, "-B", "stop-q.py", "--supervisor"], "host launch allowlist differs", host_claim)
+    argv = host_claim.get("launch_argv")
+    expected_argv = context["fixture_data"]["stop"]["recovery_r1"]["launch_argv"]
+    _assert("Q04", "pinned_allowlist", _launch_argv_matches(argv) and argv == expected_argv, "host argv differs from the independently pinned exact WSL launch vector", {"host_claim": host_claim, "fixture_argv": expected_argv})
+    _assert("Q04", "popen_type_preserved", hooks.denied_popen_type is not None and issubclass(hooks.denied_popen_type, hooks.original_popen_type), "denied Popen is not type-preserving")
+    _assert("Q04", "popen_denied", denial.get("denied") is True and denial.get("real_calls") == 0, "Popen escape denial did not record the exact block", denial)
+    _assert("Q04", "no_real_factory", hooks.allowed_factory_calls == 0 and hooks.counts.get("subprocess.Popen") == 1, "containment oracle unexpectedly reached a child factory", hooks.counts)
+    changed_argument = list(expected_argv)
+    changed_argument[1] = "--shell"
+    _assert("Q04", "changed_argument_rejected", not _launch_argv_matches(changed_argument), "changed launch argument was admitted", changed_argument)
+    changed_path = list(expected_argv)
+    changed_path[4] = WSL_STOPQ_PATH + ".changed"
+    _assert("Q04", "changed_path_rejected", not _launch_argv_matches(changed_path), "changed absolute WSL script path was admitted", changed_path)
     observed = {"subcontrols": _passed_controls("Q04"), "denial": denial, "host_claim": host_claim, "old_helper_sha256": context["qualified_sha256"]["service-q.py"]}
     return _case("Q04", observed)
 
 
 def _run_q(context: dict[str, Any], host_claim: dict[str, Any]) -> list[dict[str, Any]]:
-    return [_q01(), _q02(), _q03(), _q04(context, host_claim), _q05(context["fixture_data"])]
+    return [_q01(context), _q02(), _q03(), _q04(context, host_claim), _q05(context["fixture_data"])]
 
 
 def _natural_action_sequence(context: dict[str, Any], *, continue_budget_ms: int = 1000) -> tuple[dict[str, Any], ...]:
@@ -2201,6 +2719,13 @@ SUPERVISOR_RESERVE_MS = 4000
 FAILURE_CATEGORIES = frozenset(("ASSERTION", "SETUP", "TIMEOUT", "CONTAINMENT", "PROTOCOL", "INTERNAL", "MISSING_COVERAGE", "CLEANUP"))
 
 
+class _ProtocolLineTooLarge(ValueError):
+    def __init__(self, encoded: bytes) -> None:
+        self.encoded_length = len(encoded)
+        self.encoded_sha256 = hashlib.sha256(encoded).hexdigest()
+        super().__init__("one JSON protocol record exceeded the fixed line limit")
+
+
 def _bounded_protocol_value(value: Any, depth: int = 0) -> Any:
     if depth > 32:
         return {"value_truncated": True, "type": type(value).__name__}
@@ -2270,8 +2795,91 @@ def _compact_evidence(value: Any, parent_key: str = "", depth: int = 0) -> Any:
 def _protocol_bytes(record: dict[str, Any]) -> bytes:
     encoded = (json.dumps(record, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False) + "\n").encode("utf-8")
     if len(encoded) > PROTOCOL_LINE_LIMIT:
-        raise ValueError("one JSON protocol record exceeded the fixed line limit")
+        raise _ProtocolLineTooLarge(encoded)
     return encoded
+
+
+def _canonical_hash(value: Any) -> tuple[int, str]:
+    encoded = json.dumps(value, ensure_ascii=True, sort_keys=True, separators=(",", ":"), allow_nan=False).encode("utf-8")
+    return len(encoded), hashlib.sha256(encoded).hexdigest()
+
+
+def _fallback_case_row(row: dict[str, Any]) -> dict[str, Any]:
+    return {
+        "case_id": row["case_id"], "expected": row["expected"], "status": row["status"],
+        "observations": _compact_evidence(row["observations"]),
+    }
+
+
+def _protocol_failure_fallback(result: dict[str, Any], original: _ProtocolLineTooLarge) -> dict[str, Any]:
+    cases = result.get("cases") if type(result.get("cases")) is list else []
+    ledgers = result.get("ledgers") if type(result.get("ledgers")) is dict else _empty_ledgers()
+    service_calls = ledgers.get("service_calls") if type(ledgers.get("service_calls")) is list else []
+    factory_calls = ledgers.get("factory_calls") if type(ledgers.get("factory_calls")) is list else []
+    case_keep, service_keep, factory_keep = len(cases), len(service_calls), len(factory_calls)
+    while True:
+        omitted_cases = cases[case_keep:]
+        omitted_service = service_calls[service_keep:]
+        omitted_factory = factory_calls[factory_keep:]
+        _case_omitted_bytes, case_omitted_hash = _canonical_hash(omitted_cases)
+        _service_omitted_bytes, service_omitted_hash = _canonical_hash(omitted_service)
+        _factory_omitted_bytes, factory_omitted_hash = _canonical_hash(omitted_factory)
+        observed = {
+            "truncated": True,
+            "partial_evidence": True,
+            "maximum_line_bytes": PROTOCOL_LINE_LIMIT,
+            "cap_increased": False,
+            "original_result_length_bytes": original.encoded_length,
+            "original_result_sha256": original.encoded_sha256,
+            "original_status": result.get("status"),
+            "prior_failure": _compact_evidence(result.get("failure")),
+            "cases": {"total": len(cases), "retained": case_keep, "omitted": len(omitted_cases), "omitted_sha256": case_omitted_hash},
+            "service_calls": {"total": len(service_calls), "retained": service_keep, "omitted": len(omitted_service), "omitted_sha256": service_omitted_hash},
+            "factory_calls": {"total": len(factory_calls), "retained": factory_keep, "omitted": len(omitted_factory), "omitted_sha256": factory_omitted_hash},
+        }
+        fallback = {
+            "kind": result.get("kind"), "phase": result.get("phase"), "nonce": result.get("nonce"),
+            "manifest_sha256": result.get("manifest_sha256"), "ticket_sha256": result.get("ticket_sha256"),
+            "source_sha256": result.get("source_sha256"), "fixture_sha256": result.get("fixture_sha256"),
+            "read_inputs_sha256": result.get("read_inputs_sha256"), "status": "FAIL",
+            "cases": [_fallback_case_row(row) for row in cases[:case_keep]],
+            "ledgers": {
+                "service_calls": [_compact_evidence(item) for item in service_calls[:service_keep]],
+                "factory_calls": [_compact_evidence(item) for item in factory_calls[:factory_keep]],
+                **{name: ledgers[name] for name in ("reader_count", "raw_record_count", "real_factory_calls", "real_gdb_calls", "real_network_calls") if name in ledgers},
+            },
+            "failure": _failure("PROTOCOL", None, None, "worker RESULT exceeded the fixed protocol line limit; retained evidence is partial", observed),
+        }
+        try:
+            _validate_fallback_shape(fallback)
+            return fallback
+        except _ProtocolLineTooLarge:
+            if service_keep:
+                service_keep = max(0, service_keep - max(1, service_keep // 4))
+            elif factory_keep:
+                factory_keep = max(0, factory_keep - max(1, factory_keep // 4))
+            elif case_keep:
+                case_keep -= 1
+            else:
+                raise
+
+
+def _validate_fallback_shape(fallback: dict[str, Any]) -> bytes:
+    init = {
+        name: fallback[name]
+        for name in ("phase", "nonce", "manifest_sha256", "ticket_sha256", "source_sha256", "fixture_sha256", "read_inputs_sha256")
+    }
+    _validate_worker_result(fallback, init, 1)
+    return _protocol_bytes(fallback)
+
+
+def _encode_worker_result(result: dict[str, Any]) -> tuple[dict[str, Any], bytes, int]:
+    try:
+        encoded = _protocol_bytes(result)
+    except _ProtocolLineTooLarge as too_large:
+        fallback = _protocol_failure_fallback(result, too_large)
+        return fallback, _protocol_bytes(fallback), 1
+    return result, encoded, 0 if result.get("status") == "SUBJECT_COMPLETE" else 1
 
 
 def _write_protocol(record: dict[str, Any], stream: Any = None) -> None:
@@ -2351,9 +2959,9 @@ def _validate_init(init: Any) -> dict[str, Any]:
         mapping = value[name]
         if type(mapping) is not dict or set(mapping) != set(expected_paths) or any(not _is_digest(digest) for digest in mapping.values()):
             raise ValueError("INIT " + name + " does not match the fixed path/hash map")
-    claim = _exact_object(value["host_claim"], ("exclusive", "collision_preserved", "launch_allowlist"), "host_claim")
-    if claim["exclusive"] is not True or claim["collision_preserved"] is not True or type(claim["launch_allowlist"]) is not list or claim["launch_allowlist"] != ["wsl.exe", PYTHON_PATH, "-B", "stop-q.py", "--supervisor"]:
-        raise ValueError("host launch claim does not match the fixed source contract")
+    claim = _exact_object(value["host_claim"], ("exclusive", "collision_preserved", "launch_argv"), "host_claim")
+    if claim["exclusive"] is not True or claim["collision_preserved"] is not True or not _launch_argv_matches(claim["launch_argv"]):
+        raise ValueError("host launch claim does not match the exact pinned WSL argv")
     return value
 
 
@@ -2448,7 +3056,7 @@ def _partial_case(case_id: str, failure: dict[str, Any]) -> dict[str, Any]:
 
 
 def _case_runner(case_id: str, context: dict[str, Any], host_claim: dict[str, Any]) -> dict[str, Any]:
-    if case_id == "Q01": return _q01()
+    if case_id == "Q01": return _q01(context)
     if case_id == "Q02": return _q02()
     if case_id == "Q03": return _q03()
     if case_id == "Q04": return _q04(context, host_claim)
@@ -2599,10 +3207,10 @@ def _worker_main() -> int:
             "read_inputs_sha256": init["read_inputs_sha256"], "status": run["status"],
             "cases": run["cases"], "ledgers": _PHASE_LEDGER, "failure": run["failure"],
         }
-        encoded = _protocol_bytes(result)
+        result, encoded, worker_returncode = _encode_worker_result(result)
         protocol_stdout.buffer.write(encoded)
         protocol_stdout.flush()
-        return 0 if result["status"] == "SUBJECT_COMPLETE" else 1
+        return worker_returncode
     except BaseException as exc:
         _write_bounded_stderr(type(exc).__name__ + ": " + str(exc) + "\n" + traceback.format_exc())
         return 2
