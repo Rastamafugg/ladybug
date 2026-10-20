@@ -98,7 +98,10 @@ function Read-BoundedUtf8Stream {
             if ($clock.ElapsedMilliseconds -ge ($maximumMs - 1000)) { $readFailure = 'READ_DEADLINE'; break }
             $request = [int][Math]::Min([long]$fileChunkBytes, ([long]$maximumFileBytes - $position + 1))
             try { $count = $Stream.Read($chunk, 0, $request) } catch { $readFailure = 'READ_ERROR'; break }
-            if ($count -eq 0) { break }
+            if ($count -eq 0) {
+                if ($clock.ElapsedMilliseconds -ge ($maximumMs - 1000)) { $readFailure = 'READ_DEADLINE' }
+                break
+            }
             $keep = [int][Math]::Min([long]$count, ([long]$maximumFileBytes - $position))
             if ($keep -gt 0) {
                 $retained.Write($chunk, 0, $keep)
@@ -107,8 +110,12 @@ function Read-BoundedUtf8Stream {
             if ($count -gt $keep) {
                 $position += 1
                 $overLimit = $true
+            }
+            if ($clock.ElapsedMilliseconds -ge ($maximumMs - 1000)) {
+                $readFailure = 'READ_DEADLINE'
                 break
             }
+            if ($overLimit) { break }
         }
         $retainedBytes = [int]$retained.Length
         $raw = $retained.GetBuffer()
@@ -119,6 +126,7 @@ function Read-BoundedUtf8Stream {
         } finally { $hasher.Dispose() }
         $sampleCount = [int][Math]::Min(32, $retainedBytes)
         $prefixB64 = [Convert]::ToBase64String($raw, 0, $sampleCount)
+        if ($null -eq $readFailure -and $clock.ElapsedMilliseconds -ge ($maximumMs - 1000)) { $readFailure = 'READ_DEADLINE' }
         if ($null -ne $readFailure) {
             return [pscustomobject]@{
                 accepted = $false; rejection = $readFailure; position = $position
@@ -135,6 +143,13 @@ function Read-BoundedUtf8Stream {
         }
         $offset = 0
         if ($retainedBytes -ge 3 -and $raw[0] -eq 239 -and $raw[1] -eq 187 -and $raw[2] -eq 191) { $offset = 3 }
+        if ($clock.ElapsedMilliseconds -ge ($maximumMs - 1000)) {
+            return [pscustomobject]@{
+                accepted = $false; rejection = 'READ_DEADLINE'; position = $position
+                retained_bytes = $retainedBytes; text = $null; text_units = $null
+                whole_document_decode_attempted = $false; sha256 = $sha256; prefix_b64 = $prefixB64
+            }
+        }
         $text = $null
         try {
             $text = (New-Object System.Text.UTF8Encoding($false, $true)).GetString($raw, $offset, ($retainedBytes - $offset))
@@ -541,6 +556,7 @@ def bounded_utf8_read(stream):
     retained = bytearray()
     position = 0
     read_failure = None
+    over_limit = False
     while True:
         if time.monotonic() >= work_deadline:
             read_failure = 'READ_DEADLINE'
@@ -555,6 +571,8 @@ def bounded_utf8_read(stream):
             read_failure = 'READ_ERROR'
             break
         if not chunk:
+            if time.monotonic() >= work_deadline:
+                read_failure = 'READ_DEADLINE'
             break
         keep = min(len(chunk), MAX_FILE_BYTES - position)
         if keep:
@@ -562,15 +580,26 @@ def bounded_utf8_read(stream):
             position += keep
         if len(chunk) > keep:
             position += 1
-            digest = hashlib.sha256(retained).hexdigest()
-            prefix_b64 = base64.b64encode(retained[:32]).decode('ascii')
-            return {'accepted': False, 'rejection': 'BYTE_LIMIT_BEFORE_DECODE', 'position': position,
-                    'retained_bytes': len(retained), 'text': None, 'text_units': None,
-                    'whole_document_decode_attempted': False, 'sha256': digest, 'prefix_b64': prefix_b64}
+            over_limit = True
+        if time.monotonic() >= work_deadline:
+            read_failure = 'READ_DEADLINE'
+            break
+        if over_limit:
+            break
     digest = hashlib.sha256(retained).hexdigest()
     prefix_b64 = base64.b64encode(retained[:32]).decode('ascii')
+    if read_failure is None and time.monotonic() >= work_deadline:
+        read_failure = 'READ_DEADLINE'
     if read_failure is not None:
         return {'accepted': False, 'rejection': read_failure, 'position': position,
+                'retained_bytes': len(retained), 'text': None, 'text_units': None,
+                'whole_document_decode_attempted': False, 'sha256': digest, 'prefix_b64': prefix_b64}
+    if over_limit:
+        return {'accepted': False, 'rejection': 'BYTE_LIMIT_BEFORE_DECODE', 'position': position,
+                'retained_bytes': len(retained), 'text': None, 'text_units': None,
+                'whole_document_decode_attempted': False, 'sha256': digest, 'prefix_b64': prefix_b64}
+    if time.monotonic() >= work_deadline:
+        return {'accepted': False, 'rejection': 'READ_DEADLINE', 'position': position,
                 'retained_bytes': len(retained), 'text': None, 'text_units': None,
                 'whole_document_decode_attempted': False, 'sha256': digest, 'prefix_b64': prefix_b64}
     try:
