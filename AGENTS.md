@@ -13,6 +13,14 @@ The project has an **LLM-maintained, hand-authored HTML wiki at [wiki/](wiki/)**
 
 **Always consult the wiki before answering or coding.** If a needed fact isn't there yet, read the raw source under `docs/` or `src/` and ingest the finding back into the wiki (see Wiki Maintenance below).
 
+### Reuse Existing Project Work
+
+Before recommending a new approach to meet a project need, inspect existing project work that may already solve or partly solve it.
+
+Trace the closest relevant precedent through the steps that matter to the need. State what can be reused, what requirements it meets, and what gaps or constraints remain.
+
+Recommend a different approach only when checked evidence shows the existing work cannot meet an identified requirement. Name the evidence and distinguish source facts, inferences, and unknowns. If no relevant precedent is found, say what was checked and what remains unknown.
+
 ## Current Development Workflow
 
 - Start new functionality, bug fixes, performance work, tooling changes, and substantive documentation work through the [ticket workflow](wiki/internal/tickets/workflow.html). The [ticket index](wiki/internal/tickets/index.html) is the active work queue; the roadmap remains the phase-level product plan.
