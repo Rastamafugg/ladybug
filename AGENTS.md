@@ -49,6 +49,14 @@ Do not begin coding until `project-management` has run. Each role skill contains
 
 ## Response and Work-Approval Standard
 
+### Communication clarity
+
+- When reporting a finding, proposal, or next step, provide enough context to explain what it concerns and why it matters.
+- State what the agent can resolve using available information, what requires a user decision, and what remains unknown. Explain the choices and their practical consequences when asking for a decision.
+- Explain where technical rules and conclusions come from and how they were established. Distinguish source statements from calculations and inferences; name what was checked, give a small example where useful, and state what remains unverified. Use phrases such as “I calculated,” “I inferred,” or “the source states.”
+- Define technical terms and abbreviations when they first matter. Use plain language, concrete references, and examples where helpful.
+- Identify estimates and proposals as such. Explain what a number or limit applies to, its purpose, and whether it was measured or estimated.
+
 - Every bug approval brief must state its Compact, Standard, or High-risk class and the risks that determine its verification scope. Do not estimate a share of the user's weekly token allocation or impose a token-use ceiling. Historical ticket percentages are retained as records, not active approval or stop gates.
 - Before the first table in a conversation, define every non-obvious row/column label, unit, baseline, target, margin, owner/scenario name, and pass/fail rule used in that table. State whether numbers are maxima, minima, averages, projections, or single observations and identify the source revision or artifact when material.
 - For persistent A/B rendering, label performance evidence primarily by scenario phase and executed worklist. Record framebuffer owner only as secondary metadata. Do not attribute a timing difference to owner identity unless a controlled crossover begins from identical pixels, metadata, and render intents, then repeats with the starting owner reversed.
@@ -64,6 +72,16 @@ Do not begin coding until `project-management` has run. Each role skill contains
 - Treat an undocumented hardware defect as a last-stage hypothesis. Do not recommend it until software state, loader/mapping, observation-tool, and emulator-control candidates have discriminating results, and either an independent emulator/physical-hardware reproduction or authoritative hardware evidence supports escalation. Label the hypothesis unconfirmed until then.
 - Every runtime probe must name its phase, success marker, deadline, and the meaning of a timeout. Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, the projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that the target code is slow.
 - A probe is one distinct diagnostic experiment intended to separate competing causes. After two rejected probes, two observation-tool timeouts, or one discovery that materially expands the root cause or affected subsystem, stop and reassess the bug class, remaining verification, and next discriminating experiment before running another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.
+
+### Test sign-off contract
+
+- [DOC-014](wiki/internal/tickets/doc-014-test-signoff-contract.html#card) is the approved contract. Every new or materially changed gating scenario must have a user-approved test card embedded in its ticket before `Ready`: purpose and distinct risk; test type; revision/profile/artifact and fixture identity; controlled inputs/RNG/chooser/clock/framebuffer history where relevant; independent expected result and justified tolerance; discriminating negative control; exact commands/prerequisites; entire-phase deadline, callback cap when needed, labeled command-cost estimate or measurement; failure evidence; automated/manual split; approval and ownership.
+- Qualify the relevant existing gate against its baseline before reuse. Do not infer readiness from a historical script name or old pass. No blanket suite rerun is required. Missing cards or unqualified gating setups prevent dispatch. New regression checks may be qualified before the fix by proving that the known-good fixture passes and the defective fixture fails; the broken target is not required to pass first.
+- Do not require random enemy movement to discover a test fixture. Use a reviewed source-legal controlled predecessor or approved manual coverage. A fixed seed alone does not control unrelated chooser, input, clock or framebuffer state. Preserve required natural golden-path evidence separately; forced fixtures do not replace it.
+- Deadlines bound the entire named phase and its nested waits/reads, not each successive breakpoint independently. Non-gating diagnostics are labeled and bounded; they cannot silently become acceptance gates. No retry-until-pass, random-route search escalation, hidden scenario matrix or autonomous routing framework.
+- Report product assertion failure, setup/observer failure, missing coverage, approved waiver and manual result separately. Missing required coverage prevents acceptance but is not proof of a product defect. Manual cases remain pending until the user reports results. Historical exceptions may permit named failures; they must not require those failures to persist or hide missed product targets.
+- The parent confirms card approval and baseline qualification before assignment. Executors cannot add gates, change targets/tolerances, expand state-write authority, change the automated/manual split or repair unrelated debt without renewed approval. Existing approval suffices when the card was explicitly covered in the approved ticket; routine fixture mechanics preserving the contract remain execution details. Material outcome/setup authorization/target/cost-risk changes return the ticket to `Proposed`.
+- Stop at the existing two-rejected-probe/two-tool-timeout/material-expansion reassessment boundary. Retain the last proven marker and propose the next bounded step or manual alternative. Do not change valid production code merely to satisfy a stale verifier.
 
 ## Ticket and Delegation Rules
 

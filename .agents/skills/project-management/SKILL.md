@@ -18,6 +18,7 @@ Determine and state explicitly:
 5. **The ticket disposition** — identify an existing ticket, create a `Draft`/`Proposed` ticket for substantive new work, or state why the request is a minor query that needs no ticket.
 6. **The cost class** — classify bug work as Compact, Standard, or High-risk using `AGENTS.md`.
 7. **The smallest sufficient verification set** — map each proposed scenario to a distinct identified risk and reject redundant mode/owner/phase combinations.
+8. **Test sign-off** — apply [DOC-014](../../../wiki/internal/tickets/doc-014-test-signoff-contract.html#card). Embed a card for every new/materially changed gate: purpose/risk/type, controlled setup and identities, independent expected result/oracle, justified tolerance and negative control, exact command/prerequisites, entire-phase deadline and bounded cost, evidence/result classes, automated/manual split, approval and owner. Qualify relevant existing gates against their baseline before reuse; do not require a whole-suite rerun. For a new regression check, good/broken fixtures qualify the harness even when the target defect still fails.
 
 For behavior changes, record the natural user-visible sequence and state whether the request adds behavior or replaces an existing default owner. Name the displaced owner or path.
 
@@ -42,6 +43,9 @@ Pick exactly one next role:
 - For a runtime symptom, route to debugger before architecture or platform-defect analysis. A user correction to expected behavior invalidates conflicting assumptions; update the ticket's observed/expected sequence before more implementation or verification.
 - After any implementation task, finish in `qa-reviewer`.
 - Do not route implementation until the canonical ticket is `Approved` and its dependencies, assignment contract, and verification plan make it `Ready`.
+- Missing test-card approval or an unqualified gating setup prevents `Ready` and dispatch. Do not depend on random enemy movement to find a fixture; select a reviewed legal predecessor or approved manual coverage, keeping required natural progression separate. A fixed seed does not qualify unrelated chooser/input/clock/framebuffer state.
+- Executors cannot invent additional gates, widen targets/tolerances or state-write authority, change automated/manual coverage, or repair unrelated test/product debt. Material contract/cost-risk changes require renewed approval; ordinary mechanics within the approved card do not. Label and bound non-gating diagnostics. Historical exceptions permit named failures without requiring their persistence.
+- Preserve the existing two-rejected-probe/two-tool-timeout/material-expansion reassessment boundary. Report product assertion failure, setup/observer failure, missing coverage, approved waiver and pending manual result separately. Stop rather than retry until pass or expand a route-search framework.
 - When several tickets are candidates, state their dependency order and select the highest-ordered ready item. Parallel delegation requires independent scope and non-overlapping writable artifacts.
 
 ## Output of this role
