@@ -66,6 +66,33 @@ Do not begin coding until `project-management` has run. Each role skill contains
 - If a target is missed, say so directly, retain the measured result, and create or update a follow-up ticket. Do not label the work accepted because implementation or testing completed.
 - Record rejected experiments when their result changes the recommended approach. Separate current-revision evidence from historical or projected evidence.
 
+### Communication and work control
+
+- Surface proposed behavior, architecture, asset-removal, or acceptance
+  changes before including them in approved work. Explain the reason,
+  alternatives, and consequences. Distinguish retiring a behavior from
+  deleting reusable data. Delegated recommendations do not create new
+  requirements or authority.
+
+- Carry accepted corrections into subsequent plans, checks, examples,
+  and suggested prompts. Update authoritative records when authorized;
+  otherwise identify the pending update. Use existing documentation
+  generators where appropriate and scope missing automation separately.
+
+- Identify the next usable deliverable, its concrete prerequisites, and
+  later acceptance work. Resolve available facts before requesting a
+  decision. For failures, report the failed step, observed error, evidence,
+  usable outputs, and next action; inspect retained evidence before
+  recommending a rerun.
+
+- Review the complete bounded change against agreed criteria. Separate
+  blocking defects from optional improvements. After correction, review
+  affected behavior and outstanding findings. Reopen settled matters only
+  for changed source, new evidence, or an unmet criterion.
+
+- Apply these rules where relevant. Keep explanations sufficient for
+  understanding and approval without repeating the full work contract.
+
 ### Runtime diagnosis invariants
 
 - Before interpreting a symbol, map label, or hardware-register access at a live PC, prove that the live bytes match the current built artifact at that address. When loading, copying, banking, relocation, or handoff is involved, compare authored/source, staged, and destination bytes before diagnosing downstream execution.
@@ -76,6 +103,7 @@ Do not begin coding until `project-management` has run. Each role skill contains
 ### Test sign-off contract
 
 - [DOC-014](wiki/internal/tickets/doc-014-test-signoff-contract.html#card) is the approved contract. Every new or materially changed gating scenario must have a user-approved test card embedded in its ticket before `Ready`: purpose and distinct risk; test type; revision/profile/artifact and fixture identity; controlled inputs/RNG/chooser/clock/framebuffer history where relevant; independent expected result and justified tolerance; discriminating negative control; exact commands/prerequisites; entire-phase deadline, callback cap when needed, labeled command-cost estimate or measurement; failure evidence; automated/manual split; approval and ownership.
+- Apply [DOC-014's manual-session rule](wiki/internal/tickets/doc-014-test-signoff-contract.html#manual-session-policy): user-owned manual sessions have no imposed deadline, monitoring or duration report unless requested. Automated components retain their approved bounds and requirements; unobserved criteria remain pending.
 - Qualify the relevant existing gate against its baseline before reuse. Do not infer readiness from a historical script name or old pass. No blanket suite rerun is required. Missing cards or unqualified gating setups prevent dispatch. New regression checks may be qualified before the fix by proving that the known-good fixture passes and the defective fixture fails; the broken target is not required to pass first.
 - Do not require random enemy movement to discover a test fixture. Use a reviewed source-legal controlled predecessor or approved manual coverage. A fixed seed alone does not control unrelated chooser, input, clock or framebuffer state. Preserve required natural golden-path evidence separately; forced fixtures do not replace it.
 - Deadlines bound the entire named phase and its nested waits/reads, not each successive breakpoint independently. Non-gating diagnostics are labeled and bounded; they cannot silently become acceptance gates. No retry-until-pass, random-route search escalation, hidden scenario matrix or autonomous routing framework.

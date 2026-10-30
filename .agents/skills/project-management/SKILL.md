@@ -19,6 +19,7 @@ Determine and state explicitly:
 6. **The cost class** — classify bug work as Compact, Standard, or High-risk using `AGENTS.md`.
 7. **The smallest sufficient verification set** — map each proposed scenario to a distinct identified risk and reject redundant mode/owner/phase combinations.
 8. **Test sign-off** — apply [DOC-014](../../../wiki/internal/tickets/doc-014-test-signoff-contract.html#card). Embed a card for every new/materially changed gate: purpose/risk/type, controlled setup and identities, independent expected result/oracle, justified tolerance and negative control, exact command/prerequisites, entire-phase deadline and bounded cost, evidence/result classes, automated/manual split, approval and owner. Qualify relevant existing gates against their baseline before reuse; do not require a whole-suite rerun. For a new regression check, good/broken fixtures qualify the harness even when the target defect still fails.
+9. **Manual-session applicability** — apply [DOC-014's manual-session rule](../../../wiki/internal/tickets/doc-014-test-signoff-contract.html#manual-session-policy). Do not require a duration, deadline or agent monitoring for the user's session unless requested. Retain the approved bounds and requirements of automated preparation or observation; missing manual observations remain pending.
 
 For behavior changes, record the natural user-visible sequence and state whether the request adds behavior or replaces an existing default owner. Name the displaced owner or path.
 
