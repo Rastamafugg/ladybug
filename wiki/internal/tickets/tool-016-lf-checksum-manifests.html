@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-016 — Reliable candidate checksum manifests</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · tooling</p>
+      <h1>TOOL-016 — Reliable candidate checksum manifests <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Done · P1 · user-approved 2026-11-01 · generated candidate-package SHA-256 lists</p>
+    </header>
+
+    <section>
+      <h2>Status and ownership</h2>
+      <ul>
+        <li><strong>Status:</strong> Done. The implementation and bounded offline acceptance checks passed after one reassessment of the WSL Git path. Commit <code>3738b660ef27f5ec6b0bcf686a8fe50cfbd4eaac</code> contains only the four assigned implementation files. This ticket, the index, log, and evidence remain outside that commit.</li>
+        <li><strong>Created / updated:</strong> 2026-11-01 / 2026-11-01</li>
+        <li><strong>Priority / order:</strong> P1; before the next candidate package that relies on a text checksum manifest.</li>
+        <li><strong>Owner:</strong> parent agent; no delegation.</li>
+        <li><strong>Dependencies:</strong> none identified.</li>
+        <li><strong>Cost class:</strong> not applicable; this is a tooling ticket, not a bug classification.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Objective and motivation</h2>
+      <p>Provide one reusable way to write and verify SHA-256 checksum lists for generated candidate packages so a Windows-created package can be checked by the project's WSL/Linux <code>sha256sum -c</code> commands. The writer must emit LF line endings explicitly, and the verifier must reject a CRLF manifest before any build command starts. This prevents a formatting problem from consuming a bounded build attempt.</p>
+      <p>The exact program that wrote the earlier bad manifests is unknown. This ticket addresses the observable workflow gap: candidate packages have no shared writer or common preflight for generated checksum-list files.</p>
+    </section>
+
+    <section>
+      <h2>Evidence and baseline</h2>
+      <ul>
+        <li><code>repro/feat010-only-candidate-20261031-r3/input-manifest.sha256</code> was recorded with CRLF endings.</li>
+        <li><code>repro/feat010-source-docs-candidate-20261101-01/control-fixtures.sha256</code> had seven CRLF-terminated records. The content hashes independently matched all seven fixture files, but <code>sha256sum -c</code> treated the trailing carriage return as part of each filename and failed.</li>
+        <li>Candidate packages are under ignored <code>/repro</code>. Current <code>.gitattributes</code> sets LF for <code>*.sh</code> only. A Git rule for tracked <code>*.sha256</code> files therefore cannot by itself protect these generated package manifests.</li>
+        <li>Candidate <code>feat010-source-docs-candidate-20261101-03</code> was prepared with an explicit LF manifest writer and pre-build LF/hash preflight. Its package is preserved and has not been qualified.</li>
+        <li>At the current worktree baseline, <code>core.autocrlf=true</code>; the tracked <code>shared-verifier-base.sha256</code> has LF in the Git index but CRLF in the working tree. <code>git check-attr</code> reports no <code>text</code> or <code>eol</code> rule for it.</li>
+      </ul>
+      <p>These are two occurrences in generated candidate manifests, not evidence that every checksum file is malformed. They do show that the format is not enforced consistently. No source or user editing tool has been identified as the author of the CRLF bytes.</p>
+    </section>
+
+    <section>
+      <h2>Scope</h2>
+      <p><strong>In:</strong> add <code>*.sha256 text eol=lf</code> to <code>.gitattributes</code> for tracked checksum-list files; add <code>scripts/candidate_manifest.py</code> with write and verify operations for generated candidate packages; add focused tests in <code>scripts/test_candidate_manifest.py</code>; document use in <code>wiki/internal/tooling/build-workflow.html</code>.</p>
+      <p><strong>Writer input:</strong> take an explicit UTF-8 JSON array of package-relative paths; do not discover inputs by glob. The command shape is <code>write --root ROOT --manifest RELATIVE_MANIFEST --files-json RELATIVE_JSON_LIST</code>. The manifest and listed files must resolve inside <code>ROOT</code>. Output paths use normalized forward slashes and are sorted lexically. Reject absolute paths, <code>.</code>/<code>..</code> traversal, symlink escapes, backslashes, and control characters. The writer emits the standard GNU <code>sha256sum -c</code> record form as bytes: lowercase 64-character SHA-256, two spaces, relative path, and exactly one LF after each record.</p>
+      <p><strong>Verifier:</strong> <code>verify --root ROOT --manifest RELATIVE_MANIFEST</code> is read-only. It rejects CR bytes, malformed or duplicate records, unsafe paths, missing files, and digest mismatches. It does not silently repair a malformed manifest. The command that consumes a package runs the verifier and GNU checksum consumer before its build phase using an <code>&amp;&amp;</code>-chained sequence; no new build wrapper or process-launch layer is added.</p>
+      <p><strong>Out:</strong> changing hash algorithms or JSON receipts; changing global Git newline settings; normalizing every file under <code>repro/</code>; editing or re-identifying the frozen <code>-01</code> or <code>-03</code> candidates; rerunning FEAT-010 builds; emulator/runtime work; game-source changes; any additional implementation commit beyond the user-authorized four-file commit <code>3738b660ef27f5ec6b0bcf686a8fe50cfbd4eaac</code>; adoption or release work.</p>
+    </section>
+
+    <section>
+      <h2>Acceptance criteria</h2>
+      <ol>
+        <li>Writing the same package manifest twice produces byte-identical, sorted, LF-only output.</li>
+        <li>A valid generated manifest passes the Python verifier and the project's <code>sha256sum -c</code> consumer.</li>
+        <li>Focused tests show that CRLF, malformed records, duplicate/unsafe paths, missing files, and incorrect digests are rejected before build dispatch; the valid LF control passes.</li>
+        <li><code>.gitattributes</code> reports <code>text</code> and <code>eol=lf</code> for tracked <code>*.sha256</code> files without changing unrelated file attributes or global Git configuration.</li>
+        <li>A documented candidate command sequence runs the Python verifier and <code>sha256sum -c</code> from the package root before the build command, chained with <code>&amp;&amp;</code>; a CRLF negative skips a harmless sentinel build command.</li>
+        <li>Each offline command has a 30-second work limit plus up to a 1-second termination grace. The work limit is an estimate, not a measured requirement. Record first-attempt duration and result, including timeout or early failure; stop after the first failure pending reassessment.</li>
+        <li>Retain concise test output, the helper and test hashes, Git attribute evidence, and one positive and one CRLF-negative manifest result. Do not retain duplicate package payloads.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Ready assignment</h2>
+      <ul>
+        <li><strong>Writable files:</strong> <code>.gitattributes</code>, <code>scripts/candidate_manifest.py</code> (new), <code>scripts/test_candidate_manifest.py</code> (new), and <code>wiki/internal/tooling/build-workflow.html</code>. This ticket, the ticket index, and the wiki log are parent-owned planning records.</li>
+        <li><strong>Worktree and baseline:</strong> use <code>C:\Users\19029\.codex\worktrees\feat010-capacity-baseline\ladybug</code> at base commit <code>ab611fe90dbd34ea5fabe481ea245191598e85e3</code>. The four implementation targets were clean at assignment preparation; the worktree contains unrelated dirty files. Stage only the four named implementation files and preserve all other changes.</li>
+        <li><strong>Preflight command, 30-second limit:</strong> <code>wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat010-capacity-baseline/ladybug &amp;&amp; /usr/bin/time -f "elapsed_seconds=%e exit=%x" timeout --signal=TERM --kill-after=1s 30s sh -c "GIT_DIR=/mnt/e/projects/ladybug/.git/worktrees/ladybug16 GIT_WORK_TREE=/mnt/c/Users/19029/.codex/worktrees/feat010-capacity-baseline/ladybug git check-attr text eol -- wiki/internal/tickets/evidence/rsch014-ready-instructions/shared-verifier-base.sha256 &amp;&amp; GIT_DIR=/mnt/e/projects/ladybug/.git/worktrees/ladybug16 GIT_WORK_TREE=/mnt/c/Users/19029/.codex/worktrees/feat010-capacity-baseline/ladybug git ls-files --eol -- wiki/internal/tickets/evidence/rsch014-ready-instructions/shared-verifier-base.sha256"'</code>. The explicit environment paths work around the Windows-form <code>.git</code> pointer while keeping Git's read-only attribute and index checks unchanged. Expected attributes are <code>text=set</code> and <code>eol=lf</code>; the indexed blob remains LF.</li>
+        <li><strong>Focused command, 30-second limit:</strong> <code>wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat010-capacity-baseline/ladybug &amp;&amp; /usr/bin/time -f "elapsed_seconds=%e exit=%x" timeout --signal=TERM --kill-after=1s 30s sh -c "python3 -m py_compile scripts/candidate_manifest.py scripts/test_candidate_manifest.py &amp;&amp; python3 scripts/test_candidate_manifest.py"'</code>. The test script must exercise deterministic writing, Python verification, GNU <code>sha256sum -c</code>, the CRLF rejection and skipped-sentinel control, and invalid path/file/hash failures in a temporary package.</li>
+        <li><strong>Candidate usage example:</strong> <code>timeout --signal=TERM --kill-after=1s 30s python3 scripts/candidate_manifest.py verify --root "$PACKAGE_ROOT" --manifest "$MANIFEST" &amp;&amp; (cd "$PACKAGE_ROOT" &amp;&amp; timeout --signal=TERM --kill-after=1s 30s sha256sum -c "$MANIFEST") &amp;&amp; &lt;authorized build command&gt;</code>. Record this pattern in the build workflow; do not edit frozen <code>-01</code> or <code>-03</code> commands.</li>
+        <li><strong>Evidence root:</strong> <code>repro/tool016-lf-checksum-manifests-20261101/results/</code>; retain <code>manifest-tests.txt</code>, <code>git-eol.txt</code>, <code>first-attempt.json</code>, and helper/test SHA-256 values. Test fixtures are temporary and are removed after the run.</li>
+        <li><strong>Integration and commit:</strong> run <code>git diff --check -- .gitattributes scripts/candidate_manifest.py scripts/test_candidate_manifest.py wiki/internal/tooling/build-workflow.html</code>; confirm only those four implementation paths changed. After parent QA, one source commit may contain exactly those four files. Parent updates the ticket/index/log separately, without staging unrelated dirty changes.</li>
+        <li><strong>Stop conditions:</strong> stop at the first failed command or timeout. Do not retry before reassessment. Stop and return for renewed scope approval if implementation needs a wrapper, a new dependency, global Git settings, changes to frozen candidate packages, or additional writable files. No ROM build, emulator/runtime check, or release adoption is in scope.</li>
+      </ul>
+    </section>
+
+    <section id="implementation-attempt-20261101">
+      <h2>Implementation and first verification attempt</h2>
+      <p>Prepared the four approved implementation files: <code>.gitattributes</code>, <code>scripts/candidate_manifest.py</code>, <code>scripts/test_candidate_manifest.py</code>, and this build-workflow guidance in <code>wiki/internal/tooling/build-workflow.html</code>. Source review added explicit rejection of a manifest that lists itself, unsafe-path verifier controls, and an isolated temporary symlink target. No build, emulator, or runtime command ran.</p>
+      <p>The first frozen preflight exited 128 after 0.04 seconds, before either Git attribute command ran. WSL interpreted the Windows-form <code>.git</code> pointer as part of a path under the C-drive worktree. Read-only inspection confirmed that its target exists at <code>E:\projects\ladybug\.git\worktrees\ladybug16</code> and that its common directory is <code>../..</code>. After reassessment, the same read-only check was run with explicit WSL <code>GIT_DIR</code> and <code>GIT_WORK_TREE</code> paths; it passed in 0.40 seconds and reported <code>text=set</code>, <code>eol=lf</code>, LF in the index, and CRLF in the working copy.</p>
+      <p>The focused command passed in 0.60 seconds: Python syntax compilation succeeded and all nine temporary-package tests passed in 0.182 seconds. Coverage includes deterministic sorted LF output, Python and GNU checksum verification, CRLF rejection with the sentinel skipped, and rejection of malformed, duplicate, unsorted, unsafe, missing, mismatched, self-referential, and symlink-escaping records. The scoped working-tree and staged <code>git diff --check</code> commands passed. Commit <code>3738b660ef27f5ec6b0bcf686a8fe50cfbd4eaac</code> contains exactly the four assigned implementation paths. No FEAT-010 build or runtime command ran; frozen <code>-01</code> and <code>-03</code> packages were not changed.</p>
+      <p>Evidence is in <code>repro/tool016-lf-checksum-manifests-20261101/results/</code>. Helper SHA-256: <code>11717486d8511484c3dcb8e457d16e05ae72d45cc64a950637a7da6dfdc25b00</code>. Test SHA-256: <code>11b2d4f8df7022755fa4cf5570e6cb998c1dfbaf069776ab429a2348aa895b53</code>. Source commit: <code>3738b660ef27f5ec6b0bcf686a8fe50cfbd4eaac</code>.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul><li>2026-11-01 — Proposed after two candidate checksum manifests were found with CRLF. The recorded authoring process is unknown. The proposal covers tracked-file attributes and an explicit generated-manifest writer/verifier; it changes no source or candidate package.</li><li>2026-11-01 — Scope review: bound the writer input to an explicit JSON path list and replace the unowned build-wrapper requirement with documented <code>&amp;&amp;</code>-chained preflight; status remained Proposed pending user approval.</li><li>2026-11-01 — User approved the revised scope and requested Ready preparation without implementation. Exact owner, worktree, commands, initial caps, output root, evidence, and commit boundary were recorded; status was Ready at that point.</li><li>2026-11-01 — Implemented the four-file scope. The first frozen WSL preflight failed in 0.04 seconds because the Windows-form .git pointer was not understood by WSL; read-only reassessment confirmed its E-drive target and relative common directory. With explicit WSL GIT_DIR/GIT_WORK_TREE, the attribute check passed in 0.40 seconds. The focused suite passed all nine tests in 0.60 seconds, and working-tree and staged diff checks passed. After QA, the user explicitly authorized one source commit limited to the four implementation files. Commit <code>3738b660ef27f5ec6b0bcf686a8fe50cfbd4eaac</code> contains only those files. No FEAT-010 build/runtime check ran. Status is Done.</li></ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Related: <a href="../tooling/build-workflow.html">Build and deploy runbook</a>, <a href="feat-010-attract-menu-free-start.html">FEAT-010</a>, and <a href="feat-011-extra-special-intermissions.html">FEAT-011</a>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
