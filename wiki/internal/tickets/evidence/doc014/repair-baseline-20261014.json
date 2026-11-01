@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-14",
+  "source_revision": "96ccc0e8df646acffccb06aafee6b5eb18384eb0",
+  "command": [
+    "python",
+    "scripts/verify_enemy_runtime.py"
+  ],
+  "exit_code": 1,
+  "observed_error": "enemy proof: BUG-040 dirty background recapture returned\n",
+  "forbidden_name_in_raw_source": true,
+  "forbidden_name_in_code_after_comment_split": false,
+  "verifier_hashes_match_prior_review": true,
+  "file_sha256": {
+    "scripts/verify_enemy_runtime.py": "de71921660925a6d56f724b9540bfa48d3cd003e1969298cc1a524bfde2a68ce",
+    "src/enemy_runtime.s": "d9a57cf4d4f35260350a4d97bd143b395479c8b9321d039b522ea551dcb7bcfd",
+    "scripts/verify_feat007_text.py": "8ee06d5782f3389db6661841dace37c7c25dd3a79f2519108e13a1241eef4478",
+    "scripts/verify_bug010_phase_cycles.py": "a0e8e9aeb003233a16725c1ac0c22229f82abd54688eb086c48a03f5f81dd70e",
+    "scripts/verify_bug014_initial_enemy_release.py": "70aa44571ba442210311c9ab3b40b2ba6db0386bdc72143095dcfdc950419b51",
+    "scripts/verify_bug018_runtime.py": "144dd18cb59a22e1b927947ced6160e29dd83141e61b2a2801f0c1bb262d4e46",
+    "scripts/verify_bug019_enemy_nest_exit.py": "8191285a3e96f5c2674c8d1641cb86b14cb57ec19b7c0751597743af3357baab",
+    "scripts/verify_bug009_monitor_input.py": "e852eec0a6d20cdd13d8c05ae10c2a136d5cab3cb17243e552e85b31da158c70",
+    "scripts/verify_bug012_full_coverage.py": "f520a57167116b4f23156105ea43fc690e77e9706605618180cbe3822ac7ef50"
+  },
+  "scope": "Source-only diagnosis and existing verifier reproduction on existing build; no artifact refresh, emulator or implementation. Entire-phase deadline failure and exact-required-failure coupling confirmed by source predicates, not measured live timeouts.",
+  "waiver_authority": {
+    "path": "wiki/internal/tickets/feat-007-shared-text-masks.html",
+    "scope": "Named FEAT-007 stage-transition performance exception and BUG-036 nonblocking split; 27000-cycle engineering target remains missed where applicable."
+  }
+}
