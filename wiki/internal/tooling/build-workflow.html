@@ -86,6 +86,43 @@ emulated CoCo 3      (physical target: GMC-compatible bank-select hardware)
 </code></pre>
     </section>
 
+    <section id="candidate-checksum-manifests">
+      <h2>Candidate package checksum manifests</h2>
+      <p>
+        Use <code>scripts/candidate_manifest.py</code> for SHA-256 lists in
+        generated candidate packages, including packages under the ignored
+        <code>repro/</code> directory. Git newline attributes apply to tracked
+        files only; they do not control files created under <code>repro/</code>.
+        The writer therefore emits its manifest as bytes with one LF per line.
+      </p>
+      <p>
+        Supply an explicit UTF-8 JSON array of package-relative paths. The tool
+        sorts those paths, rejects duplicate or escaping paths, and writes
+        GNU <code>sha256sum -c</code>-compatible records. The read-only verifier
+        rejects CRLF, malformed records, missing files, and hash mismatches; it
+        never rewrites a rejected manifest.
+      </p>
+<pre><code>python3 scripts/candidate_manifest.py write \
+  --root "$PACKAGE_ROOT" \
+  --manifest "$MANIFEST" \
+  --files-json "$FILE_LIST_JSON"
+
+python3 scripts/candidate_manifest.py verify \
+  --root "$PACKAGE_ROOT" \
+  --manifest "$MANIFEST" &amp;&amp; \
+(cd "$PACKAGE_ROOT" &amp;&amp; sha256sum -c "$MANIFEST") &amp;&amp; \
+&lt;authorized build command&gt;
+</code></pre>
+      <p>
+        Keep the verification steps and build in the same <code>&amp;&amp;</code>
+        chain so a manifest failure stops before build dispatch. For tracked
+        <code>.sha256</code> files, <code>.gitattributes</code> sets
+        <code>text eol=lf</code>. Neither rule changes global Git newline
+        settings or rewrites existing candidate packages. See
+        <a href="../tickets/tool-016-lf-checksum-manifests.html">TOOL-016</a>.
+      </p>
+    </section>
+
     <section>
       <h2>One-command interface</h2>
       <p>
