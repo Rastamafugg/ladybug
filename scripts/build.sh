@@ -734,7 +734,6 @@ if int(highscore_test):
         'presentation_scan_drives': 'PRES_MAIN_SCAN_DRIVES',
         'presentation_scan_bits': 'PRES_MAIN_SCAN_BITS',
         'presentation_name_node_tiles': 'PRES_MAIN_NAME_NODE_TILES',
-        'presentation_add_credit': 'PRES_MAIN_ADD_CREDIT',
     })
 if int(complete):
     wanted.update({
@@ -887,6 +886,7 @@ wanted = {
     'draw_actor_overlay': 'PRES_MODULE_DRAW_ACTOR',
     'map_back': 'PRES_MODULE_MAP_BACK',
     'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
+    'draw_score_value': 'PRES_MODULE_DRAW_SCORE',
     'cold_ptr': 'PRES_MODULE_COLD_PTR',
     'draw_raw_tile': 'PRES_MODULE_DRAW_RAW_TILE',
     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
@@ -900,6 +900,7 @@ for line in open(source, encoding='utf-8'):
 required = {
     'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
     'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR', 'PRES_MODULE_DRAW_RAW_TILE',
+    'PRES_MODULE_DRAW_SCORE',
     'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
     'PRES_MODULE_START_SCREEN',
 }

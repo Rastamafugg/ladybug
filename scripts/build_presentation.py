@@ -146,7 +146,7 @@ ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
 ENTER_HIGH_SCORE_TIMER_FRAMES = 60
 ENTER_HIGH_SCORE_TIMER_COUNT = 92
 ENTER_HIGH_SCORE_PENDING_NAME_CELLS = tuple((1 + index, 19) for index in range(7))
-ENTER_HIGH_SCORE_TOP_NAME_CELLS = tuple((33 + index, 5) for index in range(7))
+ENTER_HIGH_SCORE_TOP_NAME_CELLS = tuple((33 + index, 12) for index in range(7))
 ENTER_HIGH_SCORE_DEFAULT_CODES = (21, 10, 13, 34, 11, 30, 16)  # LADYBUG
 ENTER_HIGH_SCORE_SCORE_DESTINATIONS = tuple(
     0x2000 + 2 * 1280 + (33 + index) * 4 for index in range(6)
@@ -157,9 +157,19 @@ ENTER_HIGH_SCORE_TOP_DESTINATIONS = tuple(
 ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
     0x2000 + 6 * 1280 + (33 + index) * 4 for index in range(6)
 )
-HIGH_SCORE_RECORD_ROWS = (2, 4, 5, 6, 7, 8, 9, 10, 11)
-HIGH_SCORE_NAME_COLUMN = 16
-HIGH_SCORE_SCORE_COLUMN = 27
+HIGH_SCORE_LAYOUT_LAYER = "High Score Data Layout"
+HIGH_SCORE_LAYOUT_SLOTS = tuple(f"RANK_{index:02d}" for index in range(1, 10))
+HIGH_SCORE_DISPLAY_RECORDS = tuple(range(9))
+HIGH_SCORE_SCORE_BYTES = 3
+HIGH_SCORE_BCD_DIGITS_PER_BYTE = 2
+HIGH_SCORE_LOGO_PURPOSES = ("y-descender", "g-descender", "registered-mark")
+HIGH_SCORE_LOGO_PURPOSE_COLOURS = {
+    "y-descender": LIGHT_BLUE,
+    "g-descender": LIGHT_BLUE,
+    "registered-mark": RED,
+}
+HIGH_SCORE_LOGO_LAYERS = ("Logo Base", "Logo Frame 1", "Logo Frame 2")
+HIGH_SCORE_LOGO_CELL_LAYERS = ("High Score Table and Title",) + HIGH_SCORE_LOGO_LAYERS
 INSTRUCTION_ANCHORS = ((10, 8), (10, 11), (10, 14))
 INSTRUCTION_LIFE_ROOT = (28, 7)
 INSTRUCTION_COIN_ROOT = (28, 10)
@@ -204,8 +214,11 @@ PRESENTATION_LAYER_CONTRACTS = {
         "deferred": (),
     },
     "high-score": {
-        "static": ("Background", "High Score Table and Branding"),
-        "metadata": ("Coin Positions",),
+        "static": (
+            "Background", "High Score Table and Title",
+            "High Score Names and Scores", "Logo Base",
+        ),
+        "metadata": (),
         "runtime": (),
         "deferred": ("Logo Frame 1", "Logo Frame 2"),
     },
@@ -235,11 +248,6 @@ PRESENTATION_LAYER_CONTRACTS = {
         "deferred": (),
     },
 }
-HIGH_SCORE_COIN_ANCHORS = (
-    (1, 21), (4, 21), (7, 21), (31, 21), (34, 21), (37, 21),
-    (1, 18), (4, 18), (7, 18), (31, 18), (34, 18), (37, 18),
-)
-HIGH_SCORE_COIN_QUADRANT_OFFSETS = ((0, 0), (1, 0), (0, 1), (1, 1))
 INSTRUCTION_CHARACTER_METADATA = {
     (28, 7): 456, (29, 7): 440, (28, 8): 488, (29, 8): 472,
     (28, 10): 376, (29, 10): 328, (28, 11): 296, (29, 11): 344,
@@ -379,27 +387,113 @@ def compile_attract_surfaces(
     return bytes(surfaces)
 
 
-def compile_logo_frames(base: bytes) -> tuple[list[tuple[int, int]], list[bytes]]:
-    path = Path(__file__).resolve().parents[1] / "tiled" / MAP_FILES["attract"]
+def compile_logo_frames(
+        base: bytes, map_name: str = "attract",
+        colour_config: dict[str, object] | None = None,
+) -> tuple[list[tuple[int, int]], list[bytes]]:
+    path = Path(__file__).resolve().parents[1] / "tiled" / MAP_FILES[map_name]
     root = ET.parse(path).getroot()
     chars = load_chars(path.parents[1] / "assets/arcade/chars.json")
     layers = [next(l for l in root.findall("layer") if l.get("name") == name)
               for name in ("Logo Frame 1", "Logo Frame 2")]
     records = [layer_records(layer) for layer in layers]
     roots = sorted({(x // 2 * 2, y // 2 * 2) for record in records for x, y in record})
-    if len(roots) + len(ATTRACT_ACTOR_EXPECTED_TILES) != ATTRACT_COPY_COUNT:
+    if (map_name == "attract" and
+            len(roots) + len(ATTRACT_ACTOR_EXPECTED_TILES) != ATTRACT_COPY_COUNT):
         raise ValueError("title copy allocation differs from authored logo rectangles")
+    if map_name == "high-score" and len(roots) != 12:
+        raise ValueError("high-score logo frames must contain twelve authored 16x16 roots")
+    logo_colours = (high_score_logo_cell_colours(colour_config)
+                    if map_name == "high-score" and colour_config else {})
     frames = []
-    for record in records:
+    for layer, record in zip(layers, records):
         frame = bytearray(base)
         for (x, y), gid in record.items():
-            tile = instruction_char_tile(root, path, gid, (x, y), chars,
-                                         (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE))
+            color = logo_colours.get((x, y))
+            # Keep pen 1 white on the light-blue animation cells.
+            pen_map = (
+                (BLACK, WHITE, color, color) if color == LIGHT_BLUE else
+                (BLACK, color, color, color)
+            ) if color is not None else (
+                BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE
+            )
+            tile = instruction_char_tile(root, path, gid, (x, y), chars, pen_map)
             for row in range(8):
                 offset = y * 1280 + x * 4 + row * 160
                 frame[offset:offset + 4] = tile[row * 4:row * 4 + 4]
         frames.append(bytes(frame))
     return roots, frames
+
+
+def logo_frame_layout(
+        map_name: str,
+) -> tuple[tuple[int, int], tuple[tuple[tuple[int, int, int], ...], ...]]:
+    """Return the even-cell root and each frame's root-relative authored cells."""
+    path = Path(__file__).resolve().parents[1] / "tiled" / MAP_FILES[map_name]
+    root = ET.parse(path).getroot()
+    layers = [next(l for l in root.findall("layer") if l.get("name") == name)
+              for name in ("Logo Frame 1", "Logo Frame 2")]
+    frames = [layer_records(layer) for layer in layers]
+    cells = [cell for frame in frames for cell in frame]
+    if not cells:
+        raise ValueError(f"{map_name} logo frame layers contain no cells")
+    root_cell = (min(x for x, _ in cells) // 2 * 2,
+                 min(y for _, y in cells) // 2 * 2)
+    rx, ry = root_cell
+    relative = tuple(
+        tuple(sorted((x - rx, y - ry, gid) for (x, y), gid in frame.items()))
+        for frame in frames
+    )
+    return root_cell, relative
+
+
+def high_score_logo_cell_colours(
+        colour_config: dict[str, object],
+) -> dict[tuple[int, int], int]:
+    """Expand the authored semantic High Score logo color groups to cells."""
+    groups = colour_config.get("logo_groups")
+    if not isinstance(groups, list):
+        raise ValueError("text-colours.json must define High Score logo_groups")
+    colours: dict[tuple[int, int], int] = {}
+    purposes: set[str] = set()
+    for group in groups:
+        if not isinstance(group, dict) or group.get("screen") != "high-score":
+            raise ValueError("High Score logo groups must name screen high-score")
+        purpose = group.get("purpose")
+        if purpose not in HIGH_SCORE_LOGO_PURPOSES or purpose in purposes:
+            raise ValueError(f"invalid or duplicate High Score logo purpose {purpose!r}")
+        purposes.add(purpose)
+        colour = group.get("colour")
+        expected_colour = HIGH_SCORE_LOGO_PURPOSE_COLOURS[str(purpose)]
+        if type(colour) is not int or colour != expected_colour:
+            raise ValueError(
+                f"High Score {purpose} must use palette index {expected_colour}"
+            )
+        cells = group.get("cells")
+        if not isinstance(cells, list) or not cells:
+            raise ValueError(f"High Score {purpose} must list at least one cell")
+        for cell in cells:
+            if (not isinstance(cell, list) or len(cell) != 2 or
+                    any(type(value) is not int for value in cell)):
+                raise ValueError(f"High Score {purpose} cells must be integer [x,y] pairs")
+            x, y = cell
+            if not (0 <= x < SCREEN_WIDTH and 0 <= y < SCREEN_HEIGHT):
+                raise ValueError(f"High Score {purpose} cell {(x, y)} is outside the screen")
+            if (x, y) in colours:
+                raise ValueError(f"High Score logo color groups overlap at {(x, y)}")
+            colours[(x, y)] = colour
+    if purposes != set(HIGH_SCORE_LOGO_PURPOSES):
+        missing = sorted(set(HIGH_SCORE_LOGO_PURPOSES) - purposes)
+        raise ValueError(f"High Score logo color groups are missing {missing}")
+    return colours
+
+
+def load_text_colours(path: Path | None = None) -> dict[str, object]:
+    """Read and validate the project's shared static and dynamic color data."""
+    source = path or Path(__file__).resolve().parents[1] / "assets/arcade/text-colours.json"
+    config = json.loads(source.read_text(encoding="utf-8"))
+    high_score_logo_cell_colours(config)
+    return config
 
 
 def compose_attract_frames(
@@ -460,56 +554,6 @@ def layer_records(layer: ET.Element) -> dict[tuple[int, int], int]:
     return {
         (index % SCREEN_WIDTH, index // SCREEN_WIDTH): gid
         for index, gid in enumerate(cells) if gid & GID_MASK
-    }
-
-
-def high_score_coin_slots(root: ET.Element, path: Path) -> dict[str, object]:
-    """Validate and return the authored, ordered 2x2 high-score coin slots."""
-    by_name = {item.get("name", ""): item for item in root.findall("layer")}
-    layer = by_name.get("Coin Positions")
-    if layer is None:
-        raise ValueError(f"{path}: high-score coin layer is missing")
-    records = layer_records(layer)
-    occupied: set[tuple[int, int]] = set()
-    expected_cells: set[tuple[int, int]] = set()
-    for x, y in HIGH_SCORE_COIN_ANCHORS:
-        footprint = {
-            (x + dx, y + dy) for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
-        }
-        if any(cx < 0 or cy < 0 or cx >= SCREEN_WIDTH or cy >= SCREEN_HEIGHT
-               for cx, cy in footprint):
-            raise ValueError(f"{path}: high-score coin slot {(x, y)} is clipped")
-        if occupied & footprint:
-            raise ValueError(f"{path}: high-score coin slots overlap at {(x, y)}")
-        occupied.update(footprint)
-        expected_cells.update(footprint)
-    actual_cells = set(records)
-    if actual_cells != expected_cells:
-        raise ValueError(
-            f"{path}: high-score coin layer footprint mismatch; "
-            f"missing={sorted(expected_cells - actual_cells)}, "
-            f"extra={sorted(actual_cells - expected_cells)}"
-        )
-    first_x, first_y = HIGH_SCORE_COIN_ANCHORS[0]
-    canonical = tuple(
-        records[(first_x + dx, first_y + dy)]
-        for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
-    )
-    for anchor in HIGH_SCORE_COIN_ANCHORS:
-        x, y = anchor
-        actual = tuple(
-            records[(x + dx, y + dy)]
-            for dx, dy in HIGH_SCORE_COIN_QUADRANT_OFFSETS
-        )
-        if actual != canonical:
-            raise ValueError(
-                f"{path}: high-score coin slot {anchor} differs from "
-                "the canonical four tile identities/transforms"
-            )
-    return {
-        "anchors": [list(anchor) for anchor in HIGH_SCORE_COIN_ANCHORS],
-        "quadrant_gids": list(canonical),
-        "records": records,
     }
 
 
@@ -704,11 +748,6 @@ def validate_presentation_layers(
         validate_layer_tilesets(
             path, root, by_name["Sprite Animations"], ("sprites_raw2bpp",)
         )
-    if role == "high-score":
-        validate_layer_tilesets(
-            path, root, by_name["Coin Positions"], ("chars_raw2bpp",)
-        )
-        high_score_coin_slots(root, path)
     if role == "instructions":
         records = layer_records(by_name[INSTRUCTION_METADATA_LAYER])
         require_records(
@@ -786,13 +825,17 @@ def flatten_map(path: Path) -> tuple[ET.Element, list[int], list[str]]:
 def presentation_pen_map(
         role: str, x: int, y: int, source_layer: str = "",
         raw_code: int = -1, highscore_test_profile: bool = False,
+        colour_config: dict[str, object] | None = None,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
+    if role == "high-score" and source_layer in HIGH_SCORE_LOGO_CELL_LAYERS and colour_config:
+        colour = high_score_logo_cell_colours(colour_config).get((x, y))
+        if colour is not None:
+            return (BLACK, colour, colour, colour)
+    if role == "high-score" and source_layer in HIGH_SCORE_LOGO_LAYERS:
+        return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "instructions" and y == 7 and 1 <= x <= 6:
         return (BLACK, BLUE, BLUE, BLUE)
-    if role == "high-score" and (x, y) in ((17, 0), (22, 21)):
-        colour = YELLOW if y == 0 else RED
-        return (BLACK, colour, colour, colour)
     if role == "attract":
         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
@@ -852,19 +895,11 @@ def presentation_pen_map(
         # The arcade high-score table and footer use the light-blue HUD pen;
         # the central Lady Bug branding remains pink.  The registered mark at
         # the right of the logo is part of the HUD text, not the logo.
-        if (source_layer == "High Score Table and Branding" and
-                13 <= y <= 18 and x < 30):
-            return (BLACK, PINK, PINK, PINK)
-        return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
-    if role == "high-score" and source_layer == "High Score Table and Branding":
-        if x in (30, 31) and y in (13, 14):
-            return (BLACK, RED, RED, RED)
-        if 13 <= y <= 18 and 9 <= x <= 30:
+        if source_layer in HIGH_SCORE_LOGO_LAYERS:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
-        if x == 31 and y in (13, 14):
-            return (0, 1, 2, 3)  # authored red R, as on attract
-    if role == "high-score" and source_layer == "Coin Positions":
-        return (BLACK, WHITE, WHITE, GREY)
+        return (BLACK, LIGHT_BLUE, LIGHT_BLUE, LIGHT_BLUE)
+    if role == "high-score" and source_layer in HIGH_SCORE_LOGO_LAYERS:
+        return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "game-over":
         if source_layer == "Arcade Maze Border":
             return (BLACK, PINK, PINK, PINK)
@@ -892,6 +927,7 @@ def compile_map(
     tile_ids: dict[bytes, int],
     highscore_test_profile: bool = False,
     allow_phase_overlay: bool = False,
+    colour_config: dict[str, object] | None = None,
 ) -> tuple[list[int] | bytes, dict[str, object]]:
     root, flattened, sources = flatten_map(path)
     role = screen_role(root, path)
@@ -932,6 +968,7 @@ def compile_map(
                 tile, presentation_pen_map(
                     role, x, y, sources[index],
                     raw_char_code(root, path, gid), highscore_test_profile,
+                    colour_config,
                 )
             ))
         tile_id = tile_ids.setdefault(packed, len(tiles))
@@ -952,92 +989,183 @@ def framebuffer_destination(cell: tuple[int, int]) -> int:
     return 0x2000 + y * 1280 + x * 4
 
 
-def high_score_coin_quadrant_tiles(
-    root: ET.Element, path: Path, chars: list[list[list[int]]],
-    highscore_test_profile: bool,
-) -> list[bytes]:
-    """Compile the four canonical authored coin cells using screen palette rules."""
-    contract = high_score_coin_slots(root, path)
-    x0, y0 = HIGH_SCORE_COIN_ANCHORS[0]
-    ranges = tileset_ranges(root, path)
-    rotated = [rotate_ccw(tile) for tile in chars]
+def parse_high_score_layout(
+        path: Path, colour_config: dict[str, object] | None = None,
+) -> list[dict[str, object]]:
+    """Read and validate the authored nine-row High Score rectangles."""
+    root = ET.parse(path).getroot()
+    width, height = int(root.attrib["width"]), int(root.attrib["height"])
+    tile_width, tile_height = int(root.attrib["tilewidth"]), int(root.attrib["tileheight"])
+    if (width, height, tile_width, tile_height) != (40, 24, 8, 8):
+        raise ValueError(f"{path}: High Score layout requires a 40x24 8-pixel grid")
+    layers = [layer for layer in root.findall("objectgroup")
+              if layer.get("name") == HIGH_SCORE_LAYOUT_LAYER]
+    if len(layers) != 1:
+        raise ValueError(f"{path}: expected one {HIGH_SCORE_LAYOUT_LAYER!r} object layer")
+    layer = layers[0]
+    if any(float(layer.get(key, "0")) != 0 for key in ("x", "y", "offsetx", "offsety")):
+        raise ValueError(f"{path}: {HIGH_SCORE_LAYOUT_LAYER} may not be offset")
+
+    expected = {
+        f"Rank_{slot[-2:]}_{field.title()}"
+        for slot in HIGH_SCORE_LAYOUT_SLOTS
+        for field in ("NAME", "SCORE")
+    }
+    markers: dict[str, tuple[int, int]] = {}
+    for obj in layer.findall("object"):
+        name = obj.get("name", "")
+        if name not in expected:
+            raise ValueError(f"{path}: unexpected High Score layout marker {name!r}")
+        if name in markers:
+            raise ValueError(f"{path}: duplicate High Score layout marker {name!r}")
+        if obj.get("gid") is not None or any(
+                obj.find(shape) is not None
+                for shape in ("point", "ellipse", "polygon", "polyline", "text")):
+            raise ValueError(f"{path}: marker {name} must be a rectangle object")
+        try:
+            x_px, y_px = float(obj.get("x", "nan")), float(obj.get("y", "nan"))
+            width_px, height_px = float(obj.get("width", "nan")), float(obj.get("height", "nan"))
+        except ValueError as exc:
+            raise ValueError(f"{path}: marker {name} has invalid rectangle geometry") from exc
+        if not all(value == value and abs(value) != float("inf")
+                   for value in (x_px, y_px, width_px, height_px)):
+            raise ValueError(f"{path}: marker {name} has invalid rectangle geometry")
+        if width_px != 56 or height_px != 8:
+            raise ValueError(f"{path}: marker {name} must be exactly 56x8 pixels")
+        if any(value % grid for value, grid in (
+                (x_px, tile_width), (y_px, tile_height),
+                (width_px, tile_width), (height_px, tile_height))):
+            raise ValueError(f"{path}: marker {name} is off the 8-pixel grid")
+        markers[name] = (int(x_px // tile_width), int(y_px // tile_height))
+    missing = expected - set(markers)
+    if missing:
+        raise ValueError(f"{path}: missing High Score layout markers {sorted(missing)}")
+
+    required_layers = (
+        "High Score Table and Title", "High Score Names and Scores", *HIGH_SCORE_LOGO_LAYERS,
+    )
+    layer_map: dict[str, ET.Element] = {}
+    for layer_name in required_layers:
+        found = [item for item in root.findall("layer") if item.get("name") == layer_name]
+        if len(found) != 1:
+            raise ValueError(f"{path}: expected one authored layer {layer_name!r}")
+        layer_map[layer_name] = found[0]
+
+    # Name/score defaults are intentionally underneath the dynamic fields.
+    # Only title and logo artwork forbids a field rectangle from covering it.
+    occupied: set[tuple[int, int]] = set()
+    logo_cells: set[tuple[int, int]] = set()
+    for layer_name in ("High Score Table and Title", *HIGH_SCORE_LOGO_LAYERS):
+        for index, gid in enumerate(parse_csv(layer_map[layer_name].find("data"), layer_name)):
+            if gid & GID_MASK:
+                cell = (index % width, index // width)
+                occupied.add(cell)
+                if layer_name == "High Score Table and Title" or layer_name in HIGH_SCORE_LOGO_LAYERS:
+                    logo_cells.add(cell)
+
+    logo_colour_cells = set(high_score_logo_cell_colours(
+        colour_config or load_text_colours()
+    ))
+    missing_logo_cells = logo_colour_cells - logo_cells
+    if missing_logo_cells:
+        raise ValueError(
+            f"{path}: High Score logo color cells are not in an authored title or logo-art layer "
+            f"{sorted(missing_logo_cells)}"
+        )
+
+    placements = []
+    claimed: set[tuple[int, int]] = set()
+    for slot_index, slot in enumerate(HIGH_SCORE_LAYOUT_SLOTS):
+        prefix = f"Rank_{slot[-2:]}"
+        name_cell, score_cell = markers[f"{prefix}_Name"], markers[f"{prefix}_Score"]
+        name_cell_width = 7
+        score_cell_width = 7
+        score_max_digits = HIGH_SCORE_SCORE_BYTES * HIGH_SCORE_BCD_DIGITS_PER_BYTE
+        if score_max_digits > score_cell_width:
+            raise ValueError(f"{path}: {prefix}_Score is narrower than its packed-decimal capacity")
+        for field, (x, y), field_width in (
+                ("name", name_cell, name_cell_width),
+                ("score", score_cell, score_cell_width)):
+            cells = {(column, y) for column in range(x, x + field_width)}
+            if x < 0 or y < 0 or x + field_width > width or y >= height:
+                raise ValueError(f"{path}: {prefix}_{field.title()} is outside the screen")
+            overlap = claimed & cells
+            if overlap:
+                raise ValueError(f"{path}: High Score name/score fields overlap at {sorted(overlap)}")
+            art_overlap = occupied & cells
+            if art_overlap:
+                raise ValueError(
+                    f"{path}: {prefix}_{field.title()} overlaps authored title/logo cells "
+                    f"{sorted(art_overlap)}"
+                )
+            claimed.update(cells)
+        record_index = HIGH_SCORE_DISPLAY_RECORDS[slot_index]
+        score_draw_cell = (
+            score_cell[0] + score_cell_width - score_max_digits, score_cell[1]
+        )
+        placements.append({
+            "slot": slot,
+            "record_index": record_index,
+            "name_cell": list(name_cell),
+            "score_cell": list(score_cell),
+            "name_cell_width": name_cell_width,
+            "score_cell_width": score_cell_width,
+            "score_max_digits": score_max_digits,
+            # Compatibility: this field describes capacity, not authored length.
+            "score_draw_cells": score_max_digits,
+            "name_destination": framebuffer_destination(name_cell),
+            "score_destination": framebuffer_destination(score_draw_cell),
+        })
+    authored = authored_high_score_cells(path, placements)
+    for placement, cells in zip(placements, authored):
+        placement["authored_score_cells"] = [list(cell) for cell in cells]
+    return placements
+
+
+def authored_high_score_cells(path: Path, placements: list[dict[str, object]]) -> list[list[tuple[int, int]]]:
+    """Resolve populated digits inside each authored score rectangle."""
+    root, flattened, _ = flatten_map(path)
     result = []
-    for (dx, dy), gid_with_flags in zip(
-            HIGH_SCORE_COIN_QUADRANT_OFFSETS, contract["quadrant_gids"]):
-        if gid_with_flags & FLIP_D:
-            raise ValueError(f"{path}: coin quadrant uses an unsupported diagonal transform")
-        gid = gid_with_flags & GID_MASK
-        tileset = next(
-            (item for item in ranges
-             if int(item["firstgid"]) <= gid <= int(item["lastgid"])),
-            None,
-        )
-        if tileset is None or tileset["name"] != "chars_raw2bpp":
-            raise ValueError(f"{path}: coin quadrant GID {gid} is not raw character art")
-        sheet_index = gid - int(tileset["firstgid"])
-        code = (sheet_index % 16) * 32 + (31 - sheet_index // 16)
-        tile = transform(
-            rotated[code], bool(gid_with_flags & FLIP_H),
-            bool(gid_with_flags & FLIP_V),
-        )
-        result.append(pack_tile(recolor(
-            tile,
-            presentation_pen_map(
-                "high-score", x0 + dx, y0 + dy, "Coin Positions",
-                raw_char_code(root, path, gid), highscore_test_profile,
-            ),
-        )))
+    for placement in placements:
+        x, y = placement["score_cell"]
+        width = placement["score_cell_width"]
+        columns = []
+        for column in range(x, x + width):
+            code = raw_char_code(root, path, flattened[y * SCREEN_WIDTH + column] & GID_MASK)
+            if 0 <= code <= 9:
+                columns.append(column)
+            elif code not in (-1, 255):
+                raise ValueError(f"{path}: {placement['slot']} score contains a non-digit at {(column, y)}")
+        if not columns or columns != list(range(x + width - len(columns), x + width)):
+            raise ValueError(f"{path}: {placement['slot']} score digits must be a contiguous right-aligned suffix")
+        if len(columns) > placement["score_max_digits"]:
+            raise ValueError(f"{path}: {placement['slot']} authored score exceeds its runtime capacity")
+        result.append([(column, y) for column in columns])
     return result
 
 
-def compose_coin_native(quadrants: list[bytes]) -> bytes:
-    """Join the four authored 8x8 packed tiles into one 16x16 sparse surface."""
-    if len(quadrants) != 4 or any(len(tile) != TILE_BYTES for tile in quadrants):
-        raise ValueError("coin glyph must contain four packed 8x8 quadrants")
-    return b"".join(
-        quadrants[row_group * 2][row * 4:row * 4 + 4] +
-        quadrants[row_group * 2 + 1][row * 4:row * 4 + 4]
-        for row_group in range(2)
-        for row in range(8)
-    )
-
-
-def rebase_shared_coin_records(
-    manifest: dict[str, object], cold_path: Path, include_path: Path,
-) -> None:
-    """Rebase BUG-013 offsets after shared text prepends cold graphics/maps."""
-    delta = int(manifest["shared_text"]["cold_delta"])
-    overlay = manifest["coin_overlay"]
-    overlay["destination_table_offset"] += delta
-    overlay["sparse_offset"] += delta
-    table_offset = overlay["destination_table_offset"]
-    sparse_offset = overlay["sparse_offset"]
-    table_bytes = int(overlay["destination_table_bytes"])
-    sparse_bytes = int(overlay["sparse_bytes"])
-    cold = cold_path.read_bytes()
-    table = cold[table_offset:table_offset + table_bytes]
-    stream = cold[sparse_offset:sparse_offset + sparse_bytes]
-    if (len(table) != table_bytes or len(stream) != sparse_bytes or
-            hashlib.sha256(table).hexdigest() != overlay["destination_table_sha256"] or
-            hashlib.sha256(stream).hexdigest() != overlay["sparse_sha256"]):
-        raise ValueError("shared-text coin record rebase differs from cold payload")
-    if (table_offset // PAGE_BYTES != sparse_offset // PAGE_BYTES or
-            sparse_offset % PAGE_BYTES + sparse_bytes > PAGE_BYTES):
-        raise ValueError("shared-text coin table and stream no longer share a cold page")
-    include = include_path.read_text(encoding="ascii")
-    values = {
-        "PRESENTATION_COIN_SPARSE_OFFSET": sparse_offset,
-        "PRESENTATION_COIN_SPARSE_ADDRESS": 0xA000 + sparse_offset % PAGE_BYTES,
-        "PRESENTATION_COIN_DESTINATION_TABLE": table_offset,
-    }
-    for symbol, value in values.items():
-        include, count = re.subn(
-            rf"(?m)^({symbol} equ \$)[0-9A-Fa-f]+$",
-            rf"\g<1>{value:04X}", include,
-        )
-        if count != 1:
-            raise ValueError(f"shared-text include has {count} definitions of {symbol}")
-    include_path.write_text(include, encoding="ascii")
+def high_score_field_colour_cells(path: Path, config: dict[str, object]) -> dict[tuple[int, int], int]:
+    """Named rules follow Tiled score markers and ignore only their blank padding."""
+    rules = config.get("field_runs", [])
+    if not rules:
+        return {}
+    placements = parse_high_score_layout(path, config)
+    fields = {f"Rank_{item['slot'][-2:]}_Score": item for item in placements}
+    seen = set()
+    result = {}
+    for rule in rules:
+        name = rule.get("field")
+        if rule.get("screen") != "high-score" or name not in fields or name in seen:
+            raise ValueError(f"invalid or duplicate named High Score colour field: {name!r}")
+        colour = rule.get("colour")
+        if type(colour) is not int or not 0 <= colour <= 15:
+            raise ValueError(f"invalid named High Score colour: {colour!r}")
+        seen.add(name)
+        for cell in fields[name]["authored_score_cells"]:
+            result[tuple(cell)] = colour
+    if seen != set(fields):
+        raise ValueError("named High Score colour rules must cover all nine score fields")
+    return result
 
 
 def instruction_char_tile(
@@ -1574,6 +1702,7 @@ def compile_profile_maps(
     tiled_dir: Path, chars: list[list[list[int]]], tiles: list[bytes],
     tile_ids: dict[bytes, int], development_profile: bool,
     highscore_test_profile: bool = False, complete_profile: bool = False,
+    colour_config: dict[str, object] | None = None,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
     """Validate every map while omitting maps unreachable in the selected profile."""
     maps: list[bytes | None] = []
@@ -1590,7 +1719,8 @@ def compile_profile_maps(
             isolated_tiles: list[bytes] = []
             isolated_ids: dict[bytes, int] = {}
             authored, info = compile_map(
-                path, chars, isolated_tiles, isolated_ids
+                path, chars, isolated_tiles, isolated_ids,
+                colour_config=colour_config,
             )
             authored_frame = title_framebuffer(authored, isolated_tiles)
             maps.append(None)
@@ -1604,6 +1734,7 @@ def compile_profile_maps(
                 path, chars, tiles, tile_ids,
                 highscore_test_profile,
                 complete_profile,
+                colour_config,
             )
             authored_frame = title_framebuffer(authored, tiles)
             maps.append(authored)
@@ -1750,7 +1881,8 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
 
 def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                  encoded_maps: list[bytes], manifest: dict[str, object],
-                 chars: list[list[list[int]]]) -> None:
+                 chars: list[list[list[int]]],
+                 high_score_layout: list[dict[str, object]]) -> None:
     lines = [
         "; Generated by scripts/build_presentation.py; do not edit.",
         f"PRESENTATION_MAP_COUNT equ {len(maps)}",
@@ -1810,6 +1942,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ ${instruction['colour_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ ${instruction['cucumber_stream_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_CUCUMBER_DST equ ${instruction['cucumber_destination']:04X}",
+        f"PRESENTATION_PART_VEGETABLE_DST equ ${instruction['cucumber_destination']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
         f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
@@ -1896,25 +2029,6 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         lines.append(
             f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
         )
-    coin_slots = manifest["coin_slots"]
-    coin_overlay = manifest["coin_overlay"]
-    lines.append(
-        f"PRESENTATION_COIN_SLOT_COUNT equ {coin_overlay['slot_count']}"
-    )
-    lines.append(
-        "PRESENTATION_COIN_SPARSE_OFFSET equ "
-        f"${coin_overlay['sparse_offset']:04X}"
-    )
-    lines.append(
-        "PRESENTATION_COIN_SPARSE_ADDRESS equ "
-        f"${0xA000 + coin_overlay['sparse_offset'] % PAGE_BYTES:04X}"
-    )
-    lines.append(
-        "PRESENTATION_COIN_DESTINATION_TABLE equ "
-        f"${coin_overlay['destination_table_offset']:04X}"
-    )
-    for index, tile_id in enumerate(coin_overlay["quadrant_tile_ids"]):
-        lines.append(f"PRESENTATION_COIN_QUADRANT_{index} equ {tile_id}")
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
         packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
@@ -1923,25 +2037,35 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                 raise ValueError(f"presentation glyph {code} is absent from atlas")
             continue
         lines.append(f"PRESENTATION_GLYPH_{code} equ {tiles.index(packed)}")
-    lines.append("; Ordered authored 2x2 destinations live in the cold payload.")
-    for index, slot in enumerate(coin_slots):
-        x, y = slot["anchor"]
-        lines.append(f"PRESENTATION_COIN_ANCHOR_{index} equ ${y * SCREEN_WIDTH + x:04X}")
-        lines.append(
-            f"PRESENTATION_COIN_DST_{index} equ ${slot['destination']:04X}"
-        )
     lines.extend((
         "",
         "; Nine fixed seven-character session records live in PAR5 page $34.",
         "PRESENTATION_HIGHSCORE_BASE equ $AF84",
         "PRESENTATION_HIGHSCORE_RECORD_BYTES equ 10",
-        "PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3",
+        f"PRESENTATION_HIGHSCORE_SCORE_BYTES equ {HIGH_SCORE_SCORE_BYTES}",
         "PRESENTATION_HIGHSCORE_NAME_BYTES equ 7",
         "PRESENTATION_HIGHSCORE_COUNT equ 9",
-        f"PRESENTATION_HIGHSCORE_TOP_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
-        f"PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[0])):04X}",
-        f"PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ ${framebuffer_destination((HIGH_SCORE_NAME_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
-        f"PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ ${framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, HIGH_SCORE_RECORD_ROWS[1])):04X}",
+        f"PRESENTATION_HIGHSCORE_DISPLAY_ROWS equ {len(high_score_layout)}",
+        "PRESENTATION_HIGHSCORE_ROW_STRIDE equ 1280",
+    ))
+    for placement in high_score_layout:
+        slot = str(placement["slot"])
+        name_destination = int(placement["name_destination"])
+        score_destination = int(placement["score_destination"])
+        lines.append(
+            f"PRESENTATION_HIGHSCORE_{slot}_NAME_DST equ ${name_destination:04X}"
+        )
+        lines.append(
+            f"PRESENTATION_HIGHSCORE_{slot}_SCORE_DST equ ${score_destination:04X}"
+        )
+    rank_one = high_score_layout[0]
+    name_delta = int(rank_one["score_destination"]) - int(rank_one["name_destination"])
+    lines.extend((
+        f"PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA equ {name_delta}",
+        "PRESENTATION_HIGHSCORE_TOP_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST",
+        "PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST",
+        "PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST",
+        "PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST",
     ))
     path.parent.mkdir(parents=True, exist_ok=True)
     path.write_text("\n".join(lines) + "\n", encoding="ascii")
@@ -1952,6 +2076,10 @@ def main() -> None:
     development_profile = bool(args.development_profile)
     complete_profile = bool(args.complete_profile)
     highscore_test_profile = bool(args.highscore_test_profile)
+    colour_config = load_text_colours(args.text_colours)
+    high_score_layout = parse_high_score_layout(
+        args.tiled_dir / MAP_FILES["high-score"], colour_config
+    )
     shared = None
     if args.shared_text:
         if not complete_profile:
@@ -1995,7 +2123,7 @@ def main() -> None:
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, development_profile,
-        highscore_test_profile, complete_profile,
+        highscore_test_profile, complete_profile, colour_config,
     )
     if development_profile:
         instruction = parse_instruction_contract(
@@ -2041,17 +2169,6 @@ def main() -> None:
         args.demo_walk, arcade_route_manifest
     )
 
-    coin_path = args.tiled_dir / MAP_FILES["high-score"]
-    coin_root = ET.parse(coin_path).getroot()
-    coin_contract = high_score_coin_slots(coin_root, coin_path)
-    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
-        coin_root, coin_path, chars, highscore_test_profile,
-    )
-    coin_quadrant_ids = [
-        register_tile(tile, tiles, tile_ids) for tile in coin_quadrant_bytes
-    ]
-    coin_native = compose_coin_native(coin_quadrant_bytes)
-    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
     if len(tiles) > 256 and not complete_profile:
         raise ValueError(
             f"presentation atlas contains {len(tiles)} tiles; one-byte limit is 256"
@@ -2089,7 +2206,6 @@ def main() -> None:
             timer_green_tiles.append(tile)
         timer_green_indexes.append(index)
     live_tile_ids = set().union(*(set(data) for data in maps))
-    live_tile_ids.update(coin_quadrant_ids)
     if development_profile:
         live_tile_ids.add(int(instruction["black_tile_id"]))
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -2188,7 +2304,6 @@ def main() -> None:
     for info, data in zip(map_info, maps):
         info["sha256"] = hashlib.sha256(data).hexdigest()
     tiles = [tiles[tile_id] for tile_id in ordered_ids]
-    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
     if development_profile:
         instruction["black_tile_id"] = remap[int(instruction["black_tile_id"])]
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -2354,21 +2469,6 @@ def main() -> None:
     )
     name_entry_action_offset = len(cold_payload)
     cold_payload.extend(action_table)
-    coin_destinations = [
-        framebuffer_destination(tuple(anchor))
-        for anchor in coin_contract["anchors"]
-    ]
-    coin_destination_table_offset = len(cold_payload)
-    coin_destination_table = b"".join(
-        destination.to_bytes(2, "big") for destination in coin_destinations
-    )
-    cold_payload.extend(coin_destination_table)
-    coin_sparse_offset = len(cold_payload)
-    if (coin_destination_table_offset // PAGE_BYTES !=
-            coin_sparse_offset // PAGE_BYTES or
-            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
-        raise ValueError("authored coin sparse stream crosses a cold-page boundary")
-    cold_payload.extend(coin_sparse_stream)
     name_entry["full_edge_mask_table_offset"] = name_entry_full_edge_mask_offset
     name_entry["full_edge_mask_table_bytes"] = len(full_edge_masks)
     name_entry["full_edge_masks"] = list(full_edge_masks)
@@ -2402,17 +2502,6 @@ def main() -> None:
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],
             )
-        if index == MAP_NAMES.index("high-score"):
-            for destination in coin_destinations:
-                offset = destination - 0x2000
-                underlay = b"".join(
-                    frame[offset + row * 160:offset + row * 160 + 8]
-                    for row in range(16)
-                )
-                if underlay != bytes(16 * 8):
-                    raise ValueError(
-                        "authored coin sparse overlay requires a black high-score underlay"
-                    )
         static_frame_hashes.append(hashlib.sha256(frame).hexdigest())
     manifest = {
         "maps": map_info,
@@ -2555,17 +2644,14 @@ def main() -> None:
             "action_table": name_entry["action_table"],
         },
         "high_score_table": {
-            "record_rows": list(HIGH_SCORE_RECORD_ROWS),
-            "name_column": HIGH_SCORE_NAME_COLUMN,
-            "score_column": HIGH_SCORE_SCORE_COLUMN,
-            "name_destinations": [
-                framebuffer_destination((HIGH_SCORE_NAME_COLUMN, row))
-                for row in HIGH_SCORE_RECORD_ROWS
-            ],
-            "score_destinations": [
-                framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, row))
-                for row in HIGH_SCORE_RECORD_ROWS
-            ],
+            "layout_layer": HIGH_SCORE_LAYOUT_LAYER,
+            "record_count": 9,
+            "record_bytes": 10,
+            "score_bytes": HIGH_SCORE_SCORE_BYTES,
+            "score_max_digits": HIGH_SCORE_SCORE_BYTES * HIGH_SCORE_BCD_DIGITS_PER_BYTE,
+            "name_bytes": 7,
+            "display_rows": len(high_score_layout),
+            "placements": high_score_layout,
         },
         "demo_route": {
             **demo_walk_manifest,
@@ -2609,24 +2695,6 @@ def main() -> None:
             "metadata_sha256": hashlib.sha256(attract_metadata).hexdigest(),
         },
         "black_tile": tiles.index(bytes(TILE_BYTES)),
-        "coin_destinations": coin_destinations,
-        "coin_slots": [
-            {"anchor": anchor, "destination": destination}
-            for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
-        ],
-        "coin_overlay": {
-            "slot_count": len(coin_contract["anchors"]),
-            "quadrant_gids": coin_contract["quadrant_gids"],
-            "quadrant_tile_ids": coin_quadrant_ids,
-            "sparse_offset": coin_sparse_offset,
-            "sparse_bytes": len(coin_sparse_stream),
-            "sparse_sha256": hashlib.sha256(coin_sparse_stream).hexdigest(),
-            "destination_table_offset": coin_destination_table_offset,
-            "destination_table_bytes": len(coin_destination_table),
-            "destination_table_sha256": hashlib.sha256(
-                coin_destination_table
-            ).hexdigest(),
-        },
         "cold_page": COLD_PAGE,
         "cold_page_count": COLD_PAGE_COUNT,
         "cold_payload_limit": effective_cold_limit,
@@ -2660,36 +2728,82 @@ def main() -> None:
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                     encoding="ascii")
-    emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars)
+    emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars,
+                 high_score_layout)
     if shared:
         shared.finish(manifest, tiles, cold_payload, instruction)
-        rebase_shared_coin_records(manifest, args.output, args.include_output)
-        # BUG-052: reuse the existing authored phase-changing logo tiles.
-        _, logo_frames = compile_logo_frames(title_framebuffer(visual_maps[0], visual_tiles))
+        # BUG-052: reuse the High Score map's authored phase-changing logo tiles.
+        # Both screens must keep the same authored relative cells and GIDs;
+        # only their Tiled roots differ.
+        attract_logo_root, attract_logo_layout = logo_frame_layout("attract")
+        high_score_logo_root, high_score_logo_layout = logo_frame_layout("high-score")
+        if attract_logo_layout != high_score_logo_layout:
+            raise ValueError(
+                "Attract and High Score logo frames differ relative to their Tiled roots"
+            )
+        high_score_index = MAP_NAMES.index("high-score")
+        _, logo_frames = compile_logo_frames(
+            title_framebuffer(visual_maps[high_score_index], visual_tiles),
+            "high-score", colour_config,
+        )
         payload = bytearray(args.output.read_bytes())
+        high_score_root_destination = framebuffer_destination(high_score_logo_root)
+        logo_cells = sorted(
+            {
+                (high_score_logo_root[0] + x, high_score_logo_root[1] + y)
+                for frame in high_score_logo_layout
+                for x, y, _gid in frame
+            },
+            key=lambda cell: (cell[1], cell[0]),
+        )
+        if len(logo_cells) != 12:
+            raise ValueError("high-score logo must retain all twelve authored cells")
+        # Keep authored cells even when both rendered phase tiles currently match.
         logo_records = []
-        for y in range(24):
-            for x in range(40):
-                offset = y * 1280 + x * 4
-                pair = [b"".join(frame[offset + row * 160:offset + row * 160 + 4]
-                                 for row in range(8)) for frame in logo_frames]
-                if pair[0] == pair[1]:
-                    continue
-                pointers = []
-                for tile in pair:
-                    if len(payload) % PAGE_BYTES + len(tile) > PAGE_BYTES:
-                        payload.extend(bytes(PAGE_BYTES - len(payload) % PAGE_BYTES))
-                    pointers.append(len(payload))
-                    payload.extend(tile)
-                logo_records.append((framebuffer_destination((x, y + 6)), *pointers))
-        assert len(logo_records) == 12, len(logo_records)
-        assert all(record[2] == record[1] + 32 for record in logo_records)
-        assert len(payload) <= effective_cold_limit
+        logo_frame_pairs = []
+        for x, y in logo_cells:
+            offset = y * 1280 + x * 4
+            pair = [b"".join(frame[offset + row * 160:offset + row * 160 + 4]
+                             for row in range(8)) for frame in logo_frames]
+            if any(len(tile) != TILE_BYTES for tile in pair):
+                raise ValueError(f"invalid high-score logo tile at {(x, y)}")
+            logo_frame_pairs.append(pair)
+            logo_records.append(
+                framebuffer_destination((x, y)) - high_score_root_destination
+            )
+        base_payload_bytes = len(payload)
+        logo_data_bytes = len(logo_cells) * 2 * TILE_BYTES
+        logo_data_offset = ((base_payload_bytes + TILE_BYTES - 1) // TILE_BYTES) * TILE_BYTES
+        if logo_data_offset % PAGE_BYTES + logo_data_bytes > PAGE_BYTES:
+            logo_data_offset = (logo_data_offset // PAGE_BYTES + 1) * PAGE_BYTES
+        payload.extend(bytes(logo_data_offset - base_payload_bytes))
+        for pair in logo_frame_pairs:
+            payload.extend(b"".join(pair))
+        if len(payload) > effective_cold_limit:
+            raise ValueError("high-score logo exceeds the presentation cold-payload limit")
         args.output.write_bytes(payload)
         manifest["highscore_logo"] = {
-            "records": logo_records,
-            "cells": 12,
-            "appended_bytes": len(payload) - manifest["cold_payload"]["bytes"],
+            "source_map": "high-score",
+            "roots": {
+                "attract": {
+                    "cell": list(attract_logo_root),
+                    "destination": framebuffer_destination(attract_logo_root),
+                },
+                "high-score": {
+                    "cell": list(high_score_logo_root),
+                    "destination": high_score_root_destination,
+                },
+            },
+            "relative_offsets": logo_records,
+            "records": [[offset] for offset in logo_records],
+            "authored_cells": [list(cell) for cell in logo_cells],
+            "base_payload_bytes": base_payload_bytes,
+            "data_offset": logo_data_offset,
+            "data_bytes": logo_data_bytes,
+            "data_stride": 2 * TILE_BYTES,
+            "frame_bytes": TILE_BYTES,
+            "cells": len(logo_records),
+            "appended_bytes": len(payload) - base_payload_bytes,
         }
         manifest["cold_payload"] = {
             "bytes": len(payload),
@@ -2702,11 +2816,24 @@ def main() -> None:
             include,
         )
         args.include_output.write_text(include, encoding="ascii")
+        logo_record_lines = [
+            "; Generated Tiled roots, root-relative destinations, and logo frame data.",
+            f"PRESENTATION_ATTRACT_LOGO_ROOT equ ${framebuffer_destination(attract_logo_root):04X}",
+            f"PRESENTATION_HIGH_SCORE_LOGO_ROOT equ ${high_score_root_destination:04X}",
+        ]
+        logo_record_lines.extend(
+            f"        fdb     ${offset:04X}"
+            for offset in logo_records
+        )
+        logo_record_lines.append("highscore_logo_records_end")
+        logo_record_lines.extend((
+            "highscore_logo_root_screen",
+            "        fcb     $FF",
+            "highscore_logo_root",
+            "        fdb     $0000",
+        ))
         args.include_output.with_name("ladybug_highscore_logo.inc").write_text(
-            "\n".join(
-                "        fdb " + ",".join(f"${n:04X}" for n in record[:2])
-                for record in logo_records
-            ) + "\n",
+            "\n".join(logo_record_lines) + "\n",
             encoding="ascii",
         )
         args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",

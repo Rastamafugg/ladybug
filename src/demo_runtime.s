@@ -1,14 +1,15 @@
+; DOC-002 source-contract mirror contract logo_tick profile=presentation: Advance the shared logo phase on Attract and High Score; High Score also advances its timer. When the phase changes, redraw changing logo tiles on BACK if publication is idle. Cache the active screen's generated Tiled root when the screen changes; add each shared root-relative offset to form a tile destination.
 ; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
-; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch selected menu input and replay changed fields to dirty BACK owners without gameplay mutation.
+; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.
+; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan physical input and publish menu/start edges; presentation_flow_tick routes them to the active presentation owner.
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
-; DOC-002 source-contract mirror contract credit_panel_slice profile=presentation: Credit panel slice.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
 ; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
+; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.
 ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
 ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
 ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.
@@ -17,11 +18,10 @@
 ; DOC-002 source-contract mirror contract capture_initial profile=presentation: Capture initial.
 ; DOC-002 source-contract mirror contract capture_owner profile=presentation: Capture owner.
 ; DOC-002 source-contract mirror contract draw_cursor profile=presentation: Draw cursor.
-; DOC-002 source-contract mirror contract draw_digit profile=presentation: Draw digit.
 ; DOC-002 source-contract mirror contract draw_entry_scores profile=presentation: Draw entry scores.
 ; DOC-002 source-contract mirror contract draw_name_fields profile=presentation: Draw name fields.
 ; DOC-002 source-contract mirror contract draw_record_name profile=presentation: Draw record name.
-; DOC-002 source-contract mirror contract draw_score profile=presentation: Draw score.
+; DOC-002 source-contract mirror contract draw_score profile=presentation: Tail-call the shared presentation score painter for record and name-entry score fields.
 ; DOC-002 source-contract mirror contract init_scores profile=presentation: Init scores.
 ; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
 ; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
@@ -943,39 +943,48 @@ entry_top_left
 
 render_high_score
         jsr     PRES_MODULE_MAP_BACK
-        lbsr    init_scores
         bsr     draw_high_score_screen
         rts
 
 draw_high_score_screen
         ldx     #PRES_HIGHSCORE_BASE
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
+        ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST
         bsr     draw_high_score_entry
-        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
-        ldb     #PRESENTATION_HIGHSCORE_COUNT-1
+        ldx     #PRES_HIGHSCORE_BASE
+        ldu     #PRESENTATION_HIGHSCORE_ENTRY_NAME_DST
+        ldy     #PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST
+        ldb     #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
 draw_high_score_rows
         pshs    b
+        lda     PRES_HS_READY
+        bne     draw_high_score_row_ready
+        cmpb    #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
+        beq     draw_high_score_row_ready
+        ldx     #highscore_default_record_data
+draw_high_score_row_ready
         bsr     draw_high_score_entry
         puls    b
-        leau    1280,u
+        leau    PRESENTATION_HIGHSCORE_ROW_STRIDE,u
+        leay    PRESENTATION_HIGHSCORE_ROW_STRIDE,y
         decb
         bne     draw_high_score_rows
         rts
 
 draw_high_score_entry
         stx     PRES_NAME_PTR
-        pshs    u
+        pshs    u,y
         tfr     u,y
         ldx     PRES_NAME_PTR
         leax    3,x
         bsr     draw_record_name
-        puls    u
-        pshs    u
+        puls    u,y
+        pshs    u,y
         tfr     u,y
-        leay    PRESENTATION_HIGHSCORE_TOP_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,y
+        leay    PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA,y
         ldx     PRES_NAME_PTR
         bsr     draw_score
-        puls    u
+        puls    u,y
         leax    7,x
         rts
 
@@ -1001,35 +1010,7 @@ record_name_draw
         rts
 
 draw_score
-        lda     #3
-        sta     PRES_TMP_H
-score_byte
-        lda     #$34
-        sta     PAR5
-        lda     ,x+
-        sta     PRES_TMP_L
-        lsra
-        lsra
-        lsra
-        lsra
-        anda    #$0F
-        bsr     draw_digit
-        lda     PRES_TMP_L
-        anda    #$0F
-        bsr     draw_digit
-        dec     PRES_TMP_H
-        bne     score_byte
-        rts
-draw_digit
-        tfr     a,b
-        ldu     #score_glyphs
-        leau    b,u
-        ldb     ,u
-        pshs    x,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    x,y
-        leay    4,y
-        rts
+        jmp     PRES_MODULE_DRAW_SCORE
 
 capture_initial
         lda     #$34
@@ -1129,13 +1110,9 @@ draw_cursor
         ldx     PLAYER_FB
         jmp     PRES_MAIN_PLAYER_DRAW
 
-score_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
 
+highscore_default_record_data
+        fcb     0,0,0
 highscore_default_name_data
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1

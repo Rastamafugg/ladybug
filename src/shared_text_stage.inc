@@ -64,6 +64,7 @@ PRES_SCORE_H equ $00BF
 PRES_SCORE_M equ $00C0
 PRES_SCORE_L equ $00C1
 PRES_TIMER equ $00B0
+PRES_IDLE_ORIGIN equ $00CC
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
 ; The page-$23 helper executes through PAR5, so page-$34 score state uses a
@@ -88,6 +89,11 @@ DIR_W equ 3
 DIR_NONE equ $FF
 FB_BACK_ID equ $0090
 FB_PENDING equ $0091
+; Helper-local copies of values defined by presentation_runtime.s. This
+; helper is assembled separately, so its constants must be defined here.
+MODE_ATTRACT equ 2
+MODE_PRESENTATION_UI equ 5
+PRESENTATION_ROTATION_TICKS equ 558
 FB_RENDER_ACTIVE equ $0098
 PRES_HOLD_STATE equ $00D4
 PRES_HOLD_FINAL equ $81
@@ -116,7 +122,7 @@ highscore_phase_tick
         ; owned by the low-RAM overlay after this resident-gateway call returns.
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
-        lbeq    highscore_logo_tick
+        lbeq    logo_tick
         lda     PRES_MODE
         cmpa    #5
         lbeq    menu_tick
@@ -562,7 +568,7 @@ menu_scan_entry
 menu_tick_entry
         jmp menu_tick
 stage_panel_slice
-        lbsr credit_panel_slice
+        lbsr presentation_panel_slice
         ldd $AA
         cmpd #960
         bne stage_panel_regular_slice
@@ -571,7 +577,7 @@ stage_panel_slice
         bne stage_panel_regular_slice
         clr PRES_NAME_TIMER_PHASE
         clr PRES_NAME_TIMER_BOX
-        lbra highscore_logo_tile
+        lbra highscore_logo_prepared
 stage_panel_regular_slice
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_HIGH_SCORE
@@ -675,7 +681,7 @@ stage_finish_index
 stage_name_sprite_hud
         puls y
         ldu #sprite_attr0_pairs
-        ldx #$5C80
+        ldx #PRESENTATION_PART_VEGETABLE_DST
         jsr blit_packed_sprite
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_LEVEL_START
@@ -828,56 +834,91 @@ ranking_schedule_tick
 ranking_schedule_find
         cmpd ,u
         beq ranking_schedule_found
-        leau 7,u
+        leau 4,u
         cmpu #ranking_schedule_end
         blo ranking_schedule_find
         rts
 ranking_schedule_found
-        ldx 2,u
-        ldy 4,u
-        ldb 6,u
+        lda 2,u
+        ldb #PRESENTATION_HIGHSCORE_RECORD_BYTES
+        mul
+        addd #PRESENTATION_HIGHSCORE_BASE
+        tfr d,x
+        lda 2,u
+        ldb #4
+        mul
+        leay highscore_row_destinations,pcr
+        leay d,y
+        lda 3,u
+        beq ranking_schedule_score_destination
+        ldd ,y
+        bra ranking_schedule_destination_ready
+ranking_schedule_score_destination
+        ldd 2,y
+ranking_schedule_destination_ready
+        tfr d,y
+        ldb 3,u
         jmp PRES_RANKING_SLICE
 ranking_schedule_data
-        fdb 128,$AF84,$2A40
-        fcb 1
-        fdb 160,$AF84,$2A6C
-        fcb 0
-        fdb 192,$AF8E,$3440
-        fcb 1
-        fdb 224,$AF8E,$346C
-        fcb 0
-        fdb 256,$AF98,$3940
-        fcb 1
-        fdb 288,$AF98,$396C
-        fcb 0
-        fdb 320,$AFA2,$3E40
-        fcb 1
-        fdb 352,$AFA2,$3E6C
-        fcb 0
-        fdb 384,$AFAC,$4340
-        fcb 1
-        fdb 416,$AFAC,$436C
-        fcb 0
-        fdb 448,$AFB6,$4840
-        fcb 1
-        fdb 480,$AFB6,$486C
-        fcb 0
-        fdb 512,$AFC0,$4D40
-        fcb 1
-        fdb 544,$AFC0,$4D6C
-        fcb 0
-        fdb 576,$AFCA,$5240
-        fcb 1
-        fdb 608,$AFCA,$526C
-        fcb 0
-        fdb 704,$AFD4,$5740
-        fcb 1
-        fdb 736,$AFD4,$576C
-        fcb 0
+        fdb 128
+        fcb 0,1
+        fdb 160
+        fcb 0,0
+        fdb 192
+        fcb 1,1
+        fdb 224
+        fcb 1,0
+        fdb 256
+        fcb 2,1
+        fdb 288
+        fcb 2,0
+        fdb 320
+        fcb 3,1
+        fdb 352
+        fcb 3,0
+        fdb 384
+        fcb 4,1
+        fdb 416
+        fcb 4,0
+        fdb 448
+        fcb 5,1
+        fdb 480
+        fcb 5,0
+        fdb 512
+        fcb 6,1
+        fdb 544
+        fcb 6,0
+        fdb 576
+        fcb 7,1
+        fdb 608
+        fcb 7,0
+        fdb 704
+        fcb 8,1
+        fdb 736
+        fcb 8,0
 ranking_schedule_end
+highscore_row_destinations
+        fdb PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_02_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_03_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_04_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_05_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_06_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_07_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_08_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_09_NAME_DST
+        fdb PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST
 
-; BUG-052: redraw only the twelve authored phase-changing logo tiles.
-highscore_logo_tick
+; FEAT-010: redraw shared frame cells relative to the active screen's Tiled root.
+logo_tick
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         beq     highscore_logo_vbord
@@ -888,7 +929,7 @@ highscore_logo_vbord
         lbsr    logo_vbord_clock
         sta     PRES_NAME_TIMER_PHASE
         tst     FB_PENDING
-        bne     highscore_logo_hold
+        lbne    highscore_logo_hold
         ldb     PRES_NAME_TIMER_PHASE
         ; D3 remains exclusively the decorative actor phase. D2 is logo A;
         ; E3 is logo B only on attract/menu, and is initialized as cursor owner
@@ -899,7 +940,7 @@ highscore_logo_vbord
         ldx     #PRES_NAME_OWNER
 highscore_logo_cache_ready
         cmpb    ,x
-        beq     highscore_logo_hold
+        lbeq    highscore_logo_hold
         stb     ,x
         ldd     #highscore_logo_prepared
         std     PRES_NAME_PTR
@@ -913,22 +954,37 @@ highscore_logo_cache_ready
         orcc    #$50
         jmp     PRES_GAME_PAGE_RETURN
 highscore_logo_prepared
+        ; Cache the Tiled root once when the active screen changes. The raw
+        ; tile renderer clobbers registers, so the root lives in this page-$23
+        ; helper rather than across the draw callback in a CPU register.
+        lda     PRES_SCREEN
+        cmpa    highscore_logo_root_screen
+        beq     highscore_logo_root_ready
+        sta     highscore_logo_root_screen
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        beq     highscore_logo_root_attract
+        ldd     #PRESENTATION_HIGH_SCORE_LOGO_ROOT
+        bra     highscore_logo_root_store
+highscore_logo_root_attract
+        ldd     #PRESENTATION_ATTRACT_LOGO_ROOT
+highscore_logo_root_store
+        std     highscore_logo_root
+highscore_logo_root_ready
         clr     PRES_NAME_TIMER_BOX
 highscore_logo_tile
         lda     PRES_NAME_TIMER_BOX
-        ldb     #4
+        ldb     #2
         mul
         leax    highscore_logo_records,pcr
         leax    d,x
-        ldy     ,x
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_ATTRACT
-        bne     highscore_logo_record_source
-        tfr     y,d
-        subd    #$1E00
+        ldd     ,x
+        addd    highscore_logo_root
         tfr     d,y
-highscore_logo_record_source
-        ldd     2,x
+        lda     PRES_NAME_TIMER_BOX
+        ldb     #64
+        mul
+        ; Frame pairs end the cold payload. Each two-byte record owns 64 bytes.
+        addd    #(PRESENTATION_COLD_SIZE-((highscore_logo_records_end-highscore_logo_records)*32))
         tst     PRES_NAME_TIMER_PHASE
         beq     highscore_logo_source
         addd    #32
@@ -943,7 +999,7 @@ highscore_logo_source
 highscore_logo_drawn
         inc     PRES_NAME_TIMER_BOX
         lda     PRES_NAME_TIMER_BOX
-        cmpa    #12
+        cmpa    #((highscore_logo_records_end-highscore_logo_records)/2)
         blo     highscore_logo_tile
         lda     PRES_MODE
         cmpa    #MODE_LOAD
@@ -966,70 +1022,23 @@ highscore_logo_loaded
 highscore_logo_records
         include "ladybug_highscore_logo.inc"
 
-; BUG-043: publish the authoritative count after its row has been loaded.
-credit_panel_slice
+; Keep the high-score logo and TOP record updates without cabinet-credit UI.
+presentation_panel_slice
         ldd     $AA
         cmpd    #832
-        beq     credit_panel_count
+        beq     presentation_panel_top
         cmpd    #960
-        bne     credit_panel_done
+        bne     presentation_panel_done
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        bne     credit_panel_done
-        lda     $A8
-        cmpa    #2
-        blo     credit_panel_done
-        ldx     #$9328
-        leay    credit_panel_two_prompt,pcr
-        ldb     #20
-credit_panel_prompt_loop
-        lda     #5
-        sta     $29
-        lda     ,y+
-        cmpa    #2
-        bhi     credit_panel_prompt_char
-        pshs    a
-        lda     #8
-        sta     $29
-        puls    a
-credit_panel_prompt_char
-        lbsr    stage_panel_char
-        decb
-        bne     credit_panel_prompt_loop
-credit_panel_done
+        bne     presentation_panel_done
+        clr     PRES_NAME_TIMER_PHASE
+        clr     PRES_NAME_TIMER_BOX
+        lbra    highscore_logo_prepared
+presentation_panel_top
+        lbra    top_panel_draw
+presentation_panel_done
         rts
-credit_panel_count
-        lda     PRES_SCREEN
-        beq     credit_panel_done
-        cmpa    #PRESENTATION_MAP_OPTIONS
-        bhs     credit_panel_done
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        beq     credit_panel_done
-        lda     #6
-        sta     $29
-        ldx     #$4884
-        leay    credit_panel_label,pcr
-        ldb     #6
-        lbsr    stage_panel_text
-        ldx     #$4D88
-        lda     #36
-        lbsr    stage_panel_char
-        ldx     #$4D84
-        lda     $A8
-        cmpa    #10
-        blo     credit_panel_unit
-        suba    #10
-        pshs    a
-        lda     #1
-        lbsr    stage_panel_char
-        puls    a
-credit_panel_unit
-        lbsr    stage_panel_char
-        bra     top_panel_draw
-credit_panel_label
-        fcb 12,27,14,13,18,29
-credit_panel_two_prompt
-        fcb 1,36,24,27,36,2,36,25,21,10,34,14,27,36,11,30,29,29,24,23
 
 ; Publish record zero at TOP on instruction and level-start surfaces.
 top_panel_draw
@@ -1061,18 +1070,66 @@ menu_scan
 menu_tick
         lda     PRES_SCREEN
         cmpa    #8
-        bne     menu_original_tick
+        bne     menu_tick_not_keybinding
         ldb     #2
         jsr     PRES_MAIN_KEY_SERVICE
         cmpb    #$FF
         lbeq    menu_idle
         tfr     b,a
         lbra    menu_change
-menu_original_tick
+menu_tick_not_keybinding
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        bne     menu_tick_not_high_score
+        ldd     PRES_TIMER
+        bne     menu_tick_high_score_visible
+        tst     FB_PENDING
+        bne     menu_tick_high_score_initial_pending
+menu_tick_high_score_visible
+        lda     MENU_EVENT
+        bita    #16
+        beq     menu_tick_high_score_no_enter
+        clr     MENU_EVENT
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbra    menu_change
+menu_tick_high_score_no_enter
+        clr     MENU_EVENT
+        lbsr    logo_tick
+        ldd     PRES_TIMER
+        cmpd    #PRESENTATION_ROTATION_TICKS
+        lblo    menu_hold
+        tst     FB_PENDING
+        lbne    menu_hold
+        clr     MENU_EVENT
+        lda     #PRESENTATION_MAP_ATTRACT
+        lbra    menu_change
+menu_tick_high_score_initial_pending
+        clr     MENU_EVENT
+        lbra    menu_hold
+menu_tick_not_high_score
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        bne     menu_non_attract_event
+        lda     MENU_EVENT
+        lbeq    menu_idle
+        ; Re-anchor only idle expiry; keep the timer phase used by the actor.
+        ldd     <PRES_TIMER
+        subd    #6
+        blo     menu_clock_addback
+        clra
+        andb    #31
+menu_clock_addback
+        addd    #6
+        std     <PRES_TIMER
+        std     <PRES_IDLE_ORIGIN
+        lda     <MENU_EVENT
+        bita    #32
+        lbne    menu_hold
+        bra     menu_event_ready
+menu_non_attract_event
         lda     MENU_EVENT
         lbeq    menu_idle
         bita    #32
         lbne    menu_back
+menu_event_ready
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_CREDITS
         bne     menu_interactive
@@ -1131,7 +1188,7 @@ menu_up
 menu_down
         ldb     #2
         lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        cmpa    #PRESENTATION_MAP_ATTRACT
         beq     menu_last
         ldb     #3
 menu_last
@@ -1143,25 +1200,21 @@ menu_redraw
         sta     MENU_DIRTY
         bra     menu_idle
 menu_enter
-        cmpb    #PRESENTATION_MAP_HIGH_SCORE
+        cmpb    #PRESENTATION_MAP_ATTRACT
         bne     menu_enter_option
         lda     MENU_SELECT
-        bne     menu_high_nonstart
-        ; Start is available only from this row and consumes one real credit.
-        tst     $A8
-        beq     menu_idle
-        dec     $A8
+        beq     menu_start_free
+        cmpa    #1
+        beq     menu_attract_options
+        lda     #PRESENTATION_MAP_CREDITS
+        bra     menu_change
+menu_start_free
         lda     #1
         sta     $A7
         lda     #PRESENTATION_MAP_LEVEL_START
         bra     menu_change
-menu_high_nonstart
-        cmpa    #1
-        bne     menu_high_credits
+menu_attract_options
         lda     #PRESENTATION_MAP_OPTIONS
-        bra     menu_change
-menu_high_credits
-        lda     #PRESENTATION_MAP_CREDITS
         bra     menu_change
 menu_enter_option
         lda     MENU_SELECT
@@ -1173,7 +1226,7 @@ menu_enter_back
         cmpa    #3
         bne     menu_idle
 menu_back
-        lda     #PRESENTATION_MAP_HIGH_SCORE
+        lda     #PRESENTATION_MAP_ATTRACT
 menu_change
         clr     MENU_SELECT
 menu_start
@@ -1187,10 +1240,13 @@ menu_start
 menu_idle
         ; Loading still accepts input, but cannot publish a field transaction.
         lda     PRES_MODE
-        cmpa    #5
+        cmpa    #MODE_ATTRACT
+        beq     menu_idle_active
+        cmpa    #MODE_PRESENTATION_UI
         bne     menu_hold
+menu_idle_active
         tst     MENU_DIRTY
-        beq     menu_idle_logo
+        beq     menu_hold
         tst     FB_PENDING
         bne     menu_hold
         lda     FB_BACK_ID
@@ -1201,9 +1257,11 @@ menu_idle
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        jmp     PRES_HIGHSCORE_FB_PREPARE
+        ldd     #PRES_MAIN_FB_PREPARE
+        pshs    cc,d
+        orcc    #$50
+        jmp     PRES_GAME_PAGE_RETURN
 menu_updated
-        ; Existing callback restored page $23 after preparing game-page state.
         bsr     menu_load_finish
         lda     FB_BACK_ID
         inca
@@ -1214,11 +1272,10 @@ menu_updated
         std     PRES_NAME_PTR
         ldd     #PRES_MAIN_PAGE23_RESUME
         pshs    d
-        jmp     PRES_HIGHSCORE_FB_FINISH
-menu_idle_logo
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        lbeq    highscore_logo_tick
+        ldd     #PRES_MAIN_FB_FINISH
+        pshs    cc,d
+        orcc    #$50
+        jmp     PRES_GAME_PAGE_RETURN
 menu_hold
         lda     #1
         rts
@@ -1231,31 +1288,17 @@ menu_load_finish
         jmp     PRES_MAIN_KEY_SERVICE
 menu_load_original
         lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        beq     menu_paint_high
+        cmpa    #PRESENTATION_MAP_ATTRACT
+        beq     menu_paint_attract
         cmpa    #PRESENTATION_MAP_OPTIONS
         beq     menu_paint_options
         cmpa    #PRESENTATION_MAP_CREDITS
         beq     menu_paint_credits
         jmp     stage_panel_finish
-menu_paint_high
-        leay    menu_high_score_rows,pcr
+menu_paint_attract
+        leay    menu_attract_rows,pcr
         ldb     #3
-        bsr     menu_paint_rows
-        tst     $A8
-        bne     menu_high_paint_done
-        lda     #7
-        tst     MENU_SELECT
-        bne     menu_high_add_colour
-        lda     #10
-menu_high_add_colour
-        sta     $29
-        leay    menu_high_score_add_credits,pcr
-        ldx     ,y++
-        ldb     ,y+
-        lbsr    stage_panel_text
-menu_high_paint_done
-        rts
+        bra     menu_paint_rows
 menu_paint_credits
         lda     #10
         sta     $29
@@ -1980,35 +2023,7 @@ record_name_draw
         rts
 
 draw_score
-        lda     #3
-        sta     PRES_TMP_H
-score_byte
-        lda     #$34
-        sta     PAR5
-        lda     ,x+
-        sta     PRES_TMP_L
-        lsra
-        lsra
-        lsra
-        lsra
-        anda    #$0F
-        bsr     draw_digit
-        lda     PRES_TMP_L
-        anda    #$0F
-        bsr     draw_digit
-        dec     PRES_TMP_H
-        bne     score_byte
-        rts
-draw_digit
-        tfr     a,b
-        ldu     #score_glyphs
-        leau    b,u
-        ldb     ,u
-        pshs    x,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    x,y
-        leay    4,y
-        rts
+        jmp     PRES_MODULE_DRAW_SCORE
 
 capture_initial
         lda     #$34
@@ -2108,12 +2123,6 @@ draw_cursor
         ldx     PLAYER_FB
         jmp     PRES_MAIN_PLAYER_DRAW
 
-score_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
 
 highscore_default_name_data
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0

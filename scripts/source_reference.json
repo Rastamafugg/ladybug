@@ -2138,12 +2138,6 @@
       "binary": "ladybug-presentation-runtime.bin",
       "routines": [
         {
-          "name": "add_credit",
-          "profile": "presentation",
-          "purpose": "Add credit.",
-          "reasons": []
-        },
-        {
           "name": "cold_ptr",
           "profile": "copy",
           "purpose": "Resolve a pointer into the currently mapped presentation cold payload.",
@@ -2186,16 +2180,19 @@
           "reasons": []
         },
         {
-          "name": "draw_coin_slots",
-          "profile": "render",
-          "purpose": "Draw coin slots.",
-          "reasons": []
-        },
-        {
           "name": "draw_tile_id",
           "profile": "render",
           "purpose": "Draw tile id.",
           "reasons": []
+        },
+        {
+          "name": "PRES_MAIN_DYNAMIC_TEXT",
+          "profile": "render",
+          "purpose": "Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-pres-main-dynamic-text"
         },
         {
           "name": "gameplay_reentry",
@@ -2280,16 +2277,41 @@
         {
           "name": "MENU_SCAN",
           "profile": "input",
-          "purpose": "Call the banked menu and credit/start scanner.",
+          "purpose": "Call the banked menu and start scanner.",
           "reasons": [],
           "semantic_id": "routines.html#routine-presentation-runtime-menu-scan"
         },
         {
           "name": "MENU_TICK",
           "profile": "presentation",
-          "purpose": "Dispatch fresh options input during selected-screen loading.",
+          "purpose": "Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.",
           "reasons": [],
           "semantic_id": "routines.html#routine-presentation-runtime-menu-tick"
+        },
+        {
+          "name": "draw_score_value",
+          "profile": "presentation",
+          "purpose": "Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, and showing an all-zero value as one zero.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value"
+        },
+        {
+          "name": "draw_score_value_digit",
+          "profile": "presentation",
+          "purpose": "Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value-digit",
+          "inputs": "A contains one unpacked decimal digit from 0 to 9; Y points to the next score tile; PRES_TMP_M records whether a significant digit has started.",
+          "outputs": "Draws one digit or blank tile, advances Y by 4 bytes, and sets PRES_TMP_M when the first nonzero digit is reached.",
+          "clobbers": "A, B, U, and condition codes; X is preserved; Y advances by 4 bytes.",
+          "reads": "A, PRES_TMP_M, score_value_glyphs, and the current tile-render context.",
+          "writes": "PRES_TMP_M when significance starts and the destination tile through PRES_MAIN_DYNAMIC_TEXT.",
+          "side_effects": "Draws one score tile and advances the score destination to the next tile.",
+          "invariants": "Leading zeroes before the first nonzero digit use the blank tile; later zeroes use the numeric glyph; A must be from 0 to 9."
         }
       ],
       "relocations": [
@@ -2314,6 +2336,7 @@
         "PRESENTATION_HOLD_TICK",
         "PRESENTATION_MODULE_DRAW",
         "PRES_MAIN_DEATH",
+        "PRES_MAIN_DYNAMIC_TEXT",
         "PRES_MAIN_ENEMY",
         "PRES_MAIN_ENTITIES",
         "PRES_MAIN_FB_CAPTURE",
@@ -2380,6 +2403,11 @@
           "name": "MENU_SCAN",
           "kind": "data",
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+        },
+        {
+          "name": "score_value_glyphs",
+          "kind": "data",
+          "reason": "Generated glyph lookup table used by the shared score painter."
         }
       ],
       "basic_blocks": [
@@ -2421,8 +2449,14 @@
           "name": "menu_load_continue",
           "routine": "load_tick",
           "purpose": "Continue loading when there is no fresh local menu command."
+        },
+        {
+          "name": "pft_dispatch",
+          "routine": "presentation_flow_tick",
+          "purpose": "Dispatch the current presentation mode to its handler after presentation-flow prechecks."
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "release-demo-runtime",
@@ -2493,7 +2527,11 @@
         "HIGHSCORE_TEST_PROFILE": 0,
         "HIGHSCORE_PHASE_HELPER": 0,
         "COMPLETE_PHASE_AUX": 0
-      }
+      },
+      "entrypoints": [],
+      "external_symbols": [
+        "PRES_MODULE_DRAW_SCORE"
+      ]
     },
     {
       "id": "development-instruction-runtime",
@@ -3470,13 +3508,6 @@
           "semantic_id": "routines.html#routine-highscore-runtime-draw-cursor"
         },
         {
-          "name": "draw_digit",
-          "profile": "presentation",
-          "purpose": "Draw digit.",
-          "reasons": [],
-          "semantic_id": "routines.html#routine-highscore-runtime-draw-digit"
-        },
-        {
           "name": "draw_entry_scores",
           "profile": "presentation",
           "purpose": "Draw entry scores.",
@@ -3500,9 +3531,9 @@
         {
           "name": "draw_score",
           "profile": "presentation",
-          "purpose": "Draw score.",
+          "purpose": "Tail-call the shared presentation score painter for record and name-entry score fields.",
           "reasons": [],
-          "semantic_id": "routines.html#routine-highscore-runtime-draw-score"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-highscore-helper-draw-score"
         },
         {
           "name": "init_scores",
@@ -3560,7 +3591,8 @@
         "PRES_MAIN_READ_JOY",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE",
-        "PRES_MODULE_MAP_BACK"
+        "PRES_MODULE_MAP_BACK",
+        "PRES_MODULE_DRAW_SCORE"
       ],
       "label_classifications": [
         {
@@ -3570,11 +3602,6 @@
         },
         {
           "name": "highscore_default_name_data",
-          "kind": "data",
-          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
-        },
-        {
-          "name": "score_glyphs",
           "kind": "data",
           "reason": "Current source declaration fcb; inspect linked source for extent and owner."
         },
@@ -3612,15 +3639,16 @@
         },
         {
           "name": "ranking_slice",
-          "routine": null,
-          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+          "routine": "ranking_slice",
+          "purpose": "Indirect high-score painter entry: draw one initialized record name or score at the supplied destination; preserve the map-authored defaults until PRES_HS_READY is set."
         }
       ],
       "defines": {
         "HIGHSCORE_TEST_PROFILE": 1,
         "HIGHSCORE_PHASE_HELPER": 0,
         "COMPLETE_PHASE_AUX": 1
-      }
+      },
+      "entrypoints": []
     },
     {
       "id": "highscore-helper",
@@ -3634,16 +3662,10 @@
         "blit_packed_sprite",
         "PRES_MAIN_KEY_SERVICE",
         "PRES_GAME_PAGE_RETURN",
-        "PRES_MAIN_READ_STAGE_LETTERS"
+        "PRES_MAIN_READ_STAGE_LETTERS",
+        "PRES_MODULE_DRAW_SCORE"
       ],
       "routines": [
-        {
-          "name": "credit_panel_slice",
-          "profile": "presentation",
-          "purpose": "Credit panel slice.",
-          "reasons": [],
-          "semantic_id": "routines.html#routine-highscore-helper-credit-panel-slice"
-        },
         {
           "name": "highscore_commit_name",
           "profile": "presentation",
@@ -3675,6 +3697,15 @@
           "semantic_id": "routines.html#routine-highscore-helper-stage-panel-read-letters"
         },
         {
+          "name": "presentation_panel_slice",
+          "profile": "presentation",
+          "purpose": "Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-highscore-helper-presentation-panel-slice"
+        },
+        {
           "name": "stage_panel_text",
           "profile": "presentation",
           "purpose": "Stage panel text.",
@@ -3698,14 +3729,14 @@
         {
           "name": "menu_scan",
           "profile": "presentation",
-          "purpose": "Scan fixed physical input and publish coin and menu edges; presentation_flow_tick consumes coin edges before menu dispatch.",
+          "purpose": "Scan physical input and publish menu/start edges; presentation_flow_tick routes them to the active presentation owner.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
         },
         {
           "name": "menu_tick",
           "profile": "presentation",
-          "purpose": "Dispatch selected menu input and replay changed fields to dirty BACK owners without gameplay mutation.",
+          "purpose": "Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-menu-tick"
         },
@@ -3746,19 +3777,27 @@
             "called"
           ],
           "semantic_id": "routines.html#routine-highscore-helper-logo-vbord-clock"
+        },
+        {
+          "name": "logo_tick",
+          "profile": "presentation",
+          "purpose": "Advance the shared logo phase on Attract and High Score; High Score also advances its timer. When the phase changes, redraw changing logo tiles on BACK if publication is idle. Cache the active screen's generated Tiled root when the screen changes; add each shared root-relative offset to form a tile destination.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-highscore-helper-logo-tick"
+        },
+        {
+          "name": "draw_score",
+          "profile": "presentation",
+          "purpose": "Tail-call the shared presentation score painter for record and name-entry values.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-highscore-helper-draw-score"
         }
       ],
       "label_classifications": [
-        {
-          "name": "credit_panel_label",
-          "kind": "data",
-          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
-        },
-        {
-          "name": "credit_panel_two_prompt",
-          "kind": "data",
-          "reason": "Current source declaration fcb; inspect linked source for extent and owner."
-        },
         {
           "name": "highscore_default_name_data",
           "kind": "data",
@@ -3773,6 +3812,11 @@
           "name": "highscore_phase_helper_gap",
           "kind": "data",
           "reason": "Current source declaration rmb; inspect linked source for extent and owner."
+        },
+        {
+          "name": "highscore_row_destinations",
+          "kind": "data",
+          "reason": "Generated 18-word table of the nine rows' name and score framebuffer destinations; consumed by ranking_schedule."
         },
         {
           "name": "ranking_schedule_data",
@@ -3868,6 +3912,16 @@
           "name": "name_rank_data",
           "kind": "data",
           "reason": "Immutable27-byte nine-position raw glyph ordinal table in existing fixed-vector padding; consumed only by the hidden name stage slices."
+        },
+        {
+          "name": "highscore_logo_root",
+          "kind": "data",
+          "reason": "Two-byte page-$23 helper-owned cache of the active screen's framebuffer logo root; generated from the Tiled frame layers and selected when PRES_SCREEN changes."
+        },
+        {
+          "name": "highscore_logo_root_screen",
+          "kind": "data",
+          "reason": "One-byte page-$23 helper-owned cache key for the Tiled logo root; $FF forces initialization before the first logo draw."
         }
       ],
       "basic_blocks": [
@@ -3904,7 +3958,12 @@
         {
           "name": "highscore_logo_records",
           "routine": null,
-          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
+          "purpose": "Start of the generated High Score logo record table; its runtime count is derived from the table end."
+        },
+        {
+          "name": "highscore_logo_records_end",
+          "routine": null,
+          "purpose": "End of the generated High Score logo record table; bounds the runtime frame-update loop."
         },
         {
           "name": "highscore_phase_tick",
@@ -4109,7 +4168,8 @@
         "HIGHSCORE_TEST_PROFILE": 1,
         "HIGHSCORE_PHASE_HELPER": 1,
         "COMPLETE_PHASE_AUX": 1
-      }
+      },
+      "entrypoints": []
     },
     {
       "id": "keybinding-runtime",

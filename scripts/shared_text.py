@@ -12,6 +12,22 @@ def emit(label, data):
     return '\n'+label+'\n'+''.join('        fcb '+','.join(str(v) for v in data[i:i+32])+'\n' for i in range(0,len(data),32))
 
 
+def apply_fixed_colour_runs(cells, runs):
+    """Fixed overrides must still target text; named fields have a separate rule."""
+    overridden = set()
+    for run in runs:
+        if not (0 <= run['colour'] <= 15 and 0 <= run['x'] < 40 and
+                0 <= run['y'] < 24 and 1 <= run['width'] <= 40 - run['x']):
+            raise ValueError(('invalid text run', run))
+        for x in range(run['x'], run['x'] + run['width']):
+            key = (run['screen'], run['y'] * 40 + x)
+            if key not in cells:
+                raise ValueError(('colour override is not a text cell', key))
+            cells[key]['colour'] = run['colour']
+            overridden.add(key)
+    return overridden
+
+
 class SharedText:
     def __init__(self, args, p):
         self.args, self.p = args, p
@@ -29,7 +45,7 @@ class SharedText:
         for code in (43,44):
             value=mask(s.rotate_ccw(chars[code]))
             if value not in self.font:self.font.append(value)
-        text_codes=set(range(41))|set(range(42,46))
+        text_codes=set(range(41))|set(range(42,47))
         paths=[(name,args.tiled_dir/p.MAP_FILES[name]) for name in p.MAP_NAMES]+[('gameplay',args.gameplay_map)]
         for name,path in paths:
             if name=='gameplay':
@@ -48,7 +64,7 @@ class SharedText:
                 if value not in self.font:self.font.append(value)
                 if name=='gameplay':
                     if x<8 and y<9:colour=(1,2,3)[y//3] if y%3!=1 or x==0 else 7
-                    elif x==34 and y==13 and code==42:colour=self.colours['fields']['bonus']
+                    elif code==42:colour=self.colours['fields']['bonus']
                     elif x>=32:colour={1:8,2:8,4:1,5:1,7:6,8:6,10:3,11:3,12:5}.get(y,0)
                     else:raise ValueError(('unexpected gameplay text',x,y))
                 else:
@@ -66,17 +82,18 @@ class SharedText:
         if bytes(8) not in self.font:self.font.append(bytes(8))
         if len(self.font)>82:raise ValueError('shared font exceeds one-byte static encoding')
         self.cells={(r['screen'],r['y']*40+r['x']):r for r in self.records}
-        self.overridden=set()
-        for run in self.colours['runs']:
-            if not (0<=run['colour']<=15 and 0<=run['x']<40 and 0<=run['y']<24 and 1<=run['width']<=40-run['x']):raise ValueError(('invalid text run',run))
-            for x in range(run['x'],run['x']+run['width']):
-                key=(run['screen'],run['y']*40+x)
-                if key not in self.cells:raise ValueError(('colour override is not a text cell',key))
-                self.cells[key]['colour']=run['colour']
-                self.overridden.add(key)
-        equals=self.cells.get(('gameplay',13*40+34))
-        if equals and equals['code']==42 and equals['colour']!=self.colours['fields']['bonus']:
-            raise ValueError(('gameplay equals colour override conflicts with fields.bonus',equals['colour'],self.colours['fields']['bonus']))
+        self.overridden=apply_fixed_colour_runs(self.cells,self.colours['runs'])
+        score_colours=p.high_score_field_colour_cells(args.tiled_dir/p.MAP_FILES['high-score'],self.colours)
+        for (x,y),colour in score_colours.items():
+            key=('high-score',y*40+x)
+            if key not in self.cells:raise ValueError(('named score colour is not a text cell',key))
+            if key in self.overridden:raise ValueError(('duplicate score colour ownership',key))
+            self.cells[key]['colour']=colour
+            self.overridden.add(key)
+        equals=[r for r in self.records if r['screen']=='gameplay' and r['code']==42]
+        if any(r['colour']!=self.colours['fields']['bonus'] for r in equals):
+            raise ValueError(('gameplay equals colour conflicts with fields.bonus',
+                              [r['colour'] for r in equals],self.colours['fields']['bonus']))
         contexts=int(any(self.colours['fields'][k]!=6 for k in ('instruction_points','ranking','name','game_over_score')))
         (args.output.parent/'ladybug_text_colours.inc').write_text(''.join(f'TEXT_{k.upper()} equ {v}\n' for k,v in self.colours['fields'].items())+f'TEXT_CONTEXT_COLOURS equ {contexts}\n')
 
@@ -255,16 +272,15 @@ class SharedText:
             manifest['shared_static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
             if name=='instructions':self.p.blend_native_surface(frame,instruction_source['cucumber_destination'],instruction_source['cucumber_native'])
             manifest['static_frame_sha256'].append(hashlib.sha256(frame).hexdigest())
-        # Extract authored high-score menu text spans for colour-only selection.
-        # No parenthesis or other cursor glyphs are emitted for this screen.
+        # Extract the authored attract menu rows for colour-only selection.
         menu_lines=[]
-        path=self.args.tiled_dir/self.p.MAP_FILES['high-score']
+        path=self.args.tiled_dir/self.p.MAP_FILES['attract']
         root=ET.parse(path).getroot()
-        layer=root.find("layer[@name='High Score Table and Branding']")
-        if layer is None:raise ValueError((path,'missing High Score Table and Branding'))
+        layer=root.find("layer[@name='Attract Title and Prompts']")
+        if layer is None:raise ValueError((path,'missing Attract Title and Prompts'))
         cells=self.p.parse_csv(layer.find('data'),layer.get('name'))
-        specs=((20,17,26,'START GAME'),(21,17,23,'OPTIONS'),(22,17,23,'CREDITS'))
-        high_rows=[]
+        specs=((15,15,24,'START GAME'),(17,15,21,'OPTIONS'),(19,15,21,'CREDITS'))
+        attract_rows=[]
         for row,lo,hi,label in specs:
             row_gids=cells[row*40:(row+1)*40]
             raw=[self.p.raw_char_code(root,path,gid&self.p.GID_MASK) for gid in row_gids]
@@ -272,26 +288,12 @@ class SharedText:
             expected=[36 if char==' ' else ord(char)-55 for char in label]
             matches=[col for col in range(41-len(expected)) if codes[col:col+len(expected)]==expected]
             if (hi-lo+1!=len(expected) or codes[lo:hi+1]!=expected or matches!=[lo]):
-                raise ValueError((path,'authored high-score menu span mismatch',row,lo,hi,label,matches))
-            # ADD CREDITS has 11 characters. The unused blank at x16 lets it
-            # replace centered START GAME without synthesizing selector marks.
-            if row==20 and (row_gids[16] not in (0,8) or any(
-                    self.visual_tiles[self.visual_maps[self.p.MAP_NAMES.index('high-score')][row*40+16]])):
-                raise ValueError((path,'start row lacks blank cell for ADD CREDITS',(16,row)))
-            if row==20:
-                lo=16
-                row_codes=[36,*expected]
-            else:
-                row_codes=expected
-            high_rows.append((row,lo,row_codes))
-        menu_lines.append('menu_high_score_rows')
-        for row,lo,codes in high_rows:
+                raise ValueError((path,'authored attract menu span mismatch',row,lo,hi,label,matches))
+            attract_rows.append((row,lo,expected))
+        menu_lines.append('menu_attract_rows')
+        for row,lo,codes in attract_rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
-            menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
-        add_credits=[36 if char==' ' else ord(char)-55 for char in 'ADD CREDITS']
-        menu_lines.append('menu_high_score_add_credits')
-        menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((16,20)))
-        menu_lines.append('        fcb '+','.join(str(code) for code in [len(add_credits),*add_credits]))
+            menu_lines.append('        fcb '+','.join(str(code) for code in [len(codes),*codes]))
         # Keep the Options screen's authored selector pairs. The no-parenthesis
         # clarification applies only to the high-score screen.
         path=self.args.tiled_dir/self.p.MAP_FILES['options']
@@ -436,6 +438,5 @@ class SharedText:
                 'back_row': back_rows[0], 'value_bounds': [19, 32],
                 'default_physical_keys': [27, 35, 43, 51, 6],
                 'fixed_menu_enter_physical_key': 6,
-                'fixed_credit_physical_keys': [44, 52],
                 'legacy_blank_guide_cells': sorted(legacy_blank_cells),
                 'maximum_name_width': 11}

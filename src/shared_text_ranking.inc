@@ -469,7 +469,7 @@ stage_panel_index
         jsr     blit_packed_sprite
         puls    y
         ldu     #sprite_attr0_pairs
-        ldx     #$5C80          ; same vegetable in the side HUD
+        ldx     #PRESENTATION_PART_VEGETABLE_DST
         jsr     blit_packed_sprite
 stage_panel_return
         rts
@@ -723,8 +723,6 @@ highscore_name_ready
         cmpa    #MODE_GAMEOVER
         beq     highscore_name_hold
         lbsr    name_tick
-        lda     #1
-        rts
 highscore_name_hold
         lda     #1
         rts
@@ -1161,11 +1159,14 @@ score_top_authority_ready
         bsr draw_score
         bra draw_name_done
 
+; Draw one initialized record field at the selected destination. Before ranking
+; state is ready, keep the Tiled-authored High Score defaults untouched.
 ranking_slice
         pshs b,x,y
         lda #$34
         sta PAR5
-        lbsr init_scores
+        tst PRES_HS_READY
+        beq ranking_slice_authored_defaults
         puls b,x,y
         lda #7
         cmpx #PRES_HIGHSCORE_BASE
@@ -1177,6 +1178,9 @@ ranking_colour_ready
         beq ranking_score
         leax 3,x
         bra draw_record_name
+ranking_slice_authored_defaults
+        puls b,x,y
+        rts
 ranking_score
         bra draw_score
 
@@ -1202,32 +1206,7 @@ record_name_draw
         rts
 
 draw_score
-        ldb     #3
-score_byte
-        lda     #$34
-        sta     PAR5
-        lda     ,x+
-        sta     PRES_TMP_L
-        lsra
-        lsra
-        lsra
-        lsra
-        bsr     draw_digit
-        lda     PRES_TMP_L
-        anda    #$0F
-        bsr     draw_digit
-        decb
-        bne     score_byte
-        rts
-draw_digit
-        pshs    b,x,y
-        tfr     a,b
-        ldu     #score_glyphs
-        ldb     b,u
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,x,y
-        leay    4,y
-        rts
+        jmp     PRES_MODULE_DRAW_SCORE
 
 capture_initial
         lda     #$34
@@ -1326,12 +1305,6 @@ draw_cursor
         ldx     PLAYER_FB
         jmp     PRES_MAIN_PLAYER_DRAW
 
-score_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
 
 highscore_default_name_data
         fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0

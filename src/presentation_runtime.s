@@ -1,5 +1,5 @@
-; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh options input during selected-screen loading.
-; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and credit/start scanner.
+; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.
+; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and start scanner.
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
@@ -40,15 +40,16 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
 ; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
 ; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
-; DOC-002 source-contract mirror contract add_credit profile=presentation: Add credit.
 ; DOC-002 source-contract mirror contract cold_ptr profile=copy: Resolve a pointer into the currently mapped presentation cold payload.
 ; DOC-002 source-contract mirror contract cold_read_byte profile=copy: Read one byte from the presentation cold payload while preserving mapping ownership.
 ; DOC-002 source-contract mirror contract colour_surface profile=render: Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.
 ; DOC-002 source-contract mirror contract colour_tile profile=render: Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.
 ; DOC-002 source-contract mirror contract draw_actor_overlay profile=render: Draw the selected presentation actor stream into the current presentation destination.
 ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
-; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
+; DOC-002 source-contract mirror contract PRES_MAIN_DYNAMIC_TEXT profile=render: Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.
+; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, and showing an all-zero value as one zero.
+; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
@@ -97,8 +98,6 @@ PLAYER_BG_VALID equ $006A
 PLAYER_BG equ $A300
 BACK_ID equ $0090
 PENDING equ $0091
-CREDIT_RENDER_FLAGS equ $007F
-CREDIT_RF_HUD equ $02
 ACTIVE  equ $0098
 FB_INIT_STATE equ $009A
 FB_META_A equ $A900
@@ -129,10 +128,11 @@ MODE_LOAD equ 1
 MODE_ATTRACT equ 2
 MODE_INSTRUCTIONS equ 3
 MODE_DEMO equ 4
-MODE_CREDIT equ 5
+MODE_PRESENTATION_UI equ 5
 MODE_LEVEL equ 6
 MODE_GAMEOVER equ 7
 MODE_NAME equ 8
+PRESENTATION_ROTATION_TICKS equ 558 ; shared Attract and high-score hold
 PRES_CONTEXT_NEXT_STAGE equ 2
 
         ifne    COMPLETE_PROFILE
@@ -172,7 +172,6 @@ pft_helper_ready
         lda     #$A5
         sta     <PRES_MAGIC
         clr     <PRES_MODE
-        clr     <PRES_CREDITS
         clr     <PRES_CONTEXT
         clr     <PRES_DEMO_CAUSE
         clr     <PRES_DEMO_ROUTE
@@ -189,65 +188,6 @@ pft_ready
         ifne    HIGHSCORE_TEST_PROFILE
         lbra    pft_dispatch
         endc
-        lda     <PRES_EVENT
-        anda    #$06
-        beq     pft_mode
-        cmpa    #$06
-        bne     pft_single_credit
-        bsr     add_credit
-pft_single_credit
-        bsr     add_credit
-        ; A credit must not replace live play or a credited level handoff.
-        lda     <PRES_MODE
-        beq     pft_dispatch
-        cmpa    #MODE_NAME
-        beq     pft_dispatch
-        lda     <PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_LEVEL_START
-        bne     pft_idle_credit
-        tst     <PRES_CONTEXT
-        bne     pft_dispatch
-pft_idle_credit
-        ifne    COMPLETE_PROFILE
-        ; Credit input can pre-empt any auxiliary owner, including cold load.
-        lbsr    install_highscore_runtime
-        endc
-        lda     #PRESENTATION_MAP_HIGH_SCORE
-        clr     <PENDING
-        lbsr    start_screen
-        lda     #1
-        rts
-add_credit
-        lda     <PRES_CREDITS
-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
-        bhs     add_coin
-        inca
-        sta     <PRES_CREDITS
-        inc     $02DD
-        lda     <CREDIT_RENDER_FLAGS
-        ora     #CREDIT_RF_HUD
-        sta     <CREDIT_RENDER_FLAGS
-add_coin
-        rts
-pft_mode
-        lda     <PRES_EVENT
-        bita    #1
-        beq     pft_dispatch
-        tst     <PRES_CREDITS
-        beq     pft_dispatch
-        lda     <PRES_MODE
-        beq     pft_dispatch
-        cmpa    #MODE_NAME
-        beq     pft_dispatch
-        cmpa    #MODE_LEVEL
-        beq     pft_dispatch
-        dec     <PRES_CREDITS
-        lda     #1
-        sta     <PRES_CONTEXT
-        lda     #PRESENTATION_MAP_LEVEL_START
-        lbsr    start_screen
-        lda     #1
-        rts
 pft_dispatch
         lda     <PRES_MODE
         beq     normal_tick
@@ -268,8 +208,8 @@ pft_dispatch
         lbeq    demo_tick
         endc
         endc
-        cmpa    #MODE_CREDIT
-        lbeq    credit_tick
+        cmpa    #MODE_PRESENTATION_UI
+        lbeq    presentation_ui_tick
         cmpa    #MODE_LEVEL
         lbeq    level_tick
         ifne    HIGHSCORE_TEST_PROFILE
@@ -382,9 +322,6 @@ normal_start
         lda     <PRES_EVENT
         bita    #1
         beq     normal_game
-        tst     <PRES_CREDITS
-        beq     normal_game
-        dec     <PRES_CREDITS
         lda     #1
         sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
@@ -458,13 +395,16 @@ start_screen_done
 load_tick
         ifne COMPLETE_PROFILE
         lda     <PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        cmpa    #PRESENTATION_MAP_ATTRACT
         beq     menu_load_event
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        beq     menu_load_discard_event
         cmpa    #PRESENTATION_MAP_OPTIONS
         blo     menu_load_continue
 menu_load_event
         tst     <$D0
         beq     menu_load_continue
+menu_runtime_dispatch
         lda     #$23
         sta     PAR5
         jsr     MENU_TICK
@@ -472,6 +412,8 @@ menu_load_event
         sta     PAR5
         lda     #1
         rts
+menu_load_discard_event
+        clr     <$D0
 menu_load_continue
         endc
         lda     PRES_HOLD_STATE
@@ -542,7 +484,6 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
-        lbsr    draw_coin_slots
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -636,6 +577,8 @@ load_done_normal
 load_timer_reset
         clr     PRES_TIMER
         clr     PRES_TIMER+1
+        clr     <PRES_IDLE_ORIGIN
+        clr     <PRES_IDLE_ORIGIN+1
         ifne    ATTRACT_OVERLAY_ENABLED
         ; Startup leaves page-$34 scratch untouched. Invalidate the BUG-081
         ; clock tag after PAR5 was restored to $34, before the logo can tick.
@@ -660,28 +603,6 @@ draw_cell_advance
         rts
 
 draw_tile_id equ PRES_MAIN_STATIC_TEXT
-
-draw_coin_slots
-        lda     <PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_HIGH_SCORE
-        bne     draw_coins_done
-        lda     <PRES_CREDITS
-        beq     draw_coins_done
-        sta     <PRES_COIN_COUNT
-        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
-        std     <PRES_IN
-draw_coin_next
-        bsr     cold_read_byte
-        sta     <PRES_DST
-        bsr     cold_read_byte
-        sta     <PRES_DST+1
-        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
-        ldx     <PRES_DST
-        jsr     PRESENTATION_MODULE_DRAW
-        dec     <PRES_COIN_COUNT
-        bne     draw_coin_next
-draw_coins_done
-        rts
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
 draw_raw_tile
@@ -749,9 +670,17 @@ attract_tick
         bne     hold
         clr     PRES_HOLD_STATE
 attract_tick_prepare
+        ifne    COMPLETE_PROFILE
+        tst     <$D0
+        beq     attract_tick_ready
+        lbra    menu_runtime_dispatch
+        endc
 attract_tick_ready
         bsr     timer
-        cmpd    #558
+        ifne    ATTRACT_OVERLAY_ENABLED
+        subd    <PRES_IDLE_ORIGIN
+        endc
+        cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
         ifne    ATTRACT_OVERLAY_ENABLED
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
@@ -796,7 +725,14 @@ instructions_runtime_return
         lda     #1
         rts
         endc
-credit_tick
+presentation_ui_tick
+        ifne    COMPLETE_PROFILE
+        lda     <PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_HIGH_SCORE
+        lbeq    menu_runtime_dispatch
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        lbhs    menu_runtime_dispatch
+        endc
         jmp     DEMO_RUNTIME_TICK
 level_tick
         bsr     timer
@@ -815,13 +751,13 @@ level_tick_demo_check
         endc
         tst     PENDING
         ifne    COMPLETE_PROFILE
-        bne     hold
+        lbne    hold
         else
         bne     hold
         endc
         tst     ACTIVE
         ifne    COMPLETE_PROFILE
-        bne     hold
+        lbne    hold
         else
         bne     hold
         endc
@@ -977,7 +913,8 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
-        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    install_highscore_runtime
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -989,7 +926,8 @@ demo_run
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
-        lda     #PRESENTATION_MAP_ATTRACT
+        lbsr    install_highscore_runtime
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -1015,7 +953,7 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -1027,7 +965,7 @@ demo_run
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -1293,17 +1231,12 @@ draw_name_done
 draw_entry_scores
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
-        lbsr    draw_score
+        lbsr    draw_score_value
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
-        ldd     ,x
-        std     PRES_TMP_H
-        ldd     2,x
-        std     PRES_TMP_L
-        ldx     #PRES_TMP_H
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
-        lbsr    draw_score
+        lbsr    draw_score_value
         rts
 
 draw_high_score_screen
@@ -1333,7 +1266,7 @@ draw_high_score_entry
         lbsr    draw_name_record
         puls    y
         ldx     PRES_NAME_PTR
-        lbsr    draw_score
+        lbsr    draw_score_value
         leax    7,x
         rts
 
@@ -1354,38 +1287,6 @@ draw_name_record_draw
         leay    4,y
         decb
         bne     draw_name_record_loop
-        rts
-
-draw_score
-        stx     PRES_NAME_PTR
-        lda     #3
-        sta     PRES_DIGIT
-draw_score_byte
-        ldx     PRES_NAME_PTR
-        lda     ,x+
-        stx     PRES_NAME_PTR
-        sta     PRES_VALUE
-        lsra
-        lsra
-        lsra
-        lsra
-        anda    #$0F
-        lbsr    draw_score_digit
-        lda     PRES_VALUE
-        anda    #$0F
-        lbsr    draw_score_digit
-        dec     PRES_DIGIT
-        bne     draw_score_byte
-        rts
-draw_score_digit
-        tfr     a,b
-        ldx     #score_glyphs
-        abx
-        ldb     ,x
-        pshs    y
-        jsr    draw_tile_id
-        puls    y
-        leay    4,y
         rts
 
 name_capture_initial
@@ -1489,13 +1390,6 @@ name_draw_cursor
         jsr     PRESENTATION_MODULE_DRAW
         rts
 
-score_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
-
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE
@@ -1590,11 +1484,11 @@ scan_loop
         ifne    INPUT_JOYSTICK
         anda    #$7F            ; retain the opt-in joystick control build
         else
-        anda    #$10            ; number row only: arrows share columns 5/6
+        anda    #$10            ; preserve only the fixed Return/start key event
         endc
         else
         ifeq    INPUT_JOYSTICK
-        anda    #$10            ; keyboard directions must not create credits
+        anda    #$10            ; preserve only the fixed Return/start key event
         endc
         endc
         pshs    a
@@ -1734,9 +1628,9 @@ map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_5
 screen_modes
         ifne    BUG011_DEVELOPMENT_PROFILE
-        fcb MODE_ATTRACT,MODE_INSTRUCTIONS,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        fcb MODE_ATTRACT,MODE_INSTRUCTIONS,MODE_LEVEL,MODE_PRESENTATION_UI,MODE_GAMEOVER,MODE_NAME
         else
-        fcb MODE_ATTRACT,MODE_LEVEL,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        fcb MODE_ATTRACT,MODE_LEVEL,MODE_LEVEL,MODE_PRESENTATION_UI,MODE_GAMEOVER,MODE_NAME
         endc
 scan_drives
         fcb $FD,$DF,$BF
@@ -1748,7 +1642,6 @@ PRES_MAGIC equ $00A4
 PRES_MODE equ $00A5
 PRES_SCREEN equ $00A6
 PRES_CONTEXT equ $00A7
-PRES_CREDITS equ $00A8
 PRES_EVENT equ $00A9
 PRES_CELL equ $00AA
 PRES_X equ $00AC
@@ -1768,7 +1661,6 @@ PRES_RUN equ $00BB
 PRES_VALUE equ $00BC
         endc
 PRES_MAPS equ $00BD
-PRES_COIN_COUNT equ $00BE
 PRES_SCORE_H equ $00BF
 PRES_SCORE_M equ $00C0
 PRES_SCORE_L equ $00C1
@@ -1780,8 +1672,7 @@ PRES_ROWS equ $00C6
 PRES_INSERT equ $00C9
 PRES_PHASE equ $00CA
 PRES_NAME_LEN equ $00CB
-PRES_ACTOR_X equ $00CC
-PRES_ACTOR_Y equ $00CD
+PRES_IDLE_ORIGIN equ $00CC
 PRES_ACTOR_FRAME equ $00CE
 PRES_HIGHLIGHT equ $00CF
 PRES_ACTOR_KIND equ $00D0
@@ -1821,6 +1712,63 @@ PRES_CURSOR_SAVE_B equ $A610
 PRES_NAME_CL equ $FE
 PRES_NAME_END equ $FD
 
+; Shared by the Attract ranking refresh and post-game name-entry painters.
+draw_score_value
+        pshs    u
+        clr     PRES_TMP_M
+        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
+        sta     PRES_TMP_H
+draw_score_value_byte
+        lda     #$34
+        sta     PAR5
+        lda     ,x+
+        sta     PRES_TMP_L
+        lsra
+        lsra
+        lsra
+        lsra
+        anda    #$0F
+        bsr     draw_score_value_digit
+        lda     PRES_TMP_L
+        anda    #$0F
+        bsr     draw_score_value_digit
+        dec     PRES_TMP_H
+        bne     draw_score_value_byte
+        tst     PRES_TMP_M
+        bne     draw_score_value_done
+        leay    -4,y
+        inc     PRES_TMP_M
+        clra
+        bsr     draw_score_value_digit
+draw_score_value_done
+        puls    u
+        rts
+draw_score_value_digit
+        tst     PRES_TMP_M
+        bne     draw_score_value_numeric
+        tsta
+        bne     draw_score_value_start
+        ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
+        bra     draw_score_value_draw
+draw_score_value_start
+        inc     PRES_TMP_M
+draw_score_value_numeric
+        tfr     a,b
+        ldu     #score_value_glyphs
+        ldb     b,u
+draw_score_value_draw
+        pshs    b,x,y
+        jsr     PRES_MAIN_DYNAMIC_TEXT ; B is a dynamic glyph/blank descriptor ID.
+        puls    b,x,y
+        leay    4,y
+        rts
+score_value_glyphs
+        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
+        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
+        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
+        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
+        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
+
 presentation_module_end
 
         else
@@ -1855,14 +1803,12 @@ presentation_module_end
 ; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
 ; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
 ; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
-; DOC-002 source-contract mirror contract add_credit profile=presentation: Add credit.
 ; DOC-002 source-contract mirror contract cold_ptr profile=copy: Resolve a pointer into the currently mapped presentation cold payload.
 ; DOC-002 source-contract mirror contract cold_read_byte profile=copy: Read one byte from the presentation cold payload while preserving mapping ownership.
 ; DOC-002 source-contract mirror contract colour_surface profile=render: Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.
 ; DOC-002 source-contract mirror contract colour_tile profile=render: Replace every nonzero packed pixel pair in one selected 8-by-8 instruction tile.
 ; DOC-002 source-contract mirror contract draw_actor_overlay profile=render: Draw the selected presentation actor stream into the current presentation destination.
 ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
-; DOC-002 source-contract mirror contract draw_coin_slots profile=render: Draw coin slots.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Initialize gameplay.
@@ -1941,7 +1887,7 @@ MODE_LOAD equ 1
 MODE_ATTRACT equ 2
 MODE_INSTRUCTIONS equ 3
 MODE_DEMO equ 4
-MODE_CREDIT equ 5
+MODE_PRESENTATION_UI equ 5
 MODE_LEVEL equ 6
 MODE_GAMEOVER equ 7
 MODE_NAME equ 8
@@ -1974,7 +1920,6 @@ pft_helper_ready
         lda     #$A5
         sta     PRES_MAGIC
         clr     PRES_MODE
-        clr     <PRES_CREDITS
         clr     PRES_CONTEXT
         clr     PRES_DEMO_CAUSE
         clr     PRES_DEMO_ROUTE
@@ -1991,36 +1936,6 @@ pft_ready
         ifne    HIGHSCORE_TEST_PROFILE
         lbra    pft_dispatch
         endc
-        lda     PRES_EVENT
-        anda    #$06
-        beq     pft_mode
-        lbsr    add_credit
-        ifne    COMPLETE_PROFILE
-        ; Credit input can pre-empt any auxiliary owner, including cold load.
-        bsr     install_highscore_runtime
-        endc
-        lda     #PRESENTATION_MAP_HIGH_SCORE
-        clr     PENDING
-        lbsr    start_screen
-        lda     #1
-        rts
-pft_mode
-        lda     PRES_EVENT
-        bita    #1
-        beq     pft_dispatch
-        tst     <PRES_CREDITS
-        beq     pft_dispatch
-        lda     <PRES_MODE
-        beq     pft_dispatch
-        cmpa    #MODE_LEVEL
-        beq     pft_dispatch
-        dec     <PRES_CREDITS
-        lda     #1
-        sta     <PRES_CONTEXT
-        lda     #PRESENTATION_MAP_LEVEL_START
-        lbsr    start_screen
-        lda     #1
-        rts
 pft_dispatch
         lda     <PRES_MODE
         beq     normal_tick
@@ -2041,8 +1956,8 @@ pft_dispatch
         lbeq    demo_tick
         endc
         endc
-        cmpa    #MODE_CREDIT
-        lbeq    credit_tick
+        cmpa    #MODE_PRESENTATION_UI
+        lbeq    presentation_ui_tick
         cmpa    #MODE_LEVEL
         lbeq    level_tick
         ifne    HIGHSCORE_TEST_PROFILE
@@ -2158,9 +2073,6 @@ normal_start
         lda     PRES_EVENT
         bita    #1
         beq     normal_game
-        tst     PRES_CREDITS
-        beq     normal_game
-        dec     PRES_CREDITS
         lda     #1
         sta     PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
@@ -2271,7 +2183,6 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
-        lbsr    draw_coin_slots
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -2360,6 +2271,8 @@ load_done_normal
 load_timer_reset
         clr     PRES_TIMER
         clr     PRES_TIMER+1
+        clr     <PRES_IDLE_ORIGIN
+        clr     <PRES_IDLE_ORIGIN+1
         ifne    HIGHSCORE_TEST_PROFILE
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
@@ -2409,28 +2322,6 @@ draw_cold_tile
         tfr     y,x
         tfr     u,y
         jsr     BLIT_TILE
-        rts
-
-draw_coin_slots
-        ldb     PRES_SCREEN
-        cmpb    #PRESENTATION_MAP_HIGH_SCORE
-        bne     draw_coins_done
-        lda     <PRES_CREDITS
-        beq     draw_coins_done
-        sta     PRES_COIN_COUNT
-        ldd     #PRESENTATION_COIN_DESTINATION_TABLE
-        std     PRES_IN
-draw_coin_next
-        bsr     cold_read_byte
-        sta     PRES_DST
-        bsr     cold_read_byte
-        sta     PRES_DST+1
-        ldu     #PRESENTATION_COIN_SPARSE_ADDRESS
-        ldx     PRES_DST
-        jsr     PRESENTATION_MODULE_DRAW
-        dec     PRES_COIN_COUNT
-        bne     draw_coin_next
-draw_coins_done
         rts
 
 ; Return X as a CPU pointer into the cold physical page selected by D.
@@ -2502,7 +2393,7 @@ attract_tick_prepare
 attract_tick_ready
         lbsr    timer
         ldd     PRES_TIMER
-        cmpd    #558
+        cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
         ifne    ATTRACT_OVERLAY_ENABLED
         jsr     PRESENTATION_ATTRACT_OVERLAY
@@ -2542,7 +2433,7 @@ instructions_runtime_return
         lda     #1
         rts
         endc
-credit_tick
+presentation_ui_tick
         bra     hold
 level_tick
         lbsr    timer
@@ -2726,7 +2617,7 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -2738,7 +2629,7 @@ demo_run
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -2764,7 +2655,7 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -2776,7 +2667,7 @@ demo_run
         ldd     PRES_TIMER
         cmpd    #3600
         blo     demo_return
-        lda     #PRESENTATION_MAP_ATTRACT
+        lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
@@ -2803,15 +2694,6 @@ name_tick
         endc
         endc
         endc
-add_credit
-        lda     <PRES_CREDITS
-        cmpa    #PRESENTATION_COIN_SLOT_COUNT
-        bhs     add_coin
-        inca
-        sta     <PRES_CREDITS
-add_coin
-        rts
-
         ifne    0
 init_high_scores
         lda     #$34
@@ -3051,17 +2933,12 @@ draw_name_done
 draw_entry_scores
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
-        lbsr    draw_score
+        lbsr    draw_score_value
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
-        ldd     ,x
-        std     PRES_TMP_H
-        ldd     2,x
-        std     PRES_TMP_L
-        ldx     #PRES_TMP_H
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
-        lbsr    draw_score
+        lbsr    draw_score_value
         rts
 
 draw_high_score_screen
@@ -3091,7 +2968,7 @@ draw_high_score_entry
         lbsr    draw_name_record
         puls    y
         ldx     PRES_NAME_PTR
-        lbsr    draw_score
+        lbsr    draw_score_value
         leax    7,x
         rts
 
@@ -3112,38 +2989,6 @@ draw_name_record_draw
         leay    4,y
         decb
         bne     draw_name_record_loop
-        rts
-
-draw_score
-        stx     PRES_NAME_PTR
-        lda     #3
-        sta     PRES_DIGIT
-draw_score_byte
-        ldx     PRES_NAME_PTR
-        lda     ,x+
-        stx     PRES_NAME_PTR
-        sta     PRES_VALUE
-        lsra
-        lsra
-        lsra
-        lsra
-        anda    #$0F
-        lbsr    draw_score_digit
-        lda     PRES_VALUE
-        anda    #$0F
-        lbsr    draw_score_digit
-        dec     PRES_DIGIT
-        bne     draw_score_byte
-        rts
-draw_score_digit
-        tfr     a,b
-        ldx     #score_glyphs
-        abx
-        ldb     ,x
-        pshs    y
-        lbsr    draw_tile_id
-        puls    y
-        leay    4,y
         rts
 
 name_capture_initial
@@ -3247,13 +3092,6 @@ name_draw_cursor
         jsr     PRESENTATION_MODULE_DRAW
         rts
 
-score_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
-
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE
@@ -3340,11 +3178,11 @@ scan_loop
         ifne    INPUT_JOYSTICK
         anda    #$7F            ; retain the opt-in joystick control build
         else
-        anda    #$10            ; number row only: arrows share columns 5/6
+        anda    #$10            ; preserve only the fixed Return/start key event
         endc
         else
         ifeq    INPUT_JOYSTICK
-        anda    #$10            ; keyboard directions must not create credits
+        anda    #$10            ; preserve only the fixed Return/start key event
         endc
         endc
         pshs    a
@@ -3489,9 +3327,9 @@ map_stream_offsets
         fdb PRESENTATION_MAP_STREAM_5
 screen_modes
         ifne    BUG011_DEVELOPMENT_PROFILE
-        fcb MODE_ATTRACT,MODE_INSTRUCTIONS,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        fcb MODE_ATTRACT,MODE_INSTRUCTIONS,MODE_LEVEL,MODE_PRESENTATION_UI,MODE_GAMEOVER,MODE_NAME
         else
-        fcb MODE_ATTRACT,MODE_LEVEL,MODE_LEVEL,MODE_CREDIT,MODE_GAMEOVER,MODE_NAME
+        fcb MODE_ATTRACT,MODE_LEVEL,MODE_LEVEL,MODE_PRESENTATION_UI,MODE_GAMEOVER,MODE_NAME
         endc
 scan_drives
         fcb $FD,$DF,$BF
@@ -3503,7 +3341,6 @@ PRES_MAGIC equ $00A4
 PRES_MODE equ $00A5
 PRES_SCREEN equ $00A6
 PRES_CONTEXT equ $00A7
-PRES_CREDITS equ $00A8
 PRES_EVENT equ $00A9
 PRES_CELL equ $00AA
 PRES_X equ $00AC
@@ -3523,7 +3360,6 @@ PRES_RUN equ $00BB
 PRES_VALUE equ $00BC
         endc
 PRES_MAPS equ $00BD
-PRES_COIN_COUNT equ $00BE
 PRES_SCORE_H equ $00BF
 PRES_SCORE_M equ $00C0
 PRES_SCORE_L equ $00C1
@@ -3535,8 +3371,7 @@ PRES_ROWS equ $00C6
 PRES_INSERT equ $00C9
 PRES_PHASE equ $00CA
 PRES_NAME_LEN equ $00CB
-PRES_ACTOR_X equ $00CC
-PRES_ACTOR_Y equ $00CD
+PRES_IDLE_ORIGIN equ $00CC
 PRES_ACTOR_FRAME equ $00CE
 PRES_HIGHLIGHT equ $00CF
 PRES_ACTOR_KIND equ $00D0
