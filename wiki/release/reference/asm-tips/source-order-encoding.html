@@ -1,0 +1,142 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Source order and instruction encoding — Ladybug</title>
+  <link rel="stylesheet" href="../../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../../index.html">Wiki home</a>
+    <a href="../index.html">Reference</a>
+    <a href="./index.html">Assembly tips</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Assembly tips · source organization</p>
+      <h1>Source order and instruction encoding <span class="wiki-badge">release</span></h1>
+      <p class="wiki-meta">Define state before use, make encoding requirements explicit, and verify the emitted program.</p>
+    </header>
+
+    <section id="definitions-first">
+      <h2>Define state before the instructions that use it</h2>
+      <p>Place fixed addresses and record-field constants before their first use.
+        A small shared include is appropriate when several modules use the same
+        definitions. Keep profile-dependent definitions inside the correct
+        conditional context and after the configuration symbols they depend on.
+        Keep one authoritative definition for each shared address.</p>
+      <p>This organization makes dependencies visible and lets the assembler
+        choose an encoding from an already-known value. A forward reference is
+        a symbol used before its definition; even when its final value is small,
+        the assembler may reserve a larger encoding.</p>
+<pre><code>STATE_SCREEN equ $00A6       ; resolved before the instruction
+
+        setdp $00           ; assembler assumption
+        clra
+        tfr   a,dp          ; CPU state: DP = $00
+        lda   STATE_SCREEN
+</code></pre>
+      <p>This example establishes DP locally for illustration. A real module
+        should obey its caller's documented <a href="./dp-conventions.html">DP
+        contract</a>; inserting new DP changes requires reviewing callers and
+        interrupt handlers.</p>
+    </section>
+
+    <section id="forward-references">
+      <h2>Know the assembler's forward-reference policy</h2>
+      <p>LWASM's <code>forwardrefmax</code> pragma selects the maximum address or
+        offset size for unresolved forward references unless an operand prefix
+        explicitly selects a size. The LWTOOLS manual documents it as the
+        default since version 4.14. Consequently, a later definition in page
+        zero does not necessarily cause an earlier instruction to shrink.</p>
+      <p><code>SETDP $00</code> describes the page the assembler may assume.
+        It neither sets the CPU's DP register nor overrides
+        <code>forwardrefmax</code>. Disabling that policy with
+        <code>noforwardrefmax</code> is a broader assembly-policy change: it can
+        alter other inferred address and offset sizes. Review its complete
+        output rather than using it as an unmeasured size fix.</p>
+    </section>
+
+    <section id="explicit-encoding">
+      <h2>Make required encodings explicit</h2>
+      <p>Use <code>&lt;</code> on a memory operand when direct-page encoding is
+        an intentional requirement. Use <code>&gt;</code> when extended
+        encoding is required. The prefixes override automatic size selection;
+        they do not establish the runtime DP value.</p>
+<pre><code>        lda   &lt;STATE_SCREEN ; direct encoding:   96 A6
+        lda   &gt;STATE_SCREEN ; extended encoding: B6 00 A6
+</code></pre>
+      <p>These hexadecimal bytes are the specified 6809 LDA encodings for
+        <code>STATE_SCREEN=$00A6</code>, not a measured project build. With
+        <code>DP=$00</code>, both load the same byte and have the same register
+        and condition-code behavior. The direct form uses two instruction
+        bytes instead of three. With another DP value, the direct form accesses
+        a different address; the extended form still accesses $00A6.</p>
+      <p>Check each instruction's opcode, prefixes, width and timing. A prefixed
+        instruction such as LDY retains its opcode prefix when changing address
+        mode. A one-byte encoding saving does not establish a whole-frame
+        performance improvement. See <a href="../6809/lda.html">LDA</a>,
+        <a href="../6809/ldy.html">LDY</a> and
+        <a href="./hot-loops.html">hot loops and code size</a>.</p>
+    </section>
+
+    <section id="maintenance-versus-recovery">
+      <h2>Separate source cleanup from bounded size recovery</h2>
+      <p>For long-term maintenance, define constants before use and document
+        direct-page requirements where they matter. Moving a definition block
+        earlier can improve readability and remove unnecessary forward
+        references, but it may shorten every affected use, not only a selected
+        instruction. Check conditional definitions, include dependencies and
+        the complete changed listing.</p>
+      <p>For a narrowly scoped recovery, an audited allowlist of explicit
+        direct operands gives a smaller review surface. Retain the routine,
+        operation, target address, previous bytes and expected replacement for
+        each site. Apply the change by source context; addresses and line
+        numbers from an older listing may move. Keep broader reorganization
+        separate from that repair.</p>
+    </section>
+
+    <section id="verification">
+      <h2>Verify the program that was emitted</h2>
+      <ol>
+        <li>Record source, profile, assembler options and baseline listing or
+          artifact identities before editing.</li>
+        <li>Prove the operand resolves to the intended page in every affected
+          profile. Establish the runtime DP precondition on all relevant
+          callers, interrupt paths and returns. Assembler directives alone
+          are insufficient.</li>
+        <li>Assemble with a listing. Compare actual opcodes, address widths,
+          effective addresses and retained prefixes at each changed site;
+          inspect additional encoding changes caused by moved definitions.</li>
+        <li>Review relocated branches, calls, PC-relative operands, fixed entry
+          points, copied code and generated symbol consumers. Smaller code
+          moves labels; absolute entry contracts and copy boundaries still
+          have to hold.</li>
+        <li>Run the existing build and capacity guards for the affected
+          profiles. Measure final region sizes and remaining space; projected
+          byte savings are not a successful build.</li>
+        <li>Use focused behavior or runtime checks for the identified risks.
+          Verify changed timing where exact cycles matter. When interpreting
+          banked or copied code, establish live-byte and mapping identity
+          before using a source symbol as evidence.</li>
+      </ol>
+      <p>Encoding equivalence requires the same effective address and operation;
+        instruction lengths and timings can differ. Reaching a smaller binary
+        size alone does not establish behavioral or timing equivalence.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Sources: LWTOOLS manual, LWASM <code>SETDP</code>, operand-size prefixes
+        and <code>forwardrefmax</code> documentation, checked 2026-10-15 against
+        the installed manual source <code>~/coco-tools/lwtools/docs/manual.docbook.sgml</code>;
+        <a href="https://www.lwtools.ca/manual/manual.html">official LWTOOLS manual</a>.
+        See also <a href="./dp-conventions.html">DP conventions</a> and the
+        linked 6809 instruction reference. This page records maintenance
+        guidance; it makes no claim that a project recovery has assembled or passed.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
