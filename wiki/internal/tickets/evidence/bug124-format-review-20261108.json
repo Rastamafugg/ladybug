@@ -1,0 +1,89 @@
+{
+  "schema": 1,
+  "ticket": "BUG-124",
+  "date": "2026-11-08",
+  "status": "verification_passed",
+  "classification": "Compact",
+  "executor": "/root/bug124_map_ids",
+  "review": {
+    "confirmed_cause": "Tiled formatted each existing connector object over multiple lines; generator --check compares entire source bytes with prepare_map output, whose generated connector objects are serialized onto one line each. The ordered XML tags, attributes and meaningful text are identical.",
+    "selected_solution": "Reuse unchanged generator --write once to canonicalize only EXTRA Life Connectors; preserve two approved ID substitutions and all other bytes.",
+    "rejected_alternatives": [
+      "Changing generator/test byte-comparison rules was outside approved scope and unnecessary",
+      "Whole-map serialization would touch authored content outside the generated group"
+    ]
+  },
+  "source_path": "tiled/coco-extra-screen.tmx",
+  "metadata_fixed_before_sha256": "efcbf166baeedf8d6bcedf58716fa009f7ae518f06d1deaf9ab62a6bec5775f5",
+  "after_sha256": "be255b48e58ab569565372d5b4eed14ff49774dbe30891189a42b42f6292349b",
+  "parent_qualified_positive_sha256": "be255b48e58ab569565372d5b4eed14ff49774dbe30891189a42b42f6292349b",
+  "matches_parent_qualified_positive": true,
+  "bytes_before": 20310,
+  "bytes_after": 20189,
+  "preservation_checks": {
+    "exactly_one_connector_group": true,
+    "outside_group_bytes_preserved": true,
+    "ordered_connector_semantics_preserved": true,
+    "unique_top_level_ids": true,
+    "nextlayerid_above_existing_ids": true,
+    "metadata_repair_retained": true,
+    "generator_and_tests_unchanged": true,
+    "initial_failed_evidence_unchanged": true
+  },
+  "unchanged_tool_hashes": {
+    "scripts/generate_feat011_extra_connectors.py": "af4cc576b10260087df32a1a938bb0cae4516d949dbe2622934572c9375bd60c",
+    "scripts/test_feat011_extra_connectors.py": "b75222829f42c51c9c7cbf3c08aa21b705a4cdd67f8dcd3e7785d2e0eab2a6e5"
+  },
+  "initial_failed_evidence_sha256": "7fae02d4c182ed03ea39c5a0386d104c29f6f4635a7c0deafcdcd8fe7230aae7",
+  "commands": [
+    {
+      "argv": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "scripts/generate_feat011_extra_connectors.py",
+        "--map",
+        "tiled/coco-extra-screen.tmx",
+        "--write"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.299184,
+      "stdout": "wrote tiled\\coco-extra-screen.tmx: only the EXTRA Life Connectors group was generated\n",
+      "stderr": ""
+    },
+    {
+      "argv": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "scripts/test_feat011_extra_connectors.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 2.241686,
+      "stdout": "",
+      "stderr": ".......\n----------------------------------------------------------------------\nRan 7 tests in 0.006s\n\nOK\n"
+    },
+    {
+      "argv": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "scripts/generate_feat011_extra_connectors.py",
+        "--map",
+        "tiled/coco-extra-screen.tmx",
+        "--check"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.169425,
+      "stdout": "FEAT-011 connectors match the authored route and marker contract\n",
+      "stderr": ""
+    }
+  ],
+  "entire_phase_elapsed_seconds": 2.718139,
+  "entire_phase_maximum_seconds": 30,
+  "patch_from_metadata_fixed_map": "--- a/tiled/coco-extra-screen.tmx\n+++ b/tiled/coco-extra-screen.tmx\n@@ -215,41 +215,17 @@\n   </object>\r\n  </objectgroup>\r\n  <objectgroup id=\"8\" name=\"EXTRA Life Connectors\">\r\n-  <object id=\"1001\" name=\"slot-00\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,176 272,176\"/>\r\n-  </object>\r\n-  <object id=\"1002\" name=\"slot-01\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,176 288,176\"/>\r\n-  </object>\r\n-  <object id=\"1003\" name=\"slot-02\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,176 304,176\"/>\r\n-  </object>\r\n-  <object id=\"1004\" name=\"slot-03\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,160 272,160\"/>\r\n-  </object>\r\n-  <object id=\"1005\" name=\"slot-04\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,160 288,160\"/>\r\n-  </object>\r\n-  <object id=\"1006\" name=\"slot-05\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,160 304,160\"/>\r\n-  </object>\r\n-  <object id=\"1007\" name=\"slot-06\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,144 272,144\"/>\r\n-  </object>\r\n-  <object id=\"1008\" name=\"slot-07\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,144 288,144\"/>\r\n-  </object>\r\n-  <object id=\"1009\" name=\"slot-08\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,144 304,144\"/>\r\n-  </object>\r\n-  <object id=\"1010\" name=\"slot-09\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,128 272,128\"/>\r\n-  </object>\r\n-  <object id=\"1011\" name=\"slot-10\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,128 288,128\"/>\r\n-  </object>\r\n-  <object id=\"1012\" name=\"slot-11\" x=\"0\" y=\"0\">\r\n-   <polyline points=\"240,88 240,128 304,128\"/>\r\n-  </object>\r\n- </objectgroup>\r\n+ <object id=\"1001\" name=\"slot-00\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,176 272,176\"/></object>\r\n+ <object id=\"1002\" name=\"slot-01\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,176 288,176\"/></object>\r\n+ <object id=\"1003\" name=\"slot-02\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,176 304,176\"/></object>\r\n+ <object id=\"1004\" name=\"slot-03\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,160 272,160\"/></object>\r\n+ <object id=\"1005\" name=\"slot-04\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,160 288,160\"/></object>\r\n+ <object id=\"1006\" name=\"slot-05\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,160 304,160\"/></object>\r\n+ <object id=\"1007\" name=\"slot-06\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,144 272,144\"/></object>\r\n+ <object id=\"1008\" name=\"slot-07\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,144 288,144\"/></object>\r\n+ <object id=\"1009\" name=\"slot-08\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,144 304,144\"/></object>\r\n+ <object id=\"1010\" name=\"slot-09\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,128 272,128\"/></object>\r\n+ <object id=\"1011\" name=\"slot-10\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,128 288,128\"/></object>\r\n+ <object id=\"1012\" name=\"slot-11\" x=\"0\" y=\"0\"><polyline points=\"240,88 240,128 304,128\"/></object>\r\n+</objectgroup>\r\n </map>\r\n",
+  "capacity_headroom": "No runtime code/data allocation changed or measured; no ROM build performed",
+  "commit": null,
+  "commit_owner": "parent integration after pre-repair FEAT-011 checkpoint",
+  "residual_risks": [
+    "A later Tiled save may reformat generated connector XML; existing --check will report serialization drift. No editor-integration or formatting policy change is included.",
+    "Broader FEAT-011 readiness and game acceptance remain separate."
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "schema": 1,
+  "ticket": "BUG-124",
+  "date": "2026-11-08",
+  "status": "verification_incomplete",
+  "classification": "Compact",
+  "executor": "/root/bug124_map_ids",
+  "source_path": "tiled/coco-extra-screen.tmx",
+  "before_sha256": "cfe2e87f2f61bbf76b40b9e6600202e514745d64ffee01f984d2d89d6944b97d",
+  "after_sha256": "efcbf166baeedf8d6bcedf58716fa009f7ae518f06d1deaf9ab62a6bec5775f5",
+  "source_bytes_before": 20309,
+  "source_bytes_after": 20310,
+  "approved_delta": {
+    "Sprite Locations layer id": [
+      8,
+      9
+    ],
+    "map nextlayerid": [
+      9,
+      10
+    ]
+  },
+  "preservation_checks": {
+    "exact_two_substitution_bytes": true,
+    "unique_top_level_ids": true,
+    "nextlayerid_above_existing_ids": true,
+    "line_endings_preserved": true
+  },
+  "top_level_ids_after": [
+    1,
+    2,
+    4,
+    5,
+    9,
+    3,
+    7,
+    6,
+    8
+  ],
+  "commands": [
+    {
+      "argv": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "scripts/test_feat011_extra_connectors.py"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 0.241962,
+      "stdout": "",
+      "stderr": ".......\n----------------------------------------------------------------------\nRan 7 tests in 0.005s\n\nOK\n"
+    },
+    {
+      "argv": [
+        "C:\\Python314\\python.exe",
+        "-B",
+        "scripts/generate_feat011_extra_connectors.py",
+        "--map",
+        "tiled/coco-extra-screen.tmx",
+        "--check"
+      ],
+      "exit_code": 1,
+      "elapsed_seconds": 1.155094,
+      "stdout": "",
+      "stderr": "FEAT-011 connectors are absent or differ from the map oracle\n"
+    }
+  ],
+  "entire_phase_elapsed_seconds": 1.404808,
+  "entire_phase_maximum_seconds": 30,
+  "parent_baseline_qualification": {
+    "defective_fixture": "setUpClass rejected ID collision; zero tests executed",
+    "positive_fixture": "seven unchanged tests passed in external two-substitution fixture",
+    "qualified_positive_sha256": "efcbf166baeedf8d6bcedf58716fa009f7ae518f06d1deaf9ab62a6bec5775f5"
+  },
+  "patch": "--- a/tiled/coco-extra-screen.tmx\n+++ b/tiled/coco-extra-screen.tmx\n@@ -1,5 +1,5 @@\n <?xml version=\"1.0\" encoding=\"UTF-8\"?>\r\n-<map version=\"1.10\" tiledversion=\"1.12.2\" orientation=\"orthogonal\" renderorder=\"right-down\" width=\"40\" height=\"24\" tilewidth=\"8\" tileheight=\"8\" infinite=\"0\" nextlayerid=\"9\" nextobjectid=\"3\">\r\n+<map version=\"1.10\" tiledversion=\"1.12.2\" orientation=\"orthogonal\" renderorder=\"right-down\" width=\"40\" height=\"24\" tilewidth=\"8\" tileheight=\"8\" infinite=\"0\" nextlayerid=\"10\" nextobjectid=\"3\">\r\n  <properties>\r\n   <property name=\"adaptation\" value=\"Arcade event scene rows 2-25 centered at CoCo columns 8-31; side HUD and maze border reuse tiled/coco-screen.tmx layers.\"/>\r\n   <property name=\"arcade-reference\" value=\"MAME 0.220 ladybug frame 899 (EXTRA event +200)\"/>\r\n@@ -125,7 +125,7 @@\n 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0\r\n </data>\r\n  </layer>\r\n- <layer id=\"8\" name=\"Sprite Locations\" width=\"40\" height=\"24\">\r\n+ <layer id=\"9\" name=\"Sprite Locations\" width=\"40\" height=\"24\">\r\n   <data encoding=\"csv\">\r\n 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\r\n 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,\r\n",
+  "production_scope": "authoring identifiers only; cells, names, geometry, metadata outside these attributes, generator and tests unchanged",
+  "capacity_headroom": "No runtime code/data allocation changed or measured; no ROM build performed",
+  "commit": null,
+  "commit_owner": "parent integration after pre-repair FEAT-011 checkpoint",
+  "rejected_experiments": [],
+  "residual_risks": [
+    "First failed check retained; no broader correction or retry authorized"
+  ]
+}
