@@ -1,0 +1,32 @@
+BUG-120 isolated-fit assignment report
+Date: 2026-10-14
+Classification: High-risk
+Status: Candidate implemented; first complete-profile fit failed the resident hard limit. No root integration, canonical ticket update, runtime test, or commit was performed.
+
+Candidate scope
+- Capsule-only changes: scripts/build_presentation.py, scripts/verify_presentation.py, src/main.s, src/shared_text_stage.inc, src/shared_text_ranking.inc.
+- Producer and independent oracle generate/check the reciprocal 576-byte graph, exact six-pixel hazard bits derived from wall pixels and all 16 compiled player frames, all 45 selectable actions, and stationary/straight/admitted-snap clearances.
+- Name callbacks use TEST_X/Y, retain the full graph byte in B, restore PAR5=$34, and preserve the existing cold-pointer call path. The shared late-turn routine does not change PLAYER_FACE and retains old-axis/no-exit behavior.
+
+Static verification
+`python -B scripts/verify_presentation.py --name-entry-static` passed after the final source edits:
+291 reachable cells; 45 actions; 4,656 stationary poses; 54,400 straight poses; 14,400 admitted-turn poses; 100 unsafe six-pixel sweeps. Producer and independent geometry masks match byte-for-byte.
+
+First-profile build
+Command: LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build
+Working directory: repro/bug120-fit-20261013/capsule
+The completed source assembly reached the resident hard-capacity guard, which measured $E010 against the $E000 limit: 16 bytes over. This is an actual hard-capacity miss, so no further profile builds were run. The presentation geometry build oracle and final copied-name/helper/enemy/profile capacity summary were not reached. The projected copied-name 924-byte figure remains a projection and was not measured.
+
+Other checks reached before the resident miss: all nine BUG-016 screen pixel proofs passed with zero differences; adaptive mapped 198/220 bytes (22 free), adaptive banked 696/698 (2 free); presentation cold payload 14,313 bytes, SHA-256 d085e3389ee824167e47a8c6089bca8af627025208b985603b047cc5c9cc7b35; audio engine 727/920 bytes and page-$3D payload 6,034/8,192 bytes. These are intermediate module/payload measurements, not final resident/name-entry fit results.
+
+Rejected build experiments
+1. First assembler invocation rejected undefined DIR_N/DIR_E/DIR_S references; the allowed main source defines DIR_NORTH/DIR_EAST/DIR_SOUTH. Replaced with those existing symbols.
+2. The next assembler invocation rejected four short conditional branches as out of range. Re-encoded only those branches as long conditional branches. The later normal build assembled and produced the measured resident miss above.
+
+Input integrity and retained artifacts
+The frozen 266-input manifest audit found changes only in the five allowed capsule files; there were no changed or missing non-allowed inputs. The patch is relative to root files whose hashes matched the frozen manifest at report time. Evidence and candidate files:
+- bug120-fit.patch
+- first-profile-build-attempt-20261014.txt
+- capsule/build/ generated outputs and build logs
+
+No ticket can move to Done: the required resident-capacity target failed, and full geometry build verification plus remaining profiles/integration/runtime checks are outstanding. Parent owns any subsequent optimization, integration, and ticket update.
