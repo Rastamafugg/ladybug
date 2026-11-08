@@ -8,7 +8,6 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract audio_admit profile=audio: Audio admit.
 ; DOC-002 source-contract mirror contract audio_advance_all profile=audio: Audio advance all.
 ; DOC-002 source-contract mirror contract audio_advance_slot profile=audio: Audio advance slot.
-; DOC-002 source-contract mirror contract audio_credit_service profile=audio: Audio credit service.
 ; DOC-002 source-contract mirror contract audio_drain_busy profile=audio: Audio drain busy.
 ; DOC-002 source-contract mirror contract audio_enqueue_impl profile=audio: Audio enqueue impl.
 ; DOC-002 source-contract mirror contract audio_mix profile=audio: Audio mix.
@@ -70,7 +69,6 @@ AUDIO_GUARD_RAM equ $02C0
 ; @audit {"id":"audio-music-published-busy","kind":"scratch","symbol":"AUDIO_MUSIC_PUBLISHED_BUSY","width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Retained post-PSG status after boot retirement; entry state consumes the latest published snapshot.","initialization":"audio_init_impl after queue and slot reset, before AUDIO_INSTALLED","clobbers":"Audio rewrites after each PSG publication; readers consume only the last completed publication."}
 AUDIO_MUSIC_PUBLISHED_BUSY equ $02D4
 AUDIO_LAST_MODE equ $02DC
-AUDIO_CREDIT_PENDING equ $02DD
 ; @audit {"id":"audio-service-gateway","kind":"scratch","symbol":"AUDIO_SERVICE_GATEWAY","width":18,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"audio runtime","lifetime":"Installed only after boot_streams_retired; boot descriptors share these addresses in the boot phase.","initialization":"audio_init_impl","clobbers":"Audio owns this storage after initialization; no boot descriptor consumers remain."}
 AUDIO_SERVICE_GATEWAY equ $02DE
 AUDIO_SERVICE_RETURN equ $02EC
@@ -129,7 +127,6 @@ audio_poll_done
         lbsr    audio_process_queue
         jsr     audio_music_dispatch
         lbsr    audio_advance_all
-        lbsr    audio_credit_service
         jsr     audio_mix
         jsr     audio_mix_write
         lda     #$68
@@ -144,7 +141,6 @@ audio_init_impl
         clr     audio_music_count
         clr     audio_name_valid
         clr     audio_stop_pending
-        clr     AUDIO_CREDIT_PENDING
         lda     #$FF
         sta     AUDIO_LAST_MODE
         lda     #AUDIO_PAGE
@@ -238,24 +234,6 @@ audio_enqueue_drop
         inca
         sta     AUDIO_Q_OVERFLOW
 audio_enqueue_done
-        rts
-
-; Credit admission uses the first effect slot, which the existing mixer visits
-; before other effects. Preserve pending credits until music releases slot 0.
-audio_credit_service
-        tst     AUDIO_CREDIT_PENDING
-        beq     audio_credit_done
-        lda     audio_slot0
-        cmpa    #$FF
-        bne     audio_credit_done
-        lda     audio_slot1
-        cmpa    #$FF
-        bne     audio_credit_done
-        lda     #12
-        sta     AUDIO_SAVED_ID
-        bsr     audio_admit       ; existing relative call, proven short-range
-        dec     AUDIO_CREDIT_PENDING
-audio_credit_done
         rts
 
 audio_process_queue
@@ -393,13 +371,6 @@ audio_advance_next
         lda     ,x
         cmpa    #$FF
         beq     audio_advance_skip
-        cmpa    #12
-        bne     audio_advance_wait
-        ; A newly admitted musical cue owns the mixer. Preserve the credit
-        ; stream and wait count until its remaining notes can be heard.
-        lda     audio_slot0
-        cmpa    #$FF
-        bne     audio_advance_skip
 audio_advance_wait
         lda     3,x
         beq     audio_advance_stream
@@ -1086,7 +1057,7 @@ audio_system_request
         lda     #1
         sta     audio_stop_pending
         rts
-; A channel-stop request cannot truncate music or a credit. Reset/init is
+; A channel-stop request cannot truncate music. Reset/init is
 ; the explicit abort. Ordinary effects are silenced only after music drains.
 audio_system_finish
         tst     audio_stop_pending
@@ -1275,14 +1246,13 @@ audio_name_timer_reset
         clr     audio_name_timer
 audio_name_done
         rts
-; Name exit drains admitted action/tick/credit effects as well as music.
+; Name exit drains admitted action/tick effects as well as music.
 ; Flags freeze controls during this drain; timer expiry uses flag2, END flag1.
 audio_drain_busy
         jsr     audio_music_busy
         tsta
         bne     audio_drain_busy_done
         lda     AUDIO_Q_COUNT
-        ora     AUDIO_CREDIT_PENDING
         bne     audio_drain_busy_yes
         ldx     #audio_slot_base_table+2
         ldb     #3

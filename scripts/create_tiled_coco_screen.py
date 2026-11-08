@@ -19,7 +19,6 @@ EXTRA = (14, 33, 29, 27, 10)
 MULTIPLIERS = (86, 2, 86, 3, 86, 5)
 FIRST = (1, 28, 29)
 TOP = (29, 24, 25)
-CREDIT = (12, 27, 14, 13, 18, 29)
 ZERO_SCORE = (0, 0, 0, 0, 0, 0)
 LIFE_ICON = ((227, 228), (225, 226))
 
@@ -108,7 +107,6 @@ def build_layers(maze: dict[str, object]) -> tuple[list[list[int]], list[list[in
     place_vertical(hud, 35, 1, ZERO_SCORE)
     place_vertical(hud, 33, 9, TOP)
     place_vertical(hud, 35, 9, ZERO_SCORE)
-    place_vertical(hud, 33, 17, CREDIT)
     place(hud, 35, 22, 0)
 
     return background, hud

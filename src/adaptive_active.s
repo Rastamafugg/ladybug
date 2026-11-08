@@ -27,16 +27,6 @@ adaptive_work
         beq aw_input_done
         jsr read_joystick
 aw_input_done
-        ; Credit HUD changes originate in presentation even without a
-        ; simulation step. Persist them before AD_BATCH clears fresh intents.
-        lda $00A9
-        anda #6
-        beq aw_external_done
-        lda RENDER_FLAGS
-        ora #2
-        sta RENDER_FLAGS
-        jsr adaptive_credit_history
-aw_external_done
         lda RENDER_FLAGS
         bita #$40
         beq aw_batch
@@ -92,31 +82,6 @@ aw_output
 aw_fault
         lda #1
         sta AD_FAULT_BYTE
-        rts
-; CREDIT changes only the global HUD class. Merge into a retained record;
-; an empty owner receives one initialized HUD-only record. This is atomic
-; foreground work and never needs a ninth record or changes keyed coverage.
-adaptive_credit_history
-        ldx #AD_COUNT_A_ACTIVE
-        ldu #HISTORY_A
-ach_owner
-        tst ,x
-        bne ach_merge
-        tfr u,y
-        ldb #18
-ach_clear
-        clr ,y+
-        decb
-        bne ach_clear
-        inc ,x
-ach_merge
-        lda ,u
-        ora #2
-        sta ,u
-        leau 144,u
-        leax 1,x
-        cmpx #AD_FAULT_BYTE
-        blo ach_owner
         rts
 adaptive_render
         jsr framebuffer_prepare_back

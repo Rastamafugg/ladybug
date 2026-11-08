@@ -89,7 +89,7 @@ def trace_commands(port: int, presentation: dict[str, str], enemy: dict[str, str
         "disable 1",
         "continue",
         "end",
-        f"break *0x{presentation['pft_mode']}",
+        f"break *0x{presentation['pft_dispatch']}",
         "commands 2",
         "silent",
         f"set {{unsigned char}}0x{PRES_CREDITS:04x} = 0x01",
@@ -173,7 +173,7 @@ def main() -> None:
     presentation_map = args.presentation_map.read_text(encoding="utf-8")
     presentation = {
         name: symbol(presentation_map, name)
-        for name in ("pft_ready", "pft_mode")
+        for name in ("pft_ready", "pft_dispatch")
     }
     enemy = {
         name: symbol(enemy_map, name)

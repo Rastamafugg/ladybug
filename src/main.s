@@ -12,7 +12,6 @@
 ADAPTIVE_RENDERING equ 0
         endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
-; DOC-002 source-contract mirror contract draw_credit_hud profile=render: Draw credit hud.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -1376,10 +1375,7 @@ dwph_extra_next
         rts
 
 draw_hud
-        ifne COMPLETE_PROFILE
-        bsr     draw_credit_hud
-        endc
-        lda     #2
+        lda     #6
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_SCORE
@@ -1392,7 +1388,7 @@ draw_hud
         ifne COMPLETE_PROFILE
         jsr     asset_draw_top_hud
         else
-        lda     #6
+        lda     #13
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
@@ -1400,9 +1396,9 @@ draw_hud
         lbsr    draw_bcd_line
         endc
         ifne COMPLETE_PROFILE
-        ldd     #$250B
+        ldd     #$2501
         else
-        ldd     #$260B
+        ldd     #$2701
         endc
         std     HUD_X
         ifne COMPLETE_PROFILE
@@ -1429,8 +1425,9 @@ dhu_stage_digit
         endc
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
-; Display the stage vegetable at HUD columns 32-33, rows 12-13, followed by
-; its four-digit 1000..9500 value at columns 35-38 on row 13.
+; Display the stage vegetable at the destination generated from its authored
+; marker (cell (33,3), sprite root (33,2)), followed by
+; its four-digit 1000..9500 value at columns 36-39 on row 3.
 draw_vegetable_hud
         lda     STAGE
         cmpa    #18
@@ -1443,7 +1440,7 @@ dvh_stage_ok
         mul
         leay    vegetable_sprites,pcr
         leay    d,y
-        ldx     #$5C80          ; screen column 32, scanline 96
+        ldx     #PRESENTATION_PART_VEGETABLE_DST
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
 
@@ -1451,7 +1448,7 @@ dvh_stage_ok
         lsla
         leau    vegetable_values,pcr
         leau    a,u
-        ldd     #$230D
+        ldd     #$2403
         std     HUD_X
         ifne COMPLETE_PROFILE
         lda     #TEXT_BONUS
@@ -1462,26 +1459,6 @@ dvh_stage_ok
         lda     #2
         sta     HUD_BCD_COUNT
         bra     dbl_byte
-
-        ifne COMPLETE_PROFILE
-; Current count at (33,9). Count changes pre-empt to a freshly loaded screen.
-draw_credit_hud
-        ldd     #$2109
-        std     HUD_X
-        lda     #COLOR_WHITE
-        sta     HUD_COLOR
-        lda     <$A8
-        cmpa    #10
-        blo     dch_units
-        suba    #10
-        pshs    a
-        lda     #1
-        jsr     draw_hud_digit
-        inc     HUD_X
-        puls    a
-dch_units
-        jmp     draw_hud_digit
-        endc
 
 vegetable_values
         fdb     $1000,$1500,$2000,$2500,$3000,$3500
@@ -4882,14 +4859,6 @@ presentation_key_service
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE
-presentation_add_credit
-        lda     $00A8
-        cmpa    #9
-        bhs     presentation_add_credit_done
-        inc     $00A8
-presentation_add_credit_done
-        rts
-
         include "ladybug_presentation_resident.inc"
         endc
 

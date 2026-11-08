@@ -28,18 +28,14 @@ from build_presentation import (
     lzss_compress,
     compile_profile_maps,
     compile_screen,
-    compose_coin_native,
     encode_map,
-    encode_sparse_native,
     framebuffer_destination,
-    high_score_coin_quadrant_tiles,
-    high_score_coin_slots,
-    HIGH_SCORE_NAME_COLUMN,
-    HIGH_SCORE_RECORD_ROWS,
-    HIGH_SCORE_SCORE_COLUMN,
+    HIGH_SCORE_LAYOUT_LAYER,
     load_chars,
+    load_text_colours,
     load_demo_route,
     load_demo_walk,
+    parse_high_score_layout,
     parse_attract_actors,
     parse_enter_high_score_contract,
     enter_high_score_edge_masks,
@@ -73,60 +69,41 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def read_tiled_logo_layout(tiled_dir: Path, screen: str):
+    """Read the two authored logo layers without using the builder's parser."""
+    path = tiled_dir / MAP_FILES[screen]
+    root = ET.parse(path).getroot()
+    width, height = int(root.attrib["width"]), int(root.attrib["height"])
+    if (width, height) != (40, 24):
+        raise SystemExit(f"presentation proof: {screen} logo map must be 40x24")
+    layer_cells = []
+    for name in ("Logo Frame 1", "Logo Frame 2"):
+        layer = next((item for item in root.findall("layer")
+                      if item.get("name") == name), None)
+        if layer is None:
+            raise SystemExit(f"presentation proof: {screen} is missing {name}")
+        values = [int(value.strip()) for value in (layer.findtext("data") or "").split(",")]
+        if len(values) != width * height:
+            raise SystemExit(f"presentation proof: {screen} {name} has the wrong cell count")
+        layer_cells.append({
+            (index % width, index // width): gid
+            for index, gid in enumerate(values) if gid & 0x1FFFFFFF
+        })
+    cells = [cell for layer in layer_cells for cell in layer]
+    if not cells:
+        raise SystemExit(f"presentation proof: {screen} logo layers are empty")
+    root_cell = (min(x for x, _ in cells) // 2 * 2,
+                 min(y for _, y in cells) // 2 * 2)
+    rx, ry = root_cell
+    relative_layers = tuple(
+        tuple(sorted((x - rx, y - ry, gid) for (x, y), gid in layer.items()))
+        for layer in layer_cells
+    )
+    return root_cell, relative_layers
+
+
 def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
-
-
-def decode_sparse_native(stream: bytes, rows: int, width: int) -> tuple[bytes, int]:
-    """Decode the existing framebuffer sparse ABI into a bounded black surface."""
-    output = bytearray(rows * width)
-    cursor = 0
-    destination = 0
-    while True:
-        if cursor >= len(stream):
-            raise ValueError("sparse coin stream has no terminator")
-        delta = stream[cursor]
-        cursor += 1
-        if delta == 0xFF:
-            if cursor + 2 > len(stream):
-                raise ValueError("sparse coin extended delta is truncated")
-            delta = int.from_bytes(stream[cursor:cursor + 2], "big")
-            cursor += 2
-            if delta == 0:
-                return bytes(output), cursor
-            if cursor >= len(stream):
-                raise ValueError("sparse coin extended delta marker is truncated")
-            if stream[cursor] != 0:
-                raise ValueError("sparse coin extended delta marker is invalid")
-            cursor += 1
-        destination += delta
-        if cursor >= len(stream):
-            raise ValueError("sparse coin command is truncated")
-        control = stream[cursor]
-        cursor += 1
-        partial = bool(control & 0x80)
-        count = control & 0x7F
-        if count == 0:
-            raise ValueError("sparse coin command has zero length")
-        row, column = divmod(destination, 160)
-        if row >= rows or column + count > width:
-            raise ValueError("sparse coin command leaves the 16x16 glyph")
-        target = row * width + column
-        if partial:
-            end = cursor + count * 2
-            if end > len(stream):
-                raise ValueError("sparse coin partial command is truncated")
-            for index in range(count):
-                mask, pixel = stream[cursor:cursor + 2]
-                cursor += 2
-                output[target + index] = (output[target + index] & mask) | pixel
-        else:
-            end = cursor + count
-            if end > len(stream):
-                raise ValueError("sparse coin opaque command is truncated")
-            output[target:target + count] = stream[cursor:end]
-            cursor = end
-        destination += count
 
 
 def lzss_expand(stream: bytes, expected_bytes: int) -> bytes:
@@ -167,6 +144,10 @@ def main() -> None:
     complete_profile = bool(args.complete_profile)
     highscore_test_profile = bool(args.highscore_test_profile)
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
+    colour_config = load_text_colours()
+    high_score_layout = parse_high_score_layout(
+        args.tiled_dir / MAP_FILES["high-score"], colour_config
+    )
     chars = load_chars(args.chars)
     sprites = json.loads(args.gameplay_sprites.read_text(encoding="utf-8"))
     if isinstance(sprites, dict):
@@ -182,7 +163,7 @@ def main() -> None:
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, development_profile,
-        highscore_test_profile, complete_profile,
+        highscore_test_profile, complete_profile, colour_config,
     )
     for name, data in zip(MAP_NAMES, maps):
         if len(data) != 960:
@@ -209,24 +190,6 @@ def main() -> None:
             "top_right_destinations": [],
         }
     )
-    coin_path = args.tiled_dir / MAP_FILES["high-score"]
-    coin_root = ET.parse(coin_path).getroot()
-    coin_contract = high_score_coin_slots(coin_root, coin_path)
-    coin_quadrant_bytes = high_score_coin_quadrant_tiles(
-        coin_root, coin_path, chars, highscore_test_profile,
-    )
-    coin_quadrant_ids = []
-    for tile in coin_quadrant_bytes:
-        if tile not in tiles:
-            tiles.append(tile)
-        coin_quadrant_ids.append(tiles.index(tile))
-    coin_native = compose_coin_native(coin_quadrant_bytes)
-    coin_sparse_stream = encode_sparse_native(coin_native, 16, 8)
-    decoded_coin, decoded_coin_bytes = decode_sparse_native(
-        coin_sparse_stream, 16, 8
-    )
-    if decoded_coin != coin_native or decoded_coin_bytes != len(coin_sparse_stream):
-        raise SystemExit("presentation proof: sparse coin differs from authored quadrants")
     _arcade_route, arcade_route_manifest = load_demo_route(args.demo_route)
     demo_walk, demo_walk_manifest = load_demo_walk(
         args.demo_walk, arcade_route_manifest
@@ -254,7 +217,6 @@ def main() -> None:
             timer_green_tiles.append(tile)
         timer_green_indexes.append(timer_green_tiles.index(tile))
     live_ids = set().union(*(set(data) for data in maps))
-    live_ids.update(coin_quadrant_ids)
     if development_profile:
         live_ids.add(int(instruction["black_tile_id"]))
         for group in ("reward_tile_ids", "multiplier_tile_ids", "value_tile_ids"):
@@ -327,7 +289,6 @@ def main() -> None:
         old: representative_remap[overlay_replacements.get(old, old)]
         for old in live_ids
     }
-    coin_quadrant_ids = [remap[tile_id] for tile_id in coin_quadrant_ids]
     instruction_patch = b"".join(
         tiles[instruction_id] for instruction_id, _ in overlay_pairs
     )
@@ -476,21 +437,6 @@ def main() -> None:
     )
     action_table_offset = len(expected)
     expected.extend(action_table)
-    coin_destinations = [
-        framebuffer_destination(tuple(anchor))
-        for anchor in coin_contract["anchors"]
-    ]
-    coin_destination_table_offset = len(expected)
-    coin_destination_table = b"".join(
-        destination.to_bytes(2, "big") for destination in coin_destinations
-    )
-    expected.extend(coin_destination_table)
-    coin_sparse_offset = len(expected)
-    if (coin_destination_table_offset // PAGE_BYTES !=
-            coin_sparse_offset // PAGE_BYTES or
-            coin_sparse_offset % PAGE_BYTES + len(coin_sparse_stream) > PAGE_BYTES):
-        raise SystemExit("presentation proof: coin table and stream must share one cold page")
-    expected.extend(coin_sparse_stream)
     if payload != bytes(expected):
         raise SystemExit("presentation proof: cold payload differs from independent compile")
     if len(tiles) != manifest["tile_count"]:
@@ -506,25 +452,6 @@ def main() -> None:
         overlay_manifest.get("highscore_patch_sha256") != digest(highscore_patch)
     ):
         raise SystemExit("presentation proof: phase tile overlay manifest differs")
-    coin_overlay = manifest.get("coin_overlay", {})
-    expected_slots = [
-        {"anchor": anchor, "destination": destination}
-        for anchor, destination in zip(coin_contract["anchors"], coin_destinations)
-    ]
-    if (
-        manifest.get("coin_slots") != expected_slots or
-        manifest.get("coin_destinations") != coin_destinations or
-        coin_overlay.get("slot_count") != len(coin_contract["anchors"]) or
-        coin_overlay.get("quadrant_gids") != coin_contract["quadrant_gids"] or
-        coin_overlay.get("quadrant_tile_ids") != coin_quadrant_ids or
-        coin_overlay.get("sparse_offset") != coin_sparse_offset or
-        coin_overlay.get("sparse_bytes") != len(coin_sparse_stream) or
-        coin_overlay.get("sparse_sha256") != digest(coin_sparse_stream) or
-        coin_overlay.get("destination_table_offset") != coin_destination_table_offset or
-        coin_overlay.get("destination_table_bytes") != len(coin_destination_table) or
-        coin_overlay.get("destination_table_sha256") != digest(coin_destination_table)
-    ):
-        raise SystemExit("presentation proof: authored coin slot metadata differs")
     if manifest["cold_payload"]["bytes"] != len(payload):
         raise SystemExit("presentation proof: payload size differs from manifest")
     if manifest["cold_payload"]["sha256"] != digest(payload):
@@ -677,35 +604,103 @@ def main() -> None:
                 frame, instruction["cucumber_destination"],
                 instruction["cucumber_native"],
             )
-        if index == MAP_NAMES.index("high-score"):
-            for destination in coin_destinations:
-                offset = destination - 0x2000
-                underlay = b"".join(
-                    frame[offset + row * 160:offset + row * 160 + 8]
-                    for row in range(16)
-                )
-                if underlay != bytes(16 * 8):
-                    raise SystemExit(
-                        "presentation proof: coin slot underlay is not black"
-                    )
         static_frame_hashes.append(digest(frame))
     if manifest.get("static_frame_sha256") != static_frame_hashes:
         raise SystemExit("presentation proof: static framebuffer hashes differ")
     expected_high_score = {
-        "record_rows": list(HIGH_SCORE_RECORD_ROWS),
-        "name_column": HIGH_SCORE_NAME_COLUMN,
-        "score_column": HIGH_SCORE_SCORE_COLUMN,
-        "name_destinations": [
-            framebuffer_destination((HIGH_SCORE_NAME_COLUMN, row))
-            for row in HIGH_SCORE_RECORD_ROWS
-        ],
-        "score_destinations": [
-            framebuffer_destination((HIGH_SCORE_SCORE_COLUMN, row))
-            for row in HIGH_SCORE_RECORD_ROWS
-        ],
+        "layout_layer": HIGH_SCORE_LAYOUT_LAYER,
+        "record_count": 9,
+        "record_bytes": 10,
+        "score_bytes": 3,
+        "name_bytes": 7,
+        "display_rows": len(high_score_layout),
+        "placements": high_score_layout,
     }
     if manifest.get("high_score_table") != expected_high_score:
         raise SystemExit("presentation proof: high-score table metadata differs")
+    if complete_profile:
+        high_score_index = MAP_NAMES.index("high-score")
+        high_score_frames = compile_logo_frames(
+            title_framebuffer(maps[high_score_index], highscore_ordered_tiles),
+            "high-score", colour_config,
+        )[1]
+        expected_logo_cells = []
+        for y in range(24):
+            for x in range(40):
+                offset = y * 1280 + x * 4
+                first = b"".join(
+                    high_score_frames[0][offset + row * 160:offset + row * 160 + 4]
+                    for row in range(8)
+                )
+                second = b"".join(
+                    high_score_frames[1][offset + row * 160:offset + row * 160 + 4]
+                    for row in range(8)
+                )
+                if first != second:
+                    expected_logo_cells.append((x, y))
+        attract_root, attract_layout = read_tiled_logo_layout(args.tiled_dir, "attract")
+        high_score_root, high_score_layout = read_tiled_logo_layout(
+            args.tiled_dir, "high-score"
+        )
+        if attract_layout != high_score_layout:
+            raise SystemExit(
+                "presentation proof: Attract and High Score logo frame layouts differ"
+            )
+        attract_root_destination = framebuffer_destination(attract_root)
+        high_score_root_destination = framebuffer_destination(high_score_root)
+        expected_logo_destinations = [framebuffer_destination(cell)
+                                      for cell in expected_logo_cells]
+        expected_relative_offsets = [destination - high_score_root_destination
+                                     for destination in expected_logo_destinations]
+        expected_attract_destinations = [
+            framebuffer_destination((
+                attract_root[0] + cell[0] - high_score_root[0],
+                attract_root[1] + cell[1] - high_score_root[1],
+            ))
+            for cell in expected_logo_cells
+        ]
+        authored_relative_cells = {
+            (x, y)
+            for frame in high_score_layout
+            for x, y, _gid in frame
+        }
+        if any((x - high_score_root[0], y - high_score_root[1])
+               not in authored_relative_cells for x, y in expected_logo_cells):
+            raise SystemExit(
+                "presentation proof: changing logo cell is absent from authored Tiled frames"
+            )
+        logo_manifest = manifest.get("highscore_logo", {})
+        logo_records = logo_manifest.get("records", [])
+        expected_roots = {
+            "attract": {
+                "cell": list(attract_root),
+                "destination": attract_root_destination,
+            },
+            "high-score": {
+                "cell": list(high_score_root),
+                "destination": high_score_root_destination,
+            },
+        }
+        if (
+            logo_manifest.get("source_map") != "high-score" or
+            logo_manifest.get("roots") != expected_roots or
+            logo_manifest.get("relative_offsets") != expected_relative_offsets or
+            logo_manifest.get("changing_cells") != [list(cell) for cell in expected_logo_cells] or
+            not isinstance(logo_records, list) or
+            not expected_logo_destinations or
+            logo_manifest.get("cells") != len(expected_logo_destinations) or
+            len(logo_records) != len(expected_logo_destinations) or
+            any(not isinstance(record, list) or len(record) != 3
+                for record in logo_records) or
+            [high_score_root_destination + record[0] for record in logo_records]
+            != expected_logo_destinations or
+            [attract_root_destination + record[0] for record in logo_records]
+            != expected_attract_destinations or
+            any(record[2] != record[1] + 32 for record in logo_records)
+        ):
+            raise SystemExit(
+                "presentation proof: root-relative logo records differ from Tiled frames"
+            )
     if len(payload) > 4 * 0x2000:
         raise SystemExit("presentation proof: cold payload exceeds four pages")
     if not complete_profile and len(payload) > 10874:

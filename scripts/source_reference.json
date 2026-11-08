@@ -644,13 +644,6 @@
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
         {
-          "name": "draw_credit_hud",
-          "profile": "render",
-          "purpose": "Draw credit hud.",
-          "reasons": [],
-          "semantic_id": "routines.html#routine-resident-runtime-draw-credit-hud"
-        },
-        {
           "name": "gameplay_dispatch",
           "profile": "state",
           "purpose": "Gameplay dispatch.",
@@ -1236,7 +1229,8 @@
           "routine": "life_marker_position",
           "purpose": "Convert the remaining zero-to-two slot index into the HUD column."
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "enemy-runtime",
@@ -2072,7 +2066,8 @@
           "routine": "enemy_tick_impl",
           "purpose": "Fall through from death guard to the current elapsed-before-freeze movement admission call."
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "enemy-helpers-page34",
@@ -2127,7 +2122,9 @@
           },
           "length_source": "binary"
         }
-      ]
+      ],
+      "routines": [],
+      "entrypoints": []
     },
     {
       "id": "presentation-runtime",
@@ -2137,6 +2134,13 @@
       "map": "ladybug-presentation-runtime.map",
       "binary": "ladybug-presentation-runtime.bin",
       "routines": [
+        {
+          "name": "menu_runtime_dispatch",
+          "profile": "presentation",
+          "purpose": "Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.",
+          "reasons": ["called"],
+          "semantic_id": "routines.html#routine-presentation-runtime-menu-runtime-dispatch"
+        },
         {
           "name": "cold_ptr",
           "profile": "copy",
@@ -2189,9 +2193,7 @@
           "name": "PRES_MAIN_DYNAMIC_TEXT",
           "profile": "render",
           "purpose": "Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.",
-          "reasons": [
-            "called"
-          ],
+          "reasons": ["called"],
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-pres-main-dynamic-text"
         },
         {
@@ -2411,6 +2413,11 @@
         }
       ],
       "basic_blocks": [
+        {
+          "name": "attract_tick_animation",
+          "routine": null,
+          "purpose": "Continue Attract animation when idle menu work has not queued a frame; a dirty visible owner must not block buffer turnover."
+        },
         {
           "name": "actor_index_ready",
           "routine": null,
@@ -2726,7 +2733,8 @@
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "perimeter-helper",
@@ -2804,7 +2812,8 @@
           "routine": null,
           "purpose": "Named internal control point within the enclosing routine"
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "gmc-bootstrap",
@@ -2890,7 +2899,8 @@
       ],
       "assembly_output": "ladybug-gmc-boot.rom.tmp",
       "assembly_listing": "ladybug-gmc-boot.lst.tmp",
-      "assembly_map": "ladybug-gmc-boot.map.tmp"
+      "assembly_map": "ladybug-gmc-boot.map.tmp",
+      "entrypoints": []
     },
     {
       "id": "audio-runtime",
@@ -2928,13 +2938,6 @@
           "purpose": "Audio advance slot.",
           "reasons": [],
           "semantic_id": "routines.html#routine-audio-runtime-audio-advance-slot"
-        },
-        {
-          "name": "audio_credit_service",
-          "profile": "audio",
-          "purpose": "Audio credit service.",
-          "reasons": [],
-          "semantic_id": "routines.html#routine-audio-runtime-audio-credit-service"
         },
         {
           "name": "audio_drain_busy",
@@ -3100,6 +3103,11 @@
         }
       ],
       "basic_blocks": [
+        {
+          "name": "audio_advance_wait",
+          "routine": "audio_advance_all",
+          "purpose": "Decrement the selected voice wait counter and advance its stream when the wait expires."
+        },
         {
           "name": "audio_effect_enqueue",
           "routine": null,
@@ -3462,7 +3470,8 @@
           "kind": "boundary",
           "reason": "Adaptive phase scratch or staged executable blob; extent and lifetime are declared in adaptive_audio_service.s."
         }
-      ]
+      ],
+      "entrypoints": []
     },
     {
       "id": "highscore-runtime",
@@ -4151,12 +4160,12 @@
         {
           "name": "name_phrase_rank",
           "routine": "stage_panel_text",
-          "purpose": "Select approved BUG108 row12 x1–3 destination and continue existing glyph-text renderer path."
+          "purpose": "Select approved BUG108 row12 x1\u20133 destination and continue existing glyph-text renderer path."
         },
         {
           "name": "name_left_rank",
           "routine": "stage_panel_text",
-          "purpose": "Select separate BUG110 row18 x1–3 destination after its base cells retire."
+          "purpose": "Select separate BUG110 row18 x1\u20133 destination after its base cells retire."
         },
         {
           "name": "name_rank_format",
@@ -4196,7 +4205,7 @@
         {
           "name": "key_init",
           "profile": "keybindings",
-          "purpose": "Restore five gameplay defaults; fixed coin/menu keys remain outside the binding table.",
+          "purpose": "Restore five gameplay defaults; fixed menu keys remain outside the binding table.",
           "reasons": []
         },
         {
@@ -4366,22 +4375,12 @@
           "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
         },
         {
-          "name": "ks_credit",
-          "routine": null,
-          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
-        },
-        {
           "name": "ks_done",
           "routine": null,
           "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
         },
         {
           "name": "ks_down",
-          "routine": null,
-          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
-        },
-        {
-          "name": "ks_edges",
           "routine": null,
           "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
         },
@@ -4402,11 +4401,6 @@
         },
         {
           "name": "ks_local_edges",
-          "routine": null,
-          "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
-        },
-        {
-          "name": "ks_menu",
           "routine": null,
           "purpose": "Internal branch in the bounded keybinding acquisition/capture/painter; inspect adjacent instructions."
         },
@@ -4677,7 +4671,17 @@
         {
           "name": "kc_unique",
           "routine": "key_capture",
-          "purpose": "Continue the candidate-key uniqueness scan after fixed coin-key rejection."
+          "purpose": "Continue the candidate-key uniqueness scan across existing gameplay bindings."
+        },
+        {
+          "name": "ks_edges",
+          "routine": "key_scan",
+          "purpose": "Derive fresh key edges from current and previous physical-key samples."
+        },
+        {
+          "name": "ks_menu",
+          "routine": "key_scan",
+          "purpose": "Route fresh fixed-key and menu edges to the global or local consumer."
         }
       ],
       "external_symbols": [
@@ -4745,7 +4749,8 @@
           },
           "length_source": "binary"
         }
-      ]
+      ],
+      "entrypoints": []
     }
   ],
   "coverage": {
@@ -5148,8 +5153,8 @@
       "feat-002-level-start-to-demo",
       "feat-002-both-demo-deaths",
       "feat-002-demo-return-to-title",
-      "feat-002-credit-input-boundary",
-      "feat-002-start-input-boundary",
+      "feat-010-attract-menu-input-boundary",
+      "feat-010-free-start-boundary",
       "feat-002-live-gameplay-handoff",
       "feat-002-instruction-profile-exclusion"
     ],
@@ -5169,17 +5174,17 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 121
+            "line": 124
           },
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 264
+            "line": 267
           },
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 508
+            "line": 511
           }
         ],
         "verifier": "python3 scripts/verify_gmc_boot.py with natural and forced phases",
@@ -5204,7 +5209,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 121
+            "line": 124
           }
         ],
         "verifier": "startup and natural phases of scripts/verify_gmc_boot.py plus retained first-FRONT identity",
@@ -5229,7 +5234,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 250
+            "line": 253
           }
         ],
         "verifier": "natural presentation phase of scripts/verify_gmc_boot.py",
@@ -5253,7 +5258,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 561
+            "line": 564
           }
         ],
         "verifier": "natural presentation plus forced gameplay phases of scripts/verify_gmc_boot.py",
@@ -5277,7 +5282,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 631
+            "line": 634
           }
         ],
         "verifier": "forced demo-death phase of scripts/verify_gmc_boot.py",
@@ -5300,7 +5305,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 642
+            "line": 645
           }
         ],
         "verifier": "natural loop-return marker and retained title FRONT identity",
@@ -5310,33 +5315,34 @@
         ]
       },
       {
-        "id": "feat-002-credit-input-boundary",
-        "criterion": "Credit edges are traceable to the one scanner and presentation state owner even where current bug tickets retain behavior defects",
-        "behavior": "The shared keyboard edge scanner records credit input before presentation dispatch",
-        "state": "credit edge in presentation flow",
-        "module": "presentation-runtime",
-        "routine": "scan_keys",
+        "id": "feat-010-attract-menu-input-boundary",
+        "criterion": "Attract menu input is routed to the menu owner without a cabinet-credit state path.",
+        "behavior": "The shared keyboard edge scanner feeds the Attract menu dispatcher; menu selection and start handling belong to the presentation flow.",
+        "state": "Attract menu input and selected action",
+        "module": "highscore-helper",
+        "routine": "menu_tick",
         "memory": [
           "presentation-flow-state"
         ],
         "source": [
           {
-            "module": "presentation-runtime",
-            "file": "src/presentation_runtime.s",
-            "line": 687
+            "module": "highscore-helper",
+            "file": "src/shared_text_stage.inc",
+            "line": 1020
           }
         ],
-        "verifier": "source-reference call/state trace; current BUG-013 remains deferred evidence about behavior",
+        "verifier": "source-reference call/state trace; cabinet-credit acceptance is retired by FEAT-010",
         "evidence": [
           "baseline-structural",
           "baseline-representation"
-        ]
+        ],
+        "outputs": "Selected Attract menu action; fixed 5/6 credit input is not part of the release flow."
       },
       {
-        "id": "feat-002-start-input-boundary",
-        "criterion": "Player-one start with or without credit is traceable to presentation ownership without claiming deferred bug closure",
-        "behavior": "The dispatcher consumes the scanner result and selects the authorized live-start path only from presentation state",
-        "state": "start edge with current credit state",
+        "id": "feat-010-free-start-boundary",
+        "criterion": "Player-one start from the Attract menu enters normal play without a cabinet-credit prerequisite.",
+        "behavior": "The selected Start action enters normal initialization; gameplay coin pickups remain separate and unchanged.",
+        "state": "Player starts from Attract without a paid-play balance",
         "module": "presentation-runtime",
         "routine": "presentation_flow_tick",
         "memory": [
@@ -5346,10 +5352,10 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 121
+            "line": 319
           }
         ],
-        "verifier": "source-reference control trace plus current FEAT-002/BUG ticket evidence",
+        "verifier": "source-reference control trace plus FEAT-010 NO-CREDIT-FLOW and PICKUP-RETENTION acceptance",
         "evidence": [
           "baseline-structural",
           "baseline-representation"
@@ -5370,7 +5376,7 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 607
+            "line": 610
           }
         ],
         "verifier": "forced gameplay integration phase of scripts/verify_gmc_boot.py",
@@ -5448,12 +5454,12 @@
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 509
+            "line": 512
           },
           {
             "module": "presentation-runtime",
             "file": "src/presentation_runtime.s",
-            "line": 518
+            "line": 521
           }
         ],
         "verifier": "generated addresses.html and module-presentation-runtime.html anchor inspection",
@@ -5653,9 +5659,9 @@
     },
     "keybindings": {
       "inputs": "Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.",
-      "outputs": "Five held gameplay actions, fresh fixed coin/menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
+      "outputs": "Five held gameplay actions, fresh fixed menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.",
       "clobbers": "A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.",
-      "reads": "PIA keyboard rows, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
+      "reads": "PIA keyboard rows, current screen ID from the generated presentation map, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
       "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
       "side_effects": "Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.",
       "invariants": "The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage."

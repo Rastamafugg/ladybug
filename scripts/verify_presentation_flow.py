@@ -34,8 +34,146 @@ def symbol_map(text: str) -> dict[str, int]:
     }
 
 
+def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None:
+    """Exercise emitted Attract scheduling; callbacks model existing contracts.
+
+    This does not emulate the painter, MMU, IRQ timing or pixels. Independent
+    cases require idle repaint replay, clock progress and safe draw ordering.
+    Unexpected instructions fail closed rather than silently skipping work.
+    """
+    origin = symbols["presentation_flow_tick"]
+    timer_address = symbols["PRES_TIMER"]
+    idle_address = symbols["PRES_IDLE_ORIGIN"]
+    limit = symbols["PRESENTATION_ROTATION_TICKS"]
+
+    def require(condition, detail):
+        if not condition:
+            raise SystemExit("presentation flow proof: Attract schedule " + detail)
+
+    def tick(state):
+        memory, calls = bytearray(65536), []
+        event, dirty, back, pending, selection = 0xD0, 0xE1, 0x90, 0x91, 0xE0
+        for address, key in ((event, "event"), (dirty, "dirty"), (back, "back"),
+                             (pending, "pending"), (selection, "selection")):
+            memory[address] = state.get(key, 0)
+        value = state.get("timer", 37)
+        memory[timer_address:timer_address+2] = value.to_bytes(2, "big")
+        memory[idle_address:idle_address+2] = (6).to_bytes(2, "big")
+        pc, d, zero, carry = symbols["attract_tick_prepare"], 0, False, False
+
+        def word(address):
+            return int.from_bytes(memory[address:address+2], "big")
+
+        def callback(target):
+            nonlocal d
+            if target == symbols["timer"]:
+                calls.append("clock")
+                d = (word(timer_address) + 1) & 0xFFFF
+                memory[timer_address:timer_address+2] = d.to_bytes(2, "big")
+            elif target == symbols["menu_runtime_dispatch"]:
+                calls.append("menu")
+                if memory[event] == 2:  # One normal Down at START.
+                    memory[selection] += 1
+                    memory[dirty] = 3
+                bit = 1 << memory[back]
+                if not memory[pending] and memory[dirty] & bit:
+                    memory[dirty] &= ~bit
+                    memory[pending] = 1
+                    calls.append("paint")
+            elif target == symbols["PRES_MAIN_PAGE23_RESUME"]:
+                calls.append("logo")
+            elif target == symbols["PRESENTATION_ATTRACT_OVERLAY"]:
+                calls.append("actor")
+            else:
+                require(False, "unmodelled callback at $%04X" % target)
+
+        for _ in range(64):
+            if pc in (symbols["hold"], symbols["attract_next"]):
+                if pc == symbols["attract_next"]:
+                    calls.append("expire")
+                break
+            offset = pc - origin
+            require(0 <= offset < len(module), "left the bound module")
+            opcode = module[offset]
+            if opcode == 0x0D:  # TST direct.
+                zero = memory[module[offset+1]] == 0
+                pc += 2
+            elif opcode in (0x20, 0x24, 0x26, 0x27):  # BRA/BHS/BNE/BEQ.
+                take = {0x20: True, 0x24: not carry, 0x26: not zero, 0x27: zero}[opcode]
+                delta = int.from_bytes(module[offset+1:offset+2], "big", signed=True)
+                pc += 2 + (delta if take else 0)
+            elif opcode in (0x16, 0x17, 0x8D, 0xBD):  # LBRA/LBSR/BSR/JSR.
+                width = 2 if opcode == 0x8D else 3
+                operand = module[offset+1:offset+width]
+                target = int.from_bytes(operand, "big", signed=opcode != 0xBD)
+                if opcode != 0xBD:
+                    target += pc + width
+                if opcode == 0x16 and target != symbols["menu_runtime_dispatch"]:
+                    pc = target
+                    continue
+                callback(target)
+                if opcode == 0x16:  # Existing input path tail-returns.
+                    break
+                pc += width
+            elif opcode == 0x93:  # SUBD direct, idle-origin calculation.
+                amount = word(module[offset+1])
+                carry, d = d < amount, (d - amount) & 0xFFFF
+                zero, pc = d == 0, pc + 2
+            elif module[offset:offset+2] == bytes((0x10, 0x83)):  # CMPD immediate.
+                amount = int.from_bytes(module[offset+2:offset+4], "big")
+                zero, carry, pc = d == amount, d < amount, pc + 4
+            elif opcode == 0xCC:  # LDD immediate, resident continuation pointer.
+                d = int.from_bytes(module[offset+1:offset+3], "big")
+                zero, pc = d == 0, pc + 3
+            elif opcode in (0xDD, 0xFD):  # STD direct or extended.
+                width = 2 if opcode == 0xDD else 3
+                address = int.from_bytes(module[offset+1:offset+width], "big")
+                memory[address:address+2] = d.to_bytes(2, "big")
+                pc += width
+            elif opcode == 0x86:  # LDA immediate.
+                d = (module[offset+1] << 8) | (d & 255)
+                zero, pc = (d >> 8) == 0, pc + 2
+            elif opcode == 0xB7:  # STA extended, restore PAR5.
+                memory[int.from_bytes(module[offset+1:offset+3], "big")] = d >> 8
+                pc += 3
+            else:
+                require(False, "unsupported opcode $%02X at $%04X" % (opcode, pc))
+        else:
+            require(False, "did not finish within 64 scheduling instructions")
+        result = {key: memory[address] for address, key in
+                  ((event, "event"), (dirty, "dirty"), (back, "back"),
+                   (pending, "pending"), (selection, "selection"))}
+        result["timer"] = word(timer_address)
+        return result, calls
+
+    # Start with either owner: one press, publication, idle replay, publication.
+    for back in (0, 1):
+        state, calls = tick(dict(event=2, back=back))
+        require(state["selection"] == 1 and state["dirty"] == 1 << (1-back)
+                and state["pending"] == 1, "fresh Down did not update one owner")
+        state.update(event=0, back=1-back, pending=0)  # Completed publication.
+        before = state["timer"]
+        state, calls = tick(state)
+        require(state["dirty"] == 0 and state["pending"] == 1
+                and state["timer"] == before+1, "idle replay/clock incomplete")
+        require(calls == ["clock", "menu", "paint"], "queued repaint did not yield")
+        state.update(back=back, pending=0)
+        state, calls = tick(state)
+        require(calls == ["clock", "logo", "actor"], "clean tick lost animation")
+    state, calls = tick(dict(dirty=2, back=1, pending=1))
+    require(state["dirty"] == 2 and state["timer"] == 38
+            and calls == ["clock", "menu"], "queued frame overwritten or clock stalled")
+    state, calls = tick(dict(dirty=2, back=0))  # Dirty B is still FRONT.
+    require(state["dirty"] == 2 and not state["pending"]
+            and calls == ["clock", "menu", "logo", "actor"],
+            "visible dirty owner blocked normal animation")
+    state, calls = tick(dict(dirty=2, back=1, timer=limit+5))
+    require(calls == ["clock", "expire"], "expired Attract painted outgoing screen")
+
+
 def main() -> None:
     source = SOURCE.read_text(encoding="ascii")
+    keybinding_source = (ROOT / "src/keybinding_runtime.s").read_text(encoding="ascii")
     demo_source = DEMO_SOURCE.read_text(encoding="ascii")
     helper_source = HELPER_SOURCE.read_text(encoding="ascii")
     boot_source = BOOT_SOURCE.read_text(encoding="ascii")
@@ -247,6 +385,14 @@ def main() -> None:
         raise SystemExit("presentation flow proof: load budget is not memory-backed")
     if "decb" in load_source:
         raise SystemExit("presentation flow proof: load budget still uses clobbered B")
+    if complete and any(fragment not in load_source for fragment in (
+        "cmpa    #PRESENTATION_MAP_HIGH_SCORE",
+        "beq     menu_load_discard_event",
+        "menu_load_discard_event\n        clr     <$D0",
+    )):
+        raise SystemExit(
+            "presentation flow proof: High Score loading does not consume early input"
+        )
     hold_select = source[
         source.index("\nstart_screen_map\n"):source.index("\nstart_screen_hold\n")
     ]
@@ -268,15 +414,140 @@ def main() -> None:
         raise SystemExit(
             "presentation flow proof: enter-high-score hydration is profile-conditional"
         )
-    preemption = source[source.index("\npft_mode\n"):source.index("\npft_dispatch\n")]
+    start_flow = source[source.index("\nnormal_start\n"):source.index("\nnormal_hold\n")]
     for fragment in (
-        "bita    #1", "tst     <PRES_CREDITS", "dec     <PRES_CREDITS",
-        "PRESENTATION_MAP_LEVEL_START",
+        "bita    #1", "sta     <PRES_CONTEXT", "PRESENTATION_MAP_LEVEL_START",
     ):
-        if fragment not in preemption:
+        if fragment not in start_flow:
             raise SystemExit(
-                "presentation flow proof: global start pre-emption is incomplete"
+                "presentation flow proof: free-start path is incomplete"
             )
+    if "PRES_CREDITS" in source or "add_credit" in source:
+        raise SystemExit(
+            "presentation flow proof: obsolete cabinet-credit state remains"
+        )
+    attract_menu = source[source.index("\nattract_tick\n"):source.index("\nattract_tick_ready\n")]
+    if "<$D0" not in attract_menu or "menu_runtime_dispatch" not in attract_menu:
+        raise SystemExit(
+            "presentation flow proof: live Attract menu dispatch is absent"
+        )
+    if complete:
+        verify_attract_menu_schedule(MODULE.read_bytes(), symbols)
+    menu_source = (ROOT / "src/shared_text_stage.inc").read_text(encoding="ascii")
+    if "menu_attract_rows" not in menu_source or "menu_start_free" not in menu_source:
+        raise SystemExit(
+            "presentation flow proof: authored Attract menu is not wired"
+        )
+    key_local = keybinding_source[
+        keybinding_source.index("\nks_local\n"):keybinding_source.index("\nks_done\n")
+    ]
+    screen_filter = re.search(
+        r"\nks_menu\n[ \t]+lda[ \t]+\$A6\n"
+        r"[ \t]+cmpa[ \t]+#PRESENTATION_MAP_ATTRACT\n[ \t]+l?beq[ \t]+ks_local\b\n"
+        r"[ \t]+cmpa[ \t]+#PRESENTATION_MAP_HIGH_SCORE\n[ \t]+l?beq[ \t]+ks_local\b\n"
+        r"[ \t]+cmpa[ \t]+#PRESENTATION_MAP_OPTIONS\n[ \t]+l?blo[ \t]+ks_done\b",
+        keybinding_source,
+    )
+    if (
+        'include "ladybug_presentation.inc"' not in keybinding_source or
+        screen_filter is None or
+        "sta $D0" not in key_local
+    ):
+        raise SystemExit(
+            "presentation flow proof: menu screen allowlist or local event publication changed"
+        )
+    runtime_source = source[source.index("\npresentation_flow_tick\n"):]
+    demo_branches = runtime_source.split("\ndemo_death_done\n")[1:]
+    if len(demo_branches) < 2 or any(
+        branch.split("\ndemo_return\n", 1)[0].count(
+            "lda     #PRESENTATION_MAP_HIGH_SCORE\n        lbsr    start_screen"
+        ) != 2
+        for branch in demo_branches[:2]
+    ):
+        raise SystemExit(
+            "presentation flow proof: demo completion does not enter high-score"
+        )
+    complete_demo_routes = demo_branches[0].split("\ndemo_return\n", 1)[0]
+    if complete and len(re.findall(
+        r"lbsr\s+install_highscore_runtime\s+"
+        r"lda\s+#PRESENTATION_MAP_HIGH_SCORE\s+"
+        r"lbsr\s+start_screen",
+        complete_demo_routes,
+    )) != 2:
+        raise SystemExit(
+            "presentation flow proof: Attract High Score routes do not install the shared painter"
+        )
+    normal_routes = source[
+        source.index("\nnormal_tick\n"):source.index("\nnormal_stage\n")
+    ]
+    if complete and re.search(
+        r"l?bsr\s+install_highscore_runtime\s+"
+        r"lda\s+#PRESENTATION_MAP_GAME_OVER",
+        normal_routes,
+    ) is None:
+        raise SystemExit(
+            "presentation flow proof: post-game path does not retain the shared High Score painter"
+        )
+    painter = demo_source[
+        demo_source.index("\nrender_high_score\n"):
+        demo_source.index("\ndraw_high_score_screen\n")
+    ]
+    ranking_rows = demo_source[
+        demo_source.index("\ndraw_high_score_screen\n"):
+        demo_source.index("\ndraw_high_score_entry\n")
+    ]
+    if complete and (
+        "bsr     draw_high_score_screen" not in painter or
+        "init_scores" in painter or
+        "PRES_HS_READY" not in ranking_rows or
+        "highscore_default_record_data" not in ranking_rows
+    ):
+        raise SystemExit(
+            "presentation flow proof: shared ranking painter writes or omits uninitialized Attract records"
+        )
+    runtime_attract = runtime_source[
+        runtime_source.index("\nattract_tick\n"):
+        runtime_source.index("\nattract_next\n")
+    ]
+    highscore_rotation = menu_source[
+        menu_source.index("\nmenu_tick_not_keybinding\n"):
+        menu_source.index("\nmenu_tick_not_high_score\n")
+    ]
+    ui_tick = source[
+        source.index("\npresentation_ui_tick\n"):
+        source.index("\nlevel_tick\n")
+    ]
+    if (
+        "PRESENTATION_ROTATION_TICKS equ 558" not in source or
+        "cmpd    #PRESENTATION_ROTATION_TICKS" not in runtime_attract or
+        "lbsr    logo_tick" not in highscore_rotation or
+        "cmpd    #PRESENTATION_ROTATION_TICKS" not in highscore_rotation or
+        "lda     #PRESENTATION_MAP_ATTRACT" not in highscore_rotation or
+        "lbra    menu_change" not in highscore_rotation
+    ):
+        raise SystemExit(
+            "presentation flow proof: Attract/high-score rotation timing differs"
+        )
+    if complete and any(fragment not in ui_tick for fragment in (
+        "lda     <PRES_SCREEN",
+        "cmpa    #PRESENTATION_MAP_HIGH_SCORE",
+        "lbeq    menu_runtime_dispatch",
+    )):
+        raise SystemExit(
+            "presentation flow proof: visible High Score ticks bypass the shared timer owner"
+        )
+    if complete and any(fragment not in highscore_rotation for fragment in (
+        "ldd     PRES_TIMER\n        bne     menu_tick_high_score_visible",
+        "tst     FB_PENDING\n        bne     menu_tick_high_score_initial_pending",
+        "bita    #16",
+        "clr     MENU_EVENT",
+        "lbsr    logo_tick",
+        "cmpd    #PRESENTATION_ROTATION_TICKS",
+        "tst     FB_PENDING\n        lbne    menu_hold",
+    )):
+        raise SystemExit(
+            "presentation flow proof: shared High Score timer, input, or publication gate changed"
+        )
     if source.index("clr     <PRES_ACTOR_FRAME") > source.index("\npft_ready\n"):
         raise SystemExit("presentation flow proof: actor frame is not initialized")
     if "sta     PRES_ACTOR_PHASE" not in attract_source:
@@ -325,9 +596,9 @@ def main() -> None:
         "development helper" if development else "release flow"
     )
     behavior_label = (
-        "credit/start isolation, test auxiliary" if highscore_test else
-        "global credit/start pre-emption, instruction choreography" if development else
-        "global credit/start pre-emption, arcade-route demo"
+        "free-start flow, test auxiliary" if highscore_test else
+        "Attract free-start menu, instruction choreography" if development else
+        "Attract free-start menu, arcade-route demo"
     )
     print(
         f"presentation flow proof: {profile_label}, "

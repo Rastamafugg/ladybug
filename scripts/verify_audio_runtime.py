@@ -25,6 +25,9 @@ BOOT_DESCRIPTOR_MAX_BYTES = 127
 BOOT_DESCRIPTOR_END = 0x1880
 AUDIO_GUARD_START = 0x02C0
 AUDIO_STATE_START = 0x02DC
+# Cue 12 remains authored and verified audio data, but its cabinet-credit event
+# mapping is retired with the paid-play path.
+INTENTIONALLY_UNMAPPED_EVENT_CUES = {12}
 
 
 def parse_stream_include(path: Path) -> tuple[bytes, dict[str, int]]:
@@ -252,11 +255,23 @@ def main() -> None:
 
     event_map = json.loads(args.event_map.read_text(encoding="ascii"))
     entries = event_map.get("entries", [])
-    if len(entries) != args.require_cues:
-        raise SystemExit("audio proof: event-to-cue matrix does not cover every cue ID")
+    expected_event_cue_ids = [
+        cue_id for cue_id in range(args.require_cues)
+        if cue_id not in INTENTIONALLY_UNMAPPED_EVENT_CUES
+    ]
+    if len(entries) != len(expected_event_cue_ids):
+        raise SystemExit(
+            "audio proof: event-to-cue matrix must cover every required cue ID "
+            "except intentionally unmapped cue 12"
+        )
     cue_ids = sorted(entry.get("cue_id") for entry in entries)
-    if cue_ids != list(range(args.require_cues)):
-        raise SystemExit("audio proof: event-to-cue matrix cue IDs are not 0..17")
+    if cue_ids != expected_event_cue_ids:
+        raise SystemExit(
+            "audio proof: event-to-cue matrix cue IDs must be "
+            f"{expected_event_cue_ids} (cue 12 has no active event mapping)"
+        )
+    if any(entry.get("event") == "credit_accepted" for entry in entries):
+        raise SystemExit("audio proof: retired credit_accepted mapping remains")
     unresolved = event_map.get("unresolved", [])
     if any(item.get("event") == "high_score_end" for item in unresolved):
         raise SystemExit("audio proof: high-score END mapping remains unresolved")

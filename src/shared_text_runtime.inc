@@ -241,13 +241,13 @@ asset_draw_top_hud
         pshs a
         lda #$34
         sta $FFA4
-        lda #6
+        lda #13
         sta HUD_Y
         lda #TEXT_HIGH_SCORE
         sta HUD_COLOR
         ldu #PRES_HIGHSCORE_BASE-$2000
         jsr draw_bcd_line
-        ldx #$3984
+        ldx #FB_VIRT+(12*1280)+(33*4) ; authored TOP name at (33,12), $5C84
         ldb #7
 asset_top_name
         lda ,u+

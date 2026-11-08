@@ -51,7 +51,6 @@ aaa_silent_demo
         clr audio_poll_valid
         bra aaa_ok
 aaa_output
-        jsr audio_credit_service
         jsr aaa_prime
         lda #$6C
         sta $FF90

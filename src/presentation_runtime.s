@@ -1,4 +1,5 @@
 ; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.
+; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
 ; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and start scanner.
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
@@ -682,6 +683,16 @@ attract_tick_ready
         endc
         cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
+        ifne    COMPLETE_PROFILE
+        ; A fresh edge services only one BACK. Replay the other owner on idle
+        ; ticks after advancing the clock; never paint over a queued frame.
+        tst     <$E1
+        beq     attract_tick_animation
+        lbsr    menu_runtime_dispatch
+        tst     PENDING
+        bne     hold
+attract_tick_animation
+        endc
         ifne    ATTRACT_OVERLAY_ENABLED
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
         std     PRES_NAME_PTR

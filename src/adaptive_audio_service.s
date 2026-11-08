@@ -100,7 +100,6 @@ aas_demo
         clr audio_poll_valid
         bra aas_ok
 aas_output
-        jsr audio_credit_service
         jsr aas_prime
         lda #$6C
         sta GIME_INIT0

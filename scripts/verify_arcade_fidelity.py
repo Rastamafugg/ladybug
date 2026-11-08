@@ -157,7 +157,7 @@ def verify_hud_rows() -> None:
     assert "jsr     asset_draw_part_value" in hud
     vegetable = source[source.index("\ndraw_vegetable_hud\n"):
                        source.index("\nvegetable_values\n")]
-    assert "ldx     #$5C80" in vegetable
+    assert "ldx     #PRESENTATION_PART_VEGETABLE_DST" in vegetable
     assert "ldd     #$230D\n        std     HUD_X" in vegetable
     player = source[source.index("\ninit_player\n"):
                     source.index("\nread_joystick\n", source.index("\ninit_player\n"))]
