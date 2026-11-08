@@ -25,6 +25,8 @@ For each proposed gate, classify it as a recurring regression check or one-time 
 
 For behavior changes, record the natural user-visible sequence and state whether the request adds behavior or replaces an existing default owner. Name the displaced owner or path.
 
+For assembly changes, identify generated or exported symbols affected by the edit. Trace build aliases to their owner and include the correct source-reference import/routine records, primary-source DOC-002 mirror, and new routine-catalog semantic anchor where needed in the Ready artifact list. Record when the automated source-documentation audit runs; a post-build audit is not a pre-build check.
+
 Consult [the ticket workflow](../../../wiki/internal/tickets/workflow.html) and [active ticket index](../../../wiki/internal/tickets/index.html) before routing. Do not duplicate an existing ticket; update it or link the relationship.
 
 ## Step 2 — Route
