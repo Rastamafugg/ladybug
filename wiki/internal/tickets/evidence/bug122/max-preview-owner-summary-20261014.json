@@ -1,0 +1,50 @@
+{
+  "ticket": "BUG-122",
+  "scenarios": [
+    {
+      "receipt": "repro\\bug122-heart-verification-20261014\\evidence\\parent-runtime-audio-fixed-20261014\\bug122-max-records.json",
+      "sha256": "f4b641b95bf36b98e0fa9895eb766ba6a149d3e263af2206778e861de2627cdb",
+      "scenario": "max-records",
+      "result": "PASS",
+      "candidate": {
+        "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+        "phase_deadline_seconds": 45,
+        "monitor_stop_seconds": 10,
+        "no_preview_rng_or_audio_admission": true,
+        "adjacent_panel_fields": {
+          "pass": true,
+          "outside_slot_differing_bytes": 0,
+          "first_difference": null,
+          "baseline_sha256": "aafb89e5517eb6d705b92080b643d18ba2278bffd7dfdc82bdda0474338b7866",
+          "candidate_sha256": "aafb89e5517eb6d705b92080b643d18ba2278bffd7dfdc82bdda0474338b7866",
+          "rule": "same-config panel outside 3 letter and 3 heart rectangles must match"
+        }
+      }
+    },
+    {
+      "receipt": "repro\\bug122-heart-verification-20261014\\evidence\\parent-runtime-audio-fixed-20261014\\bug122-next-stage.json",
+      "sha256": "adf762d1c13c0ed638f9b376ec3a7ca737e735ef520bf19cd7adbf0a4dbeceb1",
+      "scenario": "next-stage",
+      "result": "FAIL",
+      "failure": "AssertionError('required natural preview owner gate remains missing: observed owners [1], required [0, 1]')"
+    }
+  ],
+  "owner_reassessment": {
+    "path": "repro\\bug122-heart-verification-20261014\\natural-owner-reassessment-20261014.txt",
+    "sha256": "9b29f2cc6469f5d0233aa2347b7750fd65ec4e200c7e8c84ffab08a197f90e97",
+    "observed_preview_front_ids": [
+      1,
+      1
+    ],
+    "required_preview_front_ids": [
+      0,
+      1
+    ],
+    "observed_commit_sequences": [
+      6,
+      268
+    ],
+    "interpretation": "262 actual publications is even; source stage handoff does not reset owner. Alternate preview owner coverage missing. One extra natural neutral publication proposed, no owner override authorized."
+  },
+  "latest_observer_readiness": "offline owner predicates pass, parent rejected actual nested deadline enforcement; local correction in progress. No runtime launched with that observer."
+}
