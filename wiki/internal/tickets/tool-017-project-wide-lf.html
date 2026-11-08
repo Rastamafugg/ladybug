@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-017 - Project-wide LF text policy - Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&#8592; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &#183; tooling</p>
+      <h1>TOOL-017 - Project-wide LF text policy <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Proposed &#183; P1 &#183; consistent tracked text and candidate source snapshots</p>
+    </header>
+
+    <section>
+      <h2>Status and ownership</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed. No line-ending policy, normalization, or implementation is authorized by this ticket.</li>
+        <li><strong>Created / updated:</strong> 2026-11-06 / 2026-11-06</li>
+        <li><strong>Priority / order:</strong> P1; before the next source snapshot that depends on Windows checkout bytes.</li>
+        <li><strong>Owner:</strong> unassigned pending approval.</li>
+        <li><strong>Dependencies:</strong> TOOL-016 is Done and supplies LF-only checksum-manifest writing. This ticket addresses source and other tracked text files outside that narrow rule.</li>
+        <li><strong>Cost class:</strong> Standard tooling work; no game behavior or runtime change.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Use line feed (LF, byte 0A) as the only line ending for tracked text files in both the Git repository and developer worktrees. Make the policy apply regardless of each machine's Git setting, and prevent candidate source copies from inheriting carriage-return plus line-feed (CRLF, bytes 0D 0A) when their tracked sources are intended to use LF.</p>
+      <h3>Evidence and baseline</h3>
+      <p>At E HEAD <code>1a55c4ac45541d93e8396af133f8793d07ae5bb0</code>, the E worktree is dirty. Its <code>.gitattributes</code> contains only <code>*.sh text eol=lf</code> and <code>*.sha256 text eol=lf</code>; no <code>.editorconfig</code> exists. Git configuration from <code>C:/Program Files/Git/etc/gitconfig</code> sets <code>core.autocrlf=true</code>. <code>git check-attr</code> reports <code>text</code> and <code>eol</code> unspecified for <code>src/presentation_runtime.s</code>. Its Git HEAD blob is LF-only, while the E working copy and the copied FEAT-010 successor source file are CRLF-only. The successor's checksum manifests are LF-only, as required by TOOL-016. This is a demonstrated mismatch between checkout/configuration and generated-package writing, not evidence of a source-code behavior defect.</p>
+      <p>The official <a href="https://git-scm.com/docs/gitattributes">Git attributes documentation</a> states that unspecified text/eol attributes defer to <code>core.autocrlf</code>/<code>core.eol</code>, and that attributes can define normalization and checkout endings. The checked-in attribute policy currently covers only shell scripts and checksum manifests.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> inventory all tracked paths and classify text, binary, and intentional exceptions; define explicit LF rules in <code>.gitattributes</code>; add <code>.editorconfig</code> with LF defaults for supported text editors; normalize tracked text in a clean isolated worktree; document the policy and candidate-copy expectations in the build workflow. Preserve TOOL-016's explicit LF checksum writer.</p>
+      <p><strong>Out:</strong> changing any machine- or user-global Git setting; changing game logic, build outputs, ROMs, artwork, audio, PDFs, or other binary payloads; normalizing historical ignored <code>repro/</code> packages or rewriting their identities; running game builds or runtime checks; applying a broad renormalization to the dirty E worktree.</p>
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Fresh Windows checkout with <code>core.autocrlf=true</code> must keep tracked text at LF because repository attributes define the checkout policy.</li>
+        <li>Fresh WSL/Linux checkout must also show LF in both the index and worktree.</li>
+        <li>Existing tracked files whose Git blobs contain CRLF must be explicitly classified and normalized; <code>text=auto</code> alone must not be assumed to rewrite every historical blob.</li>
+        <li>Binary and format-sensitive files must remain byte-identical and receive <code>-text</code> or an explicit exception.</li>
+        <li>Editor-created and candidate-generated text files must end in LF; checksum manifests continue to use TOOL-016's byte-explicit writer.</li>
+      </ul>
+      <h3>Options and recommendation</h3>
+      <p>Keep the current narrow rules: smallest change, but source checkout behavior continues to depend on machine configuration. Change global Git settings: affects unrelated repositories and does not travel with the project. Recommended: project-local <code>.gitattributes</code> plus <code>.editorconfig</code>, backed by an inventory and a one-time staged normalization in an isolated clean worktree. The exact attribute patterns and binary exceptions are to be frozen after the inventory, before Ready.</p>
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Every tracked text path has an explicit LF rule. A fresh Windows checkout with <code>core.autocrlf=true</code> and a WSL/Linux checkout both report LF for the index and worktree using <code>git ls-files --eol</code>.</li>
+        <li><code>.editorconfig</code> requests LF for text files supported by the project's editors; new source, HTML, JSON, shell, and text records do not acquire CRLF through normal editing.</li>
+        <li>All binary and intentional exceptions are listed and remain byte-identical before and after normalization.</li>
+        <li>The reviewed staged normalization contains only line-ending changes in the enumerated text paths plus the policy/documentation files. Content compared after normalizing CRLF to LF is unchanged.</li>
+        <li>The dirty E worktree is untouched by the normalization operation. Historical frozen candidate manifests, commands, evidence, and hashes remain unchanged.</li>
+        <li>The build-workflow page explains the distinction between tracked-file attributes and generated candidate files; checksum manifests continue to pass the existing TOOL-016 LF contract.</li>
+      </ol>
+    </section>
+
+    <section id="proposed-test-cards">
+      <h2>Proposed verification cards - approval pending</h2>
+      <p>These are proposed checks, not authorized runs. Exact commands, path lists, and measured command limits are Ready details after policy approval.</p>
+      <ul>
+        <li><strong>Windows checkout policy / distinct risk:</strong> verify repository attributes override the observed global <code>core.autocrlf=true</code>. <strong>Setup:</strong> a fresh isolated checkout after the policy is applied, plus a WSL/Linux checkout. <strong>Expected:</strong> every classified text path reports LF in both index and worktree. <strong>Negative control:</strong> a disposable text fixture deliberately given a CRLF rule must be identified as a policy violation. <strong>Owner:</strong> implementation executor; proposed deadline is a 60-second maximum per checkout audit, an estimate until measured; stop on timeout or first mismatch.</li>
+        <li><strong>Normalization integrity / distinct risk:</strong> detect semantic changes or binary damage during migration. <strong>Setup:</strong> the clean isolated worktree and frozen explicit text-path list. <strong>Expected:</strong> text contents compare equal after CRLF-to-LF normalization; binary hashes remain identical; staged changes are limited to the listed paths and policy/docs. <strong>Negative control:</strong> a disposable copy with one non-line-ending byte altered must fail the content comparison. <strong>Owner:</strong> parent reviewer; proposed deadline is a 60-second maximum for the focused comparison, an estimate until measured; stop on timeout or first mismatch.</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Dependencies and ordering</h2>
+      <ol>
+        <li>Approval of this Proposed policy.</li>
+        <li>Prepare a Ready assignment after an exhaustive tracked-path/EOL inventory and explicit text/binary classification.</li>
+        <li>Implement the policy in a clean isolated worktree, normalize only the frozen tracked-text path list, and review the line-ending-only diff.</li>
+        <li>Integrate the separate policy commit without staging or modifying unrelated E worktree changes.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Proposed assignment boundary</h2>
+      <p>Future writable artifacts: <code>.gitattributes</code>, new <code>.editorconfig</code>, <code>wiki/internal/tooling/build-workflow.html</code>, and the exact tracked text paths found by the inventory. The canonical ticket, ticket index, and log remain parent-owned. No renormalization command is frozen yet; its explicit path list, worktree, evidence root, and bounded verification commands must be recorded before Ready. Never run <code>git add --renormalize .</code> in E's dirty worktree.</p>
+    </section>
+
+    <section>
+      <h2>Verification plan</h2>
+      <p>Proposed source-control checks: capture baseline <code>git ls-files --eol</code> and <code>git check-attr text eol</code>; verify representative text and binary rules; test fresh checkout behavior with Windows-style <code>core.autocrlf=true</code> and with the WSL/Linux default; compare staged pre/post file content after line-ending normalization; verify binary hashes unchanged; and confirm the explicit staged path set contains no unrelated edits. No game build, emulator, or runtime check is relevant.</p>
+      <p>Each checkout configuration covers a distinct risk: global Windows conversion overriding the repository policy, and cross-platform repository consistency. Binary hash comparison covers accidental conversion of assets. Full commands and evidence paths remain Ready details.</p>
+    </section>
+
+    <section>
+      <h2>Decision log</h2>
+      <ul><li>2026-11-06 - Proposed by the parent agent after confirming mixed working-tree endings, unspecified source attributes, and a global Windows <code>core.autocrlf=true</code> setting. LF is recommended because the Git blob and TOOL-016 checksum workflow already use LF.</li></ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Approval is pending. No configuration or tracked file was normalized by this proposal.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
