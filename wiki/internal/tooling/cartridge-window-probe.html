@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartridge-Window ROM Probe — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tooling</a>
+    <a href="./build-workflow.html">Build workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · diagnostic tooling</p>
+      <h1>Cartridge-Window ROM Probe <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">A non-shipped ROM for checking bytes read through the CoCo 3 cartridge window.</p>
+    </header>
+
+    <section>
+      <h2>Purpose and project status</h2>
+      <p><code>src/rom_probe.s</code> is a standalone diagnostic ROM. It reads the CPU-visible cartridge window and records bytes that differ from the probe's expected program and fill pattern. It is not gameplay code and is excluded from the shipped module set in <code>scripts/source_reference.json</code>. The standard <code>scripts/build.sh</code> game build assembles <code>src/main.s</code>; the probe requires a separate one-off assemble, 16 KiB padding, and emulator launch. See the <a href="./build-workflow.html">build workflow</a>.</p>
+      <p>Git history records the probe's addition on 2026-05-10 and a full-window scan update on 2026-05-12. The <a href="../implementation/lessons-learned.html">lessons-learned record</a> documents an XRoar/GDB run on 2026-05-12. The exact command line and ROM hash for that historical run were not retained in the reviewed project records.</p>
+    </section>
+
+    <section>
+      <h2>How the scan works</h2>
+      <p>The source starts at <code>$C000</code>, sets the stack to <code>$1FFE</code>, and reads upward through <code>$FEFF</code>. The loop stops at <code>$FF00</code>, which is outside the cartridge read window. It does not write to the scanned cartridge window.</p>
+      <ul>
+        <li>Bytes from <code>$C000</code> up to the <code>probe_code_end</code> label are the probe's own executable code and are not compared.</li>
+        <li>The next <code>$0100</code> bytes are assembled as <code>$00</code>; those addresses are expected to read as zero.</li>
+        <li>From <code>probe_ff_start</code> through <code>$FEFF</code>, the padded ROM is expected to read as <code>$FF</code>.</li>
+      </ul>
+      <p>For each mismatch, the probe saves the observed address, expected byte, and actual byte in low RAM. At the end it loops forever at <code>probe_done</code>; it does not print a screen message or return to a menu. A debugger is used to inspect the results.</p>
+    </section>
+
+    <section>
+      <h2>Fixed settings and output format</h2>
+      <p>The source has no command-line parameters or runtime options. The scan bounds, expected fill pattern, and output addresses are assembly constants and labels:</p>
+      <ul>
+        <li><code>org $C000</code>: ROM entry and scan start.</li>
+        <li><code>$FF00</code>: exclusive scan end; the final scanned address is <code>$FEFF</code>.</li>
+        <li><code>fill $00,$100</code>: a 256-byte expected-zero region after the probe code; the remaining ROM padding is expected to be <code>$FF</code>.</li>
+        <li><code>$01FE</code>: one-byte scratch field holding the expected value for the current mismatch.</li>
+        <li><code>$01FF</code>: one-byte mismatch count. It increments for each record and has no overflow handling, so it wraps after 255.</li>
+        <li><code>$0200</code>: start of the mismatch log. Each record is four bytes: address high, address low, expected byte, actual byte.</li>
+      </ul>
+      <p><strong>Output-capacity warning:</strong> the log pointer advances by four for every mismatch and the source has no record limit. It can overwrite unrelated low-RAM data. Record <em>n</em> begins at <code>$0200 + 4 × (n − 1)</code>. The 41st record begins at <code>$02A0</code>; 50 records span <code>$0200-$02C7</code>. A zero count means no mismatches only when fewer than 256 were found, because the one-byte counter wraps. Do not interpret the output as safely bounded.</p>
+      <p>This output is produced by a separate diagnostic ROM, not concurrently with the game. Its overlap with a proposed game address still matters when assessing whether that address is globally unused or when running the probe itself.</p>
+    </section>
+
+    <section>
+      <h2>Recorded project use</h2>
+      <p>The May 12, 2026 investigation used a 16 KiB probe image padded with <code>$FF</code>, then inspected it in XRoar with GDB. The recorded full-window scan found 50 mismatches: the known <code>$C0D9-$C0DB</code> bytes, <code>$C8B4-$C8BE</code> reading <code>$12</code> rather than <code>$FF</code>, and <code>$E000-$E042</code> reading non-cartridge ROM bytes rather than <code>$FF</code>. A live snapshot showed the Tandy BASIC reset ROM had installed these bytes in RAM. The project conclusion was that these findings came from reset-ROM behavior, not an address-specific XRoar cartridge-reader defect. See the full evidence and reasoning in <a href="../implementation/lessons-learned.html">lessons learned</a>.</p>
+      <p>The evidence records the result and method, but not the exact assembler invocation, complete ROM hash, or a retained dump of the probe's low-RAM result area. The 50-record output span above is therefore calculated from the recorded count and current four-byte record layout, not confirmed from a retained RAM dump.</p>
+    </section>
+
+    <section>
+      <h2>Reproduction boundary</h2>
+      <p>For a new run, use the documented one-off process: assemble <code>src/rom_probe.s</code> in WSL, pad its ROM image to 16 KiB with <code>$FF</code>, launch it in XRoar as a ROM cartridge, and inspect <code>$01FF</code> and the corresponding records beginning at <code>$0200</code> through GDB. This is a procedure summary, not a copy-paste command; the historical exact command was not retained. Because the current source has no output cap, first use a separately bounded result destination or add an approved cap before running it where low-RAM contents must be preserved.</p>
+      <p>The probe is an investigation aid, not a routine game test. It should not be included in the normal cartridge build or treated as evidence about the current game ROM unless the probe source, padded ROM, emulator, and captured results are identified.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Sources: <code>src/rom_probe.s</code>, <code>scripts/source_reference.json</code>, the <a href="./build-workflow.html">build workflow</a>, and the linked 2026-05-12 diagnostic record.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
