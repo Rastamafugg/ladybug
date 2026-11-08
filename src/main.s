@@ -243,7 +243,8 @@ SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
 PRES_HIGHSCORE_BASE equ $AF84
-LIVES         equ $0023         ; lives remaining
+LIVES         equ $0023         ; reserve lives after the active player enters
+MAX_RESERVE_LIVES equ 12        ; active life is additional to these HUD markers
 STAGE         equ $0024         ; current stage, 1..255
 DOTS_LEFT     equ $0025         ; remaining flowers in this stage
 STAGE_PENDING equ $0026         ; nonzero requests a stage transition
@@ -1204,7 +1205,13 @@ alp_extra
         cmpb    #$1F
         bne     alp_extra_draw
         clr     EXTRA_BITS
+        ; LIVES counts reserve lives after the active player has entered.
+        ; Keep twelve reserve markers; the active life is additional.
+        lda     LIVES
+        cmpa    #MAX_RESERVE_LIVES
+        bhs     alp_extra_pending
         inc     LIVES
+alp_extra_pending
         inc     STAGE_PENDING
 alp_extra_draw
         lda     ENTITY_VARIANT
@@ -1233,7 +1240,7 @@ alp_done
 
 add_special_score
         lda     SCORE_BCD
-        adda    #$01            ; CoCo SPECIAL adaptation: 10,000 points
+        adda    #$10            ; 1.0 SPECIAL reward: 100,000 points
         daa
         sta     SCORE_BCD
         ifeq    COMPLETE_PROFILE
@@ -1623,7 +1630,7 @@ dl_erase
 dl_next
         inc     ENTITY_WORK
         lda     ENTITY_WORK
-        cmpa    #12
+        cmpa    #MAX_RESERVE_LIVES
         blo     dl_marker
         rts
         else

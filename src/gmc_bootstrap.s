@@ -43,9 +43,9 @@ BOOT_DESC_PTR equ $0280
 BOOT_SRC_END equ $0282
 BOOT_DEST_END equ $0284
 BOOT_STREAMS equ $0286
-; @audit {"id":"boot-stream-descriptors","kind":"scratch","symbol":"GMC_LZSS_TABLE_RAM","width":99,"mapping":"unbanked-low-ram","phases":["boot"],"owner":"GMC bootstrap","lifetime":"All seven descriptors retire at boot_streams_retired after staged audio expansion, before audio initialization.","initialization":"copy_gmc_lzss_table","clobbers":"Later audio guard, mode, credit-pending and gateway replace overlap only after retirement; no retained runtime pointer."}
-GMC_LZSS_TABLE_RAM equ $0287
-; @audit {"id":"boot-audio-stream","kind":"index","symbol":"GMC_LZSS_AUDIO_OFFSET","producer":"boot-audio-stream","domain":"Offset of unique final audio descriptor","encoding":"Generated stream ordinal times fourteen","bounds":[0,84]}
+; @audit {"id":"boot-stream-descriptors","kind":"scratch","symbol":"GMC_LZSS_TABLE_RAM","width":127,"mapping":"unbanked-low-ram","phases":["boot"],"owner":"GMC bootstrap","lifetime":"Up to nine descriptors retire at boot_streams_retired after staged audio expansion and before runtime handoff.","initialization":"copy_gmc_lzss_table","clobbers":"The first 127 bytes of runtime ACTOR_STAGE at $1800-$187E are reused only after descriptor retirement; no retained runtime pointer."}
+GMC_LZSS_TABLE_RAM equ $1800
+; @audit {"id":"boot-audio-stream","kind":"index","symbol":"GMC_LZSS_AUDIO_OFFSET","producer":"boot-audio-stream","domain":"Offset of unique final audio descriptor","encoding":"Generated stream ordinal times fourteen","bounds":[0,112]}
 LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
@@ -790,8 +790,8 @@ sparse_copy_table_end
         include "ladybug-perimeter-boot.inc"
 loader_end
 
-        ifgt GMC_LZSS_STREAM_TABLE_BYTES-99
-        error "boot descriptor table exceeds $0287-$02E9"
+        ifgt GMC_LZSS_STREAM_TABLE_BYTES-127
+        error "boot descriptor table exceeds $1800-$187E"
         endc
         ifne GMC_LZSS_AUDIO_INDEX-(GMC_LZSS_STREAM_COUNT-1)
         error "audio descriptor must terminate the stream list"

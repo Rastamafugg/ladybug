@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-011 connector generator hardening — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Backlog</a>
+    <a href="../tickets/feat-011-extra-special-intermissions.html">FEAT-011</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · backlog · deferred</p>
+      <h1>FEAT-011 connector generator hardening <span class="wiki-badge">Deferred</span></h1>
+      <p class="wiki-meta">Two nonblocking safeguards for the map-specific EXTRA connector generator.</p>
+    </header>
+
+    <section>
+      <h2>Deferred improvements</h2>
+      <ol>
+        <li><strong>Restrict the write destination.</strong> The generator accepts a map path on the command line and its write mode writes to that path. The approved FEAT-011 map edit is limited to <code>tiled/coco-extra-screen.tmx</code>. A future hardening change can make write mode reject any other resolved destination, including a path that redirects outside the repository. This is not a blocker for the current approved source-preparation boundary.</li>
+        <li><strong>Join the slot and marker checks.</strong> The generator checks the expected marker cells and separately calculates endpoints from slot numbers. The current recorded values align: slot 0 targets marker cell (33,22) at pixel (272,176), and slot 11 targets (37,16) at (304,128). A future oracle can derive each endpoint from its specific marker cell and assert the full one-to-one mapping, so changing either ordering cannot leave both checks passing independently. This is not a blocker for the current approved source-preparation boundary.</li>
+      </ol>
+    </section>
+
+    <section>
+      <h2>Disposition</h2>
+      <p>These safeguards are deferred hardening. They do not change FEAT-011's approved source-preparation scope, acceptance behavior, or authorization state. Revisit if the generator is generalized, the map's marker layout changes, or the user reprioritizes these protections. No source was changed and no generator, test, build, or runtime check was run for this backlog record.</p>
+      <p>Canonical feature context: <a href="../tickets/feat-011-extra-special-intermissions.html#assignment">FEAT-011 assignment boundary</a>.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Backlog note recorded 2026-10-29 from read-only review of <code>scripts/generate_feat011_extra_connectors.py</code>.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

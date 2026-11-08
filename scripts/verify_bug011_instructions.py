@@ -85,7 +85,7 @@ def main() -> None:
         raise SystemExit("BUG-011 proof: authored angel destination differs")
     if choreography["angel_source_code"] != 88:
         raise SystemExit("BUG-011 proof: authored wings marker resolves incorrectly")
-    if (choreography["cucumber_destination"] != 0x5C80 or
+    if (choreography["cucumber_destination"] != 0x2A84 or
             choreography["cucumber_source_code"] != 64):
         raise SystemExit("BUG-011 proof: authored cucumber marker resolves incorrectly")
     if any(event["hud_destination"] == 0 for event in events[:15]):

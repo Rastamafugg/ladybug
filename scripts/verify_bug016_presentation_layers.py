@@ -359,7 +359,8 @@ def main() -> None:
         tree = original_parse(path)
         if Path(path).resolve() == gameplay_path.resolve():
             replace_cell(
-                layer(tree.getroot(), "Sprite Locations"), (32, 13), 634,
+                layer(tree.getroot(), "Sprite Locations"),
+                screen.PART_VEGETABLE_MARKER, 634,
             )
         return tree
 
@@ -404,33 +405,36 @@ def main() -> None:
     )
 
     missing_marker = copy.deepcopy(gameplay_root)
-    replace_cell(layer(missing_marker, "Sprite Locations"), (32, 13), 0)
+    marker_cell = screen.PART_VEGETABLE_MARKER
+    replace_cell(layer(missing_marker, "Sprite Locations"), marker_cell, 0)
     require_gameplay_failure(
-        missing_marker, gameplay_path, "missing=[(32, 13)]",
+        missing_marker, gameplay_path, f"missing=[{marker_cell}]",
         "missing gameplay marker",
     )
 
     extra_marker = copy.deepcopy(gameplay_root)
-    replace_cell(layer(extra_marker, "Sprite Locations"), (33, 13), 633)
+    extra_cell = (marker_cell[0] + 1, marker_cell[1])
+    replace_cell(layer(extra_marker, "Sprite Locations"), extra_cell, 633)
     require_gameplay_failure(
-        extra_marker, gameplay_path, "extra=[(33, 13)]",
+        extra_marker, gameplay_path, f"extra=[{extra_cell}]",
         "extra gameplay marker",
     )
 
     wrong_coordinate = copy.deepcopy(gameplay_root)
     wrong_location_layer = layer(wrong_coordinate, "Sprite Locations")
-    replace_cell(wrong_location_layer, (32, 13), 0)
-    replace_cell(wrong_location_layer, (31, 13), 633)
+    wrong_cell = (marker_cell[0] - 1, marker_cell[1])
+    replace_cell(wrong_location_layer, marker_cell, 0)
+    replace_cell(wrong_location_layer, wrong_cell, 633)
     require_gameplay_failure(
         wrong_coordinate, gameplay_path,
-        "missing=[(32, 13)], extra=[(31, 13)]",
+        f"missing=[{marker_cell}], extra=[{wrong_cell}]",
         "misplaced gameplay marker",
     )
 
     wrong_gid = copy.deepcopy(gameplay_root)
-    replace_cell(layer(wrong_gid, "Sprite Locations"), (32, 13), 8)
+    replace_cell(layer(wrong_gid, "Sprite Locations"), marker_cell, 8)
     require_gameplay_failure(
-        wrong_gid, gameplay_path, "wrong=[(32, 13)]",
+        wrong_gid, gameplay_path, f"wrong=[{marker_cell}]",
         "non-sprite gameplay marker GID",
     )
 

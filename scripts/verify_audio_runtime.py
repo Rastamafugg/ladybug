@@ -20,9 +20,9 @@ ENGINE_LIMIT = 920
 PACKED_SOUND_BYTES = 3478
 KNOWN_AUDIO_DP_BYTES = 20
 MAX_REGISTER_WRITES = 11
-BOOT_DESCRIPTOR_START = 0x0287
-BOOT_DESCRIPTOR_MAX_BYTES = 99
-BOOT_STATE_START = 0x02F0
+BOOT_DESCRIPTOR_START = 0x1800
+BOOT_DESCRIPTOR_MAX_BYTES = 127
+BOOT_DESCRIPTOR_END = 0x1880
 AUDIO_GUARD_START = 0x02C0
 AUDIO_STATE_START = 0x02DC
 
@@ -212,7 +212,7 @@ def main() -> None:
     descriptor_end = descriptor_start + descriptor_bytes
     if (len(boot_symbols) != 2 or descriptor_start != BOOT_DESCRIPTOR_START
             or not 0 < descriptor_bytes <= BOOT_DESCRIPTOR_MAX_BYTES
-            or descriptor_end > BOOT_STATE_START
+            or descriptor_end > BOOT_DESCRIPTOR_END
             or not 0 < guard_bytes <= AUDIO_STATE_START - AUDIO_GUARD_START):
         raise SystemExit("audio proof: boot descriptor bounds or completion guard capacity invalid")
 
