@@ -1,0 +1,25 @@
+{
+  "date": "2026-10-14",
+  "source": "user manual report on relaunched ROM",
+  "rom_sha256": "4b775f8f1b4b2a25a82b7c5d2850ee595e49f402e9ff8060634a0095a7c6dfd5",
+  "passed_observations": [
+    "later death music finishes before replacement animation/music",
+    "new-life music starts at walk-off and finishes with animation",
+    "replacement-life control waits for animation/music completion",
+    "game over produces no replacement animation or cue",
+    "starting a game works normally",
+    "next-level ladybug position correct through level5"
+  ],
+  "not_inferred": [
+    "all three life-counter columns independently covered",
+    "all stage-entry control locked",
+    "state loss versus preview-only SPECIAL/EXTRA rendering defect"
+  ],
+  "reported_failures": {
+    "BUG-117": "input changes actual position/path during level-start walk-in; user believes later levels affected, first level likely protected by new-life animation (user inference, not independently proven)",
+    "BUG-046": "SPECIAL/EXTRA values not persisted in between-level start screens; gameplay values not yet inspected"
+  },
+  "runtime_diagnosis": "not performed; user game left untouched",
+  "production_changes": "none",
+  "closure": "no ticket moved toDone"
+}
