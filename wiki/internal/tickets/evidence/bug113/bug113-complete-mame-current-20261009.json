@@ -1,0 +1,57 @@
+{
+  "ticket": "BUG-113",
+  "date": "2026-10-09",
+  "phase": "Latest complete-profile startup in MAME 0.220",
+  "source_revision": "fd2226b6a287f6f30a8f2d5b1b38f7373bfb96de",
+  "profile": "complete",
+  "build": {
+    "command": "bash scripts/build.sh build",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "bytes": 65536,
+      "sha256": "b32560c32f61da6d3da55fb078825b6c4002a15a9de28be44de6c3da63d6a668"
+    },
+    "source_build_receipt": "build/source-build-receipt.json",
+    "source_build_state": "complete",
+    "source_inputs_match_current_worktree": true,
+    "recorded_build_artifacts_verified": 650,
+    "source_documentation_verification": "pass: 16 modules, 312/312 routines, 5038/5038 labels",
+    "embedded_rom_assets": [
+      {"name": "special_extra_event_art", "compressed_bytes": 3834, "raw_bytes": 9547, "source_address": 54590},
+      {"name": "dinosaur", "compressed_bytes": 1855, "raw_bytes": 5112, "source_address": 58424}
+    ],
+    "gmc_spare_bytes": 6166
+  },
+  "emulator": "/usr/games/mame",
+  "emulator_version": "0.220 (unknown)",
+  "command": [
+    "timeout --kill-after=5s 60s",
+    "/usr/games/mame coco3",
+    "-ext games_master",
+    "-cart /mnt/e/projects/ladybug/build/ladybug.rom",
+    "-autoboot_delay 1",
+    "-autoboot_command \"EXEC &HC002\\n\"",
+    "-seconds_to_run 4",
+    "-aviwrite /mnt/e/projects/ladybug/build/bug113/complete-latest-20261009.avi"
+  ],
+  "wall_deadline_seconds": 60,
+  "wall_elapsed_seconds": 9.392,
+  "mame_exit_code": 0,
+  "emulated_capture_seconds": 4.016667,
+  "average_speed_output": "60.46% (3 seconds)",
+  "nonfatal_warning": "ALSA sequencer unavailable; MAME exited 0.",
+  "expected_marker": "A coherent authored complete-profile ATTRACT/startup image visible by four emulated seconds.",
+  "observed_marker": "The final captured frame is solid black; no authored startup image is visible.",
+  "timeout_meaning": "A timeout would mean the startup marker was not captured within the four-emulated-second run and 60-second wall deadline; it would not establish that target code is slow.",
+  "result": "MAME process passed; visible startup marker failed. Cause is unconfirmed.",
+  "frame": {
+    "path": "wiki/internal/tickets/evidence/bug113/bug113-complete-mame-current-last-frame-20261009.png",
+    "sha256": "1ed9787c6f6d077eadc22b31268b8a023e10cf9627284ebbfcef909d44d2e3fa",
+    "bytes": 547
+  },
+  "temporary_avi": {
+    "sha256": "bd7871cbe6a7b25f5c84c77e77a3d3ad1b1a0dfa97b06e4a322cd58daac94841",
+    "bytes": 111987420,
+    "removed_after_frame_extraction": true
+  }
+}
