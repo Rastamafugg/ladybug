@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-015 — Memory map narrative and source accuracy — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../implementation/index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · documentation</p>
+      <h1>DOC-015 — Memory map narrative and source accuracy <span class="wiki-badge">Blocked</span></h1>
+      <p class="wiki-meta">2026-10-24 · Replace the dated snapshot stack with one accurate account of current memory ownership.</p>
+    </header>
+
+    <section>
+      <h2>Tracking</h2>
+      <ul>
+        <li><strong>Status:</strong> Blocked</li>
+        <li><strong>Created / updated:</strong> 2026-10-24 / 2026-10-24</li>
+        <li><strong>Priority / order:</strong> P2 / queue position unassigned</li>
+        <li><strong>Source baseline:</strong> repository HEAD <code>be911f1e90fd41ae09ad619aee3ee148f61f1a6d</code>; relevant <code>src/</code> and <code>scripts/</code> files are unchanged in the current worktree</li>
+        <li><strong>Owner:</strong> parent agent, documentation-only</li>
+        <li><strong>Dependencies:</strong> full-build qualification awaits the approved FEAT-010 removal of deprecated credit-screen coin references; the documentation scope does not include that implementation</li>
+      </ul>
+    </section>
+
+    <section>
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Rewrite <a href="../implementation/memory-map.html">the project memory map</a> as one informative narrative of the current code and its memory ownership. The existing page combines general map documentation with dated snapshots, experiments, proposals, and references to prior options. Those entries obscure the current account and can leave obsolete allocations looking authoritative. Keep only explanations and rationale that still help readers understand the current implementation; preserve historical detail through links to its canonical tickets.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>The baseline is repository HEAD <code>be911f1e90fd41ae09ad619aee3ee148f61f1a6d</code> on 2026-10-24. The target page has 50 section blocks and 51 second-level headings, mixing map topics with dated implementation snapshots and historical fitting proposals. The page itself is unchanged in the current worktree and is already linked from the implementation index. Current <code>src/</code> and <code>scripts/</code> files are clean relative to HEAD. Existing generated map and ownership artifacts have not been qualified as products of this source revision; no claim that their measurements are current is made here.</p>
+      <p>A focused source check found a concrete stale claim in the target's “Boot execution and legacy data-copy procedure” section: it labels direct execution from the 8 KiB cartridge code window as current. At this baseline, <code>src/gmc_bootstrap.s</code> runs its bootstrap from GMC bank 0, copies the loader to low RAM, stages the bank-1 runtime image, switches to all-RAM mode, publishes the staged image at <code>$C000</code>, and transfers to <code>$C002</code>. The source also marks <code>$FE00-$FFFF</code> as the forced-RAM/I/O region. The target already contains a separate obsolete self-copy investigation, and <a href="../implementation/lessons-learned.html">the lessons-learned page</a> records that its earlier shadow-RAM model was disproven. This is a confirmed stale current-path description; the rest of the page has not yet received a complete source audit.</p>
+      <p>The source audit must use the current assembly and profile/configuration sources, including <code>src/main.s</code>, <code>src/gmc_bootstrap.s</code> and the active runtime modules, with <code>scripts/build.sh</code> and generated map/ownership outputs as corroborating evidence. A generated artifact is authoritative only after its source/build identity is established or it is regenerated from the current source.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong> rewrite <code>wiki/internal/implementation/memory-map.html</code> into a coherent current-state explanation; reconcile every retained address, size, owner, profile, overlay, and lifetime claim against current source and qualified build outputs; distinguish CPU-visible logical addresses, physical RAM pages, cartridge ROM source windows, and RAM copy destinations; retain relevant current rationale and link historical alternatives to canonical tickets. Keep the implementation index link if it remains accurate. Maintain the canonical ticket, ticket index, and dated project log.</p>
+      <p><strong>Out:</strong> changing assembly, scripts, generated outputs, runtime behavior, memory allocations, build profiles, or product targets; rewriting linked tickets or raw reference material; adding memory-map tooling; and treating unresolved source/build disagreements as permission to modify code. A discovered code or tooling defect requires separate triage.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ol>
+        <li>A reader needs to understand the current address-space layout and major owners from the page without reconstructing a timeline from dated fragments.</li>
+        <li>Addresses reused across phases or mappings must be described with their owners and lifetimes so temporary overlays are not mistaken for simultaneous allocations.</li>
+        <li>Cartridge source bytes, CPU-visible bank windows, and copied/decompressed RAM destinations must remain distinct.</li>
+        <li>Profile-specific layouts and limits must be labeled by the profile that produces them; an old candidate fit must not appear as a current allocation.</li>
+        <li>If assembly, build configuration, and a generated map disagree, the narrative must omit or qualify the unresolved claim and record the discrepancy for separate follow-up.</li>
+        <li>Useful rationale from a historical proposal may remain only when it explains a current decision, with the canonical decision or ticket linked.</li>
+      </ol>
+
+      <h3>Options and recommendation</h3>
+      <p>Adding a short summary above the existing dated sections would preserve the competing histories and leave two accounts of the map to maintain. Recommend replacing the snapshot stack with a topic-organized narrative, integrating only currently relevant rationale and linking historical evidence at its canonical ticket. This meets the requested single-narrative outcome while keeping detailed experiment records available.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>The memory map reads as one current-state narrative organized by topic. It contains no dated activity-log or candidate-proposal sections; historical material is removed from this page or reduced to a current rationale with a link to its canonical ticket.</li>
+        <li>The boot narrative describes the current GMC bank-0 bootstrap and bank-1 staging/publication flow, and labels the former direct 8 KiB execution and shadow-RAM self-copy accounts as historical, with the relevant canonical finding linked.</li>
+        <li>Every retained factual claim about addresses, sizes, allocation limits, owners, profiles, mapped windows, source/destination locations, and temporal reuse is checked against current source and build configuration. Any generated map used is tied to this source revision or regenerated from it.</li>
+        <li>The page distinguishes logical CPU addresses from physical pages and banked ROM source locations, and explains phase-specific aliases and lifetimes wherever the same storage is reused.</li>
+        <li>No unsupported or unresolved claim is presented as current. Material source/build disagreement is recorded for separate follow-up rather than silently resolved by assumption.</li>
+        <li>Existing useful internal links still resolve; the implementation index continues to link the page. The edited HTML uses the wiki shell and stylesheet, has unique IDs, and has no broken local file or fragment links.</li>
+        <li>Only the approved wiki page and its necessary ticket/index/log records change. Source, scripts, generated build outputs, ROMs, capacities, and runtime behavior remain unchanged. No emulator run or gameplay test is required.</li>
+      </ol>
+
+      <h3>Verification plan and risks</h3>
+      <ul>
+        <li><strong>Stale or incorrect allocation claims:</strong> audit retained addresses, extents, profile limits, and owners against assembly/configuration sources and source-qualified generated maps. This covers inaccurate current layout facts.</li>
+        <li><strong>Stale boot execution model:</strong> trace the current bootstrap from bank-0 entry through loader copy, bank-1 staging, all-RAM publication, and the transfer to <code>$C002</code>. This covers retaining the superseded 8 KiB direct-execution description as current.</li>
+        <li><strong>Incorrect temporal ownership:</strong> trace initialization, use, and retirement of reused regions through the relevant phase transitions. This covers aliases described as simultaneous or assigned to the wrong phase.</li>
+        <li><strong>ROM/RAM location confusion:</strong> compare boot descriptors, loader/build layout, bank windows, and copy/decompression destinations. This covers source addresses being mislabeled as RAM or vice versa.</li>
+        <li><strong>Unreadable or broken wiki page:</strong> check the page structure, unique IDs, local links/fragments, whitespace, and scoped diff. No gating test scenario is added, so DOC-014 test cards do not apply.</li>
+      </ul>
+      <p>At proposal time, no build or complete current-source map audit had been performed. Existing generated maps record a different source revision, so this assignment creates source-qualified map evidence in an isolated build directory. No emulator run or gameplay test is included.</p>
+
+      <h3>Dependencies, risks, and approval</h3>
+      <p>No implementation dependency was identified when DOC-015 was proposed. The assigned full-build qualification now awaits the approved FEAT-010 removal of deprecated credit-screen coin references because <code>scripts/build_presentation.py</code> still requires the obsolete <code>Coin Positions</code> metadata layer. This is a verification dependency only; DOC-015 remains documentation-only. Approval authorizes the stated rewrite, isolated standard build, and source-accuracy review, but does not authorize code, build-tool, or runtime changes under this ticket.</p>
+    </section>
+
+    <section id="assignment">
+      <h2>Assignment contract</h2>
+      <p><strong>Approved Ready assignment:</strong> user approval recorded on 2026-10-24. The parent owns <code>wiki/internal/implementation/memory-map.html</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>. The existing implementation-index link is read-only and remains unless it becomes inaccurate. No delegation or worktree is needed.</p>
+      <p><strong>Constraints:</strong> keep one current narrative, remove dated activity/proposal sections, preserve required semantic IDs and links, and record only source-supported current facts. Do not edit assembly, scripts, source-reference configuration, Tiled inputs, other tickets, or generated outputs as retained project artifacts. If a discrepancy suggests a code/tooling defect, record it for separate triage. Preserve all pre-existing worktree changes.</p>
+      <p><strong>Build and evidence:</strong> use an isolated output directory and the current default complete profile. From the repository root run <code>LADYBUG_PROFILE=complete LADYBUG_ADAPTIVE=1 LADYBUG_INPUT=keyboard LADYBUG_BUILD_DIR=build/doc015-memory-map bash scripts/build.sh build</code>. Qualify <code>build/doc015-memory-map/source-reference/ownership.json</code>, the resident and boot maps, sparse/presentation manifests, and the complete ROM against the source revision and input hashes before using generated values. Inspect current assembly and configuration for every retained allocation and phase claim.</p>
+      <p><strong>Verification:</strong> verify all six <code>scripts/source_reference.json</code> memory-map semantic anchors, the historical inbound fragments retained for compression and framebuffer ownership, local links/fragments, unique IDs, wiki shell, and <code>git diff --check</code>. Confirm <code>git diff --quiet -- src scripts</code> and that the pre-existing build directory and source inputs are unchanged. Do not run XRoar/GDB or gameplay tests. Retain only the source/build revision, relevant map/hash summary, focused HTML/link result, and failures if any; remove the isolated generated directory after evidence is summarized.</p>
+      <p><strong>Commit:</strong> no stage or commit because ticket/index/log files contain pre-existing shared edits. <strong>Completion report:</strong> state the exact wiki changes, source/build revision and result, verification commands, residual risks, and confirm that no source/runtime artifacts changed.</p>
+    </section>
+
+        <section id="execution-results">
+      <h2>Execution and verification</h2>
+      <p>The memory-map rewrite and source audit are complete against HEAD <code>be911f1e90fd41ae09ad619aee3ee148f61f1a6d</code>. The current GMC bootstrap, runtime PAR table, framebuffer owners, fixed addresses, low-RAM overlays, stack boundary, profile configuration, and source/destination distinctions were checked against the relevant assembly and build scripts. No build-derived capacity, packed extent, or free-space measurement is presented as current.</p>
+      <p><strong>Build contract gap:</strong> the assigned isolated complete-profile build stopped in <code>scripts/build_presentation.py</code> before generating the qualified ownership/resident/boot maps or complete ROM. The absence of the <code>Coin Positions</code> layer in <code>tiled/coco-high-score-screen.tmx</code> is intentional: the user confirms gameplay credits are deprecated. The build still stops with <code>high-score layer contract mismatch; missing/duplicate=['Coin Positions']</code> because <code>scripts/build_presentation.py</code> retains the legacy metadata-layer requirement. This is a stale build-tool contract and missing generated-map coverage, not a bad input or product assertion failure. The existing approved <a href="../tickets/feat-010-attract-menu-free-start.html#scope-approved-20261014">FEAT-010 scope</a> removes presentation coin admission/display; DOC-015 does not alter that code or the Tiled input. Existing generated maps identify revision <code>4206b4d4</code> and were not used.</p>
+      <p><strong>Checks passed:</strong> all six source-reference anchors and both historical inbound fragments resolve; HTML shell, unique IDs, and local links/fragments pass; <code>git diff --check</code> passes for the edited tracked wiki files; <code>git diff --quiet -- src scripts</code> confirms source and scripts are unchanged. The isolated build directory is absent, the pre-existing generated <code>assets/arcade/maze.json</code> retains its recorded SHA-256, and the Tiled inputs were not edited. No emulator, GDB, gameplay test, stage, or commit was run.</p>
+      <p><strong>Outcome:</strong> the documentation rewrite and source checks pass, but the approved build-map qualification remains missing. DOC-015 is Blocked and is not accepted as Done until FEAT-010's deprecated coin references are integrated and the current build-map qualification succeeds, or the user approves a revised verification basis. Changing that acceptance basis returns DOC-015 to Proposed.</p>
+    </section>
+<section>
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-10-24 — Created as Proposed after reviewing the wiki catalog, ticket workflow/index, and target page structure. A focused read of <code>src/gmc_bootstrap.s</code> confirms the page's direct-8-KiB execution paragraph is stale at the source baseline; the complete map audit remains pending.</li>
+        <li>2026-10-24 — User approved the proposed outcome, scope, and acceptance criteria. Status advanced to Approved; no additional behavior, target, or scope was introduced.</li>
+        <li>2026-10-24 — Ready assignment completed with exact wiki ownership, isolated complete-profile build command, source/map and semantic-anchor checks, evidence boundaries, and no-commit constraints. Status advanced to Ready.</li>
+        <li>2026-10-24 — Parent began the approved documentation rewrite and source audit. Status advanced to In Progress; no source, script, or runtime edits are authorized.</li>
+        <li>2026-10-24 — Completed the narrative rewrite and source review. The assigned isolated build stopped before map generation because the pre-existing high-score TMX lacks <code>Coin Positions</code>; recorded as a stale generator contract and missing map coverage, not an invalid input. The user confirmed that gameplay credits are deprecated and the layer absence is intentional. HTML/source-scope checks pass, but build-map qualification remains pending, so status advanced to Blocked while awaiting FEAT-010 deprecation integration.</li>
+        <li>2026-10-24 — User clarifies that gameplay credits and the <code>Coin Positions</code> layer are deprecated; their absence from the edited TMX is intentional. The remaining failure is the legacy generator requirement during FEAT-010 cleanup, not an input defect. DOC-015 remains Blocked pending that integration or an approved verification-basis revision.</li>
+            </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Approval fixes the documentation outcome and source-audit boundary. Historical experiment evidence remains in its canonical tickets.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
