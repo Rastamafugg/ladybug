@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-014 — Shared engineering framework — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="index.html">Tickets</a>
+    <a href="workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Tooling · architecture proposal</p>
+      <h1>TOOL-014 — Shared engineering framework <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Reusable architecture, project configuration, evidence and workflow standards; design only.</p>
+    </header>
+
+    <section id="status">
+      <h2>Status and authority</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed; created 2026-10-23. No implementation or execution approval.</li>
+        <li><strong>Source:</strong> user explicitly requests a separate ticket and detailed explanation, then clarifies that the subject is the larger framework rather than only the first capacity report.</li>
+        <li><strong>Priority / order:</strong> unassigned; not a new Ladybug 1.0 release gate or dependency of EXTRA/SPECIAL.</li>
+        <li><strong>Owner:</strong> unassigned. Intake route: project-management to coding-architect. No delegation.</li>
+        <li><strong>Risk:</strong> High-risk architecture/tooling scope because future consumers could make decisions about memory limits, runtime ownership and verification authority from its records. This ticket's proposed deliverable is a design, not executable tooling.</li>
+        <li><strong>Authorized now:</strong> create this ticket and its discovery/log links only. No new repository, service, tool, source patch, build, emulator session, migration, commit or change to existing approvals.</li>
+      </ul>
+    </section>
+
+    <section id="objective">
+      <h2>Objective and motivation</h2>
+      <p>Define a shared home for engineering architecture and implementation standards, with each application retaining its own configuration, assets, acceptance decisions and resulting outputs. Models should be able to ask what constraints apply, what evidence supports a proposed change and which dependencies it affects without repeatedly reconstructing those facts from tickets and scripts.</p>
+      <p>Memory-layout planning is one capability of the framework. Other capabilities include build evidence, reusable workflow definitions and explicit integration contracts. The design must reuse existing Ladybug mechanisms where appropriate rather than introduce a second catalog or a general autonomous execution controller.</p>
+      <p>Baseline: knowledge currently spans the wiki, source-reference configuration, build guards, generated maps/listings, build receipts and ticket-specific checks. Repeated reconstruction and the source-order dependency exposed during the EXTRA/SPECIAL relocation discussion motivate the proposal. No measured time-saving baseline or current all-profile capacity result has been established by this filing.</p>
+    </section>
+
+    <section id="scope">
+      <h2>Proposed design scope</h2>
+      <ol>
+        <li><strong>Ownership:</strong> define what belongs to the shared architecture project, a platform family such as CoCo 3/GMC, and each application.</li>
+        <li><strong>Configuration and outputs:</strong> define how projects declare regions, profiles, tools, workflows and local output locations, and how results identify their originating inputs.</li>
+        <li><strong>Memory and placement evidence:</strong> cover region allocations, reserve policies, routine locations, branch reach, fixed-address consumers, mapping/lifetime restrictions and verifier dependencies. Distinguish established coverage from unknown references.</li>
+        <li><strong>Workflow promotion:</strong> define how a locally discovered workflow becomes a reviewed reusable capability while project-specific assets and authority stay local. Shared process-based test/diagnostic execution contracts, including whole-run deadlines and child ownership, are cross-referenced to Master Project MP-0023; this ticket does not implement that runner.</li>
+        <li><strong>Versioning and migration:</strong> define pinned versions, compatibility rules, staged adoption and rollback before any repository extraction or project conversion.</li>
+        <li><strong>Incremental delivery:</strong> select a small first implementation candidate, proposed as a retained-build capacity report, without making the complete framework a prerequisite for delivering that report or Ladybug 1.0.</li>
+      </ol>
+      <p><strong>Excluded:</strong> implementing the framework, automatic code relocation, changes to game behavior, applying the intermission package, controller recovery repairs, new execution authority, runtime profiling, ROM builds, MAME/XRoar/GDB, project-wide migration, GitHub repository creation and commits. Future implementation requires separately approved bounded assignments.</p>
+    </section>
+
+    <section id="ownership">
+      <h2>Ownership and integration contract</h2>
+      <p><strong>Shared architecture project:</strong> common record formats, interpretation rules, implementation standards, workflow contracts, reusable readers/checkers and their independent examples. This is a proposed responsibility boundary; no separate project exists as a result of this ticket.</p>
+      <p><strong>CoCo 3/GMC platform family:</strong> documented address-space conventions, physical-page/bank distinctions, hardware restrictions and reusable platform workflows. Platform defaults must identify assumptions; an 8 KiB window is not automatically an application's permitted allocation.</p>
+      <p><strong>Ladybug and other applications:</strong> actual region assignments, profiles, tool locations, approved budgets, fixtures, game-specific scenarios, assets, exceptions and all resulting reports/evidence. The shared framework must not infer runtime permission from configuration or a previous passing result.</p>
+      <p><strong>Integration:</strong> an application pins compatible framework and platform versions, supplies its reviewed local configuration and chooses its output directory. Generated evidence records the exact versions and inputs used. It cannot silently modify allocations, approvals or application configuration. Unknown fields or unsupported versions must not silently produce a success conclusion.</p>
+    </section>
+
+    <section id="existing-records">
+      <h2>Existing Ladybug records to reuse</h2>
+      <ul>
+        <li><a href="../implementation/memory-map.html">Memory map</a>: authored allocations, lifetime/ownership notes, historical fits and limits.</li>
+        <li><a href="../implementation/source-guide.html">Source guide</a> and <code>scripts/source_reference.json</code>: semantic source configuration and generated-reference conventions.</li>
+        <li><code>scripts/source_reference/model.py</code>, <code>map_parser.py</code>, <code>listing_parser.py</code> and <code>normalize.py</code>: existing representations/readers for symbols, bytes, calls and address identities.</li>
+        <li><code>scripts/source_reference/provenance.py</code>: captures pre-assembly inputs and checks recorded artifact identities. Reuse its supported semantics; do not rehash old outputs and claim a new build.</li>
+        <li><code>scripts/build.sh</code>: existing region guards. <code>build/ladybug.map</code>, <code>build/ladybug.lst</code>, presentation maps/listings, <code>build/source-build-receipt.json</code> and <code>build/ladybug-sparse-layout.json</code>: candidate retained evidence, not admitted as current by this ticket.</li>
+        <li><code>scripts/verify_enemy_runtime.py</code>: concrete source-order dependency on the relative positions of <code>apply_letter_pickup</code> and <code>add_special_score</code>. Record this as a placement dependency example, not authorization to change that verifier.</li>
+      </ul>
+      <p>Missing or fragmented capability: a consolidated profile-specific connection between applicable limits, occupied extents, branch reach and non-game consumers of layout. Completeness must not be inferred from a list of direct calls; indirect destinations, aliases and authored verifier assumptions may require explicit declarations.</p>
+    </section>
+
+    <section id="glossary">
+      <h2>Glossary and evidence meanings</h2>
+      <dl>
+        <dt>Build and profile</dt><dd>A build is output from particular inputs and settings. A profile names a combination of settings. Different profiles can occupy different amounts of memory.</dd>
+        <dt>Region and physical capacity</dt><dd>A region is a named address interval with an owner and purpose. Physical capacity is the hardware space available, which may exceed this owner's permitted allocation.</dd>
+        <dt>Permitted allocation and required reserve</dt><dd>Permitted allocation is the maximum extent the owner may occupy. Required reserve is space deliberately kept unused under an identified policy. A missing reserve is unknown, not zero.</dd>
+        <dt>Occupied extent and unused tail capacity</dt><dd>Occupied extent runs from the region start to its established occupied end, including intervening bytes. Tail capacity is permitted allocation minus occupied extent. It does not imply internal holes are reusable. Reserve margin is tail capacity minus required reserve.</dd>
+        <dt>Address identity</dt><dd>An address plus the context needed to identify its bytes: CPU address, mapped physical page, cartridge bank/offset, and applicable phase where relevant. Equal CPU addresses need not refer to the same storage.</dd>
+        <dt>Placement dependency and branch reach</dt><dd>A dependency is a caller, fixed offset, mapping rule or tool assumption affected by movement. Branch reach is the permitted signed distance from the end of a branch instruction to its target.</dd>
+        <dt>Hash, provenance and frozen input set</dt><dd>A hash fingerprints contents. Provenance relates outputs to the inputs/tools that produced them. A frozen input set is a recorded, identifiable selection; it does not lock or alter files.</dd>
+        <dt>Fixture, control and independent expected answer</dt><dd>A fixture is a prepared example; a control checks a distinct success/failure condition. Its expected answer is established separately from the code being evaluated.</dd>
+        <dt>Report validity versus capacity outcome</dt><dd>A report is valid if its identities and calculations are supported. It may validly report an overflow. Missing or conflicting evidence cannot establish fit. Historical evidence may be valid for its named build without describing current source.</dd>
+      </dl>
+    </section>
+
+    <section id="promotion">
+      <h2>Promoting local workflows</h2>
+      <ol>
+        <li>Describe the workflow encountered in an application, its problem, inputs, outputs, constraints and actual evidence. Retain application-specific material locally.</li>
+        <li>Identify the universal rule and the parameters that differ by project. Separate hardware-family restrictions from application choices.</li>
+        <li>Review at least one contrasting example or explicit non-applicable case before calling the rule reusable. Synthetic examples do not prove adoption by another real project.</li>
+        <li>Publish a versioned reusable definition only after its meaning and independent checks are reviewed. A candidate local script does not become a universal standard by being copied.</li>
+        <li>Let each application adopt a named version explicitly, retain its own outputs and verify compatibility. Promotion never carries execution or approval authority between projects.</li>
+      </ol>
+    </section>
+
+    <section id="versioning">
+      <h2>Versioning and migration gates</h2>
+      <p>Version common records, platform rules and implementations explicitly. Additive optional data must preserve existing meanings; incompatible field meanings or required behavior require a compatibility change and explicit consumer handling. Never silently reinterpret historical evidence using new limits.</p>
+      <p>Migration sequence: approve the ownership/design boundary; identify existing consumers and duplicated rules; freeze application configuration and baseline evidence; qualify compatible behavior on retained examples; approve one application pilot; compare old and new conclusions; retain rollback to the prior pinned version; only then consider broader adoption. Concrete migration commands, writable files and controls belong in a later assignment.</p>
+      <p>A separate repository is a proposed destination, not an initial dependency. Do not move code before its ownership, dependencies and compatibility are understood. Existing controller cards and their prohibitions remain authoritative; this framework does not adopt or replace them.</p>
+    </section>
+
+    <section id="first-stage">
+      <h2>Small first implementation candidate</h2>
+      <p>Propose one advisory report for resident code, resident assets and the presentation overlay from one identifiable retained build. Select the actual build/profile only after its supporting files and historical limits can be reconciled. If that is impossible, report the missing evidence; do not rebuild automatically.</p>
+      <p>Candidate inputs: <code>build/source-build-receipt.json</code>, <code>build/ladybug.map</code>, <code>build/ladybug.lst</code>, <code>build/ladybug-presentation-runtime.map</code> and <code>build/ladybug-presentation-runtime.lst</code>, with matching historical configuration and applicable limits. Today's scripts/wiki cannot automatically establish historical limits.</p>
+      <p>Proposed outputs: one reviewed application-owned region contract, one machine-readable capacity report and one concise control summary. Exact output paths remain unassigned. Use plain-language chat to explain results; defer a new HTML renderer unless existing presentation can be reused cheaply.</p>
+      <p>Initially report established extents and tail capacity only. Internal free-space recovery, complete placement analysis and the EXTRA/SPECIAL branch example are outside this small implementation candidate, while remaining within the larger architecture roadmap. No current intermission fit is inferred.</p>
+    </section>
+
+    <section id="acceptance">
+      <h2>Design acceptance criteria</h2>
+      <ul>
+        <li>Every shared/platform/application responsibility has an identified owner; approvals, project configuration and resulting outputs remain application-owned.</li>
+        <li>Define the minimum configuration/output fields and meanings, including evidence freshness, address identities, unknown coverage and version compatibility.</li>
+        <li>Walk through one existing Ladybug capacity question and one placement-dependency question; identify which answers existing evidence supports and which require later capability.</li>
+        <li>Demonstrate workflow promotion and rejection of a project-specific assumption using reviewed examples; no claim of multi-project implementation without evidence.</li>
+        <li>Document migration stages, rollback and exclusions. No new 1.0 gate or framework dependency is introduced into game tickets.</li>
+        <li>Define the small first implementation assignment's remaining inputs, independent controls, output ownership and explicit stop conditions before requesting implementation approval.</li>
+        <li>Measure benefits before claiming them: baseline repeated file reads/manual lookup steps and contradictions found for selected questions; compare with traceable answers from the pilot. No time-saving percentage is invented.</li>
+      </ul>
+    </section>
+
+    <section id="test-cards">
+      <h2>Proposed checks and sign-off boundary</h2>
+      <p>Apply <a href="doc-014-test-signoff-contract.html#card">DOC-014</a>. These are design requirements, not approved executable cards. Revision/profile, frozen fixtures, hashes, exact commands, owner and writable paths remain unresolved; therefore nothing is Ready for dispatch.</p>
+      <ul>
+        <li><strong>Manual design review:</strong> check the ownership, glossary, versioning, workflow promotion and migration criteria above. Acceptance is an explicit reviewed design, not an implementation claim.</li>
+        <li><strong>Future offline arithmetic controls:</strong> independently authored examples at a permitted limit and one byte beyond it, plus a separate reserve shortfall. Expected outcomes are exact; a valid overflow report is a successful measurement of a capacity failure.</li>
+        <li><strong>Future offline evidence controls:</strong> mismatched artifact identity, missing boundary and conflicting address context must produce explicit invalid/incomplete evidence without a fit verdict. Historical evidence must not be labeled current.</li>
+        <li><strong>Future retained-build check:</strong> manually establish selected boundaries from raw maps/listings before comparison with extracted results. A missing historical constraint stops the attempt without building or searching for a passing result.</li>
+        <li><strong>Bounds and results:</strong> proposed whole-command ceiling 60 seconds for each future named offline phase, including nested work; duration unmeasured. Stop on expiry, retain last evidence, no automatic retries. Report setup failure, missing evidence, expected negative-control rejection and capacity failure separately.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Assignment and dependencies</h2>
+      <p><strong>Current writable boundary:</strong> this ticket, its ticket-index discovery entry and its project-log entry only. No game source, scripts, generated reports, build artifacts, consumed evidence or unrelated ticket state may change under this filing.</p>
+      <p><strong>Next design preparation:</strong> resolve ownership and minimum records, inventory actual reuse opportunities, then propose the first bounded implementation assignment. Before implementation, name exact files, input identities, commands, approved cards, evidence paths, dependency order and completion criteria. No delegation, branch/worktree creation or commit is authorized here.</p>
+      <p><strong>Open decisions:</strong> shared-project name/location; platform-versus-application configuration boundaries; selected retained pilot build and historical constraints; minimal reusable implementation boundary; exact first-assignment files and commands. Do not manufacture blockers for independent Ladybug game work.</p>
+      <p><strong>Completion report for future work:</strong> approved scope, changed files/commit if separately authorized, checks and measured results versus targets, unchanged game capacity for tooling-only changes, residual unknowns, rejected alternatives, evidence identities and justified lifecycle state.</p>
+    </section>
+
+    <section id="decisions">
+      <h2>Decision log and completion evidence</h2>
+      <p>2026-10-23 — Separate ticket requested in a side conversation. User clarified scope as the larger framework. Filed Proposed architecture/design work with memory-layout reporting as one incremental capability. Rejected narrowing the whole ticket to a three-region report. Existing source-reference machinery is the preferred starting point; no separate implementation approved.</p>
+      <p>Current completion: ticket filing only. Design acceptance, implementation, controls, runtime work and migration are not completed or authorized. No code/runtime measurements or performance improvements are claimed.</p>
+    </section>
+    <footer class="wiki-footer"><p>Canonical proposal. Supporting source pointers are evidence inventory, not execution permission.</p></footer>
+  </main>
+</div>
+</body>
+</html>
