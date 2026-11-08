@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-018 - Shared HUD data-provider contract - Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&larr; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="index.html">Tickets</a>
+    <a href="workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; research and design</p>
+      <h1>RSCH-018 - Shared HUD data-provider contract <span class="wiki-badge">Proposed</span></h1>
+      <p class="wiki-meta">Created 2026-11-02 &middot; P2 / unassigned &middot; no implementation authority</p>
+    </header>
+
+    <section id="objective">
+      <h2>Objective and motivation</h2>
+      <p>Define one shared contract for how gameplay and presentation provide HUD values and how the HUD formats, colors, positions, and redraws them. The goal is consistent screen output while gameplay and ranking keep ownership of their own data.</p>
+      <p>The user reported that right-side HUD values and colors differ by screen. Current source places gameplay HUD drawing in <code>src/main.s</code> and presentation panel updates in <code>src/shared_text_stage.inc</code>. The visible layout is authored in Tiled and copied from the shared template to the affected maps. This proposal addresses the division of responsibilities before any code is changed.</p>
+    </section>
+
+    <section id="evidence">
+      <h2>Source baseline and confirmed user decisions</h2>
+      <ul>
+        <li><code>src/main.s</code> contains <code>draw_hud</code>, score/vegetable/part writers, <code>draw_lives</code>, and <code>life_marker_position</code>. The source comment defines <code>LIVES</code> as reserve lives after the active player enters.</li>
+        <li><code>src/shared_text_stage.inc</code> contains presentation screen writers, including <code>presentation_panel_slice</code>, which is called by <code>stage_panel_slice</code> and dispatches TOP or High Score panel work.</li>
+        <li>The shared <code>tiled/coco-template.tmx</code> supplies the HUD layout copied to seven screen maps. The current presentation build path generates screen data and color rules from those maps.</li>
+        <li>User direction: gameplay values need to be available at each gameplay update. Ranking records can be supplied at game/Attract initialization and refreshed only after a game-over flow changes them.</li>
+        <li>User direction: the life-award movement remains gameplay/event-flow work. After the award is committed, the HUD receives the new reserve count and owns which static life markers are lit. The 1.0 display has at most 12 markers; reserve count may exceed 12 and saturates at 255. A numeric count above 12 is future work.</li>
+      </ul>
+      <p>These are source observations and user decisions, not build or runtime results. The current HUD inconsistency has not been traced field by field across every screen; that inventory is part of this research.</p>
+    </section>
+
+    <section id="scope">
+      <h2>Proposed scope</h2>
+      <p><strong>In:</strong> inventory each HUD field by screen, data owner, source writer, map cell, format, color, and refresh event; define a compact, read-only provider/view contract; define when gameplay and ranking publish data; define the life-marker refresh around the existing award animation; define the single layout source and map-sync/build handoff; and account for mapping, framebuffer, code-size, and active-worklist timing constraints.</p>
+      <p><strong>Out:</strong> changing score, ranking, or gameplay ownership; adding a numeric above-12 life counter in 1.0; changing the adopted EXTRA/SPECIAL rewards; implementing the shared renderer or provider in this ticket; changing Tiled art outside the agreed template-sync process; and building, testing, or running the game as part of this design ticket.</p>
+    </section>
+
+    <section id="recommendation">
+      <h2>Recommended contract to evaluate</h2>
+      <ol>
+        <li>Gameplay remains the authority for current score, reserve lives, stage, vegetable progress, and part value. It provides a fresh view on each gameplay HUD update, or a changed-field mask when the value changes; the HUD never writes back to those values.</li>
+        <li>Ranking remains the authority for records and pending name/score. Provide its snapshot at game/Attract initialization and refresh it after a qualifying game-over/name-entry flow commits a changed record. Do not poll ranking data on every gameplay update.</li>
+        <li>The HUD owns field layout, formatting, color selection, and pixels. It consumes copied values or a synchronous provider interface whose lifetime is valid across the selected memory mapping; it must not retain a pointer into a page that can be remapped.</li>
+        <li>For lives, gameplay owns the one-byte reserve count and all award/loss changes; the HUD receives a read-only count and never changes it. A completed award increments once up to 255; at 255 it still completes the route/cue/animation but leaves the count at 255, so it cannot wrap to the zero game-over sentinel. A life loss uses the existing gameplay decrement and game-over path at zero. The event-flow owner controls the moving life animation. It commits the award only when that animation finishes, then asks the HUD to redraw the static row from the new count. The HUD lights <code>min(reserve_count, 12)</code> markers; the moving sprite temporarily covers slot 12 when all markers are lit, then disappears as the HUD redraw reveals the marker. A later numeric counter can use the same full count.</li>
+        <li>Tiled template layout remains the visual source of truth. The build converts field markers and color properties into one descriptor contract, then synchronizes the designated maps; gameplay and presentation code must not keep independent copies of cell coordinates, formats, or colors.</li>
+      </ol>
+      <h3>Proposed snapshot address and handoff</h3>
+      <p>Evaluate a 32-byte by-value HUD snapshot at CPU address <code>$02A0-$02BF</code>. The memory map records PAR0 initialized to map <code>$0000-$1FFF</code> to physical page <code>$38</code>; under that mapping, this range remains addressable while PAR5 changes. That is a condition of the proposed design, not proof that PAR0 is permanently fixed or that these bytes are free. This is a candidate only: the memory map does not mark the bytes free, and an older <a href="bug-087-level-speed-progression.html#rate-b8-allocation-b9-dispatch-20261002">BUG-087 allocation analysis</a> also mentions <code>$029B-$02A0</code> as a candidate range. Before selecting this address, audit current symbols, scratch and stack use, boot/runtime lifetimes, confirm PAR0 remains mapped to <code>$38</code> throughout capture and draw, and inspect the boundary byte at <code>$02A0</code>. If any live owner overlaps or the view does not fit in 32 bytes, select a different audited range; do not silently allocate over it.</p>
+      <p>The proposed provider copies named values into the snapshot while each source owner is accessible: gameplay publishes on a HUD update, while ranking publishes at initialization and after a committed record change. The renderer reads the copied fields and retains no pointers into PAR5-mapped pages. Routine names, byte offsets, and whether updates use a whole-record copy or a changed-field mask remain open design details.</p>
+      <h3 id="snapshot-ownership-audit-20261102">Read-only low-RAM ownership audit</h3>
+      <p>Audited the current <code>E:\projects\ladybug</code> worktree on branch <code>main</code>, HEAD <code>1a55c4ac</code>; several inspected source/build files contain uncommitted changes, so this result describes the current worktree contents, not that commit alone. No build or runtime check was run.</p>
+      <ul>
+        <li>The source declares no fixed game variable in <code>$02A0-$02BF</code>. On the lower side, the keybinding block ends at <code>$029A</code> and the rate helper owns <code>$029B-$029F</code>. On the upper side, audio storage begins at <code>$02C0</code> and continues through its guard, status bytes, and service gateway. The current stack window is <code>$1E00-$1FFF</code>.</li>
+        <li>Menus share the presentation selection byte <code>$E0</code>; <code>shared_text_stage.inc</code> names it <code>MENU_SELECT</code>, and the Keybindings screen uses that same byte as its row index. The Keybindings screen uniquely needs five persistent gameplay key values plus scan/capture state: its declared 20-byte block is <code>$0287-$029A</code>, with key values at <code>$0287-$028B</code>, fixed-menu held state at <code>$028C</code>, <code>$028D</code> reserved, eight row samples at <code>$028E-$0295</code>, and five working bytes at <code>$0296-$029A</code>. This is additional keybinding data, not a separate menu-selection variable. General Attract/Options navigation bounds up/down at <code>MENU_SELECT</code>; Options also rejects indices 2 and above before indexing <code>MENU_LIVES</code>. Keybindings bounds normal navigation to rows 0–5, with row 5 returning Back and capture intended only for rows 0–4. Its capture writer nevertheless relies on that flow rather than checking the index at the write.</li>
+        <li>That capture path is the conditional indirect writer: <code>src/keybinding_runtime.s</code> sets X to <code>KB_BIND=$0287</code>, loads B from <code>$E0</code>, then stores one byte with <code>sta b,x</code>. The target is <code>$0287+B</code>; values B=25 through 56 would write into <code>$02A0-$02BF</code>. Normal screen entry clears the shared selection and normal navigation stays in range. I found no source path or recorded runtime incident that puts it out of range. An unrelated memory-corruption bug or unexpected capture entry could do so, but those are hypothetical, not observed causes.</li>
+        <li>Generated boot copy paths are bounded away from the range. <code>scripts/build_sparse_sprites.py</code> places its 8-byte copy descriptors at <code>$0200</code> and rejects a table larger than 128 bytes, so it ends before <code>$0280</code>. It also restricts generated low-RAM payload destinations to <code>$06B0-$07FF</code> or the presentation window at <code>$1900-$1E3F</code>. The bootstrap consumes the copy table during boot; the compressed-stream table is separately staged at <code>$1800-$187E</code> and retires before runtime handoff. PAR0 is set to page <code>$38</code> at boot/startup; inspected later mapping writes target PAR1–PAR5.</li>
+        <li>The older BUG-087 record's broad <code>$029B-$02BF</code> candidate and “no references” scan are historical, not current clearance: the rate helper now actively writes <code>$029B-$029F</code>, and the keybinding indexed store was not ruled out by that scan.</li>
+        <li><code>src/audio_runtime.s</code> still comments that “Boot tables end at <code>$02BF</code>.” That conflicts with the current bootstrap table at <code>$1800-$187E</code>; the comment is stale evidence, not an owner declaration. It was not edited in this audit.</li>
+        <li>The non-shipped <code>src/rom_probe.s</code> is a one-off cartridge-window diagnostic, not part of <code>scripts/build.sh</code>'s game build. Its purpose, fixed parameters, output format, capacity limit, and historical result are documented on the <a href="../tooling/cartridge-window-probe.html">cartridge-window ROM probe</a> page. Git history adds it on 2026-05-10 and extends it to scan <code>$C000-$FEFF</code> on 2026-05-12. The <a href="../implementation/lessons-learned.html">lessons-learned record</a> documents an XRoar/GDB run on 2026-05-12 with 50 mismatches. Each mismatch is four bytes, starting at <code>$0200</code>; by calculation, 50 records occupy <code>$0200-$02C7</code>, including the proposed range. This span is an inference from the reported count and source record format; no matching low-RAM dump or exact ROM identity was found. The source-reference registry excludes the probe from shipped modules.</li>
+      </ul>
+      <p><strong>Assessment:</strong> The source-level indirect-reference and phase-lifetime review is complete. It found no intended shipped-game owner in <code>$02A0-$02BF</code>, but found a conditional keybinding write if the shared selection index leaves its normal 0–5 range. Thus the range is not cleared for allocation. Before selecting it, bound or independently verify that indexed write's input, narrow the source-reference ownership record to this subrange, correct the stale boot-table comment, and compare against a fresh build-generated destination map. The current E worktree is dirty, so this review does not certify commit <code>1a55c4ac</code> or a linked artifact. No bytes were reserved or written; no build or runtime check was run.</p>
+      <p>For persistent A/B rendering, the proposed HUD draw joins the existing render-intent transaction. Source defines <code>RF_HUD</code> and <code>RF_LIVES</code> intents; <code>framebuffer_queue_damage</code> carries persistent HUD/life intents to the other surface, and the renderer paints the selected BACK surface. The vertical-border interrupt swaps FRONT and BACK only when <code>FB_RENDER_PENDING</code> says the BACK surface is complete. The shared HUD must therefore update or queue damage for the appropriate surface, never draw directly to FRONT, and let the existing publication point expose the completed frame. The exact call boundary and proof that both surfaces contain current HUD pixels remain to be designed.</p>
+      <h3>Proposed Tiled color preview</h3>
+      <p>Keep the template's black-and-white placeholder art and authored geometry as the layout source. Current source has two other color inputs: <code>scripts/build_presentation.py</code>'s <code>presentation_pen_map</code> applies screen/map palette rules to authored tiles, while <code>scripts/shared_text.py</code> reads <code>assets/arcade/text-colours.json</code> for shared-text field colors and coordinate runs. These inputs have different responsibilities today and can overlap on visible HUD fields.</p>
+      <p><strong>Proposed relationship:</strong> for HUD fields explicitly represented in the template, semantic field IDs and color properties in that template become the single authored field-color source. The generator derives the runtime field-color data and a Tiled-visible preview from the same properties. For any such field currently represented in <code>text-colours.json</code> or covered by <code>presentation_pen_map</code>, the design must choose migration or a generated consistency check; it must not leave two independently edited values or silently discard a needed rule. Keep JSON coordinate runs and palette rules for content outside the template-defined HUD fields unless the field inventory shows they should move too. The preview remains generated output, not a second hand-edited source. Property encoding and preview artifact format are proposals, not frozen implementation choices.</p>
+      <p>The exact snapshot address, byte offsets, refresh call shape, descriptor schema, framebuffer call boundary, and preview encoding are not frozen. The design must settle them after source-level ownership and mapping checks; no proposed address or preview counts as implemented or qualified evidence.</p>
+    </section>
+
+    <section id="scenarios">
+      <h2>Required design scenarios and edge cases</h2>
+      <ul>
+        <li>New game and first visible gameplay frame: initialize all gameplay-owned HUD fields from the new game state.</li>
+        <li>Ordinary gameplay update: score, stage, part, vegetable, or lives changes are reflected on the next defined HUD refresh without a screen-specific stale value.</li>
+        <li>Life award and loss: after the moving sprite reaches its destination, gameplay commits one award and publishes the resulting count; the HUD redraw reveals at most 12 static markers with no duplicate sprite. Counts 12 through 255 show 12 markers. At 255 another award leaves 255; a normal loss decrements the reserve count and zero follows the existing game-over path.</li>
+        <li>Attract/High Score entry and changed record: ranking snapshot is present on entry, remains stable during gameplay, and refreshes after a record/name commit.</li>
+        <li>Screen/map transition and both persistent framebuffer owners: drawing uses the selected prepared BACK surface and does not publish an incomplete field update or write directly to FRONT.</li>
+        <li>Missing or stale provider data: the design defines a deterministic fallback to authored baseline values and never borrows a prior screen's state accidentally.</li>
+      </ul>
+    </section>
+
+    <section id="acceptance">
+      <h2>Acceptance criteria for the design ticket</h2>
+      <ol>
+        <li>Provide a source-backed screen/field matrix naming the current writer, logical owner, map layout/color source, and refresh event for every HUD field in the target screens.</li>
+        <li>Specify the provider/view schema, ownership, update cadence, dirty-field behavior, initialization, ranking refresh event, life-animation handoff, stale-data fallback, and error behavior.</li>
+        <li>Specify how the shared Tiled template becomes build input and how generated descriptors replace duplicated coordinates/color rules.</li>
+        <li>Audit the proposed <code>$02A0-$02BF</code> snapshot against live symbols, scratch, stack, and phase lifetimes; document the provider copy boundary and PAR5 expectations.</li>
+        <li>Specify how shared HUD damage reaches the selected BACK surface, remains correct for both persistent surfaces, and is published only after the existing completion handoff.</li>
+        <li>Specify template field-color ownership and its relationship to <code>text-colours.json</code> field values/runs and <code>presentation_pen_map</code> rules; define migration or consistency checks for overlaps and stale-preview detection.</li>
+        <li>Account for current direct-page ownership and PAR mapping, persistent BACK/FRONT rules, the 1,280-byte presentation-module ceiling, and the 27,000 active-cycle target. Identify which figures are limits, estimates, or still unknown; do not claim timing or capacity passes without a build.</li>
+        <li>Deliver a separate implementation boundary and least-cost verification plan. No code or map edits are acceptance for this ticket.</li>
+      </ol>
+    </section>
+
+    <section id="options-risks">
+      <h2>Options and risks</h2>
+      <p><strong>Recommended:</strong> centralize the HUD's drawing contract and use stable, read-only provider values while leaving gameplay and ranking state in their current owners. This reduces divergent drawing rules without making the HUD the authority for score or records.</p>
+      <p><strong>Rejected for this proposal:</strong> moving all score/life/ranking state into a new HUD-owned state module. That duplicates or transfers authoritative game state, expands save/restart and screen-transition behavior, and adds unnecessary coupling.</p>
+      <p><strong>Risks:</strong> banked modules may not share an address window at the same time; the proposed low-RAM range may overlap a live scratch, stack, or historical candidate allocation; persistent-framebuffer ownership requires redraws on the prepared BACK surface; Tiled layout or color-preview output can drift if generated from different metadata; and a common refresh routine may consume presentation bytes or cycles. The design must resolve the address audit and measure or bound the other effects before implementation is proposed.</p>
+    </section>
+
+    <section id="assignment-boundary">
+      <h2>Assignment boundary and verification</h2>
+      <p>This is a source-and-documentation design step. Read-only inputs are <code>src/main.s</code>, <code>src/presentation_runtime.s</code>, <code>src/shared_text_stage.inc</code>, <code>scripts/build_presentation.py</code>, the seven synchronized Tiled maps, <code>tiled/coco-template.tmx</code>, the memory map, and the routine catalog. No source, map, generator, build script, or generated runtime artifact may be changed.</p>
+      <p>Review evidence is the completed field/owner matrix, contract sketch, mapping/capacity analysis, and exact proposed implementation boundary. No tests, builds, emulator commands, runtime checks, commits, or ticket-state changes are authorized by this ticket.</p>
+      <p><strong>Relationship:</strong> this design study does not block the approved FEAT-010 or FEAT-011 1.0 implementation and acceptance gates. The timing and scope of any shared-HUD implementation remain a separate product decision; implementation requires its own approved and Ready assignment.</p>
+    </section>
+
+    <section id="decision-log">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-02 - Drafted Proposed shared HUD provider/rendering design from current source observations and explicit user direction. No implementation authority granted.</li>
+        <li>2026-11-02 - Recorded the proposed 32-byte low-RAM snapshot range <code>$02A0-$02BF</code>, existing BACK-buffer damage/publication handoff, and generated Tiled color-preview approach. The address remains unallocated pending a live-ownership audit; preview metadata and output format remain design proposals. Status remains Proposed; no implementation or checks authorized.</li>
+        <li>2026-11-02 - Read-only ownership audit found no declared/direct shipped-game owner in <code>$02A0-$02BF</code>, between active rate state at <code>$029B-$029F</code> and audio storage beginning at <code>$02C0</code>. The non-shipped ROM probe can write there after 40 earlier mismatch records. The range is a plausible game-runtime gap, not allocation-cleared; indirect-access/lifetime review and stale-comment correction remain. No address was allocated.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>
