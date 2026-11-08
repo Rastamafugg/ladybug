@@ -1,0 +1,165 @@
+{
+  "commit": null,
+  "errors": [],
+  "final_startup": {
+    "no_surviving_process_group_members": true,
+    "port_no_longer_listening": true,
+    "result": {
+      "classification": "observed",
+      "description_sha256": "d22dc8e647ec78e46044efc83121bcc2eae5f4ba783c036598031791681a8a2a",
+      "elapsed_seconds": 3.8029,
+      "emulator_exited": true,
+      "game_acceptance": "not_claimed",
+      "marker": 6400,
+      "reads": {},
+      "scenario": "resident-entry",
+      "scenario_sha256": "5ce2bda9ee00e430ef6658d521a1e9bfed1f0382c378740af957ffde2ef6f332",
+      "schema": 1
+    },
+    "supervisor": {
+      "classification": "passed",
+      "elapsed_seconds": 4.0183,
+      "exit_code": 0,
+      "pid": 3799,
+      "process_exited": true,
+      "schema": 1
+    }
+  },
+  "first_observer_failure": {
+    "cause": "GDB dump command treated quoted filename literally after PC/page/bytes passed",
+    "resolution": "fixed relative filenames and target-free native file-writer qualification",
+    "result": {
+      "classification": "harness_failure",
+      "elapsed_seconds": 5.7538,
+      "emulator_exited": true,
+      "game_acceptance": "not_claimed",
+      "reason": "GDB did not prove the bound PC, physical pages and code bytes; inspect gdb.log",
+      "schema": 1
+    }
+  },
+  "game_acceptance": "not_claimed",
+  "negative_current_E": {
+    "cause": "colour override is not a text cell: high-score index 184",
+    "resolution": "preserved for FEAT-010; no game-data edit",
+    "result": {
+      "classification": "command_failed",
+      "description": "/mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/build.json",
+      "release_accepted": false,
+      "rom_produced": false,
+      "run": "/mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36",
+      "source_documentation": "not_established",
+      "supervisor": {
+        "classification": "command_failed",
+        "elapsed_seconds": 100.7935,
+        "exit_code": 1,
+        "pid": 3058,
+        "process_exited": true,
+        "schema": 1
+      }
+    }
+  },
+  "offline": {
+    "elapsed_seconds": 5.0303,
+    "passed": true,
+    "tests": 31
+  },
+  "positive_retained_sources": {
+    "description_sha256": "d22dc8e647ec78e46044efc83121bcc2eae5f4ba783c036598031791681a8a2a",
+    "matches_retained_ROM": true,
+    "result": {
+      "classification": "passed",
+      "description": "/mnt/e/projects/ladybug/repro/engineering/20261107T134230Z-keyboard-adaptive-11472edebd43/build.json",
+      "release_accepted": false,
+      "rom_produced": true,
+      "run": "/mnt/e/projects/ladybug/repro/engineering/20261107T134230Z-keyboard-adaptive-11472edebd43",
+      "source_documentation": "passed",
+      "supervisor": {
+        "classification": "passed",
+        "elapsed_seconds": 402.4168,
+        "exit_code": 0,
+        "pid": 3176,
+        "process_exited": true,
+        "schema": 1
+      }
+    },
+    "rom_sha256": "668f3dd26489e8e388648ff1dd2dcc5b23b87ef2fa1a475be15593c01a8aad0e",
+    "source_origin": {
+      "path": "/mnt/e/projects/ladybug/repro/feat010-attract-observer-20261106-04/candidate-src",
+      "revision_kind": "enclosing execution repository HEAD; source hashes identify actual inputs"
+    }
+  },
+  "qa_correction": "The first closing check compared source JSON bytes against normalized execution JSON. Retained integration.json records that rejected comparison; parsed definitions and the actual execution-copy hash match.",
+  "remaining_legacy_migration": "existing approved cards/tickets; not automatically retired or certified",
+  "scenario_identity": {
+    "definition_matches_source": true,
+    "frozen_execution_sha256": "5ce2bda9ee00e430ef6658d521a1e9bfed1f0382c378740af957ffde2ef6f332",
+    "meaning": "observation fingerprints the canonicalized execution copy, not source-file whitespace",
+    "source_file_sha256": "1338a0a99c0ba13971db61cee17a13fa3d43be82a4967594d4acfe35a3bc2987"
+  },
+  "schema": 1,
+  "scope": "TOOL-018 initial local runner and first artifact-gate migration; no game acceptance",
+  "validation": {
+    "result": {
+      "checker": {
+        "__init__.py": "18be1f65b05c23ce0a46e32e86e4a7bbbec3a103393631965b41e0f29c0e7e88",
+        "audit.py": "d721ce04b06c2da479d4fe2cc8ec26e7e0a36082debe41ff475d503d703235b2",
+        "cli.py": "28f45918a30c127a71431077adebd8ac9dc00ab756d2913c264cd157fb711217",
+        "core.py": "ea0d6145ad498d58fb43074b32424e412bbf40120a24b5aa2080427fbae2b482",
+        "runtime.py": "d01ab622e529aabcc51a974a305c70c62bbff780a2f65e6d9ce779a66db13404",
+        "supervisor.py": "f9f0d2f21d8a6f56b0b8e43d1649e2d0920548f28854d766e881be94873f1694",
+        "task.py": "23938bebe58d23578805579ca681ad998d866c192d5f6ee2b36c51ea0509dfbc"
+      },
+      "checks": [
+        {
+          "artifact": "ladybug-presentation-runtime.bin",
+          "bytes": 1242,
+          "margin": 38,
+          "maximum": 1280,
+          "passed": true
+        },
+        {
+          "artifact": "ladybug-perimeter-reset-helper.bin",
+          "bytes": 331,
+          "margin": 3,
+          "maximum": 334,
+          "passed": true
+        },
+        {
+          "artifact": "ladybug-highscore-runtime.bin",
+          "bytes": 867,
+          "margin": 53,
+          "maximum": 920,
+          "passed": true
+        },
+        {
+          "artifact": "ladybug-presentation-cold.bin",
+          "bytes": 14112,
+          "margin": 2272,
+          "maximum": 16384,
+          "passed": true
+        },
+        {
+          "artifact": "ladybug.rom",
+          "bytes": 65536,
+          "exact_bytes": 65536,
+          "passed": true
+        }
+      ],
+      "classification": "passed",
+      "description_sha256": "d22dc8e647ec78e46044efc83121bcc2eae5f4ba783c036598031791681a8a2a",
+      "legacy_build": "passed",
+      "policy_sha256": "440a307c6a8374f3c1a9468960d3ffb1b90c8cc19daa83e176c73eb5d0d9d55f",
+      "release_accepted": false,
+      "schema": 1,
+      "scope": "artifact identity and explicit capacity only; legacy behavior/documentation gates remain separate"
+    },
+    "supervisor": {
+      "classification": "passed",
+      "elapsed_seconds": 2.6058,
+      "exit_code": 0,
+      "pid": 3481,
+      "process_exited": true,
+      "schema": 1
+    }
+  }
+}

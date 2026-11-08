@@ -1,0 +1,848 @@
+{
+  "authority": "inventory only; consult approved test cards",
+  "method": "AST module purpose plus explicitly heuristic coupling flags",
+  "schema": 1,
+  "special_controls": [
+    {
+      "name": "PROFILE-FIT",
+      "purpose": "qualify the size checker, not every game build",
+      "recurrence": "checker/limit/fixture changes or absent valid qualification evidence"
+    }
+  ],
+  "verifiers": [
+    {
+      "existing_catalogue": "— checks versioned MAME evidence for timing, turning, popups, and gates. Focused.",
+      "file": "scripts/verify_arcade_fidelity.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify versioned MAME timing, turning, popup, and gate evidence.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract"
+      ],
+      "sha256": "f35548f8f5cf3a6a35b090e0dbcf8fd58203fb3d8a0879e3bda1b97a0923be95"
+    },
+    {
+      "existing_catalogue": "— checks the frame-indexed arcade title-actor oracle. Focused.",
+      "file": "scripts/verify_attract_actor_reference.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the frame-indexed BUG-010 arcade title-actor oracle.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "28d3dc9f5f58af199d06c72ed00f90ca6ef77f64e94e1402285b529f0b8a4107"
+    },
+    {
+      "existing_catalogue": "— checks FEAT-006 GMC audio placement, entry points, and loader coverage. verify-gmc.",
+      "file": "scripts/verify_audio_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify FEAT-006 GMC audio placement, entry points, and loader coverage.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root"
+      ],
+      "sha256": "a00d667b9d02568782bbb979a398e5d03697275d7053ce7996584289489711c0"
+    },
+    {
+      "existing_catalogue": "— checks gate-style replay convergence and stack locality. Focused.",
+      "file": "scripts/verify_bug001_gate_replay.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-001 gate-style replay convergence and stack locality.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "ac89cc318a56c39f9404518cb20c8396d3cdcc0dccc730384c30e3a8d738dace"
+    },
+    {
+      "existing_catalogue": "— proves enemy movement cannot bypass a gate-owned target cell. Focused.",
+      "file": "scripts/verify_bug002_enemy_gate_collision.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Prove enemy movement cannot bypass a gate-owned target cell.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "15c4bd1b4e302f8e53414139fab14f3aa33d6975ddbc13e3d8194e4a199a16c3"
+    },
+    {
+      "existing_catalogue": "— checks full-stage rendering clears collectible underlays before drawing sprites. Focused.",
+      "file": "scripts/verify_bug003_collectible_underlay.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify full stage rendering clears collectible underlays before sprites.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "1d75aa5402ed9e9f2d313d4d4675a7b6833c30b5cb7a6f52d704bb692b569657"
+    },
+    {
+      "existing_catalogue": "— checks skull collectibles stay outside the bonus-colour palette path. Focused.",
+      "file": "scripts/verify_bug004_skull_colour_cycle.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify skull collectibles remain outside the bonus-colour palette path.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "e3e0f2d2b0ad8a358874bc2c26dde34de41f406fa1c96f18b700e906f1ec3bcb"
+    },
+    {
+      "existing_catalogue": "— checks gate replay after a nearby collectible colour redraw. Focused.",
+      "file": "scripts/verify_bug005_gate_colour_replay.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-005 gate replay after a nearby collectible colour redraw.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "4f49dd63c3a069d781bbe737a0218b6392f31f1320abd09e76dbf00f853e62f0"
+    },
+    {
+      "existing_catalogue": "— checks respawn publication to both framebuffer owners. Focused.",
+      "file": "scripts/verify_bug006_respawn_player.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-006 respawn publication to both framebuffer owners.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "1f6a35b3de215e756573a18ae5afec8dc8b1fe3de1f5eb0c9dac083e5a725bfd"
+    },
+    {
+      "existing_catalogue": "— bounds the credited live-start handoff and records sparse destinations. Focused.",
+      "file": "scripts/verify_bug008_live_start.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Bound the credited live-start handoff and record sparse destinations.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "owns-transport-or-processes"
+      ],
+      "sha256": "7d6a56ccd618a0aacca5bdb529b5080c4e8f6f40b1942f18cd57cafcd723d2ce"
+    },
+    {
+      "existing_catalogue": "— performs bounded BUG-009 runtime and artifact checks. Focused.",
+      "file": "scripts/verify_bug009_boot_screen.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Bounded runtime and artifact verification for BUG-009.\n\nThe cold phase observes the first sampled input, requested map, completed\nload, and first Vbord publication.  The warm phase re-enters the cartridge\nentry path with RAM retained, which is the XRoar/GDB equivalent of a hardware\nwarm reset because the normal reset path clears PRES_MAGIC before the resident\npresentation hook runs.  Both phases have independent deadlines.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "3a323ddfe8fd5ca855edb63cad68cd00c106d9097a7154f2c3f316d4e2f9f73e"
+    },
+    {
+      "existing_catalogue": "— exercises BUG-009 input and framebuffer-owner cases through the XRoar monitor. Focused runtime.",
+      "file": "scripts/verify_bug009_monitor_input.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Exercise BUG-009 input and framebuffer-owner scenarios through XRoar monitor.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "e852eec0a6d20cdd13d8c05ae10c2a136d5cab3cb17243e552e85b31da158c70"
+    },
+    {
+      "existing_catalogue": "— checks capture wiring, phase schedule, and loaded actor ownership. Focused.",
+      "file": "scripts/verify_bug010_attract_actors.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-010 capture wiring, phase schedule, and loaded actor ownership.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract"
+      ],
+      "sha256": "d4e4a88ab2127ada91feada411817f5ed3dfa0e5f9a54558205822f16b2758a8"
+    },
+    {
+      "existing_catalogue": "— retains controlled natural-sequence loop-return evidence. Focused.",
+      "file": "scripts/verify_bug010_loop_return.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Retain BUG-010's controlled natural-sequence loop-return evidence.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "0e2ceb6d88246f0bfb6c292158cf347c31116b37c750f01f7d88b09a90f350ef"
+    },
+    {
+      "existing_catalogue": "— captures the natural 558-tick attract phase through the XRoar monitor. Focused runtime.",
+      "file": "scripts/verify_bug010_natural_attract.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Capture the natural BUG-010 558-tick attract phase through XRoar monitor.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "661af46d777eb9da77025388e3d8fbd143fec7d474a1be541682cd2f21c57c5a"
+    },
+    {
+      "existing_catalogue": "— measures natural phase-changing title-actor worklists. Focused measurement.",
+      "file": "scripts/verify_bug010_phase_cycles.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Measure natural BUG-010 phase-changing actor worklists.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "a0e8e9aeb003233a16725c1ac0c22229f82abd54688eb086c48a03f5f81dd70e"
+    },
+    {
+      "existing_catalogue": "— checks hold-surface and owner-hydration evidence through the XRoar monitor. Focused runtime.",
+      "file": "scripts/verify_bug010_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Retain BUG-010 hold-surface and owner-hydration evidence through XRoar monitor.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "0872bbaeacd210970bac46bf9fb856aff2f3a7a1fbedaf3c83f94ad3e9484d1f"
+    },
+    {
+      "existing_catalogue": "— checks visible title phases and the natural instructions handoff. Focused runtime.",
+      "file": "scripts/verify_bug010_visible_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-010 visible title phases and the natural instructions handoff.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "3ab6d492db759d31f6f2140ed5e57f01b73fc48646a71e326f99689ad928e67e"
+    },
+    {
+      "existing_catalogue": "— gathers warm, forced, input, and cycle evidence in XRoar. Focused runtime.",
+      "file": "scripts/verify_bug011_evidence.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Complete BUG-011 warm, forced, input, and cycle evidence in XRoar.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "1e63032e81543794e9a0d2774183bf414a04c29435a0c068aa223345ef1201ac"
+    },
+    {
+      "existing_catalogue": "— checks generated instruction choreography and development-runtime wiring. Focused.",
+      "file": "scripts/verify_bug011_instructions.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-011 generated choreography and development runtime wiring.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "606a1f8b935c7be5a6c35f46b2614d59f0f5ff9bd7f8d7bee0d45488e8729fd3"
+    },
+    {
+      "existing_catalogue": "— checks dual-owner hydration, east-facing art, and exact restoration. Focused.",
+      "file": "scripts/verify_bug011_rendering.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-011 dual-owner hydration, east-facing art, and exact restoration.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "3d84b43b9b7069cc623eb5411042d1ac3358fd4ee64c6178602678f9d9d35d87"
+    },
+    {
+      "existing_catalogue": "— runs the complete BUG-011 sequence in XRoar through the monitor. Focused runtime.",
+      "file": "scripts/verify_bug011_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Run the complete BUG-011 sequence in XRoar through the private monitor.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "a12b6569112f4393c304b0fb976d9f88d92eea8c923ff5679e155b01773a9b92"
+    },
+    {
+      "existing_catalogue": "— checks release flow, route provenance, and removal of the shipping demo payload. Focused.",
+      "file": "scripts/verify_bug012_demo_loop.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-012 release flow, route provenance, and shipping payload removal.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract"
+      ],
+      "sha256": "e85110c9d9e1a06bc35c4014652c0e90aa25649e772e4ba761845944fa6cdef0"
+    },
+    {
+      "existing_catalogue": "— checks demo route provenance, gate legality, and full-maze coverage. Focused.",
+      "file": "scripts/verify_bug012_demo_walk.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-012 route provenance, gate legality, and full maze coverage.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "8b94a5288e4914b3038229e5209fadbd8a6203db85a6ddc63f4cadd3bf0038e2"
+    },
+    {
+      "existing_catalogue": "— forces skull and enemy collisions through normal services. Focused runtime.",
+      "file": "scripts/verify_bug012_forced_collisions.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Force BUG-012 skull and enemy collision paths through normal services.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "5282dc549272e831fdc3cf7ac617d14e9188a4d2d6a90c176a4dab6d43018aba"
+    },
+    {
+      "existing_catalogue": "— proves full coverage in live copied game and demo runtimes. Focused runtime.",
+      "file": "scripts/verify_bug012_full_coverage.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Prove BUG-012 full coverage in the live copied game and demo runtimes.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "f520a57167116b4f23156105ea43fc690e77e9706605618180cbe3822ac7ef50"
+    },
+    {
+      "existing_catalogue": "— checks owner-preserving level-start-to-maze handoff in XRoar. Focused runtime.",
+      "file": "scripts/verify_bug012_handoff_regressions.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-012 owner-preserving level-start-to-maze handoff in XRoar.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "0a4360002bdf3cccef2975ad217b33dd99798cef01fcc6cf8a3416c1c9445c6f"
+    },
+    {
+      "existing_catalogue": "— checks credit/start pre-emption and demo input ownership. Focused.",
+      "file": "scripts/verify_bug012_input_boundaries.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-012 credit/start pre-emption and demo input ownership.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "7e4ed9b636c8cd5267af02c08251cf319a5e60811b2d8570ca9a7024d0ea0a9c"
+    },
+    {
+      "existing_catalogue": "— captures the natural release loop through the XRoar monitor. Focused runtime.",
+      "file": "scripts/verify_bug012_natural_loop.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Capture the natural BUG-012 release loop through the XRoar monitor.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "ab8bac91f79f1c790b1b94510fc463ecec8f5ae8ea404eb75fed9cb2d5dbf44f"
+    },
+    {
+      "existing_catalogue": "— verifies coin-screen semantic layers, authored slots, and sparse output. Focused.",
+      "file": "scripts/verify_bug013_coin_layers.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-013 semantic layers, exact authored slots, and sparse output.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "4459e3d7d7b38c412efd31ef5d1d7d9d95c94ee70b77ee7716e7bca435b31f34"
+    },
+    {
+      "existing_catalogue": "— checks natural credit input, coin footprints, and credit hold. Focused runtime.",
+      "file": "scripts/verify_bug013_credit_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify natural BUG-013 credit input, coin footprints, and credit hold.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "c22b3bdd9a12459dbe718e50863fd965a0e20b96a6174cb7640d10b1d9ea9427"
+    },
+    {
+      "existing_catalogue": "— checks dormant startup and the timer-owned first enemy release. Focused.",
+      "file": "scripts/verify_bug014_initial_enemy_release.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-014 dormant startup and timer-owned first enemy release.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "70aa44571ba442210311c9ab3b40b2ba6db0386bdc72143095dcfdc950419b51"
+    },
+    {
+      "existing_catalogue": "— checks complete-profile input ownership, title animation, and terminal flow. Focused runtime.",
+      "file": "scripts/verify_bug015_complete_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify complete-profile input ownership, title animation, and terminal flow.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "c8b34fc448483a8dcd35806b65876043c9d3be25883714bca4205f481af2cd4a"
+    },
+    {
+      "existing_catalogue": "— verifies shared presentation-layer contracts and optional partition evidence. Build.",
+      "file": "scripts/verify_bug016_presentation_layers.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify shared presentation contracts and optional BUG-060 partition evidence.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "f2b1019c94700c78bd118637897a1cc9bfd9867218c70b6b6eb69d4d2de8791a"
+    },
+    {
+      "existing_catalogue": "— checks geometry, live-payload identity, and forced skull reset. Focused.",
+      "file": "scripts/verify_bug017_perimeter_vertical_stride.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-017 geometry, live payload identity, and forced skull reset.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "cf908de88f191cd3a28f7b501bb24ae8ca57c53f57951af322a68314a3e5acc6"
+    },
+    {
+      "existing_catalogue": "— compares enemy palettes with source pens and sparse commands. Focused.",
+      "file": "scripts/verify_bug018_part_one_enemy_palette.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify BUG-018 enemy palettes against source pens and sparse commands.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "7686e473ffd3e2c78b50be87ffee53da3ca7fe0daf5d1eb1159d96f1ce7abc50"
+    },
+    {
+      "existing_catalogue": "— captures natural and forced part-one enemy-palette runtime evidence. Focused runtime.",
+      "file": "scripts/verify_bug018_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Capture natural and forced BUG-018 part-one enemy palette runtime proof.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "144dd18cb59a22e1b927947ced6160e29dd83141e61b2a2801f0c1bb262d4e46"
+    },
+    {
+      "existing_catalogue": "— captures and checks nest-exit interpolation and paint ownership. Focused runtime.",
+      "file": "scripts/verify_bug019_enemy_nest_exit.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Capture and verify BUG-019 nest-exit interpolation and paint ownership.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "8191285a3e96f5c2674c8d1641cb86b14cb57ec19b7c0751597743af3357baab"
+    },
+    {
+      "existing_catalogue": "— checks complete-profile instruction installation and natural transition. Focused runtime.",
+      "file": "scripts/verify_bug021_complete_instructions.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the complete-profile instructions install and natural transition.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "55cb925da36eba8f5298dd58b899b230661bf3ec19e15c794c5989ac3f526f8d"
+    },
+    {
+      "existing_catalogue": "— checks BUG-030 acceptance using natural input, current symbols, and pixel oracles. Focused runtime.",
+      "file": "scripts/verify_bug030_credit.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "BUG-030 acceptance using natural input, current symbols, and pixel oracles.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "b2141a1757786bc1751256ea6df619ecfaef11ce408d0a2c346bfd72aa6ea776"
+    },
+    {
+      "existing_catalogue": "— reuses the monitor client for BUG-034 input and audio evidence. Focused runtime.",
+      "file": "scripts/verify_bug034_input.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Reuse the existing monitor client for BUG-034 input and audio evidence.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "60e8e0587cf2a326f5b27b5cd9edb334ea828106067c444d4383b1bfb5ba1e30"
+    },
+    {
+      "existing_catalogue": "— checks a pixel oracle and bounded runtime cases with the existing harness. Focused.",
+      "file": "scripts/verify_bug035_presentation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "BUG-035 pixel oracle and bounded runtime checks using the existing harness.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "f251b8edb4db76a23a2b57c0729747eeae2024d0b0d7eb422dd8b310bfc23655"
+    },
+    {
+      "existing_catalogue": "— independently checks correctness and closed-interval acceptance evidence for PERF-002. Focused.",
+      "file": "scripts/verify_death_reset.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Independent correctness and closed-interval acceptance evidence for PERF-002.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "c64cf533b413cfa346fcfc1b132662a344b5b1ae257470a2cbeef08f30115414"
+    },
+    {
+      "existing_catalogue": "— rejects enemy-frame writes outside the old/new 16-by-16 sprite rectangles. Focused.",
+      "file": "scripts/verify_enemy_framebuffer.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Reject enemy-frame writes outside the old/new 16x16 sprite rectangles.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "f659d890ef34103b0f2e7319386d727808abb5fff5833fa1c9a0466a5fa717a3"
+    },
+    {
+      "existing_catalogue": "— checks the enemy module’s fixed ABI and phase-separated compositor. verify-gmc.",
+      "file": "scripts/verify_enemy_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the enemy module's fixed ABI and phase-separated compositor.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "lexical-source-contract"
+      ],
+      "sha256": "de71921660925a6d56f724b9540bfa48d3cd003e1969298cc1a524bfde2a68ce"
+    },
+    {
+      "existing_catalogue": "— checks complete-profile key-5/key-6 high-score dispatch. Focused runtime.",
+      "file": "scripts/verify_feat003_complete_credit_dispatch.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify complete-profile key-5/key-6 high-score runtime dispatch.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "f6a5f34cd133d26b7de4b62f12fee2385ed370f9ed4fe2b620b83d2961370709"
+    },
+    {
+      "existing_catalogue": "— exercises the isolated FEAT-003 high-score test profile in XRoar. verify-gmc for that profile.",
+      "file": "scripts/verify_feat003_highscore_test.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Exercise the isolated FEAT-003 high-score test profile in XRoar.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "a328e67c625b9413e3974ed6a4b6fad2bbd8b49ce2da2c13bef4a0d2c4fa311f"
+    },
+    {
+      "existing_catalogue": "— checks FEAT-003 profile selection and artifact isolation. Build for non-complete profiles.",
+      "file": "scripts/verify_feat003_profile_isolation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify FEAT-003 profile selection and artifact isolation.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "ce51eb34a7ce5bc36a21d8412db1710962091534c95f7259bdea707cd803e3df"
+    },
+    {
+      "existing_catalogue": "— captures the natural cold complete-profile presentation sequence. Focused runtime.",
+      "file": "scripts/verify_feat004_complete_natural.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Capture the natural cold complete-profile presentation sequence.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review"
+      ],
+      "sha256": "b174cfda7dc03e8bc9ea3e746c32cdc4e6b9e62b738dfe17dd80c845f11a1e65"
+    },
+    {
+      "existing_catalogue": "— checks the cold menu sequence and bounded edge/lifecycle cases. Focused runtime.",
+      "file": "scripts/verify_feat005_menus.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "FEAT-005 cold menu sequence and bounded edge/lifecycle checks.\n\nEach runtime phase has a 40-second deadline. A timeout fails its marker;\nit does not diagnose execution speed. Reuses the existing private monitor.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "fb8637be305c81ffcf338bfa94d7375d8cf2a44190a73b19a43c8f61db360a0b"
+    },
+    {
+      "existing_catalogue": "— checks the complete FEAT-006 lifecycle and phase-owned $0300 runtimes. Focused runtime.",
+      "file": "scripts/verify_feat006_complete_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Exercise the complete FEAT-006 lifecycle and phase-owned $0300 runtimes.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "lexical-source-contract",
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "9debeb7f1929ad8da503f5f6a755ae25686a7f0479a0e06882412f857fd2de58"
+    },
+    {
+      "existing_catalogue": "— checks audio-stream identity, bounds, decoding, and capacity. Focused.",
+      "file": "scripts/verify_feat006_compression.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Retain FEAT-006 stream identity, bounds, decoder, and capacity evidence.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root"
+      ],
+      "sha256": "d71a747d8b235dffc3a9c68cc6dac93380b095623d4b8d731f1e23e6757571b6"
+    },
+    {
+      "existing_catalogue": "— runs FEAT-007 production gates and rejects missing or stale evidence. verify-gmc for complete profile.",
+      "file": "scripts/verify_feat007_text.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "FEAT-007 production acceptance gates; missing or stale evidence fails.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "8ee06d5782f3389db6661841dace37c7c25dd3a79f2519108e13a1241eef4478"
+    },
+    {
+      "existing_catalogue": "missing from prior catalogue; purpose requires review",
+      "file": "scripts/verify_feat011_intermission_runtime.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Observe the two approved FEAT-011 E-pickup fixtures through XRoar monitor.\n\nThis is a focused observer, not a game-state setup tool. It may inject normal\nkeyboard input and read memory/registers, but it never writes guest memory or\nregisters. Source-dependent event/route/return labels are supplied from the\ncandidate's linker map and remain subject to source review before dispatch.",
+      "recommendation": "relevant-runtime-changes; retain separate natural/manual acceptance",
+      "review_flags": [
+        "monitor-reference-needs-transport-review",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "df67cc2cc661464ba69e01b4342b5150169b8acfb56cbe303fb2614f2d1ea668"
+    },
+    {
+      "existing_catalogue": "— checks a controlled destination-delta four-enemy profile and image. Focused.",
+      "file": "scripts/verify_four_enemy_delta_profile.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the controlled destination-delta four-enemy profile and image.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "6f37d445ae7e438135e95d4ef808b8c3b733a3a71e64a9370101dbaf2e6d382c"
+    },
+    {
+      "existing_catalogue": "— independently proves the bounded sparse gate-entity cache is exact. Focused.",
+      "file": "scripts/verify_gate_entity_cache.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Independently prove the bounded sparse gate-entity cache is exact.\n\nThis verifier deliberately does not derive replay pairs from a post-draw image.\nIt parses the generated object masks and the assembler's mask/colour LUTs,\nmodels the original 128 destination writes, separately builds sparse runs, and\nthen replays those runs onto unrelated patterned destinations.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root"
+      ],
+      "sha256": "588e0f97b03509e52974c818b8b2f099423ebebd4bf39065fab5d88ff6c858e1"
+    },
+    {
+      "existing_catalogue": "— requires a complete, in-budget forced zero-association gate worklist. Focused.",
+      "file": "scripts/verify_gate_no_overlap.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Fail unless a forced zero-association gate worklist is complete and in budget.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "9fe4d2e9350f6cbd8e38daa4061143a2cacb07ebe9cda45394f83662dd5fc6d1"
+    },
+    {
+      "existing_catalogue": "— checks the controlled gate replay/composition optimization profile. Focused.",
+      "file": "scripts/verify_gate_optimization.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the controlled gate replay/composition optimization profile.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "a32b8d484630f108fbfa66f57301bdd5c83c209fd95e78300b0320da7a306e62"
+    },
+    {
+      "existing_catalogue": "— checks current-address complete gate intervals and reports attribution. Focused measurement.",
+      "file": "scripts/verify_gate_performance.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify current-address complete gate intervals and report attribution.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "5faa1d961817e4a77852497e3fc543c3f803d3ca17a1bb2ccb74485d65a166e6"
+    },
+    {
+      "existing_catalogue": "— compares generated gate-transition streams with controlled live traces. Focused.",
+      "file": "scripts/verify_gate_transition_profile.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify generated gate-transition streams against controlled live traces.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "9a479b0cdfbefa265b8e2641728eb6fd7fb7320a412f38a8aaeefa25b5cf11b1"
+    },
+    {
+      "existing_catalogue": "— runs bounded XRoar/GDB loader, natural, forced-gameplay, and demo phases. verify-gmc.",
+      "file": "scripts/verify_gmc_boot.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Run bounded XRoar/GDB boot, natural, forced-gameplay, and demo phases.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "owns-transport-or-processes"
+      ],
+      "sha256": "6e3dc2aea6e85e745d5541c090bb916837934d31d2b69329e0298a7643ce8e71"
+    },
+    {
+      "existing_catalogue": "— proves bank-0 overflow packing at the exact usable-source boundary. Build.",
+      "file": "scripts/verify_gmc_overflow.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Prove bank-0 overflow packing at the exact usable-source boundary.",
+      "recommendation": "packing/checker changes for synthetic controls; real capacity every build",
+      "review_flags": [],
+      "sha256": "03095550c96a5dacaf5df782b4970a84fdbf953dfcb934da110b06fbc1c0baca"
+    },
+    {
+      "existing_catalogue": "— checks the frame-indexed arcade instruction-screen oracle. Focused.",
+      "file": "scripts/verify_instruction_reference.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the frame-indexed BUG-011 arcade instruction oracle.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "6494e1674a3c9ce8f1e3d7c71aa0baf99a9d4ab1d49398c6480f548a8a21e602"
+    },
+    {
+      "existing_catalogue": "— proves animation-only nest publication matches the full compositor. Focused.",
+      "file": "scripts/verify_nest_animation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Prove animation-only nest publication matches the full compositor.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "9eef830f5d580487d49cdd14c9e53d07c72dae613107db0fa23cd52223027fbc"
+    },
+    {
+      "existing_catalogue": "— checks and summarizes current-revision complete-frame performance traces. Focused measurement.",
+      "file": "scripts/verify_performance_baseline.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify and summarize current-revision complete-frame performance traces.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root",
+        "owns-transport-or-processes"
+      ],
+      "sha256": "b2f186ba91614187d030a0a26d5ad3f419482e5c6605baaadfe08ce9fdf0686e"
+    },
+    {
+      "existing_catalogue": "— checks PERF-004 physical-page allocation and boot-synthesis ownership. Build.",
+      "file": "scripts/verify_perimeter_allocation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the PERF-004 physical-page and boot-synthesis ownership contract.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "5f71e7f454c4789952956aa4a0b911f72317e7b5ea6202cd212bca3676607248"
+    },
+    {
+      "existing_catalogue": "— checks PERF-004 perimeter-reset pixels, mappings, and timing. Focused.",
+      "file": "scripts/verify_perimeter_reset.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify PERF-004 native perimeter-reset pixels, mappings, and timing.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "d2020a3b0ad51335bb68e3a59722c8a373460710d731789d742c11e724aa9063"
+    },
+    {
+      "existing_catalogue": "— checks six static presentation maps and cold payload. Build for non-complete profiles; the complete profile uses verify_shared_text.py.",
+      "file": "scripts/verify_presentation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify the six static presentation maps and their cold payload.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "b0130dd14b456305340a48f6edfcc0fcb39ce589a727de13863eeb13f6fa75ad"
+    },
+    {
+      "existing_catalogue": "— checks dynamic presentation structure and capacity guards. verify-gmc.",
+      "file": "scripts/verify_presentation_flow.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify FEAT-002 dynamic presentation structure and capacity guards.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract"
+      ],
+      "sha256": "75d8e12f6f26ab8f8d268b76ed5396ae83664815d60ddee2619c60c6d37730e4"
+    },
+    {
+      "existing_catalogue": "— checks complete A/B popup and death-presentation profile distributions. Focused.",
+      "file": "scripts/verify_presentation_profiles.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify complete A/B popup and death presentation profile distributions.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "6da9ebbcc44c46eb76fd3fd52fc2fd02b34286fd71092c23ba4fe870ebfe9d5d"
+    },
+    {
+      "existing_catalogue": "— pixel-checks every sparse popup and death-presentation stream. Build.",
+      "file": "scripts/verify_presentation_sparse.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify every sparse popup and death presentation stream pixel-exactly.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "lexical-source-contract",
+        "fixed-artifact-root"
+      ],
+      "sha256": "75dd130d81a50d64ad2742aa9d956834139ecd89fb55b0f64136a3b307c90119"
+    },
+    {
+      "existing_catalogue": "— extracts and checks the remaining controlled strict-budget profiles. Focused measurement.",
+      "file": "scripts/verify_remaining_budget_profiles.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Extract and verify the remaining controlled strict-budget profiles.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "b35942243e5403819deac586287b7fc97adb28231895da1b81ea2474c15b75b0"
+    },
+    {
+      "existing_catalogue": "— checks production shared-text masks, references, and complete static pixels. Build for the complete profile.",
+      "file": "scripts/verify_shared_text.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify production shared-text masks, references and complete static pixels.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [],
+      "sha256": "79a9ef291c97265b37b6562557453975b8b72be8e637bfd74c5f3915948b3183"
+    },
+    {
+      "existing_catalogue": "— checks source-reference coverage, freshness, anchors, links, and mutations. Build.",
+      "file": "scripts/verify_source_documentation.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Verify source-reference coverage, freshness, anchors, links, and mutations.",
+      "recommendation": "source/interface/documentation changes; result separate from ROM construction",
+      "review_flags": [],
+      "sha256": "bbe516f393a772e6a7fef43e26692e9c8b2a4759fc6a83f33cadaf34e00e4430"
+    },
+    {
+      "existing_catalogue": "— independently decodes sparse sprite payloads and checks candidate GMC copy records. Build.",
+      "file": "scripts/verify_sparse_sprites.py",
+      "migration": "legacy; no gate retired or newly authorized",
+      "purpose": "Independently verify sparse sprite payloads and candidate GMC copy records.",
+      "recommendation": "relevant-input-or-checker changes; review existing approved card",
+      "review_flags": [
+        "fixed-artifact-root"
+      ],
+      "sha256": "61527ce9bb8068d904d07d5db5be1c242dfe8ccdfec0c2c1bd34ff891d031f1b"
+    }
+  ]
+}

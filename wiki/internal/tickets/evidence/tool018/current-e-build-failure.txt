@@ -1,0 +1,14 @@
+build: assemble [adaptive core generated module] build/ladybug-adaptive-mapped.s -> build/ladybug-adaptive-mapped.bin
+build: assemble [adaptive core generated module] build/ladybug-adaptive-banked.s -> build/ladybug-adaptive-banked.bin
+{"mapped": {"bytes": 198, "limit": 220, "free": 22}, "banked": {"bytes": 696, "limit": 698, "free": 2}}
+build: profile complete; input keyboard
+maze: 25 styles, 117 dots, 20 gates, 250 walkable cells -> /mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/source/assets/arcade/maze.json, /mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/source/build/ladybug_maze.inc
+screen: 93 unique tiles, 5024 data bytes, 832 gate-transition bytes (168 verified cases), 896 presentation-sparse bytes
+Traceback (most recent call last):
+  File "/mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/source/scripts/build_presentation.py", line 2803, in <module>
+    main()
+  File "/mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/source/scripts/build_presentation.py", line 2037, in main
+    shared = SharedText(args, sys.modules[__name__])
+  File "/mnt/e/projects/ladybug/repro/engineering/20261107T133834Z-keyboard-adaptive-aa9e2d673b36/source/scripts/shared_text.py", line 74, in __init__
+    if key not in self.cells:raise ValueError(('colour override is not a text cell',key))
+ValueError: ('colour override is not a text cell', ('high-score', 184))
