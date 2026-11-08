@@ -1,0 +1,81 @@
+{
+  "schema": 1,
+  "ticket": "TOOL-019",
+  "status": "Verification; live acceptance and commit pending",
+  "implementation": "Ready scope implemented directly in E; only offline Q1 authorized/executed",
+  "source": {
+    "scripts/engineering/runtime.py": "e7eb4c77b916d7f138f1da0546fe3cd9275b397b597a9263636b32e48da698cb",
+    "scripts/engineering/dispatch_wsl.py": "0d49ad5d61ddb88c2818197bd8b1214eabd00e9f37b6b7cc341c57905f9c644c",
+    "scripts/engineering/dispatch-wsl.ps1": "eb5c029e3b0ac965888e43b2867eaaf2df587cc01b05bbcb9119d7f7ad5b9e81",
+    "scripts/engineering/scenarios/attract-manual-down.json": "4120a04e9969785693ee2ed05b9eb0be8fb1daa9609921a616c563e96e541ebc",
+    "scripts/test_engineering.py": "195125064e72962d7a71baeb316decc0ee589b1cdf084fdc465919211aa35950"
+  },
+  "approved_fixture_definition_sha256": "82a66695f03dee80b53e0727e58c56a430788c09661d4fdc64158d9afd268720",
+  "qualification": {
+    "run": "repro/tool019-qualification-20261107-07",
+    "methods": 7,
+    "capture_definitions": 17,
+    "host_definitions": 9,
+    "test_seconds": 2.4858,
+    "native_seconds": 2.8585,
+    "host_seconds": 3.7719,
+    "host_maximum_seconds": 60,
+    "native_work_maximum_seconds": 40,
+    "passed": true,
+    "owned_children_exited": true,
+    "real_debugger_or_emulator_used": false,
+    "baseline_31_cases_rerun": false
+  },
+  "qualification_scope": "Actual new acquisition/parser and MI transport with fake debugger replies/process; real host dispatch with WSL and Q1 only; same actual host policy with fake events/clock; real owned fake-Python cancellation and descendant cleanup. No live menu conclusion.",
+  "failed_attempts": [
+    {
+      "attempt": "repro/tool019-qualification-20261107-01",
+      "result": "timeout",
+      "host_seconds": 59.8087,
+      "cause_and_resolution": "WSL option was quoted and treated as a shell command; fixture runner never started. Argument handling and early bridge-exit detection corrected.",
+      "evidence_preserved": true
+    },
+    {
+      "attempt": "repro/tool019-qualification-20261107-02",
+      "result": "command_failed",
+      "host_seconds": 3.7424,
+      "cause_and_resolution": "Q1 response decoder used invalid codec spelling utf8-sig; corrected to utf-8-sig.",
+      "evidence_preserved": true
+    },
+    {
+      "attempt": "repro/tool019-qualification-20261107-03",
+      "result": "command_failed",
+      "host_seconds": 3.2039,
+      "cause_and_resolution": "Host timeout was overwritten by cancellation during cleanup; prior failure classification now retained.",
+      "evidence_preserved": true
+    }
+  ],
+  "superseded_passes": [
+    "repro/tool019-qualification-20261107-04",
+    "repro/tool019-qualification-20261107-05",
+    "repro/tool019-qualification-20261107-06"
+  ],
+  "refinements": [
+    "Reseed commit sequence at the user input boundary; idle pre-input frames are outside required consecutive post-input coverage.",
+    "Disable publication stops while waiting for the one manual press, then re-enable them; no key injection.",
+    "Defer product conclusions from a held-input sample until release is observed.",
+    "Retain original process birth identities while collecting owned descendants.",
+    "Pin the accepted description and ROM hashes; Q1 checks wrong bindings.",
+    "Q1 receipt binds PowerShell/scenario/fixture files as well as Python modules."
+  ],
+  "unchanged": [
+    "game source, Tiled and accepted ROM",
+    "cli.py, core.py, supervisor.py, ladybug.py and old fixture classes",
+    "TOOL-018 completion evidence and prior attempts"
+  ],
+  "game_capacity": "unchanged; no game build or capacity measurement",
+  "commit": null,
+  "commit_reason": "No staging/commit authorized; reviewed delta is retained against isolated before-images.",
+  "live_execution": "not authorized or run",
+  "residual_risks": [
+    "Real GDB/MI-to-XRoar multi-stop acquisition and manual key timing have not been exercised.",
+    "A 40-second native observation may end incomplete if input or required publications are absent.",
+    "Executive/display selection remains source/artifact-derived, not write-only-register readback.",
+    "Separate live acceptance and reviewed commit remain pending."
+  ]
+}

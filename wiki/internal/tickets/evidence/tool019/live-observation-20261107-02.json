@@ -1,0 +1,78 @@
+{
+  "schema": 1,
+  "ticket": "TOOL-019",
+  "local_date": "2026-11-07",
+  "recorded_utc": "2026-11-08T00:24:29.789820+00:00",
+  "authorization": "User requested one retry because the prior XRoar window was missed; user confirmed pressing Down after this cue.",
+  "original_request_package": "repro/tool019-live-request-20261107-01",
+  "only_dispatch_change": "New absent evidence root repro/tool019-live-20261107-02; unchanged qualified host/scenario/source and bounds.",
+  "run": "repro/tool019-live-20261107-02",
+  "host_pid": 38104,
+  "attempts_this_authorization": 1,
+  "input_cue_delivered": true,
+  "user_report": "User stated I did after the Down cue; detailed visual result pending.",
+  "host_result": "command_failed",
+  "host_seconds": 34.0038,
+  "host_maximum_seconds": 60,
+  "native_result": "command_failed",
+  "native_seconds": 33.3238,
+  "native_work_maximum_seconds": 40,
+  "observation_result": {
+    "assessed_owner_publications": {
+      "0": 51,
+      "1": 0
+    },
+    "classification": "observed",
+    "coverage_complete": false,
+    "elapsed_seconds": 30.4575,
+    "emulator_exited": true,
+    "game_acceptance": "not_claimed",
+    "inference": "Executive set from bound startup; display selection from bound publication code and commit/owner state; no FF91/FF9D readback.",
+    "menu_outcome": "screen_transition",
+    "presses": 1,
+    "reason": "attract_left",
+    "scenario_sha256": "5bf4cc6b33aad7193626e117e0889e754e4daa71e710f4e0862c12b1bfd7fa6b",
+    "source_description": "/mnt/e/projects/ladybug/repro/engineering/20261107T174853Z-keyboard-adaptive-e330a828efe6/build.json"
+  },
+  "retained_samples": 662,
+  "attract_post_input_samples": 558,
+  "confirmed_facts": [
+    "Exactly one Down-handler event captured.",
+    "Selection changed from 0 (Start) to 1 (Options).",
+    "All 558 later Attract samples retain selection 1; release is recorded.",
+    "All those samples retain MENU_DIRTY=2, the owner-1/B repaint-request bit.",
+    "Observer assessed 51 owner-0/A publications but no owner-1/B publications; B was gated as repaint-pending.",
+    "Attract later transitioned to screen 1/mode 1 before the required two-owner comparison completed."
+  ],
+  "source_explanation": {
+    "path": "repro/engineering/20261107T174853Z-keyboard-adaptive-e330a828efe6/source/src/shared_text_stage.inc",
+    "lines": [
+      1197,
+      1200,
+      1252,
+      1253,
+      1264,
+      1270
+    ],
+    "meaning": "menu_redraw marks both bits using value 3; menu_idle/menu_updated use BACK owner+1 to select/clear the repaint bit. This supports interpreting value 2 as owner-1/B pending; it does not identify why it persists."
+  },
+  "inference": "Stable captured selection and persistent B repaint request direct the next source review toward repaint/handoff coordination. Root cause and B pixels are not established.",
+  "coverage_complete": false,
+  "owned_children_exited": true,
+  "unrelated_processes_touched": false,
+  "original_files_unchanged": true,
+  "status": "Verification",
+  "game_acceptance": "not_claimed",
+  "commit": null,
+  "source_changes": false,
+  "builds": false,
+  "retry": "No further live execution authorized or performed. Prior attempt preserved.",
+  "evidence": {
+    "repro/tool019-live-20261107-02/host-request.json": "f95354b36d9eeace8b36fba75032c841498975a99992121a3d4d21370e7d58bc",
+    "repro/tool019-live-20261107-02/host-receipt.json": "061e590a9efa3f5592c1c4eb0d07c3fa99431e5df00fcb1ee032078ac698a981",
+    "repro/tool019-live-20261107-02/native-receipt.json": "831b5883a4c841a6830abf469514f64652af68f648516051cf8fe9c0f664588c",
+    "repro/tool019-live-20261107-02/native/20261108T002230Z-observe-94f2bd8505de/observation.json": "f41a6ad3187873242f5c7814188bb0b3340da1d34b75935ba22d256a170f534d",
+    "repro/tool019-live-20261107-02/native/20261108T002230Z-observe-94f2bd8505de/input-ready.json": "fc6beb9096094d6f109f587b6b6cdb2d0c655aeddafb4636a6a9b65c67db8052",
+    "repro/tool019-live-20261107-02/native/20261108T002230Z-observe-94f2bd8505de/gdb.log": "1d34b9994b843c9cd1695e596e5679eabd22db19171c53c6b69397d2d2fcaa40"
+  }
+}

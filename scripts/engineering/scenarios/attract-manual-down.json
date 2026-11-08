@@ -1,0 +1,65 @@
+{
+  "schema": 1,
+  "name": "attract-manual-down",
+  "mode": "attract-manual-down",
+  "purpose": "One manual Down press; compare menu state with both repainted and subsequently published FRONT owners.",
+  "max_seconds": 40,
+  "marker": {
+    "image": "source/build/ladybug-enemy-runtime.rom",
+    "map": "source/build/ladybug-enemy-runtime.map",
+    "symbol": "fbiq_done",
+    "image_origin": 2048,
+    "expected_pages": {
+      "0": 56
+    },
+    "byte_count": 8
+  },
+  "input_marker": {
+    "image": "source/build/ladybug-highscore-helper.bin",
+    "map": "source/build/ladybug-highscore-helper.map",
+    "symbol": "menu_down",
+    "image_origin": 44096
+  },
+  "publication": {
+    "address": 3744,
+    "length": 39
+  },
+  "reads": [],
+  "startup_sources": [
+    {
+      "path": "source/src/main.s",
+      "sha256": "0f7a721fe15c97be78619e5ac1705cc912aafce8143b79a874752ba7e522bab8"
+    },
+    {
+      "path": "source/src/gmc_bootstrap.s",
+      "sha256": "edc9260060cfc5528c80e26c53c3e9cfc9eb2704f188de6fd415f9fb20151881"
+    }
+  ],
+  "glyph_masks": {
+    " ": "0000000000000000",
+    "S": "003e63380e633e00",
+    "T": "007f080808080800",
+    "A": "001c3663417f4100",
+    "R": "007e43437e444700",
+    "G": "003e634047613f00",
+    "M": "004163775d494100",
+    "E": "007f407c40407f00",
+    "O": "003e634141633e00",
+    "P": "007e43437e404000",
+    "I": "001c080808081c00",
+    "N": "006171594d474300"
+  },
+  "labels": {
+    "start_game": {
+      "text": "START GAME",
+      "address": 27452
+    },
+    "options": {
+      "text": "OPTIONS",
+      "address": 30012
+    }
+  },
+  "inference": "Executive selection is source-derived from bound startup. Display offset is source/code-derived at commit; FF91/FF9D are not read.",
+  "accepted_description_sha256": "2e5697d1bc405b2b70f73d3a085f1bf409a80bb76cd502c2a50f1f913d9cde39",
+  "accepted_rom_sha256": "668f3dd26489e8e388648ff1dd2dcc5b23b87ef2fa1a475be15593c01a8aad0e"
+}

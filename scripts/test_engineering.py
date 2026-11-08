@@ -17,7 +17,7 @@ import unittest
 from unittest import mock
 
 sys.dont_write_bytecode = True
-from engineering import core, cli, runtime
+from engineering import core, cli, runtime, dispatch_wsl
 from engineering.audit import inventory
 
 
@@ -379,16 +379,197 @@ class ProcessTests(Base):
                 controller.wait()
 
 
+class Tool019Q1Fixtures(Base):
+    """Approved independent inputs exercise acquisition, MI parsing and host policy."""
+    def setUp(self):
+        super().setUp()
+        self.project = Path(__file__).resolve().parents[1]
+        self.definition_path = self.project / 'wiki/internal/tickets/evidence/tool019/fixture-definitions-20261107-01.json'
+        self.definitions = core.load(self.definition_path)
+        self.scenario = core.load(self.project / 'scripts/engineering/scenarios/attract-manual-down.json')
+        self.description = self.project / self.definitions['accepted_build']['description']
+        _, _, self.context = runtime.menu_plan(self.description, self.scenario)
+
+    class FakeMI:
+        def __init__(self, definition, pixels):
+            self.timeline=definition['timeline']; self.pixels=pixels
+            self.index=-1; self.current=None; self.requests=[]
+
+        def resume(self):
+            self.index+=1
+            if self.index>=len(self.timeline): raise TimeoutError('fixture_deadline')
+            self.current=self.timeline[self.index]
+            return runtime.mi_pc('*stopped,reason="breakpoint-hit",frame={addr="'+self.current['pc']+'"}')
+
+        def command(self, command):
+            if not command.startswith('-data-read-memory-bytes '):
+                return '1^done'
+            _,address,length=command.split();address=int(address,0);length=int(length)
+            self.requests.append((self.current['id'],address,length))
+            if any(address<=bad<address+length for bad in (0xff91,0xff9d)):
+                raise AssertionError('write-only address requested')
+            data={int(k,16):bytes.fromhex(v) for k,v in self.current['memory_hex'].items()}
+            data[int(self.current['pc'],16)]=bytes.fromhex(self.current['code_signature'])
+            if self.current['publication_span'] is not None:
+                # Keep the overlapping post-marker's following bytes too.
+                data[0xea0]=bytes.fromhex(self.current['publication_span'])
+            bank=self.current.get('pixel_reference')
+            if bank is not None:
+                for name,base in [('start_game',0x6b3c),('options',0x753c)]:
+                    for row,hexline in enumerate(self.pixels[bank][name]['scanlines']):
+                        data[base+row*160]=bytes.fromhex(hexline)
+            # Actual MI result record, parsed by the production reader.
+            found=None
+            if address in data:found=data[address][:length]
+            else:
+                for start,block in data.items():
+                    if start<=address<start+len(block):found=block[address-start:address-start+length];break
+            if found is None: raise AssertionError('unadmitted fixture read '+hex(address))
+            return '7^done,memory=[{begin="0x%x",offset="0x0",end="0x%x",contents="%s"}]' % (address,address+len(found),found.hex())
+
+    def exercise(self, definition):
+        fake=self.FakeMI(definition,self.definitions['pixel_banks'])
+        capture=runtime.MenuCapture(fake,self.scenario,self.context,definition['user_visual_report'])
+        try:
+            while not capture.terminal:
+                capture.stop(fake.resume())
+            result=capture.finish()
+        except TimeoutError:
+            result=capture.finish()
+        except core.HarnessError as error:
+            result=dict(classification='harness_failure',reason=str(error),coverage_complete=False)
+        return result,fake,capture
+
+    def test_capture_definitions(self):
+        for definition in self.definitions['capture_cases']:
+            with self.subTest(case=definition['id']):
+                result,fake,capture=self.exercise(definition)
+                expected=definition['expected']
+                self.assertEqual(result['classification'],expected['result_class'])
+                self.assertEqual(result.get('reason'),expected.get('reason'))
+                self.assertEqual(result.get('coverage_complete'),expected['coverage_complete'])
+                if result['classification']!='harness_failure':
+                    self.assertEqual(result['menu_outcome'],expected['menu_outcome'])
+                for name in definition.get('forbidden_pixel_samples',[]):
+                    self.assertFalse(any(s==name and 0x2000<=a<0xa000 for s,a,n in fake.requests))
+                for sample in capture.samples:
+                    if sample.get('role') in ('seed','no_commit','repaint_pending') or sample['kind']=='input':
+                        self.assertNotIn('pixels',sample)
+                if expected['menu_outcome']=='not_reproduced_in_this_press':
+                    self.assertGreaterEqual(min(capture.owners.values()),2)
+
+    def test_idle_and_pre_increment_are_not_product_failures(self):
+        # Independent adjacent variant: idle commits before the user's press
+        # are outside required post-input consecutive coverage.
+        import copy
+        definition=copy.deepcopy(self.definitions['capture_cases'][0])
+        for sample in definition['timeline'][2:]:
+            raw=bytearray.fromhex(sample['memory_hex']['0x008f']);seq=int.from_bytes(raw[3:],'big')+20
+            raw[3:]=seq.to_bytes(2,'big');sample['memory_hex']['0x008f']=raw.hex()
+        result,_,_=self.exercise(definition)
+        self.assertEqual(result['menu_outcome'],'not_reproduced_in_this_press')
+        held=copy.deepcopy(next(c for c in self.definitions['capture_cases'] if c['id']=='C08'))
+        held['timeline'][-1]['memory_hex']['0x00df']='020000'
+        result,_,_=self.exercise(held)
+        self.assertEqual(result['classification'],'incomplete')
+        self.assertEqual(result['menu_outcome'],'invalid_fixture')
+
+    def test_fixed_accepted_artifact_binding(self):
+        import copy
+        for field in ("accepted_description_sha256", "accepted_rom_sha256"):
+            wrong=copy.deepcopy(self.scenario);wrong[field]="0"*64
+            with self.subTest(field=field),self.assertRaises(core.HarnessError):
+                runtime.menu_plan(self.description,wrong)
+
+    def test_mi_transport_with_fake_executable(self):
+        fake=self.root/'fake-gdb'
+        fake.write_text('#!'+sys.executable+'\n'+r'''
+import re,sys
+for line in sys.stdin:
+ m=re.match(r'(\d+)(.*)',line.strip()); token,command=m.groups()
+ if command.startswith('-exec-continue'):
+  print(token+'^running',flush=True)
+  print('*stopped,reason="breakpoint-hit",frame={addr="0x0ec6"}',flush=True)
+ elif command.startswith('-data-read-memory-bytes'):
+  print(token+'^done,memory=[{begin="0x0",offset="0x0",end="0x2",contents="1234"}]',flush=True)
+ else: print(token+'^done',flush=True)
+''',encoding='utf8')
+        fake.chmod(0o755)
+        with (self.root/'mi.log').open('wb') as log:
+            client=runtime.MI(str(fake),time.monotonic()+3,log,self.root)
+            try:
+                client.command('-gdb-set architecture m6809')
+                self.assertEqual(client.resume(),0xec6)
+                self.assertEqual(runtime.mi_memory(client.command('-data-read-memory-bytes 0x0 2'),2),bytes.fromhex('1234'))
+                with self.assertRaises(core.HarnessError):runtime.mi_memory('1^done,memory=[]',2)
+            finally:client.close()
+        self.assertIsNotNone(client.process.poll())
+
+    def test_same_powershell_host_policy(self):
+        # Same real host state function, no dispatcher main or game launch.
+        ps=shutil.which('powershell.exe')
+        self.assertIsNotNone(ps,'Windows PowerShell is required for host qualification')
+        def win(path):return subprocess.check_output(['wslpath','-w',str(path)],text=True).strip()
+        quote=lambda value:"'"+value.replace("'","''")+"'"
+        code='& { . '+quote(win(self.project/'scripts/engineering/dispatch-wsl.ps1'))+'; $s=New-Tool019HostState; Update-Tool019Host $s ([pscustomobject]@{ms=1;event="owned_bridge_exited"}); if($s.result_class -ne "harness_failure" -or -not $s.complete){throw "Early bridge exit must fail immediately"}; Invoke-Tool019HostFixtures -FixturePath '+quote(win(self.definition_path))+' }'
+        child=subprocess.run([ps,'-NoProfile','-NonInteractive','-Command',code],stdout=subprocess.PIPE,stderr=subprocess.PIPE,timeout=8)
+        self.assertEqual(child.returncode,0,child.stderr.decode(errors='replace'))
+        rows=json.loads(child.stdout.decode('utf-8-sig'))
+        self.assertEqual(len(rows),len(self.definitions['host_cases']))
+        actual={row['id']:row['actual'] for row in rows}
+        for case in self.definitions['host_cases']:
+            with self.subTest(case=case['id']):
+                for key,value in case['expected'].items():
+                    self.assertEqual(actual[case['id']][key],value)
+
+    def test_fixed_operations_and_native_owned_timeout(self):
+        self.assertEqual(dispatch_wsl.fixed_command('Tool019Q1',self.root)[-1],str(self.root/'fixtures'))
+        with self.assertRaises(ValueError):dispatch_wsl.fixed_command('arbitrary',self.root)
+        with redirect_stdout(io.StringIO()):
+            result=dispatch_wsl.run_owned([sys.executable,'-c','import time;time.sleep(30)'],self.root,None,work_seconds=.12,grace_seconds=.7)
+        self.assertEqual(result['classification'],'timeout')
+        self.assertTrue(result['children_exited'])
+
+    def test_native_eof_cancels_owned_child(self):
+        import threading
+        read_fd,write_fd=os.pipe()
+        control=os.fdopen(read_fd,'rb',buffering=0)
+        def close_when_spawned():
+            deadline=time.monotonic()+1.5
+            while time.monotonic()<deadline:
+                log=self.root/'native-output.log'
+                if log.exists() and b'CHILD' in log.read_bytes():break
+                time.sleep(.01)
+            os.close(write_fd)
+        worker=threading.Thread(target=close_when_spawned);worker.start()
+        code="import subprocess,sys,time; p=subprocess.Popen([sys.executable,'-c','import time; time.sleep(30)'],start_new_session=True); print('CHILD',p.pid,flush=True); time.sleep(30)"
+        try:
+            with redirect_stdout(io.StringIO()):
+                result=dispatch_wsl.run_owned([sys.executable,'-c',code],self.root,control,work_seconds=3,grace_seconds=.7)
+            self.assertEqual(result['classification'],'cancelled')
+            self.assertGreaterEqual(len(result['owned_pids']),2)
+            self.assertTrue(result['children_exited'])
+        finally:worker.join();control.close()
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence", type=Path)
+    parser.add_argument("--case", choices=("baseline", "tool019-q1"), default="baseline")
     args = parser.parse_args()
+    dependency_paths = ["scripts/engineering/runtime.py", "scripts/engineering/dispatch_wsl.py", "scripts/engineering/dispatch-wsl.ps1", "scripts/engineering/scenarios/attract-manual-down.json", "scripts/test_engineering.py", "wiki/internal/tickets/evidence/tool019/fixture-definitions-20261107-01.json"] if args.case == "tool019-q1" else []
+    project = Path(__file__).resolve().parents[1]
+    dependencies = {name: core.digest(project / name) for name in dependency_paths}
     start = time.monotonic()
-    suite = unittest.defaultTestLoader.loadTestsFromModule(sys.modules[__name__])
+    classes = (Tool019Q1Fixtures,) if args.case == "tool019-q1" else (Fixture, ProcessTests)
+    suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case) for case in classes)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
+    current_dependencies = {name: core.digest(project / name) for name in dependency_paths}
+    if current_dependencies != dependencies:
+        raise core.HarnessError("Q1 dependency changed during qualification")
     if args.evidence:
         args.evidence.mkdir(parents=True, exist_ok=False)
-        core.save_new(args.evidence / "qualification.json", {"schema": 1, "passed": result.wasSuccessful(), "tests": result.testsRun,
+        core.save_new(args.evidence / "qualification.json", {"schema": 1, "case": args.case, "tool019_dependencies": dependencies, "passed": result.wasSuccessful(), "tests": result.testsRun,
                       "skipped": len(result.skipped), "elapsed_seconds": round(time.monotonic() - start, 4),
                       "failures": [str(case) + "\n" + failure for case, failure in result.failures + result.errors],
                       "scope": "offline fixtures/fake tools only; no real game build or emulator", "test_source_sha256": core.digest(__file__), "harness": cli.checker_identity()})
