@@ -1,0 +1,222 @@
+{
+  "schema": 1,
+  "date": "2026-11-08",
+  "task": "Review uncommitted changes and commit by task",
+  "baseline_commit": "5f8c165f634d1a30681eb4afbeecd68d2539715f",
+  "initial_inventory": {
+    "modified_tracked_files": 62,
+    "untracked_files": 84
+  },
+  "task_commits_before_closing_review_record": [
+    {
+      "task": "source-rules",
+      "commit": "ff677a83",
+      "title": "docs: require assembly symbol and source-contract tracing"
+    },
+    {
+      "task": "pixel-art",
+      "commit": "691f861e",
+      "title": "skills: add native-resolution pixel art workflow"
+    },
+    {
+      "task": "bug113",
+      "commit": "72fba945",
+      "title": "docs(BUG-113): retain MAME startup diagnosis and target miss"
+    },
+    {
+      "task": "bug117",
+      "commit": "a0ca3572",
+      "title": "docs(BUG-117): retain stage-entry diagnosis and fixture contracts"
+    },
+    {
+      "task": "bug120",
+      "commit": "73777de6",
+      "title": "docs(BUG-120): retain failed name-entry capacity result"
+    },
+    {
+      "task": "bug122",
+      "commit": "2aab89b5",
+      "title": "docs(BUG-122): retain preview ownership verification"
+    },
+    {
+      "task": "bug046",
+      "commit": "52f86cc7",
+      "title": "docs(BUG-046): record dependency on EXTRA and SPECIAL intermissions"
+    },
+    {
+      "task": "tool008",
+      "commit": "405daa53",
+      "title": "docs(TOOL-008): narrow enemy-verifier repair proposal"
+    },
+    {
+      "task": "tool011",
+      "commit": "b8c381b7",
+      "title": "docs(TOOL-011): propose whole-phase observer deadlines"
+    },
+    {
+      "task": "tool012",
+      "commit": "8c662be2",
+      "title": "docs(TOOL-012): propose optional repaired FEAT-007 exceptions"
+    },
+    {
+      "task": "tool013",
+      "commit": "b98dd129",
+      "title": "docs(TOOL-013): propose offline controller contract enforcement"
+    },
+    {
+      "task": "tool014",
+      "commit": "ecb01cf0",
+      "title": "docs(TOOL-014): propose shared engineering framework"
+    },
+    {
+      "task": "tool015",
+      "commit": "8091b0f3",
+      "title": "docs(TOOL-015): record approved deadline-reporting preparation"
+    },
+    {
+      "task": "tool017",
+      "commit": "06ab0ed4",
+      "title": "docs(TOOL-017): propose project-wide LF policy"
+    },
+    {
+      "task": "doc015",
+      "commit": "e5d8ce29",
+      "title": "docs(DOC-015): checkpoint memory ownership narrative and blocked qualification"
+    },
+    {
+      "task": "source-order",
+      "commit": "1bb90595",
+      "title": "docs: explain source order and instruction encoding"
+    },
+    {
+      "task": "rom-probe",
+      "commit": "4cd71fa8",
+      "files": 2,
+      "title": "docs: document cartridge-window ROM probe"
+    },
+    {
+      "task": "rsch018",
+      "commit": "eac11895",
+      "files": 3,
+      "title": "docs(RSCH-018): propose shared HUD provider and lifetime contract"
+    },
+    {
+      "task": "skill-review",
+      "commit": "ae0e6c60",
+      "files": 1,
+      "title": "docs: retain bounded instruction-skill pilot review"
+    },
+    {
+      "task": "feat011",
+      "title": "wip(FEAT-011): checkpoint intermission assets and approved source preparation",
+      "commit": "4362c7d6"
+    },
+    {
+      "task": "feat010",
+      "title": "wip(FEAT-010): checkpoint credit retirement, HUD alignment and Attract repaint",
+      "commit": "5863b1cd"
+    },
+    {
+      "task": "bug113-runbook",
+      "title": "docs(BUG-113): link measured startup latency from build runbook",
+      "commit": "db9454ac"
+    },
+    {
+      "task": "rom-probe-links",
+      "title": "docs: link cartridge-window probe from tooling guides",
+      "commit": "f25d460b"
+    },
+    {
+      "task": "tool018",
+      "title": "feat(TOOL-018): add qualified local engineering harness",
+      "commit": "4db76c4e"
+    },
+    {
+      "task": "tool019",
+      "title": "feat(TOOL-019): add bounded Attract menu capture and retain observations",
+      "commit": "18516291"
+    },
+    {
+      "task": "bug124",
+      "title": "fix(BUG-124): resolve EXTRA layer IDs and canonicalize generated connectors",
+      "commit": "acf3ff52"
+    }
+  ],
+  "review_route": "project-management -> qa-reviewer; user-requested Compact BUG-124 delegated implementation followed by parent QA",
+  "current_offline_results": [
+    {
+      "command": "wsl.exe -e bash -lc \"cd /mnt/e/projects/ladybug && timeout 60s python3 -B scripts/test_engineering.py\"",
+      "tests": 31,
+      "passed": true,
+      "unittest_seconds": 5.586,
+      "scope": "TOOL-018 baseline fixtures and fake processes"
+    },
+    {
+      "command": "wsl.exe -e bash -lc \"cd /mnt/e/projects/ladybug && timeout 60s python3 -B scripts/test_engineering.py --case tool019-q1\"",
+      "tests": 7,
+      "passed": true,
+      "unittest_seconds": 3.044,
+      "scope": "TOOL-019 focused offline methods"
+    },
+    {
+      "command": "python -B scripts/test_feat011_extra_connectors.py; generator --check",
+      "tests": 7,
+      "passed": true,
+      "whole_phase_seconds": 2.718,
+      "deadline_seconds": 30,
+      "executor": "/root/bug124_map_ids",
+      "evidence": "bug124-format-review-20261108.json"
+    }
+  ],
+  "retained_failures_and_resolution": [
+    {
+      "failure": "Connector suite setup rejected duplicate layer ID 8; zero tests executed",
+      "resolution": "BUG-124 acf3ff52: unique metadata IDs; seven tests pass"
+    },
+    {
+      "failure": "Metadata-only repair passed seven tests but generator --check rejected generated-group formatting",
+      "resolution": "User-authorized second delegated step reused unchanged generator; --check passes; original failure evidence preserved"
+    }
+  ],
+  "remaining_findings": [
+    {
+      "priority": "P1",
+      "file": "src/presentation_runtime.s",
+      "line": 751,
+      "finding": "Current BLO hold retains the branch form documented as overflowing in the prior isolated repaint build; passing isolated successor has LBLO.",
+      "evidence_type": "current-source comparison with retained build records; combined assembly not rerun",
+      "followup": "FEAT-010 cleanup-review-20261108; fix not included"
+    },
+    {
+      "priority": "P2",
+      "file": "scripts/verify_arcade_fidelity.py",
+      "line": 161,
+      "finding": "Assertion expects #$230D while current vegetable-value writer in src/main.s:1451 uses #$2403.",
+      "evidence_type": "direct source contradiction",
+      "followup": "FEAT-010 cleanup-review-20261108; verifier repair not included"
+    }
+  ],
+  "housekeeping": {
+    "broken_log_link": "Corrected ../../../repro/feat010-attract-root-20261104-04/candidate-info.txt to ../../repro/... after confirming target exists",
+    "line_ending_noise": "Verified src/demo_runtime.s and tiled/coco-high-score-screen.tmx had no content differences with --ignore-space-at-eol; restored those two paths to HEAD instead of committing line-ending-only noise. Original patch retained outside repo.",
+    "global_text_policy": "TOOL-017 remains Proposed; no repository-wide normalization performed"
+  },
+  "capacity_and_acceptance": {
+    "BUG-124_runtime_capacity_change": false,
+    "new_combined_build_or_headroom_measurement": null,
+    "FEAT-010": "In Progress; current-source findings and pending manual/profile coverage retained",
+    "FEAT-011": "Approved/not Ready; source-preparation checkpoint only",
+    "BUG-124": "Done",
+    "game_build_or_emulator_run_in_cleanup": false
+  },
+  "verification_limits": "Offline checks and source review do not establish combined game/runtime acceptance. Ignored build/repro artifacts were preserved; cleanup means tracked/untracked Git status, not deletion of generated evidence.",
+  "final_structural_review": {
+    "parsed": {
+      "xml": 11,
+      "json": 43,
+      "python": 24
+    },
+    "new_local_link_targets": 708,
+    "missing_targets": []
+  }
+}
