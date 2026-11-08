@@ -1,0 +1,39 @@
+{
+  "schema": 1,
+  "date": "2026-11-08",
+  "ticket": "FEAT-010",
+  "scope": "User-authorized source restoration only; no new build or runtime acceptance",
+  "baseline_commit": "c9c24a03",
+  "source": "src/presentation_runtime.s",
+  "source_sha256": "8a99825242d0570a922635904ecc5a93a5bc1e089fb0a990e02c9f558fd12659",
+  "only_source_delta": "level_tick first wait branch BLO hold -> LBLO hold",
+  "source_byte_identical_to_passing_candidate": true,
+  "retained_build_descriptor": "repro/feat010-attract-repaint-20261107-02/build-runs/20261108T014328Z-keyboard-adaptive-1cd091436138/build.json",
+  "descriptor_sha256": "0560758f3ce9421e3406c125c5fbe86f0ef48d102d800610260b30cceeb1a104",
+  "verified_retained_artifacts": {
+    "ladybug-presentation-runtime.map": {
+      "sha256": "f2116e8cd04a7352122ca898f9fdc3febe900f424a2091462d66361a51c5815c",
+      "bytes": 108756
+    },
+    "ladybug-presentation-runtime.bin": {
+      "sha256": "16e2e78bc3d5865d52d4addeb70cd3799e1d1f27e745824711bc75bd874c8ecf",
+      "bytes": 1255
+    }
+  },
+  "retained_branch": {
+    "pc_hex": "0x1c49",
+    "opcode_hex": "1025ff75",
+    "target_hex": "0x1bc2",
+    "target_symbol": "hold"
+  },
+  "historical_module_bytes": 1255,
+  "hard_limit_bytes": 1280,
+  "historical_margin_bytes": 25,
+  "elapsed_seconds": 0.4625,
+  "deadline_seconds": 30,
+  "new_build_executed": false,
+  "runtime_executed": false,
+  "rejected_verification_mechanics": "Initial comparison of LF Git blob with CRLF working file asserted raw equality; corrected comparison normalizes only that Git/worktree comparison. Actual current/candidate raw bytes are equal.",
+  "capacity_note": "Restored source matches measured 1255-byte candidate exactly; no new combined-build measurement",
+  "result": "passed"
+}

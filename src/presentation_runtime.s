@@ -748,7 +748,7 @@ presentation_ui_tick
 level_tick
         bsr     timer
         cmpd    #180
-        blo     hold
+        lblo    hold
         ifne    COMPLETE_PROFILE
         lda     <PRES_CONTEXT
         beq     level_tick_demo_check
