@@ -1,0 +1,88 @@
+{
+  "schema": 1,
+  "date": "2026-11-08",
+  "ticket": "FEAT-010",
+  "bounded_repair": "Compact HUD verifier coordinates",
+  "verdict": "passed; bounded repair complete",
+  "parent_status": "In Progress",
+  "approval": "User explicitly approved Compact repair and verification card on 2026-11-08",
+  "baseline_commit": "da6652f2185db517857da173abff9ec81e31a4c7",
+  "production_file": "scripts/verify_arcade_fidelity.py",
+  "before_sha256": "f35548f8f5cf3a6a35b090e0dbcf8fd58203fb3d8a0879e3bda1b97a0923be95",
+  "after_sha256": "cc9e61d5de3db86da50f7459e71b7fead182b3f274fb34ec6802f957086d137f",
+  "source_changes": [
+    "Complete PART expected $250B -> $2501",
+    "Noncomplete PART expected $260B -> $2701",
+    "Vegetable-value expected $230D -> $2403; user-confirmed row 3"
+  ],
+  "cases": [
+    {
+      "case": "old_checker_rejects_current_layout",
+      "expected": "rejected",
+      "actual": "rejected",
+      "passed": true
+    },
+    {
+      "case": "corrected_checker_accepts_current_layout",
+      "expected": "accepted",
+      "actual": "accepted",
+      "passed": true
+    },
+    {
+      "case": "old_complete_part_position_rejected",
+      "expected": "rejected",
+      "actual": "rejected",
+      "passed": true
+    },
+    {
+      "case": "old_noncomplete_part_position_rejected",
+      "expected": "rejected",
+      "actual": "rejected",
+      "passed": true
+    },
+    {
+      "case": "old_vegetable_value_position_rejected",
+      "expected": "rejected",
+      "actual": "rejected",
+      "passed": true
+    }
+  ],
+  "qualification": {
+    "command": "wsl.exe -e bash -lc 'cd /mnt/e/projects/ladybug && timeout 30s python3 -B repro/feat010-hud-verifier-proposal-20261108/qualify.py --evidence repro/feat010-hud-verifier-proposal-20261108/qualification.json'",
+    "cases_run": 5,
+    "elapsed_seconds": 0.0926,
+    "maximum_seconds": 30,
+    "receipt": "repro/feat010-hud-verifier-proposal-20261108/qualification.json",
+    "sha256": "e91075cff53964df22c9a3190a3995f60192d4556009ffc2a5358caaaa33d4ce"
+  },
+  "implementation_identity": {
+    "command": "wsl.exe -e bash -lc 'cd /mnt/e/projects/ladybug && timeout 10s python3 -B repro/feat010-hud-verifier-proposal-20261108/qualify.py --implementation scripts/verify_arcade_fidelity.py --qualification repro/feat010-hud-verifier-proposal-20261108/qualification.json --evidence repro/feat010-hud-verifier-proposal-20261108/implementation.json'",
+    "passed": true,
+    "elapsed_seconds": 0.0463,
+    "maximum_seconds": 10,
+    "receipt": "repro/feat010-hud-verifier-proposal-20261108/implementation.json",
+    "sha256": "751e239042b873f2584d6e0d4814823f3798649c23c3951e7856a00bc77feb72"
+  },
+  "parent_qa": {
+    "exact_three_substitutions_only": true,
+    "all_other_assertions_and_functions_unchanged": true,
+    "frozen_game_source_and_map_unchanged": true,
+    "syntax_parse": "passed",
+    "new_or_modified_assembly_interfaces": false
+  },
+  "result_classes": {
+    "unexpected_assertion_failures": 0,
+    "setup_or_observer_failures": 0,
+    "missing_required_cases": 0,
+    "waivers": [],
+    "manual_result": "not applicable"
+  },
+  "rejected_experiments": [],
+  "game_capacity_and_headroom_change": "None: host-only expectations changed; no game source/artifact edits",
+  "build_or_runtime_run": false,
+  "residual_risks": [
+    "Existing source-spelling sensitivity remains",
+    "Full arcade-fidelity verifier and broader FEAT-010 game/profile/manual acceptance remain outside this bounded result"
+  ],
+  "commit_reference": "This record and the verifier change are committed together; resolve the fix with git log -1 --format=%H -- scripts/verify_arcade_fidelity.py"
+}

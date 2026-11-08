@@ -150,15 +150,15 @@ def verify_hud_rows() -> None:
                  source.index("\ndhu_mod10\n", source.index("\ndraw_hud\n"))]
     assert "lda     #6\n        sta     HUD_Y" in hud
     assert re.search(
-        r"ifne\s+COMPLETE_PROFILE\s+ldd\s+#\$250B\s+else\s+"
-        r"ldd\s+#\$260B\s+endc\s+std\s+HUD_X\b",
+        r"ifne\s+COMPLETE_PROFILE\s+ldd\s+#\$2501\s+else\s+"
+        r"ldd\s+#\$2701\s+endc\s+std\s+HUD_X\b",
         hud,
     )
     assert "jsr     asset_draw_part_value" in hud
     vegetable = source[source.index("\ndraw_vegetable_hud\n"):
                        source.index("\nvegetable_values\n")]
     assert "ldx     #PRESENTATION_PART_VEGETABLE_DST" in vegetable
-    assert "ldd     #$230D\n        std     HUD_X" in vegetable
+    assert "ldd     #$2403\n        std     HUD_X" in vegetable
     player = source[source.index("\ninit_player\n"):
                     source.index("\nread_joystick\n", source.index("\ninit_player\n"))]
     assert "ldd     #$0C16\n        std     PLAYER_CELL_X" in player
