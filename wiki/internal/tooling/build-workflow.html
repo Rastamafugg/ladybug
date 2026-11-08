@@ -289,6 +289,7 @@ print(f'padded {16384-pad} → 16384 bytes')
         §"XRoar RGB monitor palette mapping".
       </p>
       <h3>MAME 0.220 GMC launch</h3>
+      <p><strong>Complete-profile capture duration (2026-10-09):</strong> the current complete ROM first publishes authored ATTRACT at 4.333333 emulated seconds in one observed MAME 0.220 run. A four-second final-frame capture therefore shows black even though the loader, runtime and IRQs work. For diagnostic video, use <code>-seconds_to_run 8</code>; interactive launches need no finite run limit. This observation does not replace the original four-second acceptance target. Default CoCo 3 RAM is 512K, confirmed by <code>-listxml</code>. See <a href="../tickets/bug-113-gmc-bank-select-address.html#mame-startup-diagnosis-20261009">BUG-113 diagnosis</a>.</p>
       <p>
         From the repository root in WSL, use the GMC slot explicitly and ask
         Color BASIC to enter the cartridge payload at <code>$C002</code>:
