@@ -1,0 +1,62 @@
+{
+  "schema": 1,
+  "date": "2026-11-08",
+  "ticket": "FEAT-010",
+  "status": "Proposed; preparation only",
+  "baseline_commit": "0dfd9a5a3d26ee594286e87cce56b510ef68926d",
+  "cost_class": "Compact",
+  "production_file": "scripts/verify_arcade_fidelity.py",
+  "affected_function": "verify_hud_rows",
+  "user_confirmed_target": "Vegetable value row 3; preserve renderer at column 36, row 3",
+  "literal_changes": [
+    {
+      "old": "#$250B",
+      "new": "#$2501",
+      "meaning": "Complete-profile PART anchor: column 37,row 11 -> column 37,row 1"
+    },
+    {
+      "old": "#$260B",
+      "new": "#$2701",
+      "meaning": "Noncomplete PART units: column 38,row 11 -> column 39,row 1"
+    },
+    {
+      "old": "#$230D",
+      "new": "#$2403",
+      "meaning": "Vegetable value: column 35,row 13 -> column 36,row 3"
+    }
+  ],
+  "package": "repro/feat010-hud-verifier-proposal-20261108",
+  "inputs_manifest_sha256": "76bb57aac43e17a7c637f37ce153f4d678bff25b27fbbc9043de9384a7e48ec2",
+  "inputs": {
+    "baseline-verifier.py.txt": "f35548f8f5cf3a6a35b090e0dbcf8fd58203fb3d8a0879e3bda1b97a0923be95",
+    "candidate-verifier.py.txt": "cc9e61d5de3db86da50f7459e71b7fead182b3f274fb34ec6802f957086d137f",
+    "proposed.patch": "fe47a4fdede442f29a9327f81a5c661ca77b4dc132dd6536f2f06a863c9c4480",
+    "qualify.py": "2b1f7563398b71a7d0465dc947856bdac035dbfce2213b5e5b591603cfc7ed30",
+    "fixtures/src/main.s": "0f7a721fe15c97be78619e5ac1705cc912aafce8143b79a874752ba7e522bab8",
+    "fixtures/tiled/coco-screen.tmx": "fe67d6b021bd153ef4a3ef91f14d1e02d57c8d9dfeb757d5b9737c170352b712"
+  },
+  "checks_already_performed": [
+    "Current source and authored template inspection",
+    "Candidate/qualifier Python AST parse",
+    "git apply --check of proposed patch",
+    "Production verifier remains identical to frozen baseline"
+  ],
+  "proposed_fixture_cases": [
+    "old checker rejects approved current layout",
+    "corrected checker accepts approved current layout",
+    "old complete PART position rejected",
+    "old noncomplete PART position rejected",
+    "old vegetable-value position rejected"
+  ],
+  "fixture_execution_performed": false,
+  "production_verifier_changed": false,
+  "approval_needed": "Approve three-literal repair and scoped five-case/identity card; no game/layout/formatting change",
+  "scope_limits": "No full verifier reliability claim, build, runtime, new parser, other assertions or other functions repaired",
+  "preparation_review": {
+    "python_ast_files": 3,
+    "new_links_and_fragments_checked": 7,
+    "production_verifier_unchanged": true,
+    "qualifier_unexecuted": true,
+    "patch_apply_check": "passed"
+  }
+}
