@@ -466,6 +466,97 @@ class ActorAB01Q1Fixtures(Base):
             return {"classification": "harness_failure", "reason": str(error)}, fake, capture
         return capture.finish(), fake, capture
 
+    def main_dispatch(self, mode, return_code):
+        root = self.root / ("main-" + mode)
+        output = root / "output"
+        output.mkdir(parents=True)
+        scenario_path = root / "scenario.json"
+        request_path = root / "request.json"
+        scenario = {"mode": mode}
+        result = {"schema": 1, "classification": "incomplete", "test_mode": mode}
+        core.save_new(scenario_path, scenario)
+        core.save_new(request_path, {"output": str(output), "scenario": str(scenario_path)})
+
+        def delegated(request, loaded_scenario, destination, start):
+            self.assertEqual(request["output"], str(output))
+            self.assertEqual(loaded_scenario, scenario)
+            core.save_new(destination / "observation.json", result)
+            return return_code
+
+        with mock.patch.object(sys, "argv", ["runtime.py", str(request_path)]), \
+             mock.patch.object(runtime, "run_actor", side_effect=delegated) as run_actor, \
+             mock.patch.object(runtime, "run_menu", side_effect=delegated) as run_menu:
+            actual = runtime.main()
+        self.assertEqual(actual, return_code)
+        self.assertEqual(sorted(path.name for path in output.iterdir()), ["observation.json"])
+        self.assertEqual(core.load(output / "observation.json"), result)
+        if mode == "attract-actor-ab":
+            run_actor.assert_called_once()
+            run_menu.assert_not_called()
+        else:
+            run_menu.assert_called_once()
+            run_actor.assert_not_called()
+
+    def test_actor_main_single_sidecar(self):
+        self.main_dispatch("attract-actor-ab", 7)
+
+    def test_menu_main_single_sidecar(self):
+        self.main_dispatch("attract-manual-down", 7)
+
+    def test_legacy_main_failure_keeps_one_diagnostic_sidecar(self):
+        root = self.root / "main-legacy"
+        output = root / "output"
+        output.mkdir(parents=True)
+        scenario_path = root / "scenario.json"
+        request_path = root / "request.json"
+        core.save_new(scenario_path, {"mode": "legacy"})
+        core.save_new(request_path, {"output": str(output), "scenario": str(scenario_path),
+                                     "description": "synthetic-description"})
+        with mock.patch.object(sys, "argv", ["runtime.py", str(request_path)]), \
+             mock.patch.object(runtime, "plan", side_effect=core.HarnessError("legacy-fixture")):
+            actual = runtime.main()
+        self.assertEqual(actual, 1)
+        self.assertEqual(sorted(path.name for path in output.iterdir()), ["observation.json"])
+        result = core.load(output / "observation.json")
+        self.assertEqual((result["classification"], result["reason"]), ("harness_failure", "legacy-fixture"))
+
+    def test_actor_marker_bytes_are_retained_from_verified_reads(self):
+        _, _, capture = self.exercise()
+        self.assertEqual(capture.phase_change["marker_bytes_hex"], self.context["phase_bytes"].hex())
+        self.assertEqual([sample["marker_bytes_hex"] for sample in capture.samples],
+                         [self.context["post_bytes"].hex()] * 2)
+
+    def test_corrupt_actor_markers_are_rejected_before_crop_reads(self):
+        phase_context = dict(self.context)
+        phase_context["phase_hashes"] = self.synthetic_hashes
+        phase_fake = self.FakeMI(phase_context)
+        phase_capture = runtime.ActorCapture(phase_fake, self.scenario, phase_context)
+        phase_frame = self.frame("corrupt-phase", 0, 0, 14, 0, pc_kind="phase")
+        corrupted = bytearray(phase_frame["memory"][phase_context["phase_pc"]])
+        corrupted[0] ^= 1
+        phase_frame["memory"][phase_context["phase_pc"]] = bytes(corrupted)
+        phase_fake.set_frame(phase_frame)
+        with self.assertRaisesRegex(core.HarnessError, "live_marker_code_mismatch"):
+            phase_capture.stop(phase_context["phase_pc"])
+        self.assertEqual(phase_capture.samples, [])
+        self.assertFalse(any(0x2000 <= address < 0x9800 for _, address, _, _ in phase_fake.requests))
+
+        post_context = dict(self.context)
+        post_context["phase_hashes"] = self.synthetic_hashes
+        post_fake = self.FakeMI(post_context)
+        post_capture = runtime.ActorCapture(post_fake, self.scenario, post_context)
+        post_fake.set_frame(self.frame("valid-phase", 0, 0, 14, 0, pc_kind="phase"))
+        post_capture.stop(post_context["phase_pc"])
+        post_frame = self.frame("corrupt-post", 0, 0, 14, 1)
+        corrupted = bytearray(post_frame["memory"][post_context["post_pc"]])
+        corrupted[0] ^= 1
+        post_frame["memory"][post_context["post_pc"]] = bytes(corrupted)
+        post_fake.set_frame(post_frame)
+        with self.assertRaisesRegex(core.HarnessError, "live_marker_code_mismatch"):
+            post_capture.stop(post_context["post_pc"])
+        self.assertEqual(post_capture.samples, [])
+        self.assertFalse(any(0x2000 <= address < 0x9800 for _, address, _, _ in post_fake.requests))
+
     def test_current_artifact_binds_eight_distinct_actor_animations(self):
         self.assertEqual(len(self.context["actors"]), self.definition["fixture_inputs"]["actor_count"])
         self.assertEqual(len({tuple(a["cell"]) for a in self.context["actors"]}), 8)
