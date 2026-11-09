@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('Tool019Q1','Tool019ManualDown')][string]$Operation,
+    [ValidateSet('Tool019Q1','Tool019ManualDown','ActorAB01Runtime')][string]$Operation,
     [string]$EvidenceRoot,
     [switch]$ReadinessConfirmed
 )

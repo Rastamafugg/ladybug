@@ -379,6 +379,169 @@ class ProcessTests(Base):
                 controller.wait()
 
 
+class ActorAB01Q1Fixtures(Base):
+    """Synthetic actor pixels qualify the current observer and FRONT gate only."""
+    def setUp(self):
+        super().setUp()
+        self.project = Path(__file__).resolve().parents[1]
+        self.scenario_path = self.project / "scripts/engineering/scenarios/attract-actor-ab.json"
+        self.scenario = core.load(self.scenario_path)
+        self.description = self.project / "repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/build.json"
+        _, _, self.context = runtime.actor_plan(self.description, self.scenario)
+        self.definition = core.load(self.project / "wiki/internal/tickets/evidence/feat012-actor-ab-01-fixtures-20261108.json")
+        import hashlib
+        self.synthetic_hashes = [[hashlib.sha256(bytes([(phase * 64 + index + 1) & 255]) * 128).hexdigest()
+                                  for index in range(8)] for phase in range(3)]
+
+    class FakeMI:
+        def __init__(self, context):
+            self.context = context
+            self.current = None
+            self.requests = []
+
+        def set_frame(self, frame):
+            self.current = frame
+
+        def command(self, command):
+            if not command.startswith("-data-read-memory-bytes "):
+                raise AssertionError("actor observer issued a non-read command")
+            _, address, length = command.split()
+            address, length = int(address, 0), int(length)
+            if any(address <= forbidden < address + length for forbidden in (0xFF91, 0xFF9D)):
+                raise AssertionError("write-only GIME register was read")
+            self.requests.append((self.current["id"], address, length, command))
+            for start, data in self.current["memory"].items():
+                if start <= address and address + length <= start + len(data):
+                    offset = address - start
+                    found = data[offset:offset + length]
+                    return '7^done,memory=[{begin="0x%x",offset="0x0",end="0x%x",contents="%s"}]' % (address, address + length, found.hex())
+            raise AssertionError("unadmitted fixture read at " + hex(address))
+
+    def frame(self, identity, owner, commit, timer, actor_phase, rendered_phase=1,
+              stale_actor=None, page_owner=None, pc_kind="post"):
+        import hashlib
+        pixels = bytearray(0x7800)
+        for index, actor in enumerate(self.context["actors"]):
+            phase = 0 if stale_actor == index else rendered_phase
+            row = bytes([(phase * 64 + index + 1) & 255]) * 8
+            offset = actor["destination"] - 0x2000
+            for y in range(16):
+                pixels[offset + y * 160:offset + y * 160 + 8] = row
+        expected_pages = self.scenario["front_owner_pages"][str(owner if page_owner is None else page_owner)]
+        pages = bytes([0x38, *expected_pages])
+        fb = bytes([owner, 1-owner, 0]) + commit.to_bytes(2, "big")
+        memory = {
+            0x00B0: timer.to_bytes(2, "big"), 0x008F: fb,
+            0x00A5: bytes((2, 0)), 0x00D3: bytes((actor_phase,)), 0x00D4: b"\0",
+            0xFFA0: pages, 0x2000: bytes(pixels),
+        }
+        if pc_kind == "phase":
+            memory[self.context["phase_pc"]] = self.context["phase_bytes"]
+        else:
+            memory[self.context["post_pc"]] = self.context["post_bytes"]
+        return {"id": identity, "memory": memory}
+
+    def exercise(self, *, stale=False, timer_mismatch=False, page_mismatch=False, callback_cap=None):
+        context = dict(self.context)
+        context["phase_hashes"] = self.synthetic_hashes
+        if callback_cap is not None:
+            context["max_callbacks"] = callback_cap
+        fake = self.FakeMI(context)
+        capture = runtime.ActorCapture(fake, self.scenario, context)
+        fake.set_frame(self.frame("phase-transition", 0, 0, 14, 0, pc_kind="phase"))
+        capture.stop(context["phase_pc"])
+        fake.set_frame(self.frame("commit-seed", 0, 0, 14, 1))
+        capture.stop(context["post_pc"])
+        sample_timer = 22 if timer_mismatch else 14
+        fake.set_frame(self.frame("owner-0", 0, 1, sample_timer, 1))
+        capture.stop(context["post_pc"])
+        if callback_cap is not None and capture.terminal:
+            return capture.finish(), fake, capture
+        fake.set_frame(self.frame("owner-1-mismatch" if page_mismatch else "owner-1", 1, 2,
+                                  sample_timer, 1, stale_actor=7 if stale else None,
+                                  page_owner=0 if page_mismatch else None))
+        try:
+            capture.stop(context["post_pc"])
+        except core.HarnessError as error:
+            return {"classification": "harness_failure", "reason": str(error)}, fake, capture
+        return capture.finish(), fake, capture
+
+    def test_current_artifact_binds_eight_distinct_actor_animations(self):
+        self.assertEqual(len(self.context["actors"]), self.definition["fixture_inputs"]["actor_count"])
+        self.assertEqual(len({tuple(a["cell"]) for a in self.context["actors"]}), 8)
+        self.assertEqual(len({a["destination"] for a in self.context["actors"]}), 8)
+        self.assertEqual(len({tuple(a["source_codes"]) for a in self.context["actors"]}), 8)
+        self.assertEqual(len(self.context["phase_hashes"]), 3)
+        self.assertEqual(len(self.context["arcade_reference_matches"]), 2)
+        self.assertEqual(runtime.actor_frame_from_phase(3), 1)
+        self.assertEqual(core.digest(self.description), self.scenario["accepted_description_sha256"])
+        self.assertEqual(core.digest(self.description.parent / "source/build/ladybug.rom"), self.scenario["accepted_rom_sha256"])
+        environment = self.project / "repro/engineering/20261107T135116Z-doctor-d37896a3c907/environment.json"
+        self.assertEqual(core.digest(environment), self.scenario["accepted_environment_sha256"])
+
+    def test_positive_and_stale_owner_negative_cover_all_eight(self):
+        result, fake, capture = self.exercise()
+        self.assertEqual((result["classification"], result["diagnosis"]), ("observed", "no_stale_pixels_observed"))
+        self.assertEqual((capture.phase_change["from_phase"], capture.phase_change["to_phase"]), (0, 1))
+        self.assertEqual([sample["front"] for sample in capture.samples], [0, 1])
+        self.assertTrue(all(len(sample["actors"]) == 8 for sample in capture.samples))
+        self.assertEqual(result["retained_actor_crops"], 2)
+        self.assertEqual(sum("pixels_hex" in crop for sample in capture.samples for crop in sample["actors"]), 2)
+        self.assertTrue(all(command.startswith("-data-read-memory-bytes ") for _, _, _, command in fake.requests))
+        crop_reads = [(event, address, size) for event, address, size, _ in fake.requests if 0x2000 <= address < 0x9800]
+        self.assertEqual(len(crop_reads), 2 * 8 * 16)
+        self.assertTrue(all(size == 8 for _, _, size in crop_reads))
+        for event in ("owner-0", "owner-1"):
+            self.assertEqual(sum(1 for name, address, _, _ in fake.requests if name == event and 0x2000 <= address < 0x9800), 8 * 16)
+
+        result, _, capture = self.exercise(stale=True)
+        self.assertEqual(result["diagnosis"], "stale_actor_pixels")
+        self.assertIn({"front": 1, "actor_index": 7, "observed_phases": [0], "expected_phase": 1}, result["stale_actors"])
+        retained = [(sample["front"], index) for sample in capture.samples
+                    for index, crop in enumerate(sample["actors"]) if "pixels_hex" in crop]
+        self.assertEqual(retained, [(0, 7), (1, 7)])
+
+    def test_timer_negative_front_mapping_and_callback_cap(self):
+        result, _, _ = self.exercise(timer_mismatch=True)
+        self.assertEqual(result["diagnosis"], self.definition["fixture_inputs"]["timer_mismatch_negative"]["expected_diagnosis"])
+
+        result, fake, _ = self.exercise(page_mismatch=True)
+        self.assertEqual((result["classification"], result["reason"]), ("harness_failure", "front_page_mismatch"))
+        self.assertFalse(any(name == "owner-1-mismatch" and 0x2000 <= address < 0x9800
+                             for name, address, _, _ in fake.requests))
+
+        result, _, _ = self.exercise(callback_cap=1)
+        self.assertEqual((result["classification"], result["reason"], result["coverage_complete"]),
+                         ("incomplete", "callback_cap", False))
+
+    def test_actor_memory_responses_are_redacted_from_debugger_log(self):
+        import io
+        client = runtime.MI.__new__(runtime.MI)
+        client.buffer = b'1^done,memory=[{contents="deadbeef"}]\n'
+        client.log = io.BytesIO()
+        client.redact_memory = True
+        self.assertIn('contents="deadbeef"', client.line())
+        self.assertIn(b'contents="<4 bytes>"', client.log.getvalue())
+        self.assertNotIn(b"deadbeef", client.log.getvalue())
+
+    def test_observer_deadline_is_not_reported_as_missing_coverage(self):
+        capture = runtime.ActorCapture(self.FakeMI(self.context), self.scenario, self.context)
+        result = runtime.actor_final_result(capture, True)
+        self.assertEqual((result["classification"], result["reason"], result["coverage_complete"]),
+                         ("timeout", "observer_deadline", False))
+
+    def test_fixed_one_use_command_is_bound_to_pinned_inputs(self):
+        command = dispatch_wsl.fixed_command("ActorAB01Runtime", self.root)
+        self.assertEqual(command[command.index("--description") + 1], str(self.description))
+        self.assertEqual(command[command.index("--environment") + 1], str(self.project / "repro/engineering/20261107T135116Z-doctor-d37896a3c907/environment.json"))
+        self.assertEqual(command[command.index("--scenario") + 1], str(self.scenario_path))
+        self.assertEqual(command[command.index("--runs") + 1], str(self.root / "native"))
+        wrapper = (self.project / "scripts/engineering/dispatch-wsl.ps1").read_text(encoding="utf-8")
+        self.assertIn("ActorAB01Runtime", wrapper.splitlines()[1])
+        with self.assertRaises(ValueError):
+            dispatch_wsl.fixed_command("arbitrary", self.root)
+
+
 class Tool019Q1Fixtures(Base):
     """Approved independent inputs exercise acquisition, MI parsing and host policy."""
     def setUp(self):
@@ -555,13 +718,28 @@ for line in sys.stdin:
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--evidence", type=Path)
-    parser.add_argument("--case", choices=("baseline", "tool019-q1"), default="baseline")
+    parser.add_argument("--case", choices=("baseline", "tool019-q1", "actor-ab-q1"), default="baseline")
     args = parser.parse_args()
-    dependency_paths = ["scripts/engineering/runtime.py", "scripts/engineering/dispatch_wsl.py", "scripts/engineering/dispatch-wsl.ps1", "scripts/engineering/scenarios/attract-manual-down.json", "scripts/test_engineering.py", "wiki/internal/tickets/evidence/tool019/fixture-definitions-20261107-01.json"] if args.case == "tool019-q1" else []
     project = Path(__file__).resolve().parents[1]
+    if args.case == "tool019-q1":
+        dependency_paths = ["scripts/engineering/runtime.py", "scripts/engineering/dispatch_wsl.py", "scripts/engineering/dispatch-wsl.ps1", "scripts/engineering/scenarios/attract-manual-down.json", "scripts/test_engineering.py", "wiki/internal/tickets/evidence/tool019/fixture-definitions-20261107-01.json"]
+        classes = (Tool019Q1Fixtures,)
+    elif args.case == "actor-ab-q1":
+        description = project / "repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/build.json"
+        record = core.load(description)
+        dependency_paths = ["scripts/engineering/runtime.py", "scripts/engineering/dispatch_wsl.py", "scripts/engineering/dispatch-wsl.ps1", "scripts/engineering/scenarios/attract-actor-ab.json", "scripts/test_engineering.py", "wiki/internal/tickets/evidence/feat012-actor-ab-01-fixtures-20261108.json",
+                           str(description.relative_to(project)), "repro/engineering/20261107T135116Z-doctor-d37896a3c907/environment.json"]
+        dependency_paths.append("assets/arcade/attract_actor_reference.json")
+        dependency_paths += ["repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/" + name
+                             for name in (record["rom"], "source/build/ladybug-presentation.json",
+                                          "source/build/ladybug-enemy-runtime.rom", "source/build/ladybug-enemy-runtime.map",
+                                          "source/build/ladybug-perimeter-reset-helper.bin", "source/build/ladybug-perimeter-reset-helper.map")]
+        classes = (ActorAB01Q1Fixtures,)
+    else:
+        dependency_paths = []
+        classes = (Fixture, ProcessTests)
     dependencies = {name: core.digest(project / name) for name in dependency_paths}
     start = time.monotonic()
-    classes = (Tool019Q1Fixtures,) if args.case == "tool019-q1" else (Fixture, ProcessTests)
     suite = unittest.TestSuite(unittest.defaultTestLoader.loadTestsFromTestCase(case) for case in classes)
     result = unittest.TextTestRunner(verbosity=2).run(suite)
     current_dependencies = {name: core.digest(project / name) for name in dependency_paths}
@@ -569,7 +747,7 @@ def main():
         raise core.HarnessError("Q1 dependency changed during qualification")
     if args.evidence:
         args.evidence.mkdir(parents=True, exist_ok=False)
-        core.save_new(args.evidence / "qualification.json", {"schema": 1, "case": args.case, "tool019_dependencies": dependencies, "passed": result.wasSuccessful(), "tests": result.testsRun,
+        core.save_new(args.evidence / "qualification.json", {"schema": 1, "case": args.case, "dependencies": dependencies, "passed": result.wasSuccessful(), "tests": result.testsRun,
                       "skipped": len(result.skipped), "elapsed_seconds": round(time.monotonic() - start, 4),
                       "failures": [str(case) + "\n" + failure for case, failure in result.failures + result.errors],
                       "scope": "offline fixtures/fake tools only; no real game build or emulator", "test_source_sha256": core.digest(__file__), "harness": cli.checker_identity()})

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import os
 import json
+import hashlib
 import re
 import select
 from pathlib import Path
@@ -102,6 +103,8 @@ def main():
         scenario = load(request["scenario"])
         if scenario.get("mode") == "attract-manual-down":
             return run_menu(request, scenario, output, start)
+        if scenario.get("mode") == "attract-actor-ab":
+            return run_actor(request, scenario, output, start)
         path, build, address, expected = plan(request["description"], scenario)
         if build["build_result"]["classification"] != "passed":
             raise HarnessError("legacy build did not pass")
@@ -183,11 +186,12 @@ def mi_pc(stopped):
 
 class MI:
     """One owned debugger; every reply/stop shares the observation deadline."""
-    def __init__(self, executable, deadline, log, cwd):
+    def __init__(self, executable, deadline, log, cwd, redact_memory=False):
         self.process = subprocess.Popen([executable, "-nx", "-q", "--interpreter=mi2"],
                                         cwd=cwd, stdin=subprocess.PIPE, stdout=subprocess.PIPE,
                                         stderr=log, bufsize=0)
         self.deadline, self.log = deadline, log
+        self.redact_memory = redact_memory
         self.buffer, self.token, self.stops = b"", 0, []
 
     def line(self):
@@ -200,7 +204,11 @@ class MI:
                 raise HarnessError("debugger_eof")
             self.buffer += data
         line, self.buffer = self.buffer.split(b"\n", 1)
-        self.log.write(line + b"\n"); self.log.flush()
+        logged = line
+        if self.redact_memory:
+            logged = re.sub(rb'contents="([0-9a-fA-F]*)"',
+                            lambda match: b'contents="<%d bytes>"' % (len(match.group(1)) // 2), logged)
+        self.log.write(logged + b"\n"); self.log.flush()
         return line.decode("utf-8", errors="replace").strip()
 
     def command(self, command):
@@ -461,6 +469,373 @@ def run_menu(request, scenario, output, start):
         result.update(elapsed_seconds=round(time.monotonic()-start,4), source_description=str(request["description"]), scenario_sha256=digest(request["scenario"]))
         save_new(output/"observation.json", result)
     return 0 if result["classification"] == "observed" else 1
+
+
+def actor_plan(description, scenario):
+    if digest(description) != scenario["accepted_description_sha256"]:
+        raise HarnessError("accepted_description_mismatch")
+    if (scenario.get("max_seconds") != 40 or scenario.get("max_callbacks") != 512 or
+            scenario.get("max_publication_samples") != 3 or scenario.get("actor_count") != 8):
+        raise HarnessError("actor_probe_bounds_or_coverage_changed")
+    path, build, post_pc, post_bytes = plan(description, scenario)
+    if build.get("profile") != "keyboard-adaptive":
+        raise HarnessError("actor_probe_requires_keyboard_adaptive")
+    if build["artifacts"][build["rom"]]["sha256"] != scenario["accepted_rom_sha256"]:
+        raise HarnessError("accepted_rom_mismatch")
+    required = [
+        scenario["phase_marker"]["image"], scenario["phase_marker"]["map"],
+        scenario["actor_manifest"],
+    ]
+    path, build = open_build(path, [build["rom"], scenario["marker"]["image"],
+                                    scenario["marker"]["map"]] + required)
+    manifest_name = scenario["actor_manifest"]
+    manifest_path = inside(path.parent, manifest_name)
+    if digest(manifest_path) != scenario["accepted_manifest_sha256"]:
+        raise HarnessError("accepted_actor_manifest_mismatch")
+    manifest = load(manifest_path)
+    reference_name = scenario["arcade_reference"]
+    reference_path = inside(Path(__file__).resolve().parents[2], reference_name)
+    reference_sha = scenario["accepted_arcade_reference_sha256"]
+    if (build.get("source_inputs", {}).get(reference_name) != reference_sha or
+            digest(reference_path) != reference_sha):
+        raise HarnessError("accepted_arcade_reference_mismatch")
+    reference = load(reference_path)
+    reference_sequences = [item.get("source_sprite_codes_by_phase")
+                           for item in reference.get("actors", {}).values()]
+    if (not reference_sequences or
+            any(not isinstance(sequence, list) or len(sequence) != 4 or
+                any(type(code) is not int or not 0 <= code <= 255 for code in sequence)
+                for sequence in reference_sequences) or
+            any(sequence[3] != sequence[1] for sequence in reference_sequences)):
+        raise HarnessError("arcade_reference_phase_alias_mismatch")
+    surfaces = manifest.get("attract_actor_surfaces", {})
+    actors = surfaces.get("actors", [])
+    phase_hashes = surfaces.get("phase_crop_sha256", [])
+    if len(actors) != scenario.get("actor_count") or len(actors) != 8:
+        raise HarnessError("actor_manifest_must_bind_all_eight_actors")
+    if (surfaces.get("actor_bytes") != 128 or len(phase_hashes) != 3 or
+            any(len(row) != len(actors) for row in phase_hashes) or
+            any(not isinstance(value, str) or not re.fullmatch(r"[0-9a-f]{64}", value)
+                for row in phase_hashes for value in row)):
+        raise HarnessError("actor_phase_oracle_shape_mismatch")
+    cells, destinations, source_sequences = set(), set(), set()
+    height, stride, row_bytes = scenario["crop_height"], scenario["framebuffer_stride"], scenario["crop_row_bytes"]
+    if (height, stride, row_bytes) != (16, 160, 8):
+        raise HarnessError("unsupported_actor_crop_geometry")
+    for actor in actors:
+        address = actor.get("destination")
+        cell = actor.get("cell")
+        codes = actor.get("source_codes")
+        if (not isinstance(cell, list) or len(cell) != 2 or
+                any(type(value) is not int or value < 0 for value in cell) or
+                not isinstance(codes, list) or len(codes) != 3 or
+                any(type(value) is not int or not 0 <= value <= 255 for value in codes)):
+            raise HarnessError("invalid_actor_identity")
+        if type(address) is not int or address < 0x2000 or address + (height - 1) * stride + row_bytes > 0x9800:
+            raise HarnessError("actor_crop_outside_visible_framebuffer")
+        if tuple(cell) in cells or address in destinations or tuple(codes) in source_sequences:
+            raise HarnessError("actor_manifest_records_are_not_distinct")
+        cells.add(tuple(cell)); destinations.add(address); source_sequences.add(tuple(codes))
+    reference_matches = [actor["cell"] for actor in actors
+                         if tuple(actor["source_codes"]) in {tuple(row[:3]) for row in reference_sequences}]
+    if not reference_matches:
+        raise HarnessError("arcade_reference_has_no_bound_actor_sequences")
+    pages = scenario["front_owner_pages"]
+    if pages != {"0": [0x30, 0x31, 0x32, 0x33], "1": [0x2C, 0x2D, 0x2E, 0x2F]}:
+        raise HarnessError("unexpected_front_owner_page_map")
+    phase_marker = scenario["phase_marker"]
+    phase_symbols = build["artifacts"][phase_marker["map"]].get("symbols", {})
+    phase_pc = phase_symbols.get(phase_marker["symbol"])
+    helper = inside(path.parent, phase_marker["image"]).read_bytes()
+    phase_offset = phase_pc - phase_marker["image_origin"] if phase_pc is not None else -1
+    phase_count = phase_marker["byte_count"]
+    if (phase_offset < 0 or phase_count <= 0 or phase_offset + phase_count > len(helper) or
+            phase_pc + phase_count > 65536):
+        raise HarnessError("invalid_actor_phase_marker")
+    return path, build, {
+        "post_pc": post_pc,
+        "post_bytes": post_bytes,
+        "post_marker": scenario["marker"],
+        "phase_pc": phase_pc,
+        "phase_bytes": helper[phase_offset:phase_offset + phase_count],
+        "phase_marker": phase_marker,
+        "actors": actors,
+        "phase_hashes": phase_hashes,
+        "arcade_reference_matches": reference_matches,
+        "expected_pages": scenario["front_owner_pages"],
+        "crop_height": height,
+        "framebuffer_stride": stride,
+        "crop_row_bytes": row_bytes,
+        "max_callbacks": scenario["max_callbacks"],
+        "max_publication_samples": scenario["max_publication_samples"],
+    }
+
+
+def actor_phase_from_timer(timer):
+    if timer < 6:
+        return 0
+    return ((timer - 6) >> 3) & 3
+
+
+def actor_frame_from_phase(phase):
+    return (0, 1, 2, 1)[phase] if phase in range(4) else -1
+
+
+class ActorCapture:
+    """One no-input phase-change observation; pixels are read only from FRONT."""
+    def __init__(self, debugger, scenario, context):
+        self.debugger, self.scenario, self.context = debugger, scenario, context
+        self.samples, self.last_commit = [], None
+        self.phase_change = None
+        self.owners = set()
+        self.terminal = None
+        self.callbacks = 0
+        self.finished_result = None
+
+    def read(self, address, length):
+        if any(address <= bad < address + length for bad in (0xFF91, 0xFF9D)):
+            raise HarnessError("write_only_read_forbidden")
+        reply = self.debugger.command("-data-read-memory-bytes 0x%x %d" % (address, length))
+        return mi_memory(reply, length)
+
+    def state(self):
+        timer = int.from_bytes(self.read(0x00B0, 2), "big")
+        fb = self.read(0x008F, 5)
+        mode, screen = self.read(0x00A5, 2)
+        return {
+            "timer": timer,
+            "timer_phase": actor_phase_from_timer(timer),
+            "actor_phase": self.read(0x00D3, 1)[0],
+            "hold_state": self.read(0x00D4, 1)[0],
+            "mode": mode,
+            "screen": screen,
+            "front": fb[0],
+            "back": fb[1],
+            "pending": fb[2],
+            "commit": int.from_bytes(fb[3:5], "big"),
+        }
+
+    def marker_pages(self, pc, marker, expected):
+        if pc != expected["address"]:
+            raise HarnessError("unexpected_marker_pc")
+        actual = self.read(pc, len(expected["bytes"]))
+        if actual != expected["bytes"]:
+            raise HarnessError("live_marker_code_mismatch")
+        pages = self.read(0xFFA0, 5)
+        if (pages[0] & 63) != marker["expected_pages"]["0"]:
+            raise HarnessError("marker_page_mismatch")
+        return pages
+
+    def actor_crops(self):
+        crops = []
+        height = self.context["crop_height"]
+        stride = self.context["framebuffer_stride"]
+        row_bytes = self.context["crop_row_bytes"]
+        for index, actor in enumerate(self.context["actors"]):
+            pixels = b"".join(self.read(actor["destination"] + row * stride, row_bytes)
+                               for row in range(height))
+            digest_value = hashlib.sha256(pixels).hexdigest()
+            matches = [phase for phase, row in enumerate(self.context["phase_hashes"])
+                       if row[index] == digest_value]
+            crops.append({
+                "cell": actor["cell"],
+                "source_codes": actor["source_codes"],
+                "sha256": digest_value,
+                "matching_phases": matches,
+                "_pixels_hex": pixels.hex(),
+            })
+        return crops
+
+    def stop(self, pc):
+        self.callbacks += 1
+        if self.callbacks > self.context["max_callbacks"]:
+            self.terminal = {"classification": "incomplete", "reason": "callback_cap", "coverage_complete": False}
+            return
+        if pc == self.context["phase_pc"]:
+            pages = self.marker_pages(pc, self.context["phase_marker"], {
+                "address": self.context["phase_pc"], "bytes": self.context["phase_bytes"]})
+            state = self.state()
+            if (state["mode"] == 2 and state["screen"] == 0 and
+                    state["hold_state"] == 0 and state["pending"] == 0 and
+                    state["actor_phase"] == 0 and state["timer_phase"] == 1):
+                self.phase_change = {"timer": state["timer"], "from_phase": 0,
+                                     "to_phase": 1, "front": state["front"],
+                                     "back": state["back"], "par0": pages[0] & 63}
+            return
+        if pc != self.context["post_pc"]:
+            raise HarnessError("unexpected_stopped_pc")
+        pages = self.marker_pages(pc, self.context["post_marker"], {
+            "address": self.context["post_pc"], "bytes": self.context["post_bytes"]})
+        state = self.state()
+        if self.last_commit is None:
+            self.last_commit = state["commit"]
+            return
+        delta = (state["commit"] - self.last_commit) & 65535
+        if delta == 0:
+            return
+        self.last_commit = state["commit"]
+        if delta != 1:
+            self.terminal = {"classification": "incomplete", "reason": "commit_sequence_gap", "coverage_complete": False}
+            return
+        if state["mode"] != 2 or state["screen"] != 0 or state["hold_state"] != 0:
+            if self.phase_change:
+                self.terminal = {"classification": "incomplete", "reason": "left_natural_attract", "coverage_complete": False}
+            return
+        if state["pending"] != 0 or state["front"] not in (0, 1) or state["back"] != 1 - state["front"]:
+            raise HarnessError("invalid_publication_state")
+        wanted = self.context["expected_pages"].get(str(state["front"]))
+        if wanted is None or [page & 63 for page in pages[1:5]] != wanted:
+            raise HarnessError("front_page_mismatch")
+        if not self.phase_change:
+            return
+        crops = self.actor_crops()
+        sample = dict(timer=state["timer"], timer_phase=state["timer_phase"],
+                      actor_phase=state["actor_phase"], front=state["front"], back=state["back"],
+                      pending=state["pending"], commit=state["commit"],
+                      raw_pars=pages.hex(), actors=crops)
+        sample["timer_phase_match"] = state["timer_phase"] == state["actor_phase"]
+        self.samples.append(sample)
+        self.owners.add(state["front"])
+        if self.owners == {0, 1}:
+            self.terminal = self.finish()
+        elif len(self.samples) >= self.context["max_publication_samples"]:
+            self.terminal = {"classification": "incomplete", "reason": "second_owner_missing", "coverage_complete": False}
+
+    def finish(self):
+        if self.finished_result is not None:
+            return self.finished_result
+        if self.terminal and self.terminal.get("classification") != "observed":
+            self.finished_result = self.terminal
+            return self.finished_result
+        if not self.phase_change:
+            self.finished_result = {"classification": "incomplete", "reason": "phase_transition_missing", "coverage_complete": False}
+            return self.finished_result
+        if self.owners != {0, 1}:
+            self.finished_result = {"classification": "incomplete", "reason": "second_owner_missing", "coverage_complete": False}
+            return self.finished_result
+        timer_mismatch = any(not sample["timer_phase_match"] for sample in self.samples)
+        stale, unknown, anomalous_crops = [], [], []
+        for sample in self.samples:
+            expected = actor_frame_from_phase(sample["actor_phase"])
+            for index, crop in enumerate(sample["actors"]):
+                if expected not in crop["matching_phases"]:
+                    anomalous_crops.append((sample, index, crop))
+                    if crop["matching_phases"]:
+                        stale.append({"front": sample["front"], "actor_index": index,
+                                      "observed_phases": crop["matching_phases"], "expected_phase": expected})
+                    else:
+                        unknown.append({"front": sample["front"], "actor_index": index,
+                                        "sha256": crop["sha256"], "expected_phase": expected})
+        diagnosis = ("timer_phase_discontinuity" if timer_mismatch else
+                     "stale_actor_pixels" if stale else
+                     "unrecognized_actor_pixels" if unknown else
+                     "no_stale_pixels_observed")
+        retain = []
+        if anomalous_crops:
+            sample, index, crop = anomalous_crops[0]
+            retain.append(crop)
+            counterpart = next((candidate["actors"][index] for candidate in self.samples
+                                if candidate["front"] != sample["front"]), None)
+            if counterpart is not None:
+                retain.append(counterpart)
+        if not retain:
+            retain = [next(crop for sample in self.samples if sample["front"] == owner
+                           for crop in sample["actors"] if crop["cell"] == self.context["actors"][0]["cell"])
+                      for owner in (0, 1)]
+        retained_ids = {id(crop) for crop in retain}
+        for sample in self.samples:
+            for crop in sample["actors"]:
+                pixels = crop.pop("_pixels_hex")
+                if id(crop) in retained_ids:
+                    crop["pixels_hex"] = pixels
+        self.finished_result = {"classification": "observed", "diagnosis": diagnosis,
+                                "coverage_complete": True, "game_acceptance": "not_claimed",
+                                "stale_actors": stale, "unrecognized_actors": unknown,
+                                "phase_change": self.phase_change,
+                                "retained_actor_crops": len(retain)}
+        return self.finished_result
+
+
+def actor_final_result(capture, deadline_expired):
+    if capture.terminal:
+        return capture.finish()
+    if deadline_expired:
+        return {"classification": "timeout", "reason": "observer_deadline", "coverage_complete": False}
+    return capture.finish()
+
+
+def run_actor(request, scenario, output, start):
+    xroar, debugger = None, None
+    capture = None
+    result = {"classification": "harness_failure", "game_acceptance": "not_claimed"}
+    deadline = start + min(40, scenario["max_seconds"]) - 1
+    try:
+        path, build, context = actor_plan(request["description"], scenario)
+        if build["build_result"]["classification"] != "passed":
+            raise HarnessError("build_not_passed")
+        if digest(request["environment"]) != scenario["accepted_environment_sha256"]:
+            raise HarnessError("accepted_environment_mismatch")
+        tools = load(request["environment"])["tools"]
+        for name in ("debugger", "emulator"):
+            if digest(tools[name]["path"]) != tools[name]["sha256"]:
+                raise HarnessError("tool_changed: " + name)
+        with socket.socket() as sock:
+            sock.bind(("127.0.0.1", 0)); port = sock.getsockname()[1]
+        argv = [tools["emulator"]["path"], "-ui", "null", "-ao", "null", "-machine", "coco3",
+                "-machine-cpu", "6809", "-ram", "512", "-ram-init", "random", "-cart-type", "gmc",
+                "-cart-rom", str(inside(path.parent, build["rom"])), "-cart-autorun", "-tv-input", "rgb",
+                "-joy-right", "", "-joy-left", "", "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", str(port)]
+        save_new(output / "scenario.json", scenario)
+        save_new(output / "emulator-command.json", argv)
+        with (output / "xroar.log").open("xb") as log, (output / "gdb.log").open("xb") as gdb_log:
+            xroar = subprocess.Popen(argv, stdin=subprocess.DEVNULL, stdout=log, stderr=log)
+            while not listener_owned(xroar.pid, port):
+                if xroar.poll() is not None or time.monotonic() >= deadline:
+                    raise HarnessError("owned_listener_missing")
+                time.sleep(.02)
+            debugger = MI(tools["debugger"]["path"], deadline, gdb_log, output, redact_memory=True)
+            debugger.command("-gdb-set architecture m6809")
+            debugger.command('-interpreter-exec console "set remote supported-packets-packet off"')
+            debugger.command("-target-select remote 127.0.0.1:%d" % port)
+            phase_bp = debugger.command("-break-insert -h *0x%x" % context["phase_pc"])
+            post_bp = debugger.command("-break-insert -h *0x%x" % context["post_pc"])
+            for response in (phase_bp, post_bp):
+                if not re.search(r'number="\d+"', response):
+                    raise HarnessError("breakpoint_install_failed")
+            capture = ActorCapture(debugger, scenario, context)
+            while time.monotonic() < deadline and not capture.terminal:
+                if capture.callbacks >= context["max_callbacks"]:
+                    capture.terminal = {"classification": "incomplete", "reason": "callback_cap", "coverage_complete": False}
+                    break
+                capture.stop(debugger.resume())
+            result = actor_final_result(capture, time.monotonic() >= deadline)
+    except TimeoutError:
+        result = actor_final_result(capture, True) if capture else {"classification": "timeout", "reason": "observer_deadline", "coverage_complete": False}
+    except Exception as error:
+        result = {"classification": "harness_failure", "reason": str(error), "coverage_complete": False}
+    finally:
+        if debugger:
+            try:
+                debugger.close()
+            except Exception:
+                result.update(classification="cleanup_failure", debugger_exited=False)
+        if xroar:
+            if xroar.poll() is None:
+                xroar.kill()
+            try:
+                xroar.wait(timeout=.3)
+            except subprocess.TimeoutExpired:
+                result.update(classification="cleanup_failure")
+            result["emulator_exited"] = xroar.poll() is not None
+        if capture:
+            result["samples"] = capture.samples
+            result["phase_change"] = capture.phase_change
+            result["callbacks"] = capture.callbacks
+        result.update(elapsed_seconds=round(time.monotonic() - start, 4),
+                      source_description=str(request["description"]),
+                      scenario_sha256=digest(request["scenario"]))
+        save_new(output / "observation.json", result)
+    return 0 if result.get("classification") == "observed" else 1
 
 
 if __name__ == "__main__":

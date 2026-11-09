@@ -28,6 +28,12 @@ def fixed_command(operation, evidence):
         return [sys.executable, "-B", str(ROOT/"scripts/test_engineering.py"), "--case", "tool019-q1", "--evidence", str(evidence/"fixtures")]
     if operation == "Tool019ManualDown":
         return [sys.executable, "-B", str(ROOT/"scripts/ladybug.py"), "--runs", str(evidence/"native"), "observe", "--description", str(ROOT/DESCRIPTION), "--environment", str(ROOT/ENVIRONMENT), "--scenario", str(ROOT/"scripts/engineering/scenarios/attract-manual-down.json")]
+    if operation == "ActorAB01Runtime":
+        description = "repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/build.json"
+        environment = "repro/engineering/20261107T135116Z-doctor-d37896a3c907/environment.json"
+        return [sys.executable, "-B", str(ROOT/"scripts/ladybug.py"), "--runs", str(evidence/"native"), "observe",
+                "--description", str(ROOT/description), "--environment", str(ROOT/environment),
+                "--scenario", str(ROOT/"scripts/engineering/scenarios/attract-actor-ab.json")]
     raise ValueError("unsupported_operation")
 
 
@@ -107,7 +113,7 @@ def run_owned(argv, evidence, control, work_seconds=40, grace_seconds=5):
 
 def main():
     parser=argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--operation", choices=("Tool019Q1","Tool019ManualDown"), required=True)
+    parser.add_argument("--operation", choices=("Tool019Q1","Tool019ManualDown","ActorAB01Runtime"), required=True)
     parser.add_argument("--evidence",type=Path,required=True)
     args=parser.parse_args()
     evidence=args.evidence.resolve()

@@ -1,0 +1,42 @@
+{
+  "schema": 1,
+  "name": "ACTOR-AB-01",
+  "purpose": "Non-gating read-only diagnosis of stale actor pixels across persistent framebuffer owners versus timer/phase discontinuity.",
+  "mode": "attract-actor-ab",
+  "max_seconds": 40,
+  "max_callbacks": 512,
+  "max_publication_samples": 3,
+  "actor_count": 8,
+  "crop_height": 16,
+  "framebuffer_stride": 160,
+  "crop_row_bytes": 8,
+  "actor_manifest": "source/build/ladybug-presentation.json",
+  "arcade_reference": "assets/arcade/attract_actor_reference.json",
+  "accepted_description_sha256": "8475eea823bf478a6e15568c227c4b1f250151c87400a8ddf6caa2b419732891",
+  "accepted_rom_sha256": "a9e731d97de7136ee2d93a748a42c4255ca353872038a582f562aea69d1b8b73",
+  "accepted_manifest_sha256": "ed5a770cb372b773d894d256163a2f9c25f3caadb5c73ca9e6076aac81d4c740",
+  "accepted_arcade_reference_sha256": "2ab188e3e1c70eb356dc87d73e5d90a6ae938f6e7a966c2678b949287a078fec",
+  "accepted_environment_sha256": "17b3e1d697180f18b18959009053545063794a7831833c257598f591bd7160c4",
+  "marker": {
+    "image": "source/build/ladybug-enemy-runtime.rom",
+    "map": "source/build/ladybug-enemy-runtime.map",
+    "symbol": "fbiq_done",
+    "image_origin": 2048,
+    "expected_pages": {"0": 56},
+    "byte_count": 8
+  },
+  "phase_marker": {
+    "image": "source/build/ladybug-perimeter-reset-helper.bin",
+    "map": "source/build/ladybug-perimeter-reset-helper.map",
+    "symbol": "pao_phase_change",
+    "image_origin": 1714,
+    "expected_pages": {"0": 56},
+    "byte_count": 8
+  },
+  "actor_count_note": "The current presentation manifest provides eight distinct actor cells, destinations and three-frame source-code sequences; do not group cells into fewer actors.",
+  "front_owner_pages": {
+    "0": [48, 49, 50, 51],
+    "1": [44, 45, 46, 47]
+  },
+  "reads": []
+}

@@ -1,0 +1,34 @@
+{
+  "schema": 1,
+  "purpose": "One-time qualification fixtures for ACTOR-AB-01 observer classification and FRONT-only crop reads. Synthetic pixel bytes are test inputs, not product requirements.",
+  "artifact": {
+    "description": "repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/build.json",
+    "description_sha256": "8475eea823bf478a6e15568c227c4b1f250151c87400a8ddf6caa2b419732891",
+    "rom_sha256": "a9e731d97de7136ee2d93a748a42c4255ca353872038a582f562aea69d1b8b73",
+    "manifest_sha256": "ed5a770cb372b773d894d256163a2f9c25f3caadb5c73ca9e6076aac81d4c740",
+    "arcade_reference_sha256": "2ab188e3e1c70eb356dc87d73e5d90a6ae938f6e7a966c2678b949287a078fec"
+  },
+  "fixture_inputs": {
+    "actor_count": 8,
+    "arcade_reference_overlap_count": 2,
+    "owner_order": [0, 1],
+    "phase_marker": {"timer": 14, "cached_actor_phase": 0, "timer_phase": 1, "prior_phase_zero_stop_required": false},
+    "positive": {"id": "both-owners-current-phase", "timer": 14, "actor_phase": 1, "rendered_phase": 1},
+    "stale_owner_negative": {"id": "one-stale-actor-on-owner-1", "owner": 1, "actor_index": 7, "rendered_phase": 0, "expected_diagnosis": "stale_actor_pixels"},
+    "timer_mismatch_negative": {"id": "timer-phase-discontinuity", "timer": 22, "actor_phase": 1, "rendered_phase": 1, "expected_diagnosis": "timer_phase_discontinuity"},
+    "front_map_negative": {"id": "owner-1-pages-do-not-match-front", "owner": 1, "observed_page_owner": 0, "expected_result": "front_page_mismatch", "actor_reads_allowed": false},
+    "deadline_negative": {"id": "observer-deadline-before-coverage", "expected_result": "timeout", "coverage_complete": false},
+    "callback_cap": 1,
+    "expected_publication_limit": 3
+  },
+  "synthetic_pixel_rule": "For actor i and rendered phase p in 0..2, each 128-byte crop is filled with byte ((p*64+i+1) mod 256). Rows are placed at the manifest destination with 160-byte stride and eight bytes per row.",
+  "case_results": {
+    "both-owners-current-phase": {"classification": "observed", "diagnosis": "no_stale_pixels_observed", "coverage_complete": true, "sampled_owners": [0, 1], "actor_crops_per_owner": 8},
+    "one-stale-actor-on-owner-1": {"classification": "observed", "diagnosis": "stale_actor_pixels", "stale_cell_index": 7, "owner": 1},
+    "timer-phase-discontinuity": {"classification": "observed", "diagnosis": "timer_phase_discontinuity"},
+    "owner-1-pages-do-not-match-front": {"classification": "harness_failure", "reason": "front_page_mismatch", "actor_reads_on_owner_1": 0},
+    "observer-deadline-before-coverage": {"classification": "timeout", "reason": "observer_deadline", "coverage_complete": false},
+    "callback-cap": {"classification": "incomplete", "reason": "callback_cap", "coverage_complete": false}
+  },
+  "scope": "Fixture qualification only. No product build, emulator, GDB session, live runtime observation, or acceptance claim."
+}
