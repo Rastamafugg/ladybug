@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>TOOL-020 &mdash; Observer sidecar repair - Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">&#8592; Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./feat-012-feat010-acceptance-closeout.html#actor-ab-01-proposed-20261108">FEAT-012 ACTOR-AB-01</a>
+    <a href="./tool-019-attract-menu-observer-capture.html">TOOL-019</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal &middot; tooling</p>
+      <h1>TOOL-020 &mdash; Observer sidecar repair <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Proposed &middot; Standard tooling change &middot; offline qualification only</p>
+    </header>
+
+    <section id="status">
+      <h2>Status and ownership</h2>
+      <ul>
+        <li><strong>Status:</strong> Proposed on 2026-11-09; awaiting explicit user approval. No implementation or qualification command has run under this ticket.</li>
+        <li><strong>Relationship:</strong> supports the open Attract actor-animation diagnostic in <a href="./feat-012-feat010-acceptance-closeout.html#actor-ab-01-proposed-20261108">FEAT-012</a> and records a shared result-writer defect also present in <a href="./tool-019-attract-menu-observer-capture.html">TOOL-019</a>. It changes no game acceptance criterion and does not close either ticket.</li>
+        <li><strong>Owner after approval:</strong> parent agent in <code>E:\projects\ladybug</code>. Parent owns the source edit, offline qualification, integration review, evidence and one bounded commit. No implementation delegation before the ticket is Ready.</li>
+        <li><strong>Priority and order:</strong> P1; complete this offline correction and qualification before any separately proposed live observer run. TOOL-019 and FEAT-012 remain open independently.</li>
+        <li><strong>Cost class:</strong> Standard tooling repair. The source cause is confirmed, but the correction spans the shared menu/actor dispatch finalizer and adds actor marker evidence to a machine-readable sidecar, requiring focused offline coverage for both boundaries. The underlying ACTOR-AB-01 live capture remains High-risk because it reads persistent A/B framebuffer history.</li>
+      </ul>
+    </section>
+
+    <section id="approval">
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Prevent the native observer from failing after its mode-specific routine has already saved <code>observation.json</code>, and retain the actual approved ACTOR-AB-01 marker bytes that the observer already reads and validates. The result must preserve existing classifications, exclusive file creation, read-only access, and the legacy one-stop error sidecar. This repairs observer evidence handling; it does not repair or accept the reported game animation.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>Baseline source revision is <code>a9969be7f1a868fa15487d6b300b582f6e2f46bf</code>. SHA-256 identities: <code>scripts/engineering/runtime.py</code> <code>dd1a8e294dd778305f6cb3e04ee2589945ecd0ea12755c4b123e232f5a2e58a5</code>; <code>scripts/test_engineering.py</code> <code>e4d6ea7b38edebfd26a79b73a8b7da93fc920cbe36b26b4b44910f27cceb6e89</code>; ACTOR-AB-01 scenario <code>32f4072251e55c6f55f80e541a15e55a90a134bb1f8251645062270d734618e3</code>. The game artifact remains source revision <code>cb9a2173913fe7e09f6719cac456381e07f15f23</code> and keyboard/adaptive ROM SHA-256 <code>a9e731d97de7136ee2d93a748a42c4255ca353872038a582f562aea69d1b8b73</code>.</p>
+      <p>ACTOR-AB-01 live-01 returned host <code>command_failed</code>, exit 1, after 10.9286 seconds; its native process returned exit 1 after 9.3628 seconds. The sidecar itself recorded two owner samples with all eight actor crops matching their sampled phases and no stale or unrecognized actors in that one sequence. The host receipt confirms cleanup. The <a href="../../../repro/feat012-actor-ab-01/live-01/result-summary.txt">retained result summary</a> and <a href="../../../repro/feat012-actor-ab-01/live-01/native/20261109T104308Z-observe-bb151dafb291/output.log">traceback</a> show that <code>run_actor()</code> wrote the sidecar at <code>runtime.py:837</code>; its return from <code>main():107</code> then passed through <code>main()</code>'s <code>finally</code>, which called exclusive <code>save_new()</code> again at lines 155-165 and raised <code>FileExistsError</code>.</p>
+      <p>The same source path is used by TOOL-019: <code>main():105</code> delegates to <code>run_menu()</code>, which writes the sidecar at <code>runtime.py:470</code>, before the same outer save. TOOL-019 live trial 02 independently exited <code>command_failed</code> with the same <code>FileExistsError</code> after its sidecar recorded an incomplete <code>attract_left</code> observation. See its <a href="../../../repro/tool019-live-20261107-02/native/20261108T002230Z-observe-94f2bd8505de/observation.json">observation</a> and <a href="../../../repro/tool019-live-20261107-02/native/20261108T002230Z-observe-94f2bd8505de/output.log">traceback</a>. This cross-mode scope is based on the retained trace and source, not a new run.</p>
+      <p>For marker retention, <code>ActorCapture.marker_pages()</code> reads and checks the actual bytes at the phase and post-publication markers, but returns only page-register bytes. The phase-change record and publication samples therefore omit the bytes. GDB logs redact memory contents, so they cannot recover them later. The approved ACTOR-AB-01 card already requires retaining these live marker bytes; this ticket implements that existing requirement without changing the card's behavior target, access policy or bounds.</p>
+
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong> make the delegated observer routine the only writer of <code>observation.json</code> for both <code>attract-actor-ab</code> and <code>attract-manual-down</code>. Initialize a local delegated-sidecar flag as false before <code>main()</code>'s <code>try</code>; set it true immediately before each return to <code>run_menu()</code> or <code>run_actor()</code>. In the outer <code>finally</code>, keep cleanup and timing but call its <code>save_new()</code> only when that flag is false. Preserve each delegated routine's exclusive inner save and preserve the legacy one-stop path's error sidecar. In <code>ActorCapture</code>, retain the actual verified marker read as reversible hex in <code>phase_change.marker_bytes_hex</code> and each qualifying <code>samples[*].marker_bytes_hex</code>; current phase and post markers are eight bytes each. Reuse the existing actor fake-memory tests and add direct <code>main()</code> dispatch tests for both delegated modes.</p>
+      <p><strong>Out of scope:</strong> any game-source or assembly edit; ROM/build changes; actor phase logic, crop mapping, FRONT/PAR validation, timer or input changes; GDB memory-log de-redaction; changes to frozen ACTOR-AB-01 command/package, scenario, bounds or accepted criteria; menu visual review or menu behavior repair; XRoar/GDB launch, live observation, manual session or any new live-run proposal. No second live run is authorized by this ticket.</p>
+
+      <h3>Compatibility and risks</h3>
+      <p>The sidecar change is additive: preserve all existing fields, classifications, schema version and consumers; add only the two marker-byte values at their observed sample records. Do not replace exclusive creation with an existence check or overwrite, which could hide a stale evidence root. Keep the legacy error path writing one diagnostic result. Risk is limited to observer evidence ownership and the new marker field; no guest, GIME, PAR, framebuffer or product state is written. Synthetic tests cannot establish live XRoar/GDB behavior or close the actor stutter report.</p>
+
+      <h3>Dependencies and order</h3>
+      <ol>
+        <li>Retain the current ACTOR-AB-01 and TOOL-019 failure artifacts as the defective baseline; keep their frozen packages and evidence unchanged.</li>
+        <li>After explicit approval and a Ready assignment, add the focused offline tests first and run the pre-fix control once to demonstrate the duplicate-save and absent-marker assertions against the known-bad source.</li>
+        <li>Make only the shared writer-ownership and actor marker-retention changes in <code>scripts/engineering/runtime.py</code>, then run the same focused offline qualification once against the corrected source.</li>
+        <li>Review and record the offline result. Stop. A future live observer proposal is a separate decision after this qualification and is not part of TOOL-020.</li>
+      </ol>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>Offline calls through <code>main()</code> for the actor and menu delegated modes each produce exactly one <code>observation.json</code>, preserve the delegated return code, and do not raise <code>FileExistsError</code>. The existing legacy failure path still emits one <code>harness_failure</code> sidecar. Existing exclusive-create behavior remains intact; no path silently overwrites a pre-existing sidecar.</li>
+        <li>For a qualified phase-transition sample, <code>phase_change.marker_bytes_hex</code> equals the actual eight phase-marker bytes read from fake memory. For each qualifying publication sample, <code>samples[*].marker_bytes_hex</code> equals the actual eight post-marker bytes read at that stop. Expected artifact bytes must not be substituted for the observed reads.</li>
+        <li>Corrupt phase or post-marker bytes are rejected as <code>live_marker_code_mismatch</code> before actor crop interpretation; no successful observation or fabricated marker field is emitted. The existing six ACTOR-AB-01 fixture outcomes, eight-actor coverage, FRONT-only crop boundary, callback/deadline handling and GDB-log redaction continue to pass.</li>
+        <li>The work remains offline-only. No product build, XRoar/GDB execution, live observation, manual result or actor-animation acceptance is claimed.</li>
+      </ol>
+
+      <h3>Proposed DOC-014 offline test card</h3>
+      <ul>
+        <li><strong>Purpose and risk:</strong> recurring observer regression checks catch (1) a delegated menu/actor writer being followed by the outer duplicate sidecar save, and (2) verified live actor marker bytes being dropped from retained evidence. These are tool-quality checks, not product acceptance gates.</li>
+        <li><strong>Type and fixture identity:</strong> automated offline Python qualification using the current ACTOR artifact descriptor/ROM and scenario identities above; synthetic marker reads and temporary evidence roots. Existing actor Q1 fixtures already bind the eight actor records and fake-memory setup. Add named cases <code>actor-main-single-write</code>, <code>menu-main-single-write</code>, <code>actor-marker-bytes-retained</code>, and <code>actor-marker-corruption-rejected</code> to the existing focused <code>actor-ab-q1</code> test case. No XRoar, GDB, input device, random enemy route or live framebuffer is used.</li>
+        <li><strong>Controlled inputs and oracle:</strong> patch <code>run_actor()</code> and <code>run_menu()</code> with fakes that write one result through exclusive creation and return controlled success/failure codes; call <code>main()</code> directly with temporary requests. For marker tests, use the existing source-bound fake actor frame at timer 14 with cached phase 0, timer-derived phase 1, then owner 0 and owner 1 publications. Assert one sidecar and exact hex equality with bytes read from the accepted image and supplied by fake MI. Byte tolerance is zero. Corrupt one byte at each marker kind as the negative control; it must fail before crop reads. Preserve the existing stale-owner, timer, page-mismatch, cap, timeout and redaction controls.</li>
+        <li><strong>Command and prerequisites:</strong> after the two new tests are written, run one known-bad baseline phase and one corrected phase, each with a fresh absent evidence root. Pre-fix command: <code>python -B -c &quot;import subprocess,sys; sys.exit(subprocess.run([sys.executable,'-B','scripts/test_engineering.py','--case','actor-ab-q1','--evidence','repro/tool020-actor-observer-20261109/pre-fix-01'],timeout=60).returncode)&quot;</code>. The pre-fix run is expected to show only the named new regression assertions failing while the existing six fixtures pass; retain that evidence. Post-fix command: <code>python -B -c &quot;import subprocess,sys; sys.exit(subprocess.run([sys.executable,'-B','scripts/test_engineering.py','--case','actor-ab-q1','--evidence','repro/tool020-actor-observer-20261109/post-fix-01'],timeout=60).returncode)&quot;</code>. Each is one whole offline phase with a 60-second cap; timeout means qualification is incomplete and stops the assignment. There are no debugger callbacks. The historical six-fixture Q1-07 measurement was 0.1638 seconds; added-test duration is unmeasured, and 60 seconds is the maximum, not an estimate.</li>
+        <li><strong>Evidence and result classes:</strong> retain separate pre/post test output, exit/time, script/scenario/artifact hashes, exact marker hex fields from the corrected sidecar, and the known-bad duplicate-save failure. Classify assertion failure, setup failure, timeout and missing evidence separately. Do not retain live traces or duplicate full crops for this ticket.</li>
+        <li><strong>Automated/manual split and ownership:</strong> automated-only; no manual session. Parent owns the approved implementation and test run, one commit, ticket update and QA review. This ticket grants no live-run authority.</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Assignment contract after approval</h2>
+      <ul>
+        <li><strong>Owned files:</strong> <code>scripts/engineering/runtime.py</code> and <code>scripts/test_engineering.py</code>; no game files. The fixture values are defined in the focused test case from the pinned actor descriptor and scenario. Update only this ticket, FEAT-012's relationship, TOOL-019's result classification, the ticket index and project log.</li>
+        <li><strong>Constraints:</strong> parent-owned current checkout; preserve the existing live run roots and frozen package. Add no new framework, marker read, state write, GDB logging, test matrix or unrelated observer cleanup.</li>
+        <li><strong>Commands:</strong> only the two offline Python commands in the test card; no build command and no runtime/dispatch command.</li>
+        <li><strong>Evidence:</strong> the pre-fix negative-control receipt and post-fix focused qualification, hashes, measured phase durations, diff and commit.</li>
+        <li><strong>Commit and report:</strong> one bounded local commit; no push/merge authority. Report test outcomes, exit/time versus 60-second caps, changed observer evidence fields, residual live risk and that FEAT-012/TOOL-019 remain open.</li>
+      </ul>
+    </section>
+
+    <section id="decision">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-09 &mdash; Proposed after the authorized ACTOR-AB-01 attempt exposed a duplicate sidecar write and missing marker bytes; TOOL-019 trial 02 confirms the same shared finalizer defect for the menu observer. Scope is limited to one-writer dispatch, actor marker-byte retention and offline qualification. No implementation, test, build or live observer command was run while preparing this proposal.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Proposed tooling correction for FEAT-012 ACTOR-AB-01 and the shared TOOL-019 observer finalizer. The approved actor acceptance criteria and prior evidence remain owned by their canonical tickets.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
