@@ -66,6 +66,10 @@ FB_BACK_ID equ $0090
 PENDING equ $0091
 PRES_TIMER equ $00B0
 PRES_ACTOR_PHASE equ $00D3
+; Presentation-only count: two BACK pages need the new actor phase.
+; $D2 is unused presentation scratch here and is instruction-runtime state
+; only while the mutually exclusive instructions mode owns the flow.
+PRES_ACTOR_REFRESHES equ $00D2
 PRES_HOLD_STATE equ $00D4
 PRES_HOLD_CHUNK equ $00D5
 PRES_HOLD_SAVED_FRONT equ $00D6
@@ -103,14 +107,12 @@ pht_copy
         lda     PRES_HOLD_GEN
         cmpa    #30
         bhs     pht_request
-        lda     PRES_HOLD_GEN
+        tsta
         bne     pht_copy_do
         tst     PRES_HOLD_OWNER
         bne     pht_copy_do
-        lda     FB_FRONT_ID
-        sta     PRES_HOLD_SAVED_FRONT
-        lda     FB_BACK_ID
-        sta     PRES_HOLD_SAVED_BACK
+        ldd     FB_FRONT_ID
+        std     PRES_HOLD_SAVED_FRONT
 pht_copy_do
         lbsr    hold_copy_chunk
         inc     PRES_HOLD_GEN
@@ -125,12 +127,10 @@ pht_copy_do
         blo     pht_active
 pht_request
         orcc    #$10
-        lda     #2
-        sta     FB_BACK_ID
-        lda     #1
-        sta     PENDING
-        lda     #PRES_HOLD_PUBLISH
-        sta     PRES_HOLD_STATE
+        ldd     #$0201
+        std     FB_BACK_ID
+        inc     PRES_HOLD_STATE
+        lda     PRES_HOLD_STATE
         andcc   #$EF
 pht_active
         rts
@@ -140,10 +140,9 @@ pht_publish
         tst     PENDING
         bne     pht_active
         orcc    #$10
-        lda     PRES_HOLD_SAVED_FRONT
-        sta     FB_FRONT_ID
-        lda     PRES_HOLD_SAVED_BACK
-        sta     FB_BACK_ID
+        ; The two saved IDs and the live IDs are adjacent byte pairs.
+        ldd     PRES_HOLD_SAVED_FRONT
+        std     FB_FRONT_ID
         clr     PRES_HOLD_OWNER
         lda     #PRES_HOLD_HYDRATE
         sta     PRES_HOLD_STATE
@@ -195,27 +194,33 @@ hold_copy_word
 presentation_attract_overlay_impl
         lbsr    presentation_attract_phase
         cmpa    PRES_ACTOR_PHASE
-        beq     pao_done
+        beq     pao_refresh_check
 pao_phase_change
         sta     PRES_ACTOR_PHASE
+        lda     #2
+        sta     PRES_ACTOR_REFRESHES
+pao_refresh_check
+        tst     PRES_ACTOR_REFRESHES
+        beq     pao_done
+        tst     PENDING
+        bne     pao_done
         jsr     PRES_MAIN_FB_PREPARE
+        bcs     pao_done
         lda     #$3C
         sta     PAR5
         lda     PRES_ACTOR_PHASE
         cmpa    #3
         bne     pao_phase_ready
-        lda     #1
+        lsra
 pao_phase_ready
         lsla
         ldx     #$BE28
         ldu     a,x
         ldx     #$BE00
-        lda     #8              ; four logical decorative actors, two records each
+        lda     #8              ; eight animated actor records
         sta     PRES_REMAIN
 pao_actor
-        ldd     ,x
-        leax    2,x
-        tfr     d,y
+        ldy     ,x++
         lda     #16
         sta     PRES_ACTOR_KIND
 pao_row
@@ -233,6 +238,9 @@ pao_row
         dec     PRES_REMAIN
         bne     pao_actor
 pao_after_pass
+        ; Count only a completed pixel refresh. A failed prepare leaves the
+        ; phase work pending for the next safe BACK.
+        dec     PRES_ACTOR_REFRESHES
         lda     #$34
         sta     PAR5
         lda     PRES_HOLD_STATE

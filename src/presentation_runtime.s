@@ -677,12 +677,20 @@ attract_tick_prepare
         lbra    menu_runtime_dispatch
         endc
 attract_tick_ready
-        bsr     timer
+        lbsr    timer
         ifne    ATTRACT_OVERLAY_ENABLED
         subd    <PRES_IDLE_ORIGIN
         endc
         cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
+        ifne    ATTRACT_OVERLAY_ENABLED
+        ; Refresh pending actor pixels before menu or logo work can publish BACK.
+        lda     #$34
+        sta     PAR5
+        jsr     PRESENTATION_ATTRACT_OVERLAY
+        tst     PENDING
+        bne     hold
+        endc
         ifne    COMPLETE_PROFILE
         ; A fresh edge services only one BACK. Replay the other owner on idle
         ; ticks after advancing the clock; never paint over a queued frame.
@@ -697,9 +705,6 @@ attract_tick_animation
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
         std     PRES_NAME_PTR
         jsr     PRES_MAIN_PAGE23_RESUME
-        lda     #$34
-        sta     PAR5
-        jsr     PRESENTATION_ATTRACT_OVERLAY
         endc
         bra     hold
 attract_next
@@ -746,7 +751,7 @@ presentation_ui_tick
         endc
         jmp     DEMO_RUNTIME_TICK
 level_tick
-        bsr     timer
+        lbsr    timer
         cmpd    #180
         lblo    hold
         ifne    COMPLETE_PROFILE
