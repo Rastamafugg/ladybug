@@ -47,8 +47,8 @@
     "High Score runtime size and hash"
   ],
   "candidate_source_review": [
-    "The level-start preview path sets PRES_CONTEXT to 2; the candidate wake check routes nonzero PRES_CONTEXT to the branch that clears KB_WAKE, so the candidate does not cover approved R3d.",
-    "The candidate uses PRES_PREV at $00B2 as joystick history, while scan_keys uses PRES_PREV as the base of its three-byte previous-key scan history; this overlaps input state.",
+    "Correction: automatic preview uses context 0; context 2 is the live next-stage route. The prior claim that the candidate necessarily skips automatic preview is withdrawn.",
+    "Correction: the retained complete-profile listing excludes the PRES_PREV scan loop and calls MENU_SCAN. The claimed active-scanner overlap is withdrawn; $00B2 ownership and lifetime still require review.",
     "The candidate writes $028D although the existing keybinding ownership annotation says that byte remains reserved; the ownership annotation was not updated."
   ],
   "retained_candidate_evidence": [
