@@ -11,6 +11,7 @@ Used when the task begins from a reported error, unexpected runtime behavior, fa
 
 - Collect the **observed facts**: exact error, exact output, exact steps, exact files/modules involved.
 - Distinguish observation from inference. Do not assume a cause without a test that discriminates between candidates.
+- For a profile-specific source finding, identify build flags, evaluate assembly conditionals, and trace the relevant entry route and state. Check a matching retained listing when available; otherwise label emitted behavior unverified rather than requiring a new build.
 - **Check the wiki for known quirks before hypothesizing** — many CoCo 3 / 6809 / GIME / assembler-toolchain behaviors are already catalogued:
   - [wiki/internal/implementation/lessons-learned.html](../../../wiki/internal/implementation/lessons-learned.html) — observed-fact findings
   - [wiki/internal/platform/](../../../wiki/internal/platform/) and [wiki/release/reference/coco3/](../../../wiki/release/reference/coco3/) — subsystem-specific HTML pages

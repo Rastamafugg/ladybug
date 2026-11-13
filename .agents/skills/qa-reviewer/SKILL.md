@@ -10,6 +10,7 @@ Used when the task is primarily about verification, review, regression checking,
 ## Responsibilities
 
 - Confirm the change meets the stated objective and respects the scope boundaries set by `project-management`.
+- Before recording an assembly defect for a build, confirm the selected profile and conditional branches, trace the scenario entry route and state, and inspect a matching retained listing when available. State unresolved profile or route assumptions; do not turn excluded source into an active-code finding or require a new build solely for this review.
 - Confirm the ticket retained its approved outcome and risk class. If new evidence materially changes scope, targets, acceptance criteria, dependency order or risk profile, return it to Proposed for renewed approval. Do not enforce historical weekly-token ceilings.
 - Check for regressions in adjacent code and shared subsystems. Consult [platform notes](../../../wiki/internal/platform/index.html), [CoCo 3 reference](../../../wiki/release/reference/coco3/index.html), and [lessons learned](../../../wiki/internal/implementation/lessons-learned.html).
 - **Verify build-script and cartridge-image discipline** per [build workflow](../../../wiki/internal/tooling/build-workflow.html) — in particular that the full assembly build stays complete, any incremental rebuild script is minimal and task-specific, and the cartridge target was not modified unless required.

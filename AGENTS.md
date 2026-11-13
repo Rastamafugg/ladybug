@@ -96,6 +96,8 @@ Do not begin coding until `project-management` has run. Each role skill contains
 
 ### Runtime diagnosis invariants
 
+- Before asserting a source defect for a particular build, identify its profile and relevant build flags, evaluate surrounding assembly conditionals, and trace the affected entry route and state into the code. When a matching retained listing exists, check which instructions were emitted. If the profile, route, or emitted code cannot be established, label the finding conditional and state what is missing; do not run a build solely to satisfy this rule.
+
 - Before interpreting a symbol, map label, or hardware-register access at a live PC, prove that the live bytes match the current built artifact at that address. When loading, copying, banking, relocation, or handoff is involved, compare authored/source, staged, and destination bytes before diagnosing downstream execution.
 - Treat an undocumented hardware defect as a last-stage hypothesis. Do not recommend it until software state, loader/mapping, observation-tool, and emulator-control candidates have discriminating results, and either an independent emulator/physical-hardware reproduction or authoritative hardware evidence supports escalation. Label the hypothesis unconfirmed until then.
 - Every runtime probe must name its phase, success marker, deadline, and the meaning of a timeout. Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, the projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that the target code is slow.
