@@ -1,0 +1,65 @@
+{
+  "ticket": "FEAT-012",
+  "assignment": "one isolated, non-adopting wake sizing pass",
+  "baseline_commit": "5b8f5fedf4588880f7840f459c0f845b4759d2de",
+  "candidate_worktree": "C:/Users/19029/.codex/worktrees/feat012-wake-sizing/ladybug",
+  "candidate_patch_sha256": "04f15e65a287d86e61fe6bb5f232af538e5a45e5a09e9857cdd94393010d4516",
+  "candidate_source_files": [
+    "src/keybinding_runtime.s",
+    "src/main.s",
+    "src/presentation_runtime.s"
+  ],
+  "result_class": "candidate capacity failure; not a product or runtime result",
+  "first_profile": {
+    "name": "keyboard-adaptive",
+    "command": "cd /mnt/c/Users/19029/.codex/worktrees/feat012-wake-sizing/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 bash scripts/build.sh build",
+    "exit_code": 1,
+    "elapsed_seconds": 226.094,
+    "deadline_seconds": 600,
+    "deadline_note": "Observed duration was below the assigned cap; the retained command string does not show an explicit timeout wrapper.",
+    "failure": "build: presentation module ends at $1E33; limit is $1E00",
+    "presentation_module": {
+      "bytes": 1331,
+      "limit_bytes": 1280,
+      "over_bytes": 51,
+      "sha256": "4f31f173d2fff5ecace6ae031467aa7362c2b626ea6e3713d4fd3c84f8bf116d",
+      "listing_sha256": "0eb29b086d921780bfc4e958ed5d0d922ccd29ee3a26ed818f832061334e0690",
+      "map_sha256": "801eb9c3e2a81d45674866302a9c6c87565532b50fc21d2238dc1f4ae5b79ec0"
+    },
+    "partial_build_observations": {
+      "resident_bytes": 8073,
+      "resident_limit_bytes": 8192,
+      "asset_bytes": 7647,
+      "asset_limit_bytes": 7680,
+      "cold_presentation_payload_bytes": 14112,
+      "cold_presentation_limit_bytes": 16384
+    }
+  },
+  "not_run_after_stop": [
+    "keyboard-adaptive static presentation-flow check",
+    "joystick-adaptive build and static check",
+    "keyboard-nonadaptive build and static check",
+    "source-reference generation and audit"
+  ],
+  "not_emitted_or_unmeasured": [
+    "ROM and ROM hash",
+    "perimeter helper size and hash",
+    "High Score runtime size and hash"
+  ],
+  "candidate_source_review": [
+    "The level-start preview path sets PRES_CONTEXT to 2; the candidate wake check routes nonzero PRES_CONTEXT to the branch that clears KB_WAKE, so the candidate does not cover approved R3d.",
+    "The candidate uses PRES_PREV at $00B2 as joystick history, while scan_keys uses PRES_PREV as the base of its three-byte previous-key scan history; this overlaps input state.",
+    "The candidate writes $028D although the existing keybinding ownership annotation says that byte remains reserved; the ownership annotation was not updated."
+  ],
+  "retained_candidate_evidence": [
+    "repro/feat012-wake-sizing-01/candidate.patch",
+    "repro/feat012-wake-sizing-01/candidate.json",
+    "repro/feat012-wake-sizing-01/sequence.json",
+    "repro/feat012-wake-sizing-01/keyboard-adaptive/build.stdout",
+    "repro/feat012-wake-sizing-01/keyboard-adaptive/build.stderr",
+    "repro/feat012-wake-sizing-01/keyboard-adaptive/ladybug-presentation-runtime.bin",
+    "repro/feat012-wake-sizing-01/keyboard-adaptive/ladybug-presentation-runtime.lst",
+    "repro/feat012-wake-sizing-01/keyboard-adaptive/ladybug-presentation-runtime.map"
+  ],
+  "adoption_or_live_execution": false
+}
