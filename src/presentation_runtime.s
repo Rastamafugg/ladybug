@@ -1,6 +1,6 @@
 ; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.
 ; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
-; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and start scanner.
+; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked scanner, which may route a safe automatic-loop wake.
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
@@ -56,7 +56,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
-; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys.
+; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
 ; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
@@ -135,6 +135,7 @@ MODE_GAMEOVER equ 7
 MODE_NAME equ 8
 PRESENTATION_ROTATION_TICKS equ 558 ; shared Attract and high-score hold
 PRES_CONTEXT_NEXT_STAGE equ 2
+PRES_CONTEXT_DEMO_HIGH_SCORE equ 3
 
         ifne    COMPLETE_PROFILE
 ATTRACT_OVERLAY_ENABLED equ 1
@@ -929,24 +930,21 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
+        clr     <STAGE_PENDING
+        lda     #PRES_CONTEXT_DEMO_HIGH_SCORE
+        sta     <PRES_CONTEXT
         lbsr    install_highscore_runtime
         lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
 demo_run
+        tst     <STAGE_PENDING
+        bne     demo_death_done
         ifeq ADAPTIVE_RENDERING
         lbsr timer
         jsr DEMO_RUNTIME_TICK
         endc
-        ldd     PRES_TIMER
-        cmpd    #3600
-        blo     demo_return
-        lbsr    install_highscore_runtime
-        lda     #PRESENTATION_MAP_HIGH_SCORE
-        lbsr    start_screen
-        lda     #1
-        rts
 demo_return
         clra
         rts
@@ -1831,7 +1829,7 @@ presentation_module_end
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
-; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys.
+; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
 ; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.

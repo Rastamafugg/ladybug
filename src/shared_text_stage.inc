@@ -17,6 +17,9 @@
         setdp   $00
         include "ladybug_presentation.inc"
         include "ladybug_presentation_symbols.inc"
+        ifndef INPUT_JOYSTICK
+INPUT_JOYSTICK equ 0
+        endc
 
 ; Existing always-mapped perimeter return tail: restore game PAR5, then CC/PC.
 PRES_GAME_PAGE_RETURN equ $06BE
@@ -1060,12 +1063,102 @@ MENU_LEVEL equ $EB
 MENU_SELECT equ $E0
 MENU_PREV equ $DF
 MENU_EVENT equ $D0
+PRES_MAGIC equ $00A4
+PRES_CONTEXT equ $00A7
+PRES_CONTEXT_DEMO_HIGH_SCORE equ 3
+KB_WAKE equ $028D
 ; Menu HOLD only: owner A/B dirty bits. Name entry owns this as repeat state.
 MENU_DIRTY equ $E1
 
 menu_scan
         ldb #0
-        jmp PRES_MAIN_KEY_SERVICE
+        jsr PRES_MAIN_KEY_SERVICE
+        lda PRES_MAGIC
+        cmpa #$A5
+        lbne menu_wake_clear
+        lda PRES_MODE
+        lbeq menu_wake_clear
+        cmpa #MODE_GAMEOVER
+        lbhs menu_wake_clear
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_OPTIONS
+        lbhs menu_wake_clear
+        ifne INPUT_JOYSTICK
+        ; Sample without modifying the autonomous demo direction or player.
+        lda KB_WAKE
+        ora #$40
+        sta KB_WAKE
+        lda JOY_DIR
+        pshs a
+        jsr PRES_MAIN_READ_JOY
+        lda JOY_DIR
+        cmpa #$FF
+        bne menu_wake_joy_code
+        lda #4
+menu_wake_joy_code
+        lsla
+        pshs a
+        ldb KB_WAKE
+        andb #$0E
+        cmpb ,s
+        beq menu_wake_joy_same
+        lda KB_WAKE
+        anda #$F1
+        ora ,s
+        sta KB_WAKE
+        lda ,s
+        cmpa #8
+        beq menu_wake_joy_same
+        lda KB_WAKE
+        ora #1
+        sta KB_WAKE
+menu_wake_joy_same
+        leas 1,s
+        puls a
+        sta JOY_DIR
+        lda KB_WAKE
+        anda #$BF
+        sta KB_WAKE
+        endc
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_ATTRACT
+        beq menu_wake_clear
+        cmpa #PRESENTATION_MAP_HIGH_SCORE
+        beq menu_wake_demo_high_score
+        lda PRES_CONTEXT
+        beq menu_wake_auto
+        bra menu_wake_clear
+menu_wake_demo_high_score
+        lda PRES_CONTEXT
+        cmpa #PRES_CONTEXT_DEMO_HIGH_SCORE
+        bne menu_wake_clear
+menu_wake_auto
+        lda KB_WAKE
+        bita #1
+        beq menu_wake_done
+        lda PRES_MODE
+        cmpa #MODE_LOAD
+        beq menu_wake_done
+        tst FB_PENDING
+        bne menu_wake_done
+        lda PRES_HOLD_STATE
+        beq menu_wake_ready
+        cmpa #PRES_HOLD_FINAL
+        bne menu_wake_done
+        clr PRES_HOLD_STATE
+menu_wake_ready
+        lda KB_WAKE
+        anda #$FE
+        sta KB_WAKE
+        clr MENU_EVENT
+        lda #PRESENTATION_MAP_ATTRACT
+        lbra menu_change
+menu_wake_clear
+        lda KB_WAKE
+        anda #$FE
+        sta KB_WAKE
+menu_wake_done
+        rts
 
 menu_tick
         lda     PRES_SCREEN

@@ -538,7 +538,7 @@
         {
           "name": "read_joystick",
           "profile": "input",
-          "purpose": "Read joystick.",
+          "purpose": "Sample joystick direction, suppressing player movement writes during wake-only samples.",
           "reasons": []
         },
         {
@@ -1023,6 +1023,7 @@
         }
       ],
       "basic_blocks": [
+        {"name": "rj_gameplay_request", "routine": "read_joystick", "purpose": "Continue normal player input only when the wake-only sampling flag is clear."},
         {
           "name": "ads_copy_high",
           "routine": null,
@@ -2233,7 +2234,7 @@
         {
           "name": "scan_keys",
           "profile": "input",
-          "purpose": "Scan keys.",
+          "purpose": "Scan keys and, in complete profile, route an eligible automatic-loop wake.",
           "reasons": []
         },
         {
@@ -2279,7 +2280,7 @@
         {
           "name": "MENU_SCAN",
           "profile": "input",
-          "purpose": "Call the banked menu and start scanner.",
+          "purpose": "Call the banked scanner, which may route a safe automatic-loop wake.",
           "reasons": [],
           "semantic_id": "routines.html#routine-presentation-runtime-menu-scan"
         },
@@ -2356,6 +2357,7 @@
         "PRES_MAIN_PAGE23_RESUME"
       ],
       "label_classifications": [
+        {"name": "PRES_CONTEXT_DEMO_HIGH_SCORE", "kind": "constant", "reason": "Demo-origin marker retained through the High Score presentation."},
         {
           "name": "instruction_phase_colors",
           "kind": "data",
@@ -3670,6 +3672,7 @@
         "PRES_MAIN_SHARED_MASK",
         "blit_packed_sprite",
         "PRES_MAIN_KEY_SERVICE",
+        "PRES_MAIN_READ_JOY",
         "PRES_GAME_PAGE_RETURN",
         "PRES_MAIN_READ_STAGE_LETTERS",
         "PRES_MODULE_DRAW_SCORE"
@@ -3738,7 +3741,7 @@
         {
           "name": "menu_scan",
           "profile": "presentation",
-          "purpose": "Scan physical input and publish menu/start edges; presentation_flow_tick routes them to the active presentation owner.",
+          "purpose": "Scan input and route safe automatic-loop wake while preserving local menu edges.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-menu-scan"
         },
@@ -3807,6 +3810,11 @@
         }
       ],
       "label_classifications": [
+        {"name": "PRES_MAGIC", "kind": "constant", "reason": "Presentation initialization marker used to suppress startup wake."},
+        {"name": "PRES_CONTEXT", "kind": "constant", "reason": "Presentation context used to distinguish automatic and live routes."},
+        {"name": "PRES_CONTEXT_DEMO_HIGH_SCORE", "kind": "constant", "reason": "Demo-origin High Score context value."},
+        {"name": "KB_WAKE", "kind": "constant", "reason": "Foreground-owned packed wake and joystick history state."},
+        {"name": "INPUT_JOYSTICK", "kind": "constant", "reason": "Build-time input compatibility flag."},
         {
           "name": "highscore_default_name_data",
           "kind": "data",
@@ -3934,6 +3942,13 @@
         }
       ],
       "basic_blocks": [
+        {"name": "menu_wake_joy_code", "routine": "menu_scan", "purpose": "Encode the current joystick direction for edge comparison."},
+        {"name": "menu_wake_joy_same", "routine": "menu_scan", "purpose": "Restore the autonomous direction and retire wake-only sampling."},
+        {"name": "menu_wake_demo_high_score", "routine": "menu_scan", "purpose": "Restrict High Score wake to the demo-origin presentation."},
+        {"name": "menu_wake_auto", "routine": "menu_scan", "purpose": "Defer an automatic wake until loading and publication are safe."},
+        {"name": "menu_wake_ready", "routine": "menu_scan", "purpose": "Consume the wake edge and select the Attract return."},
+        {"name": "menu_wake_clear", "routine": "menu_scan", "purpose": "Discard a wake edge on excluded local or live routes."},
+        {"name": "menu_wake_done", "routine": "menu_scan", "purpose": "Return to the existing presentation dispatcher."},
         {
           "name": "highscore_after_highscore_start",
           "routine": null,
@@ -4205,13 +4220,13 @@
         {
           "name": "key_init",
           "profile": "keybindings",
-          "purpose": "Restore five gameplay defaults; fixed menu keys remain outside the binding table.",
+          "purpose": "Restore five gameplay defaults and initialize physical-input history and wake state.",
           "reasons": []
         },
         {
           "name": "key_scan",
           "profile": "keybindings",
-          "purpose": "Sample eight physical columns and produce held actions and fresh consumer edges.",
+          "purpose": "Sample eight physical columns, latch fresh wake edges, and produce held actions and menu edges.",
           "reasons": []
         },
         {
@@ -4476,6 +4491,7 @@
         }
       ],
       "label_classifications": [
+        {"name": "KB_WAKE", "kind": "constant", "reason": "Foreground-owned packed wake and joystick history state."},
         {
           "name": "KB_BIND",
           "kind": "constant",
@@ -4668,6 +4684,8 @@
         }
       ],
       "basic_blocks": [
+        {"name": "ki_wake_rows", "routine": "key_init", "purpose": "Initialize all physical-column history before the first scan."},
+        {"name": "ks_wake_next", "routine": "key_scan", "purpose": "Store the sampled column after preserving any fresh wake edge."},
         {
           "name": "kc_unique",
           "routine": "key_capture",

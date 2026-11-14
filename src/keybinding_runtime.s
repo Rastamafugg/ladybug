@@ -1,6 +1,6 @@
 ; DOC-002 source-contract mirror contract key_service profile=keybindings: Dispatch physical input, authored menu painting, capture navigation or default initialization.
-; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults; fixed menu keys remain outside the binding table.
-; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns and produce held actions and fresh consumer edges.
+; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults and initialize physical-input history and wake state.
+; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns, latch fresh wake edges, and produce held actions and menu edges.
 ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
 ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
 ; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
@@ -16,7 +16,7 @@
 ; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
 ; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
 ; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
-; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D stays reserved; key_init after boot_streams_retired and before startup input; key_scan initializes column samples before consumer use","lifetime":"Boot descriptors retire before initialization. Bindings retain for powered session; scan/capture scratch retires before subsequent scan","clobbers":"Only this component writes $0287-$029A after boot retirement; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; "}
+; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D holds foreground wake latch, scan-prime, joystick sample and previous joystick direction bits; key_init clears keyboard history before startup input","lifetime":"Boot descriptors retire before initialization. Bindings and previous physical samples retain between scans; page-$23 menu scan consumes the wake latch; joystick sample bit is transient","clobbers":"Key service owns $0287-$029A; page-$23 menu scan also updates $028D and main.s reads its wake-only bit; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; "}
 ; RSCH-014 C3 prototype extension: menu edges track physical state in all phases.
 ; Source edit is isolated research, not the approved repair implementation.
 ; Loaded after the unchanged audio prefix in the existing page-$3D stream.
@@ -32,6 +32,9 @@ PRESENTATION_NAME_ENTRY_DATA equ 0
         endc
         include "ladybug_presentation.inc"
 KB_BIND equ $0287
+; Bit 7: scan history primed; bit 6: wake-only joystick sample;
+; bits 1-3: previous joystick direction (4 is neutral); bit 0: wake edge.
+KB_WAKE equ $028D
 KB_ROWS equ $028E
 KB_ACTION_COUNT equ 5
 KB_MENU_LAST equ 5
@@ -63,6 +66,14 @@ ki_copy
         clr KB_PREV
         clr KB_MENU_PREV
         clr KB_STATE
+        lda #8
+        sta KB_WAKE
+        ldx #KB_ROWS
+        ldb #8
+ki_wake_rows
+        clr ,x+
+        decb
+        bne ki_wake_rows
         lda #$FF
         sta key_painted_select
         sta key_painted_select+1
@@ -81,12 +92,27 @@ ks_column
         lda $FF00
         coma
         anda #$7F
+        pshs a
+        lda ,x
+        coma
+        anda ,s
+        beq ks_wake_next
+        lda KB_WAKE
+        bita #$80
+        beq ks_wake_next
+        ora #1
+        sta KB_WAKE
+ks_wake_next
+        puls a
         sta ,x+
         puls a
         lsla
         ora #1
         cmpx #KB_ROWS+8
         blo ks_column
+        lda KB_WAKE
+        ora #$80
+        sta KB_WAKE
         lda #$FF
         sta $FF02
         ifne INPUT_JOYSTICK

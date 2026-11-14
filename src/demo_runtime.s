@@ -3,7 +3,7 @@
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan physical input and publish menu/start edges; presentation_flow_tick routes them to the active presentation owner.
+; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan input and route safe automatic-loop wake while preserving local menu edges.
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.

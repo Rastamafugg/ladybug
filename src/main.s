@@ -153,7 +153,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract player_cell_offset profile=movement: Convert the player's semantic cell coordinates into a row-major maze offset.
 ; DOC-002 source-contract mirror contract player_tick profile=movement: Advance player state for one scheduled tick.
 ; DOC-002 source-contract mirror contract queue_gate_render profile=state: Record the current gate as pending framebuffer work.
-; DOC-002 source-contract mirror contract read_joystick profile=input: Read joystick.
+; DOC-002 source-contract mirror contract read_joystick profile=input: Sample joystick direction, suppressing player movement writes during wake-only samples.
 ; DOC-002 source-contract mirror contract refresh_enemy_zone_dot profile=state: Refresh enemy zone dot.
 ; DOC-002 source-contract mirror contract reload_box_timer profile=state: Reload box timer.
 ; DOC-002 source-contract mirror contract reload_enemy_box_timer profile=state: Reload enemy box timer.
@@ -844,7 +844,7 @@ phase4_before_tick
         lda     PRES_MODE
         cmpa    #MODE_DEMO
         bne     main_render
-        lbsr    next_stage
+        ; The presentation dispatcher consumes a demo level completion.
 main_render
         lbsr    render_frame
         lda     PRES_MODE
@@ -2725,6 +2725,17 @@ rj_vertical
 rj_north
         lda     #DIR_NORTH
 rj_request
+        ifne    COMPLETE_PROFILE
+        ; A wake-only sample reports direction without controlling the player.
+        pshs    a
+        lda     $028D
+        bita    #$40
+        puls    a
+        beq     rj_gameplay_request
+        sta     JOY_DIR
+        bra     rj_done
+rj_gameplay_request
+        endc
         ; Transfer owns facing and manual state; axes still sample normally.
         tst     INITIAL_ENTRY_STATE
         bne     rj_done
