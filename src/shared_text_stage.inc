@@ -1141,6 +1141,8 @@ menu_wake_auto
         beq menu_wake_done
         tst FB_PENDING
         bne menu_wake_done
+        tst FB_RENDER_ACTIVE
+        bne menu_wake_done
         lda PRES_HOLD_STATE
         beq menu_wake_ready
         cmpa #PRES_HOLD_FINAL
