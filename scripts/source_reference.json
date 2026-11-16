@@ -770,6 +770,16 @@
           "reasons": []
         },
         {
+          "name": "presentation_page24_resume",
+          "profile": "root",
+          "purpose": "Restore PAR5 to physical page $24, then resume the saved page-$24 presentation continuation after a resident borrow.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-presentation-page24-resume"
+        },
+        {
           "name": "pickup_prepare_removed",
           "profile": "state",
           "purpose": "Resolve removed keyed entity and restore its four-cell footprint.",
@@ -1166,11 +1176,6 @@
         },
         {
           "name": "presentation_fast_blit",
-          "routine": null,
-          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
-        },
-        {
-          "name": "presentation_page23_resume",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         },
@@ -2138,7 +2143,7 @@
         {
           "name": "menu_runtime_dispatch",
           "profile": "presentation",
-          "purpose": "Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.",
+          "purpose": "Call the page-$24 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.",
           "reasons": ["called"],
           "semantic_id": "routines.html#routine-presentation-runtime-menu-runtime-dispatch"
         },
@@ -2354,7 +2359,7 @@
         "PRES_MAIN_FB_PUBLISH",
         "PRES_MAIN_INSTALL_PHASE_TILES",
         "PRES_STAGE_SLICE",
-        "PRES_MAIN_PAGE23_RESUME"
+        "PRES_MAIN_PAGE24_RESUME"
       ],
       "label_classifications": [
         {"name": "PRES_CONTEXT_DEMO_HIGH_SCORE", "kind": "constant", "reason": "Demo-origin marker retained through the High Score presentation."},
@@ -2880,6 +2885,25 @@
           "purpose": "Decompress the presentation atlas for its runtime destination.",
           "semantic_id": "routines.html#routine-gmc-bootstrap-decompress-presentation-atlas",
           "reasons": []
+        },
+        {
+          "name": "copy_late_sparse_segments",
+          "profile": "boot",
+          "purpose": "After audio consumes page $24 staging, briefly reselect GMC ROM, copy only delayed auxiliary records to physical page $24, then restore all-RAM.",
+          "reasons": [
+            "called",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-gmc-bootstrap-copy-late-sparse-segments"
+        },
+        {
+          "name": "copy_sparse_payload",
+          "profile": "boot",
+          "purpose": "Copy one already-selected sparse descriptor payload and return with the table pointer advanced.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-gmc-bootstrap-copy-sparse-payload"
         }
       ],
       "label_classifications": [
@@ -3923,7 +3947,7 @@
         {
           "name": "menu_tick_entry",
           "kind": "boundary",
-          "reason": "Fixed $B089 gateway into the existing page-$23 menu owner."
+          "reason": "Fixed $B089 gateway into the existing page-$24 menu owner."
         },
         {
           "name": "name_rank_data",
@@ -3933,12 +3957,12 @@
         {
           "name": "highscore_logo_root",
           "kind": "data",
-          "reason": "Two-byte page-$23 helper-owned cache of the active screen's framebuffer logo root; generated from the Tiled frame layers and selected when PRES_SCREEN changes."
+          "reason": "Two-byte page-$24 helper-owned cache of the active screen's framebuffer logo root; generated from the Tiled frame layers and selected when PRES_SCREEN changes."
         },
         {
           "name": "highscore_logo_root_screen",
           "kind": "data",
-          "reason": "One-byte page-$23 helper-owned cache key for the Tiled logo root; $FF forces initialization before the first logo draw."
+          "reason": "One-byte page-$24 helper-owned cache key for the Tiled logo root; $FF forces initialization before the first logo draw."
         }
       ],
       "basic_blocks": [

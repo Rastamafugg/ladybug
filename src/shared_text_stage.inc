@@ -70,7 +70,7 @@ PRES_TIMER equ $00B0
 PRES_IDLE_ORIGIN equ $00CC
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
-; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; The page-$24 helper executes through PAR5, so page-$34 score state uses a
 ; temporary PAR4 alias instead of dereferencing the helper's own window.
 PRES_HIGHSCORE_ALIAS equ $8F84
 PRES_PENDING_NAME_ALIAS equ $8FDE
@@ -115,7 +115,7 @@ PLAYER_ANIM_TIMER equ $0050
 
 ; Page-$23 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
-; presentation_page23_resume in resident code.
+; presentation_page24_resume in resident code.
 SND_DATA equ $FF51
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
@@ -163,7 +163,7 @@ highscore_timer_prepare
         sta     PRES_TMP_H
         ldd     #highscore_after_prepare
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_HIGHSCORE_FB_PREPARE
 
@@ -178,7 +178,7 @@ highscore_timer_draw
         tfr     d,y
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     2,x
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -299,7 +299,7 @@ highscore_audio_done
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -319,7 +319,7 @@ highscore_gameover_tick
         beq     highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_ENTER_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -561,7 +561,7 @@ stage_panel_read_letters
         rts
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
-; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+; Uses the existing page-$24 helper and resident vegetable sprite/blitter.
 stage_panel_draw
         jmp menu_load_finish
 stage_panel_slice_entry
@@ -947,7 +947,7 @@ highscore_logo_cache_ready
         stb     ,x
         ldd     #highscore_logo_prepared
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ; Attract owns the instruction overlay, so its high-score low-RAM
         ; callback addresses are invalid. Reuse the existing bank-return tail
@@ -958,7 +958,7 @@ highscore_logo_cache_ready
         jmp     PRES_GAME_PAGE_RETURN
 highscore_logo_prepared
         ; Cache the Tiled root once when the active screen changes. The raw
-        ; tile renderer clobbers registers, so the root lives in this page-$23
+        ; tile renderer clobbers registers, so the root lives in this page-$24
         ; helper rather than across the draw callback in a CPU register.
         lda     PRES_SCREEN
         cmpa    highscore_logo_root_screen
@@ -995,7 +995,7 @@ highscore_logo_source
         tfr     d,u
         ldd     #highscore_logo_drawn
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         tfr     u,d
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -1009,7 +1009,7 @@ highscore_logo_drawn
         beq     highscore_logo_loaded
         ldd     #highscore_logo_hold
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ; Attract owns the instruction overlay, so its high-score low-RAM
         ; callback addresses are invalid. Reuse the existing bank-return tail
@@ -1056,7 +1056,7 @@ top_panel_publish
 top_panel_done
         rts
 
-; FEAT-005: existing page-$23 owner handles menus. State is direct-page;
+; FEAT-005: existing page-$24 owner handles menus. State is direct-page;
 ; drawing uses the established resident font without remapping PAR5.
 MENU_LIVES equ $EA
 MENU_LEVEL equ $EB
@@ -1329,7 +1329,7 @@ menu_start
         ldd     #menu_hold
         std     PRES_NAME_PTR
         puls    a
-        ldx     #PRES_MAIN_PAGE23_RESUME
+        ldx     #PRES_MAIN_PAGE24_RESUME
         pshs    x
         jmp     PRES_MODULE_START_SCREEN
 menu_idle
@@ -1350,7 +1350,7 @@ menu_idle_active
         beq     menu_hold
         ldd     #menu_updated
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     #PRES_MAIN_FB_PREPARE
         pshs    cc,d
@@ -1365,7 +1365,7 @@ menu_updated
         sta     MENU_DIRTY
         ldd     #menu_hold
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     #PRES_MAIN_FB_FINISH
         pshs    cc,d
@@ -1612,7 +1612,7 @@ highscore_name_tick
         bne     highscore_name_hold
         clr     PRES_HOLD_STATE
 highscore_name_ready
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
         pshs    a

@@ -2720,7 +2720,7 @@ def main() -> None:
     timer_records = bytes(cold_payload[
         name_entry_timer_offset:name_entry_timer_offset + timer_record_bytes
     ])
-    timer_lines = ["; Generated name-entry timer records for the page-$23 helper."]
+    timer_lines = ["; Generated name-entry timer records for the page-$24 helper."]
     for offset in range(0, len(timer_records), 16):
         timer_lines.append(
             "        fcb     " + ",".join(

@@ -228,6 +228,7 @@
           <tr id="routine-resident-runtime-queue-gate-render"><td><code>queue_gate_render</code></td><td>Record the current gate as pending framebuffer work.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-read-joystick"><td><code>read_joystick</code></td><td>Sample joystick direction, suppressing player movement writes during wake-only samples.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-read-stage-letter-variants"><td><code>read_stage_letter_variants</code></td><td>Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-presentation-page24-resume"><td><code>presentation_page24_resume</code></td><td>Restore PAR5 to physical page $24 and resume the saved page-$24 continuation after a resident borrow.</td><td><a href="#profile-root">Root and hardware gateway</a></td><td>exported, hardware-touching</td></tr>
           <tr id="routine-resident-runtime-refresh-enemy-zone-dot"><td><code>refresh_enemy_zone_dot</code></td><td>Refresh enemy zone dot.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-reload-box-timer"><td><code>reload_box_timer</code></td><td>Reload box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-reload-enemy-box-timer"><td><code>reload_enemy_box_timer</code></td><td>Reload enemy box timer.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
@@ -343,7 +344,7 @@
       <table>
         <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
         <tbody>
-          <tr id="routine-presentation-runtime-menu-runtime-dispatch"><td><code>menu_runtime_dispatch</code></td><td>Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
+          <tr id="routine-presentation-runtime-menu-runtime-dispatch"><td><code>menu_runtime_dispatch</code></td><td>Call the page-$24 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.</td><td><a href="#profile-presentation">Presentation interval</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-cold-ptr"><td><code>cold_ptr</code></td><td>Resolve a pointer into the currently mapped presentation cold payload.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-cold-read-byte"><td><code>cold_read_byte</code></td><td>Read one byte from the presentation cold payload while preserving mapping ownership.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-presentation-runtime-colour-surface"><td><code>colour_surface</code></td><td>Apply a generated sparse nibble-colour stream to a selected 16-by-16 presentation surface.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>non-trivial</td></tr>
@@ -435,6 +436,8 @@
           <tr id="routine-gmc-bootstrap-decompress-attract-surfaces"><td><code>decompress_attract_surfaces</code></td><td>Decompress attract surfaces.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
           <tr id="routine-gmc-bootstrap-spr-byte-changed"><td><code>spr_byte_changed</code></td><td>Test whether synthesis changed the current perimeter-reset output byte.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
           <tr id="routine-gmc-bootstrap-synthesize-perimeter-reset"><td><code>synthesize_perimeter_reset</code></td><td>Synthesize perimeter reset.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
+          <tr id="routine-gmc-bootstrap-copy-late-sparse-segments"><td><code>copy_late_sparse_segments</code></td><td>After audio expansion retires its page-$24 source, reselect GMC ROM, copy delayed auxiliary records into page $24, then restore all-RAM mode.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called, hardware-touching</td></tr>
+          <tr id="routine-gmc-bootstrap-copy-sparse-payload"><td><code>copy_sparse_payload</code></td><td>Copy one selected sparse descriptor payload and advance the caller-owned descriptor pointer.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
         </tbody>
       </table>
     </section>

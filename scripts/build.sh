@@ -745,7 +745,7 @@ if int(complete):
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',
         'presentation_key_service': 'PRES_MAIN_KEY_SERVICE',
-        'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
+        'presentation_page24_resume': 'PRES_MAIN_PAGE24_RESUME',
         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
         'presentation_screen_modes': 'PRES_MAIN_SCREEN_MODES',
         'presentation_scan_drives': 'PRES_MAIN_SCAN_DRIVES',

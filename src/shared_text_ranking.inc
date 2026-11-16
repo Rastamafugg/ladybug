@@ -61,7 +61,7 @@ PRES_SCORE_L equ $00C1
 PRES_TIMER equ $00B0
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
-; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; The page-$24 helper executes through PAR5, so page-$34 score state uses a
 ; temporary PAR4 alias instead of dereferencing the helper's own window.
 PRES_HIGHSCORE_ALIAS equ $8F84
 PRES_PENDING_NAME_ALIAS equ $8FDE
@@ -101,7 +101,7 @@ PLAYER_ANIM_TIMER equ $0050
 
 ; Page-$23 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
-; presentation_page23_resume in resident code.
+; presentation_page24_resume in resident code.
 SND_DATA equ $FF51
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
@@ -140,7 +140,7 @@ highscore_timer_prepare
         sta     PRES_TMP_H
         ldd     #highscore_after_prepare
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_MAIN_FB_PREPARE
 
@@ -155,7 +155,7 @@ highscore_timer_draw
         tfr     d,y
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     2,x
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -214,7 +214,7 @@ highscore_commit_done
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -234,7 +234,7 @@ highscore_gameover_tick
         lbeq    highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_ENTER_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -405,7 +405,7 @@ highscore_default_name_data
         include "ladybug_runtime_symbols.inc"
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
-; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+; Uses the existing page-$24 helper and resident vegetable sprite/blitter.
 stage_panel_draw
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_LEVEL_START
@@ -710,7 +710,7 @@ highscore_name_tick
         bne     highscore_name_hold
         clr     PRES_HOLD_STATE
 highscore_name_ready
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
         pshs    a
@@ -727,9 +727,9 @@ highscore_name_hold
         lda     #1
         rts
 
-; Enter from the page-$23 timer helper.  The code which selects page $34
+; Enter from the page-$24 timer helper.  The code which selects page $34
 ; must execute in low RAM; the helper's stacked resident return bridge
-; restores page $23 before fetching its continuation.
+; restores page $24 before fetching its continuation.
 highscore_prepare_back
         lda     #$34
         sta     PAR5

@@ -635,7 +635,7 @@ def main():
         assert r.read_bytes(client,0xC000,0x2000)==runtime[:0x2000]
         pres=(BUILD/'ladybug-presentation-runtime.bin').read_bytes()
         assert r.read_bytes(client,0x1900,len(pres))==pres
-        saved=read(0xFFA5);write(0xFFA5,0x23)
+        saved=read(0xFFA5);write(0xFFA5,0x24)
         h=(BUILD/'ladybug-highscore-helper.bin').read_bytes()
         assert r.read_bytes(client,0xAC40,len(h))==h
         title=(BUILD/'ladybug-attract-actor-underlays.bin').read_bytes()+(BUILD/'ladybug-attract-actor-records.bin').read_bytes()
@@ -696,7 +696,7 @@ def main():
         check('natural configured live game first entrant',{'reserves':4,'level':2})
         ids.extend(monitor.setup(client,[0x0700]))
         # Isolated arithmetic runs the assembled routine for every legal value.
-        saved=read(0xFFA5);write(0xFFA5,0x23)
+        saved=read(0xFFA5);write(0xFFA5,0x24)
         assert r.read_bytes(client,0xAC40,len(h))==h
         write(0xFFA5,saved)
         arithmetic_ids=monitor.setup(client,[helper['menu_redraw'],helper['menu_hold']])
@@ -705,7 +705,7 @@ def main():
             for value in range(1,maximum+1):
                 for event,expected in ((4,max(1,value-1)),(8,min(maximum,value+1))):
                     for address,v in {0xA5:5,0xA6:6,0xE0:row,0xEA+row:value,0xDF:event,0xD0:event}.items():write(address,v)
-                    write(0xFFA5,0x23)
+                    write(0xFFA5,0x24)
                     client.call('write_registers',{'pc':helper['menu_tick'],'s':arithmetic_regs['s'],'cc':0x50,'dp':0})
                     hit=step_to({helper['menu_redraw'],helper['menu_hold']},5)
                     assert hit['pc']==helper['menu_redraw' if expected!=value else 'menu_hold'],hit

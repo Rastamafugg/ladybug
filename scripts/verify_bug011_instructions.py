@@ -108,7 +108,7 @@ def main() -> None:
         **runtime,
         "bytes": len(helper),
         "staged_bytes": 0x3AA,
-        "stage_page": 0x23,
+        "stage_page": 0x24,
         "stage_address": 0xA422,
         "destination_address": 0x0300,
         "destination_end": 0x06AA,

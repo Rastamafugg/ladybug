@@ -37,6 +37,63 @@ def map_symbol(map_text: str, name: str) -> str:
     return match.group(1).lower()
 
 
+def exact_payload_match(expected: bytes, actual: bytes) -> bool:
+    return len(expected) == len(actual) and expected == actual
+
+
+def qualify_payload_comparator() -> None:
+    fixture = bytes((0x00, 0x55, 0xAA, 0xFF))
+    changed = fixture[:-1] + bytes((fixture[-1] ^ 0x01,))
+    if not exact_payload_match(fixture, fixture):
+        raise SystemExit("gmc auxiliary proof: comparator rejected a matching fixture")
+    if exact_payload_match(fixture, changed):
+        raise SystemExit("gmc auxiliary proof: comparator accepted a changed fixture")
+
+
+def reconstruct_auxiliary_stage(rom: bytes, manifest: dict[str, object]) -> bytes:
+    layout = manifest.get("aux_runtime", {})
+    staged_bytes = layout.get("staged_bytes")
+    stage_address = layout.get("stage_address")
+    if (
+        layout.get("stage_page") != 0x24 or
+        layout.get("copy_phase") != "after_staged_audio" or
+        stage_address != 0xA422 or
+        not isinstance(staged_bytes, int) or staged_bytes <= 0 or
+        stage_address + staged_bytes > 0xC000 or
+        layout.get("stage_end") != stage_address + staged_bytes
+    ):
+        raise SystemExit("gmc auxiliary proof: manifest page-$24 extent is invalid")
+    expected = bytearray(staged_bytes)
+    covered = bytearray(staged_bytes)
+    segments = [
+        segment for segment in manifest["gmc"]["segments"]
+        if segment.get("target") == "presentation_auxiliary"
+    ]
+    if not segments:
+        raise SystemExit("gmc auxiliary proof: manifest has no auxiliary segments")
+    for segment in segments:
+        offset = segment["target_offset"]
+        count = segment["count"]
+        start = segment["bank"] * 0x4000 + segment["source_offset"]
+        end = start + count
+        if (
+            segment.get("destination_page") != 0x24 or
+            segment.get("destination_address") != stage_address + offset or
+            offset < 0 or count <= 0 or offset + count > staged_bytes or
+            end > len(rom) or any(covered[offset:offset + count])
+        ):
+            raise SystemExit("gmc auxiliary proof: manifest auxiliary segment is invalid")
+        expected[offset:offset + count] = rom[start:end]
+        covered[offset:offset + count] = b"\x01" * count
+    result = bytes(expected)
+    if (
+        not all(covered) or
+        hashlib.sha256(result).hexdigest() != layout.get("staged_sha256")
+    ):
+        raise SystemExit("gmc auxiliary proof: reconstructed page-$24 stage is not exact")
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xroar", default="/usr/local/bin/xroar")
@@ -73,7 +130,17 @@ def main() -> None:
         action="store_true",
         help="capture CPU registers at PAR setup markers; implies startup-only",
     )
+    parser.add_argument(
+        "--verify-auxiliary-page",
+        action="store_true",
+        help=(
+            "compare the live page-$24 auxiliary with its reconstructed ROM "
+            "source; requires startup-only"
+        ),
+    )
     args = parser.parse_args()
+    if args.verify_auxiliary_page and not args.startup_only:
+        parser.error("--verify-auxiliary-page requires --startup-only")
 
     map_text = args.map.read_text(encoding="utf-8")
     mainloop = map_symbol(map_text, "mainloop")
@@ -102,8 +169,16 @@ def main() -> None:
     boot = rom[:0x4000]
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     manifest_segments = manifest["gmc"]["segments"]
+    expected_auxiliary = None
+    if args.verify_auxiliary_page:
+        qualify_payload_comparator()
+        expected_auxiliary = reconstruct_auxiliary_stage(rom, manifest)
 
-    def retain_identity(runtime_verified: bool, live_audio_exact: bool = False) -> None:
+    def retain_identity(
+        runtime_verified: bool,
+        live_audio_exact: bool = False,
+        auxiliary_identity: dict[str, object] | None = None,
+    ) -> None:
         if args.identity_output is None:
             return
         rows = []
@@ -124,10 +199,15 @@ def main() -> None:
             })
         if not runtime_verified or not rows or not all(row["byte_exact"] for row in rows):
             raise SystemExit("gmc identity proof: loader runtime or stream identity failed")
+        if args.verify_auxiliary_page and not (
+            auxiliary_identity and auxiliary_identity.get("byte_exact") is True
+        ):
+            raise SystemExit("gmc identity proof: live page-$24 auxiliary identity failed")
         evidence = {
             "status": "pass",
             "loader_runtime_verified": True,
             "live_audio_page_3d_exact": live_audio_exact,
+            "live_auxiliary_page_24": auxiliary_identity,
             "streams": rows,
         }
         args.identity_output.parent.mkdir(parents=True, exist_ok=True)
@@ -230,6 +310,30 @@ def main() -> None:
         raise SystemExit("gmc proof: relocated runtime handoff must skip the DK header")
     if "copy_enemy_sparse_index" in loader_source or "copy_player_sparse_index" in loader_source:
         raise SystemExit("gmc proof: sparse indexes must not overwrite the relocated loader")
+    if args.verify_auxiliary_page:
+        audio_expansion = loader_source.find("lbsr    decompress_staged_audio")
+        late_copy = loader_source.find("lbsr    copy_late_sparse_segments")
+        routine_start = loader_source.find("\ncopy_late_sparse_segments\n") + 1
+        routine_end = loader_source.find("\ndecompress_gmc_streams", routine_start)
+        late_routine = loader_source[routine_start:routine_end]
+        ordered_steps = (
+            "sta     SAM_CART",
+            "sta     PAR_EXEC+5",
+            "lbsr    copy_sparse_payload",
+            "sta     SAM_ALLRAM",
+        )
+        positions = [late_routine.find(step) for step in ordered_steps]
+        if (
+            audio_expansion < 0 or late_copy <= audio_expansion or
+            routine_start < 0 or routine_end <= routine_start or
+            any(position < 0 for position in positions) or
+            positions != sorted(positions) or
+            "AUXILIARY_STAGE_PAGE equ $24" not in loader_source or
+            "SPARSE_COPY_LATE_SELECTOR" not in late_routine
+        ):
+            raise SystemExit(
+                "gmc auxiliary proof: late page-$24 copy order/mapping is invalid"
+            )
     if "RESIDENT_STAGE_PAGE equ $21" not in loader_source:
         raise SystemExit("gmc proof: resident staging page is not $21")
     if "ASSET_STAGE_PAGE equ $22" not in loader_source:
@@ -307,7 +411,13 @@ def main() -> None:
     commit_target = f"{int.from_bytes(commit_entry[1:], 'big'):04x}"
 
     if args.startup_only or args.startup_snapshot:
-        xroar_process, _port, startup_text, startup_ready = run_startup_phases(
+        (
+            xroar_process,
+            _port,
+            startup_text,
+            startup_ready,
+            auxiliary_identity,
+        ) = run_startup_phases(
             args.xroar,
             args.gdb,
             args.rom,
@@ -319,13 +429,14 @@ def main() -> None:
             args.resident_timeout,
             args.startup_snapshot,
             complete,
+            expected_auxiliary,
         )
         try:
             print(startup_text)
             print(phase_summary("startup", startup_text))
             if not startup_ready:
                 raise SystemExit("gmc startup diagnosis: resident startup incomplete")
-            retain_identity(True, complete)
+            retain_identity(True, complete, auxiliary_identity)
             print("gmc startup diagnosis: resident startup completed")
             return
         finally:
@@ -535,7 +646,7 @@ def trace_loader_handoff(
         [
             xroar,
             "-ui", "null", "-ao", "null",
-            "-machine", "coco3", "-ram", "512",
+            "-machine", "coco3", "-machine-cpu", "6809", "-ram", "512",
             "-cart-type", "gmc", "-cart-rom", str(rom),
             "-cart-autorun", "-no-ratelimit", "-trace",
         ],
@@ -571,7 +682,8 @@ def run_startup_phases(
     resident_timeout: int,
     startup_snapshot: bool = False,
     verify_audio_page: bool = False,
-) -> tuple[subprocess.Popen[object], int, str, bool]:
+    expected_auxiliary: bytes | None = None,
+) -> tuple[subprocess.Popen[object], int, str, bool, dict[str, object] | None]:
     """Run separately bounded loader-trace and resident-runtime phases."""
     if shutil.which(gdb) is None:
         raise SystemExit(f"gmc proof: GDB executable not found: {gdb}")
@@ -583,7 +695,7 @@ def run_startup_phases(
         [
             xroar,
             "-ui", "null", "-ao", "null",
-            "-machine", "coco3", "-ram", "512",
+            "-machine", "coco3", "-machine-cpu", "6809", "-ram", "512",
             "-cart-type", "gmc", "-cart-rom", str(rom),
             "-cart-autorun", "-no-ratelimit",
             "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", str(port),
@@ -595,6 +707,7 @@ def run_startup_phases(
     with tempfile.TemporaryDirectory(prefix="ladybug-gmc-") as temp_dir:
         bank1_dump = Path(temp_dir) / "bank1-runtime.bin"
         audio_dump = Path(temp_dir) / "audio-runtime.bin"
+        auxiliary_dump = Path(temp_dir) / "auxiliary-page-24.bin"
         resident_commands = [
             "set pagination off",
             "set confirm off",
@@ -614,6 +727,16 @@ def run_startup_phases(
                 "set $gmc_saved_par5 = *(unsigned char*)0xffa5",
                 "set {unsigned char}0xffa5 = 0x3d",
                 f"dump binary memory {audio_dump} 0xa000 0x{0xA000 + len(audio_bytes):04x}",
+                "set {unsigned char}0xffa5 = $gmc_saved_par5",
+            ])
+        if expected_auxiliary is not None:
+            resident_commands.extend([
+                "set $gmc_saved_par5 = *(unsigned char*)0xffa5",
+                "set {unsigned char}0xffa5 = 0x24",
+                (
+                    f"dump binary memory {auxiliary_dump} 0xa422 "
+                    f"0x{0xA422 + len(expected_auxiliary):04x}"
+                ),
                 "set {unsigned char}0xffa5 = $gmc_saved_par5",
             ])
         resident_commands.extend([
@@ -656,6 +779,26 @@ def run_startup_phases(
                 f"\n{prefix}_AUDIO_PAGE_EXACT\n" if audio_exact else
                 f"\n{prefix}_AUDIO_PAGE_MISMATCH expected={len(audio_bytes)} actual={len(actual_audio)}\n"
             )
+        auxiliary_identity = None
+        if expected_auxiliary is not None:
+            actual_auxiliary = (
+                auxiliary_dump.read_bytes() if auxiliary_dump.exists() else b""
+            )
+            auxiliary_exact = exact_payload_match(expected_auxiliary, actual_auxiliary)
+            auxiliary_identity = {
+                "physical_page": 0x24,
+                "address": 0xA422,
+                "expected_bytes": len(expected_auxiliary),
+                "live_bytes": len(actual_auxiliary),
+                "expected_sha256": hashlib.sha256(expected_auxiliary).hexdigest(),
+                "live_sha256": hashlib.sha256(actual_auxiliary).hexdigest(),
+                "byte_exact": auxiliary_exact,
+            }
+            resident_text += (
+                f"\n{prefix}_AUXILIARY_PAGE_24_EXACT\n" if auxiliary_exact else
+                f"\n{prefix}_AUXILIARY_PAGE_24_MISMATCH "
+                f"expected={len(expected_auxiliary)} actual={len(actual_auxiliary)}\n"
+            )
     texts = [loader_text, resident_text]
     return (
         xroar_process,
@@ -663,7 +806,12 @@ def run_startup_phases(
         "\n".join(texts),
         f"{prefix}_LOADER_HANDOFF" in loader_text and
         f"{prefix}_RESIDENT_STARTUP_COMPLETE" in resident_text and
-        f"{prefix}_BANK1_RAM_EXACT" in resident_text and audio_exact,
+        f"{prefix}_BANK1_RAM_EXACT" in resident_text and audio_exact and
+        (
+            expected_auxiliary is None or
+            bool(auxiliary_identity and auxiliary_identity.get("byte_exact"))
+        ),
+        auxiliary_identity,
     )
 
 
@@ -689,7 +837,13 @@ def run_natural_phase(
     natural_timeout: int,
 ) -> str:
     """Run loader, resident-startup, then natural runtime markers."""
-    xroar_process, port, startup_text, startup_ready = run_startup_phases(
+    (
+        xroar_process,
+        port,
+        startup_text,
+        startup_ready,
+        _auxiliary_identity,
+    ) = run_startup_phases(
         xroar,
         gdb,
         rom,
@@ -749,7 +903,13 @@ def run_forced_demo_death_probe(
     demo_timeout: int,
 ) -> str:
     """Run loader, resident-startup, then two demo death cycles."""
-    xroar_process, port, startup_text, startup_ready = run_startup_phases(
+    (
+        xroar_process,
+        port,
+        startup_text,
+        startup_ready,
+        _auxiliary_identity,
+    ) = run_startup_phases(
         xroar,
         gdb,
         rom,
@@ -813,7 +973,13 @@ def run_forced_gameplay_probe(
     forced_gameplay_mask: int,
 ) -> str:
     """Run loader, resident-startup, then forced live gameplay markers."""
-    xroar_process, port, startup_text, startup_ready = run_startup_phases(
+    (
+        xroar_process,
+        port,
+        startup_text,
+        startup_ready,
+        _auxiliary_identity,
+    ) = run_startup_phases(
         xroar,
         gdb,
         rom,

@@ -17,6 +17,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
 ; DOC-002 source-contract mirror contract nlt_delta profile=state: Resolve a late-turn direction displacement.
 ; DOC-002 source-contract mirror contract presentation_dispatch profile=state: Presentation dispatch.
+; DOC-002 source-contract mirror contract presentation_page24_resume profile=root: Restore PAR5 to physical page $24, then resume the saved page-$24 presentation continuation after a resident borrow.
 ; DOC-002 source-contract mirror contract primary_cache_mask profile=render: Rebind cached primary/accent palette bits.
 ; DOC-002 source-contract mirror contract rebind_cache_value profile=render: Rebind cached primary/accent palette bits.
 ; DOC-002 source-contract mirror contract replay_entity_overlay_common profile=render: Replay entity overlay common.
@@ -4848,11 +4849,11 @@ read_stage_letter_variants
         sta     <$C4
         rts
 
-; Return bridge for code executing from page $23 through a routine that
-; temporarily changes PAR5.  The caller stores its page-$23 continuation in
-; PRES_NAME_PTR before placing this address on the hardware stack.
-presentation_page23_resume
-        lda     #$23
+; Return bridge for code executing from the page-$24 auxiliary through a
+; resident routine that temporarily changes PAR5. The caller stores its
+; continuation in PRES_NAME_PTR before placing this address on the stack.
+presentation_page24_resume
+        lda     #$24
         sta     PAR_EXEC+5
         jmp     [PRES_NAME_PTR]
 

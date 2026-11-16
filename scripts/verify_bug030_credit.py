@@ -192,7 +192,7 @@ def main():
         else:
             go('cold entry identity', ['presentation_flow_tick'])
             check_code()
-            assert phys(0x23*8192 + sy['PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS']-0xa000, len(high)) == high
+            assert phys(0x24*8192 + sy['PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS']-0xa000, len(high)) == high
             target = {'loading': 'start_screen_done', 'settled': 'attract_tick_ready',
                       'instructions': 'instructions_tick_ready', 'demo': 'demo_tick',
                       'publication': 'load_done_normal'}[args.scenario]

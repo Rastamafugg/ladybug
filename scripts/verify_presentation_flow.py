@@ -80,7 +80,7 @@ def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None
                     memory[dirty] &= ~bit
                     memory[pending] = 1
                     calls.append("paint")
-            elif target == symbols["PRES_MAIN_PAGE23_RESUME"]:
+            elif target == symbols["PRES_MAIN_PAGE24_RESUME"]:
                 calls.append("logo")
             elif target == symbols["PRESENTATION_ATTRACT_OVERLAY"]:
                 calls.append("actor")
@@ -208,7 +208,7 @@ def main() -> None:
         if highscore_runtime.get("destination_address") != 0x0300 or highscore_runtime.get("destination_end", 0) > 0x0698:
             raise SystemExit("presentation flow proof: high-score owner exceeds $0300-$0697")
         if not highscore_helper.get("bytes"):
-            raise SystemExit("presentation flow proof: page-$23 high-score helper is absent")
+            raise SystemExit("presentation flow proof: page-$24 high-score helper is absent")
         if aux.get("staged_bytes", 0) < sum(
                 item.get("bytes", 0) for item in
                 (instruction_runtime, demo_runtime, highscore_runtime, highscore_helper)):
@@ -280,7 +280,7 @@ def main() -> None:
         ):
             if re.search(pattern, prepare_block) or re.search(pattern, commit_block):
                 raise SystemExit(
-                    "presentation flow proof: page-$23 helper retains direct page-$34 access " + pattern
+                    "presentation flow proof: page-$24 helper retains direct page-$34 access " + pattern
                 )
 
     required_symbols = [
@@ -313,7 +313,6 @@ def main() -> None:
         "PLAYER_BG_PTR equ $00A2",
         "PLAYER_BG_VALID equ $006A",
         "install_aux_runtime",
-        "lda     #$23",
     )
     if development:
         required_source += (
@@ -337,6 +336,38 @@ def main() -> None:
         )
 
     normalized_source = " ".join(source.lower().split())
+
+    installer_routes = (
+        ("install_aux_runtime", "install_instruction_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_instruction_runtime", "install_demo_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_demo_runtime", "install_highscore_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_highscore_runtime", "install_aux_runtime_copy",
+         ("lda #$24",)),
+    )
+    installer_regions = {}
+    for entry_name, next_name, required_fragments in installer_routes:
+        entry_marker = "\n" + entry_name + "\n"
+        next_marker = "\n" + next_name + "\n"
+        try:
+            entry_start = source.index(entry_marker) + len(entry_marker)
+            entry_end = source.index(next_marker, entry_start)
+        except ValueError as error:
+            raise SystemExit(
+                "presentation flow proof: missing auxiliary installer route: " + entry_name
+            ) from error
+        entry_source = " ".join(source[entry_start:entry_end].lower().split())
+        installer_regions[entry_name] = entry_source
+        if any(fragment not in entry_source for fragment in required_fragments):
+            raise SystemExit(
+                "presentation flow proof: auxiliary installer route changed: " + entry_name
+            )
+    if not installer_regions["install_highscore_runtime"].endswith("lda #$24 endc"):
+        raise SystemExit(
+            "presentation flow proof: High Score installer no longer falls through to the shared copy"
+        )
     auxiliary_copy_contracts = (
         "install_aux_runtime_copy sta par5 ldy #$0300 "
         "install_aux_runtime_byte lda ,x+ sta ,y+ leau -1,u "

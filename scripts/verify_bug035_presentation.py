@@ -314,7 +314,7 @@ def legacy_main():
         presentation = (BUILD / "ladybug-presentation-runtime.bin").read_bytes()
         compare(runtime.read_bytes(client, 0x1900, len(presentation)), presentation, "module-identity")
         saved = runtime.read_byte(client, runtime.PAR5)
-        runtime.write_byte(client, runtime.PAR5, 0x23)
+        runtime.write_byte(client, runtime.PAR5, 0x24)
         helper = (BUILD / "ladybug-highscore-helper.bin").read_bytes()
         compare(runtime.read_bytes(client, 0xAC40, len(helper)), helper, "helper-identity")
         runtime.write_byte(client, runtime.PAR5, 0x3C)

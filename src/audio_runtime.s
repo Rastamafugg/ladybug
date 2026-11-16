@@ -960,7 +960,7 @@ audio_mix_slot_done
 
 
 ; BUG-037 fitted prototype. Boot tables end at $02BF; this 20-byte gate
-; preserves PAR5 for presentation and page-$23 name helper callers.
+; preserves PAR5 for presentation and page-$24 name helper callers.
 audio_guard_bytes
         ldb     PAR5
         pshs    b

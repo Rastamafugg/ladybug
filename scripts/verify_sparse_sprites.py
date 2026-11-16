@@ -33,7 +33,9 @@ LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 SPARSE_COPY_TABLE_RAM = 0x0200
-INSTRUCTION_RUNTIME_PAGE = 0x23
+AUXILIARY_RUNTIME_PAGE = 0x24
+PHASE_TILE_PATCH_PAGE = 0x23
+SPARSE_COPY_LATE_SELECTOR = 0xFE
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
@@ -417,8 +419,18 @@ def main() -> None:
         raise SystemExit("sparse proof: audio runtime is not placed at page $3D")
     if manifest["aux_runtime"]["role"] != args.aux_runtime_role:
         raise SystemExit("sparse proof: auxiliary runtime profile mismatch")
-    if manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage):
-        raise SystemExit("sparse proof: auxiliary runtime staged hash mismatch")
+    if (
+        manifest["aux_runtime"].get("copy_phase") != "after_staged_audio" or
+        manifest["aux_runtime"].get("stage_page") != AUXILIARY_RUNTIME_PAGE or
+        manifest["aux_runtime"].get("stage_address") != INSTRUCTION_RUNTIME_ADDRESS or
+        manifest["aux_runtime"].get("stage_end") != (
+            INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage)
+        ) or
+        INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xC000 or
+        manifest["aux_runtime"].get("staged_bytes") != len(aux_runtime_stage) or
+        manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage)
+    ):
+        raise SystemExit("sparse proof: page-$24 auxiliary stage layout/hash mismatch")
     if manifest["highscore_helper"]["sha256"] != sha256(highscore_helper):
         raise SystemExit("sparse proof: high-score helper manifest hash mismatch")
     if manifest["highscore_runtime"]["sha256"] != sha256(highscore_runtime):
@@ -466,6 +478,54 @@ def main() -> None:
                 )
     if len(loader) != len(manifest_segments):
         raise SystemExit("sparse proof: loader and manifest segment counts differ")
+    early_segments = [
+        s for s in manifest_segments if s["target"] != "presentation_auxiliary"
+    ]
+    late_segments = [
+        s for s in manifest_segments if s["target"] == "presentation_auxiliary"
+    ]
+    if (
+        not late_segments or
+        manifest["aux_runtime"].get("copy_phase") != "after_staged_audio"
+    ):
+        raise SystemExit("sparse proof: delayed auxiliary segment group is missing")
+    if any(s["destination_page"] != AUXILIARY_RUNTIME_PAGE for s in late_segments):
+        raise SystemExit("sparse proof: delayed auxiliary target is not physical page $24")
+    if (
+        any(
+            s["target"] == "presentation_auxiliary"
+            for s in manifest_segments[:len(early_segments)]
+        ) or
+        any(
+            s["target"] != "presentation_auxiliary"
+            for s in manifest_segments[len(early_segments):]
+        )
+    ):
+        raise SystemExit("sparse proof: late auxiliary descriptors are not grouped after early descriptors")
+    if (
+        manifest["gmc"].get("sparse_copy_early_segment_count") != len(early_segments) or
+        manifest["gmc"].get("sparse_copy_late_segment_count") != len(late_segments) or
+        manifest["gmc"].get("sparse_copy_late_selector") != SPARSE_COPY_LATE_SELECTOR
+    ):
+        raise SystemExit("sparse proof: sparse copy phase counts/selector differ")
+    loader_text = args.loader.read_text(encoding="ascii")
+    include_values = {
+        "SPARSE_COPY_EARLY_SEGMENT_COUNT": len(early_segments),
+        "SPARSE_COPY_LATE_SEGMENT_COUNT": len(late_segments),
+        "SPARSE_COPY_LATE_SELECTOR": SPARSE_COPY_LATE_SELECTOR,
+    }
+    for symbol, expected in include_values.items():
+        match = re.search(
+            rf"^{symbol} equ (\$[0-9A-F]+|[0-9]+)$",
+            loader_text,
+            re.MULTILINE,
+        )
+        if not match:
+            raise SystemExit(f"sparse proof: generated {symbol} is missing")
+        value = match.group(1)
+        actual = int(value[1:], 16) if value.startswith("$") else int(value, 10)
+        if actual != expected:
+            raise SystemExit(f"sparse proof: generated {symbol} differs")
     adaptive_helper = args.adaptive_helper.read_bytes() if args.adaptive_helper else b""
     reconstructed = {
         "enemy": bytearray(len(enemy_payload)),
@@ -515,6 +575,8 @@ def main() -> None:
                 "destination_address", "count",
             )
         }
+        if segment["target"] == "presentation_auxiliary":
+            expected_record["destination_page"] = SPARSE_COPY_LATE_SELECTOR
         if loader_record != expected_record:
             raise SystemExit("sparse proof: loader record differs from manifest")
         source_offset = segment["source_offset"]
@@ -622,10 +684,10 @@ def main() -> None:
             target_page_base = 0x3B
             target_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
         elif target == "presentation_auxiliary":
-            target_page_base = 0x23
+            target_page_base = AUXILIARY_RUNTIME_PAGE
             target_address = INSTRUCTION_RUNTIME_ADDRESS
         elif target == "phase_tile_patches":
-            target_page_base = 0x23
+            target_page_base = PHASE_TILE_PATCH_PAGE
             target_address = 0xBF80
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")

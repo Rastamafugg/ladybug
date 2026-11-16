@@ -2,7 +2,7 @@
         include "ladybug_shared_mode.inc"
         ifne SHARED_TEXT_ENABLED
 ; BUG-011 development instruction choreography.  The GMC loader stages this
-; image behind the attract bundle in physical page $23; presentation startup
+; image behind the attract bundle in physical page $24; presentation startup
 ; copies it into boot-only RAM.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -591,7 +591,7 @@ instruction_runtime_end
 
         else
 ; BUG-011 development instruction choreography.  The GMC loader stages this
-; image behind the attract bundle in physical page $23; presentation startup
+; image behind the attract bundle in physical page $24; presentation startup
 ; copies it into boot-only RAM.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html

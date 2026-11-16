@@ -1,5 +1,5 @@
 ; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.
-; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
+; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$24 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
 ; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked scanner, which may route a safe automatic-loop wake.
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
@@ -245,7 +245,7 @@ install_aux_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
         endc
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
         endc
 
@@ -253,19 +253,19 @@ install_aux_runtime
 install_instruction_runtime
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_demo_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_highscore_runtime
         ldx     #PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS
         ldu     #PRESENTATION_HIGHSCORE_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         endc
 install_aux_runtime_copy
         sta     PAR5
@@ -407,7 +407,7 @@ menu_load_event
         tst     <$D0
         beq     menu_load_continue
 menu_runtime_dispatch
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     MENU_TICK
         lda     #$34
@@ -461,7 +461,7 @@ load_next
         ifne    COMPLETE_PROFILE
         lda     $29
         pshs    a
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     PRES_STAGE_SLICE
         lda     #$34
@@ -473,9 +473,9 @@ load_next
         rts
 load_done
         ifne    COMPLETE_PROFILE
-        lda     #$23
+        lda     #$24
         sta     PAR5
-        jsr     $B080           ; existing page-$23 helper: stage panel
+        jsr     $B080           ; existing page-$24 helper: stage panel
         endc
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
@@ -705,7 +705,7 @@ attract_tick_animation
         ifne    ATTRACT_OVERLAY_ENABLED
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
         std     PRES_NAME_PTR
-        jsr     PRES_MAIN_PAGE23_RESUME
+        jsr     PRES_MAIN_PAGE24_RESUME
         endc
         bra     hold
 attract_next
@@ -1472,7 +1472,7 @@ module_commit_done
 
 scan_keys
         ifne COMPLETE_PROFILE
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     MENU_SCAN
         lda     #$34
@@ -2005,7 +2005,7 @@ install_aux_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
         endc
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
         endc
 
@@ -2013,19 +2013,19 @@ install_aux_runtime
 install_instruction_runtime
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_demo_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_highscore_runtime
         ldx     #PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS
         ldu     #PRESENTATION_HIGHSCORE_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         endc
 install_aux_runtime_copy
         sta     PAR5

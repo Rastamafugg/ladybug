@@ -69,7 +69,10 @@ PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
 AUDIO_RUNTIME_PAGE = 0x3D
 AUDIO_RUNTIME_ADDRESS = WINDOW_BASE
-INSTRUCTION_RUNTIME_PAGE = 0x23
+AUXILIARY_RUNTIME_PAGE = 0x24
+PHASE_TILE_PATCH_PAGE = 0x23
+SPARSE_COPY_LATE_SELECTOR = 0xFE
+DOLLAR = chr(36)
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
@@ -459,7 +462,7 @@ def pack_candidate_banks(
         helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
         prefix = instruction_runtime + demo_runtime
         if len(prefix) > highscore_offset:
-            raise ValueError("complete demo overlaps the page-$23 high-score runtime")
+            raise ValueError("complete demo overlaps the page-$24 high-score runtime")
         prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
         if len(prefix) > helper_offset:
             raise ValueError("complete high-score runtime overlaps its helper")
@@ -479,8 +482,8 @@ def pack_candidate_banks(
         SourceInterval(0, helper_source_end,
                        CART_READABLE_BYTES),
     ]
-    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB880:
-        raise ValueError("presentation auxiliary overlaps compressed title at $B880")
+    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xC000:
+        raise ValueError("page-$24 presentation auxiliary exceeds $C000")
     actor_bundle_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
     if actor_bundle_address + len(actor_underlays) + len(actor_records) > 0xC000:
         raise ValueError("compressed title exceeds remaining page-$3B cold allocation")
@@ -489,7 +492,7 @@ def pack_candidate_banks(
         target_chunks("attract_actor_bundle", actor_underlays + actor_records,
                       0x3B, actor_bundle_address) +
         target_chunks("presentation_auxiliary", aux_runtime_stage,
-                      0x23, INSTRUCTION_RUNTIME_ADDRESS) +
+                      AUXILIARY_RUNTIME_PAGE, INSTRUCTION_RUNTIME_ADDRESS) +
         target_chunks("phase_tile_patches", tile_patches, 0x23,
                       PHASE_TILE_PATCH_ADDRESS) +
         target_chunks("presentation_module", presentation_module, 0xFF,
@@ -677,6 +680,13 @@ def pack_candidate_banks(
         ):
             raise ValueError("loader segment overlaps a bank signature")
 
+    # The boot table is consumed in two passes: ordinary destinations first,
+    # then the audio-dependent auxiliary records. Keep manifest order identical.
+    segments = [segment for segment in segments
+                if segment.target != "presentation_auxiliary"] + [
+        segment for segment in segments
+        if segment.target == "presentation_auxiliary"
+    ]
     result = (
         bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments,
     )
@@ -710,18 +720,26 @@ def write_loader_include(
         f"SPARSE_COPY_TABLE_RAM equ ${SPARSE_COPY_TABLE_RAM:04X}",
         f"SPARSE_COPY_TABLE_BYTES equ {len(segments) * 8}",
         f"SPARSE_COPY_SEGMENT_COUNT equ {len(segments)}",
+        f"SPARSE_COPY_EARLY_SEGMENT_COUNT equ {sum(s.target != 'presentation_auxiliary' for s in segments)}",
+        f"SPARSE_COPY_LATE_SEGMENT_COUNT equ {sum(s.target == 'presentation_auxiliary' for s in segments)}",
+        f"SPARSE_COPY_LATE_SELECTOR equ {DOLLAR}{SPARSE_COPY_LATE_SELECTOR:02X}",
         "GMC_LZSS_DESCRIPTOR_BYTES equ 14",
         f"GMC_LZSS_STREAM_COUNT equ {len(streams)}",
         f"GMC_LZSS_AUDIO_INDEX equ {audio_indexes[0]}",
         f"GMC_LZSS_AUDIO_OFFSET equ {audio_indexes[0] * 14}",
         "",
-        "; bank, destination page, source CPU address, destination window, count",
+        "; bank, destination selector (FF low RAM, FE late page-$24), source, destination, count",
         "sparse_copy_table",
     ]
     for segment in segments:
+        descriptor_page = (
+            SPARSE_COPY_LATE_SELECTOR
+            if segment.target == "presentation_auxiliary"
+            else segment.destination_page
+        )
         lines.extend((
-            f"        ; {segment.target}+${segment.target_offset:04X}",
-            f"        fcb     ${segment.bank:02X},${segment.destination_page:02X}",
+            f"        ; {segment.target}+{DOLLAR}{segment.target_offset:04X}",
+            f"        fcb     {DOLLAR}{segment.bank:02X},{DOLLAR}{descriptor_page:02X}",
             f"        fdb     ${segment.source_address:04X},"
             f"${segment.destination_address:04X},${segment.count:04X}",
         ))
@@ -1046,8 +1064,10 @@ def main() -> None:
         },
         "aux_runtime": {
             "role": args.aux_runtime_role,
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "copy_phase": "after_staged_audio",
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
+            "stage_end": INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage),
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
             "staged_bytes": len(aux_runtime_stage),
@@ -1055,7 +1075,7 @@ def main() -> None:
         },
         "phase_tile_patches": {
             "bytes": len(tile_patches),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": PHASE_TILE_PATCH_PAGE,
             "stage_address": PHASE_TILE_PATCH_ADDRESS,
             "instruction_bytes": len(tile_patches) // 2,
             "highscore_bytes": len(tile_patches) // 2,
@@ -1063,13 +1083,13 @@ def main() -> None:
         },
         "highscore_helper": {
             "bytes": len(highscore_helper),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": HIGHSCORE_PHASE_HELPER_ADDRESS,
             "sha256": digest(highscore_helper),
         },
         "highscore_runtime": {
             "bytes": len(highscore_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": HIGHSCORE_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x0698,
@@ -1083,6 +1103,9 @@ def main() -> None:
             "boot_overflow_proof_bytes": proof_bytes,
             "sparse_copy_table_ram": SPARSE_COPY_TABLE_RAM,
             "sparse_copy_table_bytes": len(segments) * 8,
+            "sparse_copy_early_segment_count": sum(s.target != "presentation_auxiliary" for s in segments),
+            "sparse_copy_late_segment_count": sum(s.target == "presentation_auxiliary" for s in segments),
+            "sparse_copy_late_selector": SPARSE_COPY_LATE_SELECTOR,
             "boot_overflow_used_bytes": bank0_used_bytes,
             "boot_overflow_spare_bytes": (
                 CART_READABLE_BYTES - BOOT_OVERFLOW_START - bank0_used_bytes
@@ -1140,7 +1163,7 @@ def main() -> None:
         manifest["instruction_runtime"] = {
             "role": "instructions",
             "bytes": len(instruction_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
@@ -1153,7 +1176,7 @@ def main() -> None:
         manifest["demo_runtime"] = {
             "role": "demo-route",
             "bytes": len(demo_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": demo_stage_address,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,

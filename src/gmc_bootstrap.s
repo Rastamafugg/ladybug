@@ -1,6 +1,8 @@
 ; DOC-002 source-contract mirror contract decompress_presentation_atlas profile=boot: Decompress the presentation atlas for its runtime destination.
 ; DOC-002 source-contract mirror contract decompress_gmc_streams profile=boot: Decompress gmc streams.
 ; DOC-002 source-contract mirror contract decompress_staged_audio profile=boot: Decompress staged audio.
+; DOC-002 source-contract mirror contract copy_late_sparse_segments profile=boot: After audio consumes page $24 staging, briefly reselect GMC ROM, copy only delayed auxiliary records to physical page $24, then restore all-RAM.
+; DOC-002 source-contract mirror contract copy_sparse_payload profile=boot: Copy one already-selected sparse descriptor payload and return with the table pointer advanced.
 ; DOC-002 source-contract mirror contract dgs_descriptor profile=boot: Decode one staged compressed-stream descriptor.
 ; Ladybug GMC bank loader. Bank 0 executes here, then this routine runs from
 ; low RAM while selecting bank 1 and copying the runtime into physical RAM.
@@ -50,6 +52,7 @@ LOADER_RAM  equ $0300
 RESIDENT_STAGE_PAGE equ $21
 ASSET_STAGE_PAGE equ $22
 AUDIO_STAGE_PAGE equ $24
+AUXILIARY_STAGE_PAGE equ $24
 PRESENTATION_NAME_ENTRY_DATA equ 0
 
         include "ladybug_presentation.inc"
@@ -191,7 +194,7 @@ copy_sparse_table
         cmpu    #0
         bne     copy_sparse_table
         ldx     #SPARSE_COPY_TABLE_RAM
-        lda     #SPARSE_COPY_SEGMENT_COUNT
+        lda     #SPARSE_COPY_EARLY_SEGMENT_COUNT
         sta     BOOT_SEGMENTS
 copy_sparse_segment
         lda     ,x+
@@ -201,6 +204,12 @@ copy_sparse_segment
         beq     copy_sparse_destination_ready
         sta     PAR_EXEC+5
 copy_sparse_destination_ready
+        lbsr    copy_sparse_payload
+        dec     BOOT_SEGMENTS
+        bne     copy_sparse_segment
+        bra     copy_sparse_early_done
+
+copy_sparse_payload
         ldu     ,x++
         ldy     ,x++
         ldd     ,x++
@@ -254,8 +263,8 @@ copy_sparse_tail_word
         bne     copy_sparse_tail_word
 copy_sparse_done
         puls    x
-        dec     BOOT_SEGMENTS
-        bne     copy_sparse_segment
+        rts
+copy_sparse_early_done
 
         ; Expand all page-bounded FEAT-006 streams while cartridge ROM is
         ; still selected. Each descriptor names one source bank interval and
@@ -374,8 +383,9 @@ copy_staged_assets
         lbsr    decompress_staged_audio
 boot_streams_retired
         ; No descriptor consumer remains; audio_init_impl may reuse overlap.
+        lbsr    copy_late_sparse_segments
 
-        ; Page $23 stages the compressed bundle while cartridge ROM is selected.
+        ; Page $23 retains compressed title/attract data and phase tile patches.
         ; After all-RAM publication, expand it into presentation page $3C.
         lbsr    decompress_attract_surfaces
         ifne    HIGHSCORE_TEST_PROFILE
@@ -389,6 +399,33 @@ boot_streams_retired
         ; Skip the two-byte DK cartridge header when entering the
         ; relocated runtime.
         jmp     $C002
+copy_late_sparse_segments
+        ; Audio has consumed page $24's staged source. Execute only from low RAM
+        ; while briefly restoring GMC ROM visibility for the delayed copies.
+        lda     #$34
+        sta     SAM_FAST
+        sta     SAM_CART
+        lda     #SPARSE_COPY_LATE_SEGMENT_COUNT
+        sta     BOOT_SEGMENTS
+        tst     BOOT_SEGMENTS
+        beq     copy_late_sparse_restore
+        ldx     #SPARSE_COPY_TABLE_RAM+SPARSE_COPY_EARLY_SEGMENT_COUNT*SPARSE_COPY_SEGMENT_BYTES
+copy_late_sparse_segment
+        lda     ,x+
+        sta     GMC_BANK
+        lda     ,x+
+        cmpa    #SPARSE_COPY_LATE_SELECTOR
+        lbne    loader_fail
+        lda     #AUXILIARY_STAGE_PAGE
+        sta     PAR_EXEC+5
+        lbsr    copy_sparse_payload
+        dec     BOOT_SEGMENTS
+        bne     copy_late_sparse_segment
+copy_late_sparse_restore
+        lda     #$34
+        sta     SAM_FAST
+        sta     SAM_ALLRAM
+        rts
 
 decompress_gmc_streams
         ldx     #GMC_LZSS_TABLE_RAM

@@ -55,7 +55,7 @@ try:
     identity('resident RAM enemy module', 0x800, enemy)
     payloads = {}
     saved = p.read_byte(c, 0xffa5)
-    p.write_byte(c, 0xffa5, 0x23)
+    p.write_byte(c, 0xffa5, 0x24)
     for name in ('instruction', 'highscore'):
         data = (ROOT / f'build/ladybug-{name}-runtime.bin').read_bytes()
         payloads[name] = data

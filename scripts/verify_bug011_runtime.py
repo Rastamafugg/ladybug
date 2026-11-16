@@ -225,7 +225,7 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
         if hit.get("pc") != entry:
             raise SystemExit(f"BUG-011 runtime: presentation entry timeout {hit}")
         saved_par5 = read_byte(client, PAR5)
-        write_byte(client, PAR5, 0x23)
+        write_byte(client, PAR5, 0x24)
         staged_live = read_bytes(client, 0xA422, len(staged))
         write_byte(client, PAR5, saved_par5)
         if staged_live != staged:
@@ -240,7 +240,7 @@ def run_scenario(monitor, binary: Path, rom: Path, timeout: float,
             cold_prefix = read_bytes(client, 0xA000, 16).hex()
             write_byte(client, PAR5, saved_par5)
             raise SystemExit(
-                "BUG-011 runtime: staged page-$23 helper differs; "
+                "BUG-011 runtime: staged page-$24 helper differs; "
                 f"live={digest(staged_live)} expected={digest(staged)} "
                 f"first={differences[:8]} live16={staged_live[:16].hex()} "
                 f"expected16={staged[:16].hex()} matches={matches} "
