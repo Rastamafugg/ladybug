@@ -16,7 +16,7 @@ Determine and state explicitly:
 3. **The affected code, docs, scripts, and workflow artifacts** — concrete files/paths.
 4. **The most appropriate next role** — using the routing criteria below.
 5. **The ticket disposition** — identify an existing ticket, create a `Draft`/`Proposed` ticket for substantive new work, or state why the request is a minor query that needs no ticket.
-6. **The cost class** — classify bug work as Compact, Standard, or High-risk using `AGENTS.md`.
+6. **The cost class** — for bug work, use the eligibility definitions in [Bug cost classes](#bug-cost-classes) and state the risks that determine verification scope.
 7. **The smallest sufficient verification set** — map each proposed scenario to a distinct identified risk and reject redundant mode/owner/phase combinations.
 8. **Test sign-off** — apply [DOC-014](../../../wiki/internal/tickets/doc-014-test-signoff-contract.html#card). Embed a card for every new/materially changed gate: purpose/risk/type, controlled setup and identities, independent expected result/oracle, justified tolerance and negative control, exact command/prerequisites, entire-phase deadline and bounded cost, evidence/result classes, automated/manual split, approval and owner. Qualify relevant existing gates against their baseline before reuse; do not require a whole-suite rerun. For a new regression check, good/broken fixtures qualify the harness even when the target defect still fails.
 9. **Manual-session applicability** — apply [DOC-014's manual-session rule](../../../wiki/internal/tickets/doc-014-test-signoff-contract.html#manual-session-policy). Do not require a duration, deadline or agent monitoring for the user's session unless requested. Retain the approved bounds and requirements of automated preparation or observation; missing manual observations remain pending.
@@ -28,6 +28,16 @@ For behavior changes, record the natural user-visible sequence and state whether
 For assembly changes, identify generated or exported symbols affected by the edit. Trace build aliases to their owner and include the correct source-reference import/routine records, primary-source DOC-002 mirror, and new routine-catalog semantic anchor where needed in the Ready artifact list. Record when the automated source-documentation audit runs; a post-build audit is not a pre-build check.
 
 Consult [the ticket workflow](../../../wiki/internal/tickets/workflow.html) and [active ticket index](../../../wiki/internal/tickets/index.html) before routing. Do not duplicate an existing ticket; update it or link the relationship.
+
+### Bug cost classes
+
+Classify bugs before preparing the assignment:
+
+- **Compact** requires a confirmed cause, an existing implementation pattern, no new runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question.
+- **Standard** covers a bounded change that fails one or more Compact conditions but does not introduce a new technical pattern or material architectural risk.
+- **High-risk** covers runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.
+
+Keep the user-facing classification brief and explain the specific risk in plain language. If the boundary is unclear, route to the relevant specialist before recommending implementation.
 
 ## Step 2 — Route
 

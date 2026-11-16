@@ -24,21 +24,21 @@ Recommend a different approach only when checked evidence shows the existing wor
 ## Current Development Workflow
 
 - Start new functionality, bug fixes, performance work, tooling changes, and substantive documentation work through the [ticket workflow](wiki/internal/tickets/workflow.html). The [ticket index](wiki/internal/tickets/index.html) is the active work queue; the roadmap remains the phase-level product plan.
-- Classify each bug as `Compact`, `Standard`, or `High-risk` before preparing its assignment:
-  - `Compact` requires a confirmed cause, an existing implementation pattern, no new runtime ownership or protocol, no loader/MMU/mapping change, no hard-boundary pressure, at most two projected production files, and no unresolved behavior question.
-  - `Standard` covers bounded changes that fail one or more Compact conditions but do not introduce a new technical pattern or material architectural risk.
-  - `High-risk` covers runtime ownership, protocol, loader/MMU/mapping, hard memory or timing boundaries, persistent-framebuffer interaction, cross-phase handoffs, or unresolved corruption.
-- Use the least expensive verification set that covers every identified risk. Do not multiply mode, framebuffer-owner, phase, and scenario combinations unless the ticket identifies an independent interaction that requires the full cross-product.
+- For bug cost class and eligibility, use the project-management skill. For ticket verification scope and scenario coverage, use the [ticket workflow](wiki/internal/tickets/workflow.html) and QA reviewer skill.
 - Do not implement a proposed ticket until the user has approved it. Approval fixes the outcome, scope, targets, and acceptance criteria. A ticket becomes `Ready` only after dependencies, assignment details, and verification commands are complete.
-- For assembly changes that add, rename, or call a build-generated/exported symbol, trace the alias to its owning source and module. Include the appropriate `scripts/source_reference*.json` import or routine contract, the matching DOC-002 contract mirror in the primary source, and a routine-catalog semantic entry/anchor when introducing a new routine interface. Treat source-reference generation and verification as build-stage gates, not pre-build checks, unless an earlier qualified check is explicitly run.
+- For assembly changes involving generated or exported symbols, use the coding-architect skill and [DOC-002](wiki/internal/tickets/doc-002-assembly-source-traceability.html); the role skill owns the source-trace procedure.
 - Resume game work from the highest-ordered `Ready` ticket that is consistent with the active phase in [wiki/internal/implementation/roadmap.html](wiki/internal/implementation/roadmap.html).
-- Build with `scripts/build.sh build`; use the [gdb-mcp round trip](wiki/internal/tooling/xroar.html#gdb-mcp-round-trip) to launch, inspect, and verify the ROM.
+- For game-code builds and runtime inspection, follow the [build workflow](wiki/internal/tooling/build-workflow.html) and [XRoar runbook](wiki/internal/tooling/xroar.html#gdb-mcp-round-trip); use only commands included in the approved assignment.
 - The `web/` app and patched XRoar `-monitor` stack are preserved but deferred. Do not extend them unless the user explicitly reactivates that work.
-- XRoar's `-monitor` endpoint is private JSON-RPC, not MCP. The missing outward MCP bridge and keyboard/control exposure are recorded in [wiki/internal/backlog/mcp-xroar-server.html](wiki/internal/backlog/mcp-xroar-server.html).
+- The deferred XRoar bridge status is recorded in [the MCP/XRoar backlog](wiki/internal/backlog/mcp-xroar-server.html).
+
+## Instruction Scope
+
+This file contains project-wide instructions. Task-specific procedures are owned by the relevant role skill or linked workflow document; read those details only when the task is routed to that role or uses that workflow. Do not copy specialist procedures into this file when their authoritative source already covers them.
 
 ## Roles & Routing
 
-Every new task begins in the `project-management` role, which classifies the task and routes to one of the specialist roles. Each role is a skill — invoke it via the Skill tool when entering that role:
+Every new task begins in the `project-management` role, which classifies the task and routes to one of the specialist roles. Each role has a skill file; read and use the matching file under `.agents/skills/` when routed to that role:
 
 - `project-management` — **mandatory first role**; classify objective/scope/affected-artifacts and pick the next role.
 - `business-analyst` — ambiguous, requirement-heavy, behavior-changing, or edge-case-dependent tasks.
@@ -52,87 +52,39 @@ Do not begin coding until `project-management` has run. Each role skill contains
 
 ### Communication clarity
 
-- When reporting a finding, proposal, or next step, provide enough context to explain what it concerns and why it matters.
-- State what the agent can resolve using available information, what requires a user decision, and what remains unknown. Explain the choices and their practical consequences when asking for a decision.
-- Explain where technical rules and conclusions come from and how they were established. Distinguish source statements from calculations and inferences; name what was checked, give a small example where useful, and state what remains unverified. Use phrases such as “I calculated,” “I inferred,” or “the source states.”
-- Define technical terms and abbreviations when they first matter. Use plain language, concrete references, and examples where helpful.
-- Identify estimates and proposals as such. Explain what a number or limit applies to, its purpose, and whether it was measured or estimated.
+- Use plain language and define technical terms or abbreviations when they first matter.
+- State what is known, what is inferred, and what remains unknown. Label calculations, estimates, and projections.
+- Before the first table in a conversation, define every non-obvious row/column label, unit, scenario or owner, baseline, target, margin, and pass/fail rule; state whether each number is a maximum, minimum, average, single observation, estimate, projection, or requirement, and cite the source revision or artifact when material.
+- Give enough context for a finding or next step to be understood without repeating the full work contract.
 
-- Every bug approval brief must state its Compact, Standard, or High-risk class and the risks that determine its verification scope. Do not estimate a share of the user's weekly token allocation or impose a token-use ceiling. Historical ticket percentages are retained as records, not active approval or stop gates.
-- Before the first table in a conversation, define every non-obvious row/column label, unit, baseline, target, margin, owner/scenario name, and pass/fail rule used in that table. State whether numbers are maxima, minima, averages, projections, or single observations and identify the source revision or artifact when material.
-- For persistent A/B rendering, label performance evidence primarily by scenario phase and executed worklist. Record framebuffer owner only as secondary metadata. Do not attribute a timing difference to owner identity unless a controlled crossover begins from identical pixels, metadata, and render intents, then repeats with the starting owner reversed.
-- Never use a missing scenario as passing evidence. Required rare paths must be forced or the verification must fail. Persistent or replayed systems require both isolated-owner and natural sequence coverage when those can differ.
-- Suggested next steps intended for approval must state, for each item: the work, reason, expected improvement or outcome, baseline, target, success measurement, dependencies/order, material risks, and scope exclusions.
-- Distinguish an approval brief from an assignment brief. An approval brief supports the user's go/no-go decision. An assignment brief adds exact artifacts, constraints, owned files/worktree, verification commands, evidence to retain, commit requirements, and the required completion report without changing approved scope.
-- If a target is missed, say so directly, retain the measured result, and create or update a follow-up ticket. Do not label the work accepted because implementation or testing completed.
-- Record rejected experiments when their result changes the recommended approach. Separate current-revision evidence from historical or projected evidence.
+### Shared work control
 
-### Communication and work control
+- Surface proposed behavior, architecture, asset-removal, or acceptance changes before including them in approved work.
+- Carry accepted corrections into later plans and authoritative records. Preserve existing user edits when changing shared files.
+- Report failed steps, evidence, missing coverage, and unresolved criteria accurately. Completion of implementation or testing alone does not mean acceptance.
+- Do not implement a ticket until the user has approved its outcome and scope and the ticket is Ready.
+- After implementation, use the QA reviewer role before recommending completion.
 
-- Surface proposed behavior, architecture, asset-removal, or acceptance
-  changes before including them in approved work. Explain the reason,
-  alternatives, and consequences. Distinguish retiring a behavior from
-  deleting reusable data. Delegated recommendations do not create new
-  requirements or authority.
+### Conditional procedures
 
-- Carry accepted corrections into subsequent plans, checks, examples,
-  and suggested prompts. Update authoritative records when authorized;
-  otherwise identify the pending update. Use existing documentation
-  generators where appropriate and scope missing automation separately.
+Read only the procedure relevant to the task:
 
-- Identify the next usable deliverable, its concrete prerequisites, and
-  later acceptance work. Resolve available facts before requesting a
-  decision. For failures, report the failed step, observed error, evidence,
-  usable outputs, and next action; inspect retained evidence before
-  recommending a rerun.
+- Bug intake and cost-class eligibility: [project-management skill](.agents/skills/project-management/SKILL.md).
+- Runtime diagnosis, live-byte comparison, probe bounds, and hardware escalation: [debugger skill](.agents/skills/debugger/SKILL.md).
+- Generated/exported assembly symbols and routine contracts: [coding-architect skill](.agents/skills/coding-architect/SKILL.md), [QA reviewer skill](.agents/skills/qa-reviewer/SKILL.md), and [DOC-002](wiki/internal/tickets/doc-002-assembly-source-traceability.html).
+- Gating scenarios, manual sessions, verification evidence, ticket lifecycle, assignments, and delegation: [DOC-014](wiki/internal/tickets/doc-014-test-signoff-contract.html) and the [ticket workflow](wiki/internal/tickets/workflow.html).
+- Wiki structure, ingest, query, lint, links, and logs: [wiki/AGENTS.md](wiki/AGENTS.md).
 
-- Review the complete bounded change against agreed criteria. Separate
-  blocking defects from optional improvements. After correction, review
-  affected behavior and outstanding findings. Reopen settled matters only
-  for changed source, new evidence, or an unmet criterion.
-
-- Apply these rules where relevant. Keep explanations sufficient for
-  understanding and approval without repeating the full work contract.
-
-### Runtime diagnosis invariants
-
-- Before interpreting a symbol, map label, or hardware-register access at a live PC, prove that the live bytes match the current built artifact at that address. When loading, copying, banking, relocation, or handoff is involved, compare authored/source, staged, and destination bytes before diagnosing downstream execution.
-- Treat an undocumented hardware defect as a last-stage hypothesis. Do not recommend it until software state, loader/mapping, observation-tool, and emulator-control candidates have discriminating results, and either an independent emulator/physical-hardware reproduction or authoritative hardware evidence supports escalation. Label the hypothesis unconfirmed until then.
-- Every runtime probe must name its phase, success marker, deadline, and the meaning of a timeout. Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, the projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that the target code is slow.
-- A probe is one distinct diagnostic experiment intended to separate competing causes. After two rejected probes, two observation-tool timeouts, or one discovery that materially expands the root cause or affected subsystem, stop and reassess the bug class, remaining verification, and next discriminating experiment before running another experiment. A deterministic rerun after correcting identified probe mechanics is not a new probe.
-
-### Test sign-off contract
-
-- [DOC-014](wiki/internal/tickets/doc-014-test-signoff-contract.html#card) is the approved contract. Every new or materially changed gating scenario must have a user-approved test card embedded in its ticket before `Ready`: purpose and distinct risk; test type; revision/profile/artifact and fixture identity; controlled inputs/RNG/chooser/clock/framebuffer history where relevant; independent expected result and justified tolerance; discriminating negative control; exact commands/prerequisites; entire-phase deadline, callback cap when needed, labeled command-cost estimate or measurement; failure evidence; automated/manual split; approval and ownership.
-- Apply [DOC-014's manual-session rule](wiki/internal/tickets/doc-014-test-signoff-contract.html#manual-session-policy): user-owned manual sessions have no imposed deadline, monitoring or duration report unless requested. Automated components retain their approved bounds and requirements; unobserved criteria remain pending.
-- Qualify the relevant existing gate against its baseline before reuse. Do not infer readiness from a historical script name or old pass. No blanket suite rerun is required. Missing cards or unqualified gating setups prevent dispatch. New regression checks may be qualified before the fix by proving that the known-good fixture passes and the defective fixture fails; the broken target is not required to pass first.
-- Do not require random enemy movement to discover a test fixture. Use a reviewed source-legal controlled predecessor or approved manual coverage. A fixed seed alone does not control unrelated chooser, input, clock or framebuffer state. Preserve required natural golden-path evidence separately; forced fixtures do not replace it.
-- Deadlines bound the entire named phase and its nested waits/reads, not each successive breakpoint independently. Non-gating diagnostics are labeled and bounded; they cannot silently become acceptance gates. No retry-until-pass, random-route search escalation, hidden scenario matrix or autonomous routing framework.
-- Report product assertion failure, setup/observer failure, missing coverage, approved waiver and manual result separately. Missing required coverage prevents acceptance but is not proof of a product defect. Manual cases remain pending until the user reports results. Historical exceptions may permit named failures; they must not require those failures to persist or hide missed product targets.
-- The parent confirms card approval and baseline qualification before assignment. Executors cannot add gates, change targets/tolerances, expand state-write authority, change the automated/manual split or repair unrelated debt without renewed approval. Existing approval suffices when the card was explicitly covered in the approved ticket; routine fixture mechanics preserving the contract remain execution details. Material outcome/setup authorization/target/cost-risk changes return the ticket to `Proposed`.
-- Stop at the existing two-rejected-probe/two-tool-timeout/material-expansion reassessment boundary. Retain the last proven marker and propose the next bounded step or manual alternative. Do not change valid production code merely to satisfy a stale verifier.
+These linked sources own their detailed procedures. Do not load every specialist procedure for an unrelated task.
 
 ## Ticket and Delegation Rules
 
-- Ticket IDs use `<TYPE>-NNN`: `FEAT`, `BUG`, `PERF`, `TOOL`, `DOC`, or `RSCH`. One HTML page under `wiki/internal/tickets/` is canonical for each ticket.
-- Lifecycle: `Draft` -> `Proposed` -> `Approved` -> `Ready` -> `In Progress` -> `Verification` -> `Done`. `Blocked`, `Deferred`, `Rejected`, and `Superseded` are explicit side states. Only explicit user approval advances `Proposed` to `Approved`.
-- Any material change to an approved outcome, scope, target, acceptance criterion, dependency order, or risk profile returns the ticket to `Proposed` for renewed approval. Execution detail that does not alter the approved contract may be added while preparing `Ready`.
-- Every ticket must contain objective, motivation, in/out scope, scenarios and edge cases, evidence/baseline with revision, acceptance criteria, dependencies and ordering, constraints/risks, assignment contract, verification plan, decision log, and completion evidence. Compact bug tickets may combine these fields into a concise approval-and-assignment section, but may not omit reproduction, observed versus expected behavior, confirmed cause, discriminating test, cost class, or measurable acceptance. Feature tickets also require user-visible behavior and compatibility implications.
-- For Compact bugs, default to direct implementation by the parent agent after the ticket is Approved and Ready. Do not create a separate worktree, delegate the implementation, or duplicate the full verification suite unless the user requests delegation or an identified integration risk requires it.
-- Delegate only `Ready` tickets. Give each subagent one bounded ticket or explicitly separable ticket step, a defined ownership boundary, and a separate commit. Parallel work must not have unresolved dependencies or overlapping writable artifacts; otherwise sequence it or assign an integration owner first.
-- The parent agent owns integration: inspect each commit, resolve shared generated/wiki artifacts, rebuild from combined source, rerun integration scenarios and capacity checks, and update ticket status. Isolated subagent success is not integrated acceptance.
-- Completion reports must include commit, tests, measured result versus target, residual risks, rejected experiments, changed capacity/headroom, retained evidence, and whether the ticket can move to `Done`.
-- Each required verification scenario must name the distinct risk it covers. Prefer pairwise coverage over a Cartesian scenario matrix. Add the full matrix only when the interaction itself is a stated risk.
-- Reuse an existing verifier or shared harness before creating a ticket-specific verifier. If a Compact bug needs more than 200 nonblank lines of ticket-specific verification code, report the reason and reassess its cost class and verification scope before adding it.
-- Retain concise verification summaries, hashes, and failing evidence by default. Retain large passing JSON traces, frame sequences, or duplicate generated artifacts only when an acceptance criterion requires later inspection or reproduction.
+- Ticket IDs use `<TYPE>-NNN`; one HTML page under `wiki/internal/tickets/` is canonical for each ticket.
+- Only explicit user approval advances a ticket from `Proposed` to `Approved`. Do not begin implementation until the ticket is `Ready`.
+- A material change to an approved outcome, scope, target, acceptance criterion, dependency order, or risk profile returns the ticket to `Proposed` for renewed approval.
+- Delegate only `Ready` tickets. The parent agent owns integration and final status updates.
+- Use the [ticket workflow](wiki/internal/tickets/workflow.html) and [ticket template](wiki/internal/tickets/template.html) for required ticket content, verification plans, assignment details, evidence retention, and completion reports.
 
 ## Wiki Maintenance
 
-Keeping the wiki current is part of doing work on this project — see [wiki/CLAUDE.md](wiki/CLAUDE.md) for the full HTML schema and ingest/query/lint workflows. Do not create Markdown wiki pages. In brief:
-
-- **Ingest new source files as needed.** When a task reads a raw source not yet reflected in the wiki, update `wiki/internal/sources/` and propagate to the pages it informs.
-- **Record new lessons learned.** Hardware quirks, GIME register gotchas, memory/packing constraints, timing findings → the relevant `wiki/internal/platform/` or `wiki/internal/implementation/` HTML page.
-- **Record new plans and decisions.** Capture the decision AND its rationale (especially arcade-fidelity vs CoCo-3-adaptation choices, scope changes, workflow shifts).
-- **Update the index.** Any new page must be linked from [wiki/internal/index.html](wiki/internal/index.html) or the appropriate section index.
-- **Append to the log.** Every ingest, substantive query, or lint pass gets a dated HTML section in [wiki/internal/log.html](wiki/internal/log.html).
-- **Prefer updating over creating.** Before adding a page, check whether the concept already has one.
+The wiki is the project source of truth. When changing or authoring wiki content, follow [wiki/AGENTS.md](wiki/AGENTS.md) for the HTML schema, indexes, source ingest, query, lint, cross-links, and log policy. Do not create Markdown wiki content; `wiki/AGENTS.md` is an agent instruction file, not a wiki article.

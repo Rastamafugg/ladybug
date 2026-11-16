@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DOC-016 — Agent instruction migration — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../implementation/index.html">Implementation</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · documentation</p>
+      <h1>DOC-016 — Agent instruction migration <span class="wiki-badge">In Progress</span></h1>
+      <p class="wiki-meta">2026-11-15 · Make AGENTS.md and .agents/skills the active instruction set and retire Claude-specific instruction files.</p>
+    </header>
+
+    <section id="status">
+      <h2>Status and ownership</h2>
+      <ul>
+        <li><strong>Status:</strong> In Progress on 2026-11-15; Sol is executing the approved scope.</li>
+        <li><strong>Created / updated:</strong> 2026-11-15 / 2026-11-15.</li>
+        <li><strong>Priority / order:</strong> P2 / unassigned.</li>
+        <li><strong>Roadmap or source:</strong> <a href="workflow.html">ticket workflow</a>, <a href="template.html">ticket template</a>, and the user's instruction-review direction.</li>
+        <li><strong>Owner:</strong> Sol is the executor; the parent agent owns integration and final review.</li>
+        <li><strong>Dependencies:</strong> user approval and assignment preparation are complete; no other dependency identified.</li>
+        <li><strong>Source revision:</strong> repository HEAD <code>57244448f61a16371002c23a900a95c15ed6b0f5</code> at proposal preparation. The working tree also contained pre-existing edits to FEAT-012, TOOL-019, TOOL-020, the ticket index, and the wiki log.</li>
+      </ul>
+    </section>
+
+    <section id="approval">
+      <h2>Approval brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Make the instructions used by the current ChatGPT/Codex workflow clear and current. Keep project-wide rules in root <code>AGENTS.md</code>, role procedures in <code>.agents/skills/</code>, and wiki-authoring procedures in <code>wiki/AGENTS.md</code>. Retire the obsolete root <code>CLAUDE.md</code> and Claude role-skill copies so they cannot become competing instruction sources.</p>
+
+      <h3>Evidence and baseline</h3>
+      <ul>
+        <li>Root <code>AGENTS.md</code> currently points to <code>wiki/CLAUDE.md</code> for wiki authoring rules.</li>
+        <li>Root <code>CLAUDE.md</code> repeats much of <code>AGENTS.md</code> and has a conflicting work-selection sentence: it says to resume from the active roadmap phase, while <code>AGENTS.md</code> selects the highest-ordered Ready ticket consistent with that phase.</li>
+        <li>Five role names have both <code>.agents/skills/</code> and <code>.claude/skills/</code> copies with differing contents. The current <code>.agents/skills/</code> directory also contains the pixel-art role with no Claude copy.</li>
+        <li>Current references to Claude instruction paths were found in root <code>AGENTS.md</code>, root <code>CLAUDE.md</code>, <code>wiki/CLAUDE.md</code>, <code>wiki/index.html</code>, <code>wiki/internal/index.html</code>, <code>wiki/internal/sources/index.html</code>, <code>wiki/internal/tooling/toolshed.html</code>, and historical entries in <code>wiki/internal/log.html</code>.</li>
+        <li>The ticket index and wiki log already had uncommitted edits at proposal preparation. Preserve those edits when adding this ticket and its log entry.</li>
+      </ul>
+      <h3>Type-specific evidence</h3>
+      <p>This is a documentation workflow change. Its evidence is the current instruction text, the link inventory, and the final disposition of each active or historical reference.</p>
+      <ul>
+        <li>Current shared policy: <a href="../../../AGENTS.md">root AGENTS.md</a>. The removed root <code>CLAUDE.md</code> was compared at baseline commit <code>57244448f61a16371002c23a900a95c15ed6b0f5</code> using <code>git show 57244448f61a16371002c23a900a95c15ed6b0f5:CLAUDE.md</code>.</li>
+        <li>Current canonical roles: <a href="../../../.agents/skills/project-management/SKILL.md">project-management</a>, <a href="../../../.agents/skills/business-analyst/SKILL.md">business-analyst</a>, <a href="../../../.agents/skills/coding-architect/SKILL.md">coding-architect</a>, <a href="../../../.agents/skills/debugger/SKILL.md">debugger</a>, <a href="../../../.agents/skills/qa-reviewer/SKILL.md">QA reviewer</a>, and <a href="../../../.agents/skills/pixel-art/SKILL.md">pixel-art</a>. The removed five <code>.claude/skills/*/SKILL.md</code> inputs were compared at the same baseline commit; retrieve each with <code>git show 57244448f61a16371002c23a900a95c15ed6b0f5:.claude/skills/&lt;role&gt;/SKILL.md</code>.</li>
+        <li>The current wiki authoring guide is <a href="../../AGENTS.md">wiki/AGENTS.md</a>. The pre-conversion contents of <code>wiki/CLAUDE.md</code> are available with <code>git show 57244448f61a16371002c23a900a95c15ed6b0f5:wiki/CLAUDE.md</code>; the present <code>wiki/CLAUDE.md</code> is only a historical-link pointer.</li>
+        <li><a href="../../index.html">wiki home</a>, <a href="../index.html">internal index</a>, <a href="../sources/index.html">source index</a>, and <a href="../tooling/toolshed.html">toolshed page</a>.</li>
+        <li><a href="workflow.html">Ticket workflow</a> and <a href="template.html">ticket template</a> define lifecycle, required fields, and assignment readiness.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In:</strong></p>
+      <ul>
+        <li>Compare root <code>CLAUDE.md</code> with root <code>AGENTS.md</code>, and compare the five Claude role skills with their current <code>.agents/skills/</code> counterparts. Move any still-current unique rules into the appropriate canonical file; record and omit obsolete or conflicting rules.</li>
+        <li>Keep root <code>AGENTS.md</code> as the shared project instruction file and <code>.agents/skills/</code> as the sole role-skill source. Keep universal rules at the root and conditional procedures in the relevant skill or linked workflow document.</li>
+        <li>Move the wiki-authoring instructions from <code>wiki/CLAUDE.md</code> into <code>wiki/AGENTS.md</code>, scoped to wiki work and without duplicating root policy.</li>
+        <li>Remove root <code>CLAUDE.md</code> and the five files under <code>.claude/skills/</code> after the content audit. Leave unrelated files under <code>.claude/</code> unchanged.</li>
+        <li>Leave a short deprecated pointer at <code>wiki/CLAUDE.md</code> to <code>wiki/AGENTS.md</code> so historical links continue to resolve without retaining active Claude instructions.</li>
+        <li>Update active links and labels in root <code>AGENTS.md</code>, <code>wiki/index.html</code>, <code>wiki/internal/index.html</code>, <code>wiki/internal/sources/index.html</code>, and <code>wiki/internal/tooling/toolshed.html</code>. Update the wiki directory overview moved from <code>wiki/CLAUDE.md</code> as part of the conversion.</li>
+        <li>Update the ticket index and append a concise dated project-log entry. Preserve their pre-existing uncommitted content.</li>
+      </ul>
+      <p><strong>Out:</strong> changing game code, rewriting role content unrelated to this migration, creating generated Claude mirrors, changing the global Worktree root or moving worktrees, changing FEAT-012/TOOL-019/TOOL-020, or rewriting historical log entries.</p>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Codex opens a task in the repository root and receives shared instructions from <code>AGENTS.md</code> plus the relevant role skill from <code>.agents/skills/</code>.</li>
+        <li>Wiki work receives the additional scoped instructions from <code>wiki/AGENTS.md</code>; unrelated project work does not need to read the full wiki-authoring guide.</li>
+        <li>Existing links to <code>wiki/CLAUDE.md</code> in historical log entries still reach the deprecated pointer and then the current wiki guide.</li>
+        <li>Historical references to old Claude files remain only as historical records, the deprecated pointer, or this migration record. They must not point users to active instructions that were removed.</li>
+        <li>Pre-existing uncommitted ticket and log edits remain intact while the ticket index and log receive additive updates.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <p>Retaining or generating Claude mirrors would keep a second instruction surface after the project moved to ChatGPT/Codex. Retiring those copies and maintaining one active source per instruction scope follows the user's direction and removes the observed drift. The historical wiki path remains as a pointer only to preserve existing links.</p>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li>All still-current, unique requirements from the retired files are either placed in <code>AGENTS.md</code>, the correct <code>.agents/skills/</code> file, or a linked canonical workflow page; the outdated roadmap-only resume instruction is not reintroduced.</li>
+        <li>Root <code>AGENTS.md</code> states the shared-versus-task-specific boundary and points to <code>wiki/AGENTS.md</code> for wiki authoring.</li>
+        <li><code>wiki/AGENTS.md</code> contains the converted wiki-authoring guide. <code>wiki/CLAUDE.md</code> contains only a deprecation notice and a working link to the new guide.</li>
+        <li>Root <code>CLAUDE.md</code> and the five obsolete <code>.claude/skills/*/SKILL.md</code> files are removed. No other <code>.claude/</code> configuration is removed.</li>
+        <li>Every active link to the migrated guide or root project instructions resolves to the new file. The wiki home, internal index, source index, and toolshed identify the new guide correctly.</li>
+        <li>A repository search for <code>CLAUDE.md</code> and <code>.claude/skills/</code> references is reviewed. Remaining occurrences are limited to the deprecated pointer, historical records, and the migration record; each remaining historical link resolves.</li>
+        <li><code>git diff --check</code> passes, and review confirms the pre-existing edits to FEAT-012, TOOL-019, TOOL-020, the ticket index, and wiki log are preserved.</li>
+        <li>No game build, emulator run, runtime test, or Worktree setting change is performed.</li>
+      </ol>
+
+      <h3>Dependencies and risks</h3>
+      <p>The user approved the scope on 2026-11-15 and confirmed the assignment on 2026-11-15. The parent dispatched Sol on 2026-11-15 to begin the bounded migration. The main risk is losing a still-current requirement while deleting duplicated files; mitigate it with a line-by-line content disposition list before removal. Link breakage is mitigated by the deprecated wiki-path pointer and a complete reference search. The global Worktree setting is outside this ticket.</p>
+    </section>
+
+    <section id="test-cards">
+      <h2>Test cards</h2>
+      <p>Not applicable. This documentation-only ticket changes no game behavior and adds or changes no product gating scenario. Its static documentation checks are listed in the verification plan.</p>
+    </section>
+
+    <section id="verification">
+      <h2>Verification plan</h2>
+      <ul>
+        <li><strong>Starting snapshot:</strong> from <code>E:\projects\ladybug</code>, record <code>git status --short</code> and <code>git rev-parse HEAD</code>. Expected branch is <code>main</code> and starting commit is <code>57244448f61a16371002c23a900a95c15ed6b0f5</code>. Preserve the existing worktree edits listed in the Assignment contract.</li>
+        <li><strong>Before and after inventory:</strong> run <code>rg --hidden --files -g 'AGENTS.md' -g 'CLAUDE.md' -g 'SKILL.md' -g '!repro/**' -g '!.git/**'</code> and <code>rg --hidden -n -g '!repro/**' -g '!.git/**' 'CLAUDE\.md|\.claude/skills' .</code>. Classify every remaining reference as an active pointer, historical record, or this migration record. Do not edit old log entries.</li>
+        <li><strong>Exact link check:</strong> confirm each source contains the expected link target and that it resolves to <code>wiki/AGENTS.md</code>: <code>AGENTS.md → wiki/AGENTS.md</code>; <code>wiki/index.html: ./AGENTS.md</code>; <code>wiki/internal/index.html: ../AGENTS.md</code>; <code>wiki/internal/sources/index.html: ../../AGENTS.md</code>; <code>wiki/internal/tooling/toolshed.html: ../../../AGENTS.md</code>; and <code>wiki/CLAUDE.md: AGENTS.md</code>. Check Markdown links in the two <code>.md</code> files and HTML <code>href</code> values in the HTML files, resolving each relative to its source. No existing general wiki-link checker was identified; do not create a new checker for this task.</li>
+        <li>Run <code>git diff --check</code>. Review the final diff and verify the old wiki path is only a pointer, the retired files are absent, and all pre-existing unrelated edits remain unchanged.</li>
+        <li>No product behavior or gating scenario changes; no DOC-014 test card, game build, emulator run, or runtime test is required.</li>
+      </ul>
+      <p><strong>Assignment readiness:</strong> Ready criteria were confirmed before dispatch. Sol has been dispatched within the approved scope.</p>
+      <h3>Completion evidence</h3>
+      <p>The closeout report must retain the commit hash; a file-by-file disposition of retired, converted, and retained instruction files; the final reference-search summary; changed-link results; <code>git diff --check</code> result; confirmation that pre-existing edits were preserved; and unresolved links or policy gaps. No runtime or build evidence is applicable.</p>
+      <h3>Precommit implementation evidence — 2026-11-15</h3>
+      <p><strong>Content disposition:</strong> root <code>CLAUDE.md</code>'s only unique work-selection sentence was not carried forward because it omitted the current highest-ordered Ready-ticket rule. The five retired Claude skill copies had no current unique requirement to preserve: the older project-management direct-implementation rule omitted the Ready condition, and its and QA's short output forms are covered by the canonical <code>.agents/skills/</code> versions. Bug cost eligibility now lives in the project-management skill; runtime deadline and hardware-escalation invariants now live in the debugger skill. Existing coding-architect and QA skill rules own generated-symbol procedures; DOC-014 and the ticket workflow own test-signoff and assignment procedures. The converted wiki guide owns wiki structure and authoring steps. The universal table rule remains in root: before the first table, define labels, units, scenario/owner names, baseline, target, margin, pass/fail rule, number type, and source revision or artifact when material. The wiki guide owns only wiki-specific table formatting. The converted guide's log-order statement was corrected to match the approved append-only, oldest-to-newest order, with the newest entry at the bottom.</p>
+      <p><strong>Checks:</strong> the root/wiki guide mappings and four changed HTML links resolve; local links in the changed instruction and DOC-016 pages resolve. Historical links from <code>wiki/internal/log.html</code> still resolve to the <code>wiki/CLAUDE.md</code> pointer. The post-change inventory contains root <code>AGENTS.md</code>, the six canonical <code>.agents/skills/</code>, <code>wiki/AGENTS.md</code>, and the deprecated wiki pointer; root <code>CLAUDE.md</code> and the five <code>.claude/skills/</code> files are absent. Remaining search hits are historical log entries, DOC-009 history, and this migration record. <code>git diff --check</code> passed; Git emitted only line-ending normalization warnings. No build/runtime tests or Worktree changes occurred. Sol did not edit the ticket index or project log; parent lifecycle entries are present there. Parent review and the bounded commit remain pending.</p>
+    </section>
+
+    <section id="assignment">
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Owner:</strong> Sol is the bounded executor; the parent agent owns integration and final review. Work began after parent dispatch.</li>
+        <li><strong>Checkout / branch / starting revision:</strong> primary checkout <code>E:\projects\ladybug</code>, branch <code>main</code>, starting commit <code>57244448f61a16371002c23a900a95c15ed6b0f5</code>. No separate coding worktree is assigned. If that changes before implementation starts, record the actual repo-relative path, branch, base commit, owner, and start/end state; do not change the global Worktree root.</li>
+        <li><strong>Write artifacts:</strong> <code>AGENTS.md</code>; delete root <code>CLAUDE.md</code>; delete <code>.claude/skills/business-analyst/SKILL.md</code>, <code>.claude/skills/coding-architect/SKILL.md</code>, <code>.claude/skills/debugger/SKILL.md</code>, <code>.claude/skills/project-management/SKILL.md</code>, and <code>.claude/skills/qa-reviewer/SKILL.md</code>; replace <code>wiki/CLAUDE.md</code> content with the deprecated pointer; create <code>wiki/AGENTS.md</code>; update <code>wiki/index.html</code>, <code>wiki/internal/index.html</code>, <code>wiki/internal/sources/index.html</code>, <code>wiki/internal/tooling/toolshed.html</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>.</li>
+        <li><strong>Canonical skill inputs and write boundary:</strong> compare <code>.agents/skills/business-analyst/SKILL.md</code>, <code>.agents/skills/coding-architect/SKILL.md</code>, <code>.agents/skills/debugger/SKILL.md</code>, <code>.agents/skills/pixel-art/SKILL.md</code>, <code>.agents/skills/project-management/SKILL.md</code>, and <code>.agents/skills/qa-reviewer/SKILL.md</code>. Edit a canonical skill only to preserve a current unique requirement or to make it the owner of a conditional root procedure moved under this approved boundary. Record each disposition. Do not rewrite unrelated role content or any other project/app files.</li>
+        <li><strong>Starting worktree state:</strong> existing edits are present in <code>wiki/internal/log.html</code>, <code>wiki/internal/tickets/index.html</code>, <code>wiki/internal/tickets/feat-012-feat010-acceptance-closeout.html</code>, <code>wiki/internal/tickets/tool-019-attract-menu-observer-capture.html</code>, and <code>wiki/internal/tickets/tool-020-actor-observer-sidecar-repair.html</code>; DOC-016 is also untracked. Preserve all of them. Add only migration-owned changes to the shared index and log, and do not stage unrelated changes.</li>
+        <li><strong>Constraints:</strong> keep the approved outcome and scope unchanged; preserve historical log entries and the current uncommitted changes; do not touch game code, global app settings, or worktrees. Any newly discovered requirement that changes scope returns the ticket to Proposed.</li>
+        <li><strong>Required commands:</strong> capture <code>git status --short</code> and <code>git rev-parse HEAD</code>; run the two inventory/reference commands in the Verification plan before and after; run <code>git diff --check</code>.</li>
+        <li><strong>Commit boundary:</strong> one bounded documentation commit containing only migration-owned files and hunks after parent diff review. No push or merge authority. If the migration changes cannot be separated from existing edits, stop before commit and report the conflict.</li>
+        <li><strong>Completion report:</strong> identify owner/checkout/commit, list created, converted, removed, and retained paths, summarize unique-rule dispositions and reference/link checks, report <code>git diff --check</code>, confirm unrelated edits were preserved, state residual risks, and recommend the justified ticket lifecycle state.</li>
+      </ul>
+    </section>
+
+    <section id="decision-log">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-15 — Proposed at the user's request. The current active instruction set is to use root <code>AGENTS.md</code>, <code>.agents/skills/</code>, and scoped <code>wiki/AGENTS.md</code>; retire Claude-specific copies. No implementation approval was implied at proposal time.</li>
+        <li>2026-11-15 — The user approved DOC-016. Approved scope is unchanged. The ticket remains not Ready until assignment ownership, branch or worktree, starting commit, retained evidence, and the final link-check procedure are complete.</li>
+        <li>2026-11-15 — The user directed the parent to mark DOC-016 Ready and have Sol start. The parent confirmed the assignment fields, starting branch/revision, constraints, commands, evidence, and commit boundary. Status advanced to Ready; no implementation had started at this entry.</li>
+        <li>2026-11-15 — The parent dispatched Sol to implement DOC-016 within the approved scope. Status advanced to In Progress. No scope or Worktree-setting change was made.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>

@@ -25,16 +25,16 @@ Before proposing a cause, execute this evidence ladder in order unless a step is
 3. At the first unexpected PC or data boundary, compare live bytes/data with the current built artifact. For loaders or banked code, compare source, staged, and final destination bytes.
 4. Validate MMU/PAR/register state and the observation method. Check whether breakpoints, snapshots, traps, or control connections alter or corrupt the state being inspected.
 5. Rank software, build/delivery, mapping, tool, emulator, and hardware hypotheses by evidence and prior likelihood; run the shortest test that separates the leading candidates.
-6. Escalate an undocumented hardware-defect hypothesis only under the shared project invariant.
+6. Treat an undocumented hardware defect as a last-stage hypothesis. First discriminate software-state, loader/mapping, observation-tool, and emulator-control candidates. Recommend hardware escalation only when an independent emulator or physical-hardware reproduction, or authoritative hardware evidence, supports it; keep the hypothesis labeled unconfirmed until then.
 
-After one bounded timeout, inspect the last proven marker and probe mechanics before extending the deadline. Do not infer target-code slowness from debugger or emulator wall-clock time without a control measurement.
+Keep an initial diagnostic phase at or below 60 seconds. Do not increase a phase beyond 60 seconds or by more than 2x without reporting measured progress, projected benefit, and obtaining user approval. A timeout is evidence about the probe boundary, not proof that target code is slow. After one bounded timeout, inspect the last proven marker and probe mechanics before extending the deadline.
 
 Count and record rejected probes and observation-tool timeouts. Stop and return to project-management before another experiment when any of these conditions occurs:
 
 - two distinct probes have been rejected;
 - two observation-tool timeouts have occurred;
 - the confirmed or leading cause expands into another subsystem;
-- the proposed verifier exceeds the Compact threshold in `AGENTS.md`.
+- the proposed verifier exceeds the Compact threshold in the [ticket workflow](../../../wiki/internal/tickets/workflow.html).
 
 The reassessment must report the last proven boundary, remaining competing causes, expected value of the next probe, revised cost class and verification scope, and a lower-cost alternative. Obtain user approval only for a material change to an approved outcome, scope, target, acceptance criterion, dependency order, or risk profile.
 
