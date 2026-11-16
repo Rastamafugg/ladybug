@@ -54,15 +54,22 @@ def main() -> None:
         raise SystemExit(
             "allocation proof: boot synthesis hides bank-1 authored assets"
         )
-    if bootstrap.index(synthesis_call) > bootstrap.index("copy_sparse_table"):
+    sparse_table_stage = bootstrap.index("copy_sparse_table")
+    enemy_runtime_copy = bootstrap.index("copy_enemy_runtime")
+    helper_synthesis = bootstrap.index(synthesis_call)
+    if not (sparse_table_stage < enemy_runtime_copy and sparse_table_stage < helper_synthesis):
         raise SystemExit(
-            "allocation proof: permanent low-RAM copies precede boot synthesis"
+            "allocation proof: sparse table staging must precede enemy copy "
+            "and helper synthesis"
         )
     if "sta     SAM_ALLRAM" not in bootstrap:
         raise SystemExit("allocation proof: staged payloads are not followed by all-RAM")
     if helper[5:6] != b"\x20":
         raise SystemExit("allocation proof: helper does not map physical page $20")
-    print("allocation proof: page $20 is boot-synthesized perimeter ownership; $3A-$3D remain cold presentation")
+    print(
+        "allocation proof: sparse table is staged before both loader-RAM "
+        "reusers; page $20 owns the synthesized perimeter; $3A-$3D remain cold presentation"
+    )
 
 
 if __name__ == "__main__":

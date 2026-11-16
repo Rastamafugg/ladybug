@@ -94,6 +94,39 @@ def reconstruct_auxiliary_stage(rom: bytes, manifest: dict[str, object]) -> byte
     return result
 
 
+def auxiliary_runtime_mutable_fields(
+    build_dir: Path,
+    layout: dict[str, object],
+    expected_stage: bytes,
+) -> list[dict[str, object]]:
+    """Return the attract-root fields initialized in the staged helper."""
+    helper_map = (build_dir / "ladybug-highscore-helper.map").read_text(
+        encoding="utf-8"
+    )
+    stage_address = layout["stage_address"]
+    fields = []
+    for name, width, value_symbol in (
+        ("highscore_logo_root_screen", 1, "PRESENTATION_MAP_ATTRACT"),
+        ("highscore_logo_root", 2, "PRESENTATION_ATTRACT_LOGO_ROOT"),
+    ):
+        address = int(map_symbol(helper_map, name), 16)
+        offset = address - stage_address
+        if offset < 0 or offset + width > len(expected_stage):
+            raise SystemExit(
+                f"gmc auxiliary proof: mutable field {name} is outside page-$24 stage"
+            )
+        fields.append({
+            "name": name,
+            "address": address,
+            "offset": offset,
+            "initial_bytes": expected_stage[offset:offset + width],
+            "expected_runtime_bytes": int(
+                map_symbol(helper_map, value_symbol), 16
+            ).to_bytes(width, "big"),
+        })
+    return fields
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xroar", default="/usr/local/bin/xroar")
@@ -170,9 +203,13 @@ def main() -> None:
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
     manifest_segments = manifest["gmc"]["segments"]
     expected_auxiliary = None
+    expected_auxiliary_fields = []
     if args.verify_auxiliary_page:
         qualify_payload_comparator()
         expected_auxiliary = reconstruct_auxiliary_stage(rom, manifest)
+        expected_auxiliary_fields = auxiliary_runtime_mutable_fields(
+            args.rom.parent, manifest["aux_runtime"], expected_auxiliary
+        )
 
     def retain_identity(
         runtime_verified: bool,
@@ -200,9 +237,10 @@ def main() -> None:
         if not runtime_verified or not rows or not all(row["byte_exact"] for row in rows):
             raise SystemExit("gmc identity proof: loader runtime or stream identity failed")
         if args.verify_auxiliary_page and not (
-            auxiliary_identity and auxiliary_identity.get("byte_exact") is True
+            auxiliary_identity and
+            auxiliary_identity.get("stage_identity_exact") is True
         ):
-            raise SystemExit("gmc identity proof: live page-$24 auxiliary identity failed")
+            raise SystemExit("gmc identity proof: live page-$24 auxiliary state failed")
         evidence = {
             "status": "pass",
             "loader_runtime_verified": True,
@@ -430,6 +468,7 @@ def main() -> None:
             args.startup_snapshot,
             complete,
             expected_auxiliary,
+            expected_auxiliary_fields,
         )
         try:
             print(startup_text)
@@ -683,6 +722,7 @@ def run_startup_phases(
     startup_snapshot: bool = False,
     verify_audio_page: bool = False,
     expected_auxiliary: bytes | None = None,
+    expected_auxiliary_fields: list[dict[str, object]] | None = None,
 ) -> tuple[subprocess.Popen[object], int, str, bool, dict[str, object] | None]:
     """Run separately bounded loader-trace and resident-runtime phases."""
     if shutil.which(gdb) is None:
@@ -784,7 +824,84 @@ def run_startup_phases(
             actual_auxiliary = (
                 auxiliary_dump.read_bytes() if auxiliary_dump.exists() else b""
             )
-            auxiliary_exact = exact_payload_match(expected_auxiliary, actual_auxiliary)
+            mutable_mask = bytearray(len(expected_auxiliary))
+            mutable_expectations = {}
+            mutable_results = []
+            for field in expected_auxiliary_fields or []:
+                offset = int(field["offset"])
+                initial_bytes = bytes(field["initial_bytes"])
+                runtime_bytes = bytes(field["expected_runtime_bytes"])
+                end = offset + len(initial_bytes)
+                if offset < 0 or end > len(expected_auxiliary):
+                    raise SystemExit(
+                        "gmc auxiliary proof: mutable field exceeds staged page-$24 bytes"
+                    )
+                actual_field = actual_auxiliary[offset:end]
+                if len(initial_bytes) != len(runtime_bytes):
+                    raise SystemExit(
+                        "gmc auxiliary proof: mutable field state widths differ"
+                    )
+                for field_offset, (initial_byte, runtime_byte) in enumerate(
+                    zip(initial_bytes, runtime_bytes)
+                ):
+                    mutable_mask[offset + field_offset] = 1
+                    mutable_expectations[offset + field_offset] = (
+                        initial_byte,
+                        runtime_byte,
+                    )
+                state = (
+                    "staged" if actual_field == initial_bytes else
+                    "attract" if actual_field == runtime_bytes else
+                    "unexpected"
+                )
+                mutable_results.append({
+                    "name": field["name"],
+                    "address": field["address"],
+                    "offset": offset,
+                    "initial_bytes": initial_bytes.hex(),
+                    "expected_runtime_bytes": runtime_bytes.hex(),
+                    "live_bytes": actual_field.hex(),
+                    "state": state,
+                })
+            immutable_mismatches = [
+                offset for offset, (expected_byte, actual_byte) in enumerate(
+                    zip(expected_auxiliary, actual_auxiliary)
+                )
+                if not mutable_mask[offset] and expected_byte != actual_byte
+            ]
+            mutable_mismatches = [
+                offset + field_offset
+                for field, result in zip(
+                    expected_auxiliary_fields or [], mutable_results
+                )
+                if result["state"] == "unexpected"
+                for field_offset in range(len(bytes(field["initial_bytes"])))
+            ]
+            mismatch_offsets = sorted(set(immutable_mismatches + mutable_mismatches))
+            auxiliary_exact = (
+                len(expected_auxiliary) == len(actual_auxiliary) and
+                not mismatch_offsets
+            )
+            mismatch_count = len(mismatch_offsets) + abs(
+                len(expected_auxiliary) - len(actual_auxiliary)
+            )
+            first_mismatch = (
+                f"{mismatch_offsets[0]:04x}" if mismatch_offsets else
+                f"{min(len(expected_auxiliary), len(actual_auxiliary)):04x}"
+                if len(expected_auxiliary) != len(actual_auxiliary) else "none"
+            )
+            mismatch_samples = ",".join(
+                (
+                    f"{offset:04x}:{mutable_expectations[offset][0]:02x}|"
+                    f"{mutable_expectations[offset][1]:02x}/"
+                    f"{actual_auxiliary[offset]:02x}"
+                    if offset in mutable_expectations else
+                    f"{offset:04x}:{expected_auxiliary[offset]:02x}/"
+                    f"{actual_auxiliary[offset]:02x}"
+                )
+                for offset in mismatch_offsets[:8]
+                if offset < len(actual_auxiliary)
+            )
             auxiliary_identity = {
                 "physical_page": 0x24,
                 "address": 0xA422,
@@ -792,12 +909,19 @@ def run_startup_phases(
                 "live_bytes": len(actual_auxiliary),
                 "expected_sha256": hashlib.sha256(expected_auxiliary).hexdigest(),
                 "live_sha256": hashlib.sha256(actual_auxiliary).hexdigest(),
-                "byte_exact": auxiliary_exact,
+                "stage_identity_exact": auxiliary_exact,
+                "comparison_rule": "all staged bytes exact; mutable fields must be initial or attract state",
+                "mutable_fields": mutable_results,
+                "mismatch_bytes": mismatch_count,
+                "first_mismatch_offset": first_mismatch,
+                "mismatch_samples": mismatch_samples,
             }
             resident_text += (
-                f"\n{prefix}_AUXILIARY_PAGE_24_EXACT\n" if auxiliary_exact else
+                f"\n{prefix}_AUXILIARY_PAGE_24_VALID\n" if auxiliary_exact else
                 f"\n{prefix}_AUXILIARY_PAGE_24_MISMATCH "
-                f"expected={len(expected_auxiliary)} actual={len(actual_auxiliary)}\n"
+                f"expected={len(expected_auxiliary)} actual={len(actual_auxiliary)} "
+                f"diff_bytes={mismatch_count} first_diff_offset={first_mismatch} "
+                f"samples={mismatch_samples}\n"
             )
     texts = [loader_text, resident_text]
     return (
@@ -809,7 +933,7 @@ def run_startup_phases(
         f"{prefix}_BANK1_RAM_EXACT" in resident_text and audio_exact and
         (
             expected_auxiliary is None or
-            bool(auxiliary_identity and auxiliary_identity.get("byte_exact"))
+            bool(auxiliary_identity and auxiliary_identity.get("stage_identity_exact"))
         ),
         auxiliary_identity,
     )

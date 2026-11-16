@@ -129,6 +129,18 @@ copy_gmc_lzss_table
         cmpu    #0
         bne     copy_gmc_lzss_table
 
+        ; Save the sparse copy plan before the enemy module overwrites the
+        ; final relocated source bytes at $0800-$0806.
+        leax    sparse_copy_table,pcr
+        ldy     #SPARSE_COPY_TABLE_RAM
+        ldu     #SPARSE_COPY_TABLE_BYTES
+copy_sparse_table
+        lda     ,x+
+        sta     ,y+
+        leau    -1,u
+        cmpu    #0
+        bne     copy_sparse_table
+
         ; Bank 3 offset $0800 contains an absolute low-RAM enemy module.
         ; Copying it once avoids frame-time GMC switching and preserves the
         ; resident MMU mapping used by the framebuffer.
@@ -182,17 +194,8 @@ copy_staged_audio_stream
         cmpu    BOOT_SRC_END
         blo     copy_staged_audio_stream
 
-        ; Copy the indexed sparse enemy/player streams into physical pages
-        ; $35-$37 and $39 using the generated fragmented-bank plan.
-        leax    sparse_copy_table,pcr
-        ldy     #SPARSE_COPY_TABLE_RAM
-        ldu     #SPARSE_COPY_TABLE_BYTES
-copy_sparse_table
-        lda     ,x+
-        sta     ,y+
-        leau    -1,u
-        cmpu    #0
-        bne     copy_sparse_table
+        ; The indexed plan was saved before the enemy module reclaimed its
+        ; relocated source tail; use it now to copy the sparse streams.
         ldx     #SPARSE_COPY_TABLE_RAM
         lda     #SPARSE_COPY_EARLY_SEGMENT_COUNT
         sta     BOOT_SEGMENTS
