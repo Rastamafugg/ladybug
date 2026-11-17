@@ -476,6 +476,8 @@ load_done
         lda     #$24
         sta     PAR5
         jsr     $B080           ; existing page-$24 helper: stage panel
+        lda     #$34            ; restore game-state page before later helpers
+        sta     PAR5
         endc
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
@@ -504,7 +506,10 @@ load_done_dynamic_ready
         ifne    COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
-        blo     load_done_dynamic_ready
+        beq     load_done_dynamic_owner
+        cmpb    #PRESENTATION_MAP_GAME_OVER
+        bne     load_done_dynamic_ready
+load_done_dynamic_owner
         jsr     DEMO_RUNTIME_TICK
 load_done_dynamic_ready
         endc
