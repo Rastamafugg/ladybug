@@ -490,10 +490,25 @@ def main() -> None:
         )
     runtime_source = source[source.index("\npresentation_flow_tick\n"):]
     if complete:
+        complete_profile_demo = re.search(
+            r"\n[ \t]*ifne[ \t]+HIGHSCORE_TEST_PROFILE[ \t]*\n"
+            r"demo_tick\n.*?"
+            r"\n[ \t]*else[ \t]*\n"
+            r"[ \t]*ifne[ \t]+COMPLETE_PROFILE[ \t]*\n"
+            r"(?P<complete>demo_tick\n.*?)"
+            r"(?=\n[ \t]*else[ \t]*\n"
+            r"[ \t]*ifeq[ \t]+BUG011_DEVELOPMENT_PROFILE)",
+            runtime_source,
+            re.S,
+        )
+        if complete_profile_demo is None:
+            raise SystemExit(
+                "presentation flow proof: active complete-profile demo branch is missing"
+            )
+        complete_branch = complete_profile_demo.group("complete")
         try:
-            demo_start = runtime_source.index("\ndemo_tick\n")
-            demo_end = runtime_source.index("\ndemo_return\n", demo_start)
-            complete_demo_source = runtime_source[demo_start:demo_end]
+            demo_end = complete_branch.index("\ndemo_return\n")
+            complete_demo_source = complete_branch[:demo_end]
             completion_label = complete_demo_source.index("\ndemo_death_done\n")
         except ValueError as error:
             raise SystemExit(
