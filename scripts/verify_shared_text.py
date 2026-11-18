@@ -242,17 +242,31 @@ def main():
             'earned multiplier digits stay blue',ident,descriptors[2*ident+1])
     # Approved colours are checked independently of presentation_pen_map.
     approved=[]
+    hud_colour_fields={
+        'PART_LABEL':'part','PART_VALUE':'part','P1_SCORE':'score',
+        'TOP_SCORE':'high_score','VEGETABLE_EQUALS':'bonus',
+        'VEGETABLE_VALUE':'bonus',
+    }
+    shared_screens=set(manifest['shared_hud_layout']['screens'])
     for r in shared['coverage']:
         name,x,y=r['screen'],r['x'],r['y'];colour=None
+        if name in shared_screens:
+            for field_name,colour_name in hud_colour_fields.items():
+                field=hud_fields[field_name]
+                field_x,field_y=(int(value) for value in field['cell'])
+                field_width,field_height=(int(value) for value in field['size'])
+                if field_x<=x<field_x+field_width and field_y<=y<field_y+field_height:
+                    colour=shared['colour_configuration']['fields'][colour_name]
+                    break
         if name=='gameplay' and (x,y)==bonus_cell:
             assert (r['code'],r['mask'])==(42,'00007f00007f0000')
             assert masks[r['glyph']]==bytes.fromhex(r['mask'])
             colour=shared['colour_configuration']['fields']['bonus']
-        elif name=='attract' and y==15:colour=9
-        elif name=='attract' and y==18:colour=2 if r['code']==1 else 6
-        elif name=='instructions' and (x,y) in expected_inactive:colour=instruction_fields['instruction_multiplier_inactive']
-        elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
-        elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
+        elif colour is None and name=='attract' and y==15:colour=9
+        elif colour is None and name=='attract' and y==18:colour=2 if r['code']==1 else 6
+        elif colour is None and name=='instructions' and (x,y) in expected_inactive:colour=instruction_fields['instruction_multiplier_inactive']
+        elif colour is None and name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
+        elif colour is None and name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
         if colour is not None:
             overridden=any(run['screen']==name and run['y']==y and run['x']<=x<run['x']+run['width'] for run in shared['colour_configuration']['runs'])
             if not overridden:assert r['colour']==colour,('approved text colour',r,colour)
@@ -280,7 +294,7 @@ def main():
                 record['colour'],expected_colour)
         verify_score_field(placement,generated,high_score_cells,expected_colour)
     for name,start in zip(p.MAP_NAMES,manifest['map_stream_offsets']):
-        tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True,colour_config)
+        tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True,colour_config,hud_fields)
         expected=bytearray(p.title_framebuffer(mapping,tiles))
         if name in manifest['shared_hud_layout']['screens']:
             for x,y in p2_cells:
