@@ -115,7 +115,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Draw multiplier hud.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Draw the earned multiplier at its generated HUD field destination.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -1300,21 +1300,22 @@ draw_multiplier_hud
         beq     dmh_three
         cmpa    #5
         beq     dmh_five
-        lda     #PRESENTATION_HUD_MULTIPLIER_X2_X
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)
         bra     dmh_position
 dmh_three
-        lda     #PRESENTATION_HUD_MULTIPLIER_X3_X
-        bra     dmh_position
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
+        bra     dmh_row_three_five
 dmh_five
-        lda     #PRESENTATION_HUD_MULTIPLIER_X5_X
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
+dmh_row_three_five
+        ; The builder verifies that X3 and X5 share this row.
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X3_Y*1280)
 dmh_position
-        sta     HUD_X
-        lda     #PRESENTATION_HUD_MULTIPLIER_X2_Y
-        sta     HUD_Y
+        std     HUD_X
         lda     HUD_X
         lsla
         lsla
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)
         leay    a,y
         lda     #TEXT_MULTIPLIER
         sta     HUD_COLOR

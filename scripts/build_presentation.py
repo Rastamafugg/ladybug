@@ -163,10 +163,24 @@ ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
 HIGH_SCORE_LAYOUT_LAYER = "High Score Data Layout"
 HIGH_SCORE_LAYOUT_SLOTS = tuple(f"RANK_{index:02d}" for index in range(1, 10))
 HUD_LAYOUT_LAYER = "HUD Field Definitions"
-HUD_LAYOUT_SCREENS = (
-    "gameplay", "instructions", "level-start", "game-over",
-    "enter-high-score", "extra", "special",
-)
+HUD_LAYOUT_SCREEN_SOURCES = {
+    "gameplay": ("coco-template.tmx", "HUD Placeholders"),
+    "instructions": ("coco-instructions-screen.tmx", "CoCo Side HUD"),
+    "level-start": ("coco-level-start-screen.tmx", "CoCo Side HUD"),
+    "game-over": ("coco-game-over-screen.tmx", "CoCo Side HUD"),
+    "enter-high-score": ("coco-enter-high-score-screen.tmx", "CoCo Side HUD"),
+    "extra": ("coco-extra-screen.tmx", "CoCo Side HUD"),
+    "special": ("coco-special-screen.tmx", "CoCo Side HUD"),
+}
+HUD_LAYOUT_COLOUR_FIELDS = {
+    "PART_LABEL": "part",
+    "PART_VALUE": "part",
+    "P1_SCORE": "score",
+    "P2_SCORE": "inactive_player",
+    "TOP_SCORE": "high_score",
+    "VEGETABLE_EQUALS": "bonus",
+    "VEGETABLE_VALUE": "bonus",
+}
 HUD_LAYOUT_FIELDS = {
     "PART_LABEL": (4, 1), "PART_VALUE": (3, 1),
     "P1_LABEL": (3, 1), "P1_SCORE": (6, 1),
@@ -872,6 +886,18 @@ def presentation_pen_map(
         hud_layout: dict[str, dict[str, object]] | None = None,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
+    if source_layer == "CoCo Side HUD" and hud_layout is not None:
+        for field_name, colour_name in HUD_LAYOUT_COLOUR_FIELDS.items():
+            field = hud_layout[field_name]
+            field_x, field_y = (int(value) for value in field["cell"])
+            width, height = (int(value) for value in field["size"])
+            if field_x <= x < field_x + width and field_y <= y < field_y + height:
+                colour = (
+                    GREY if colour_name == "inactive_player"
+                    else int(colour_config["fields"][colour_name])
+                    if colour_config else WHITE
+                )
+                return (BLACK, colour, colour, colour)
     if role == "high-score" and source_layer in HIGH_SCORE_LOGO_CELL_LAYERS and colour_config:
         colour = high_score_logo_cell_colours(colour_config).get((x, y))
         if colour is not None:
@@ -984,6 +1010,7 @@ def compile_map(
     highscore_test_profile: bool = False,
     allow_phase_overlay: bool = False,
     colour_config: dict[str, object] | None = None,
+    hud_layout: dict[str, dict[str, object]] | None = None,
 ) -> tuple[list[int] | bytes, dict[str, object]]:
     root, flattened, sources = flatten_map(path)
     role = screen_role(root, path)
@@ -1024,7 +1051,7 @@ def compile_map(
                 tile, presentation_pen_map(
                     role, x, y, sources[index],
                     raw_char_code(root, path, gid), highscore_test_profile,
-                    colour_config,
+                    colour_config, hud_layout,
                 )
             ))
         tile_id = tile_ids.setdefault(packed, len(tiles))
@@ -1105,7 +1132,45 @@ def parse_hud_layout(path: Path) -> dict[str, dict[str, object]]:
     missing = set(HUD_LAYOUT_FIELDS) - set(fields)
     if missing:
         raise ValueError(f"{path}: missing HUD fields {sorted(missing)}")
+    if (int(fields["MULTIPLIER_X3"]["cell"][1])
+            != int(fields["MULTIPLIER_X5"]["cell"][1])):
+        raise ValueError(
+            f"{path}: MULTIPLIER_X3 and MULTIPLIER_X5 must share a renderer row"
+        )
     return fields
+
+
+def parse_hud_screen_layouts(
+    tiled_dir: Path, fields: dict[str, dict[str, object]],
+) -> dict[str, dict[str, object]]:
+    """Bind each authored shared-HUD layer to the template's field geometry."""
+    layouts: dict[str, dict[str, object]] = {}
+    template_cells: list[int] | None = None
+    for screen, (filename, layer_name) in HUD_LAYOUT_SCREEN_SOURCES.items():
+        path = tiled_dir / filename
+        root = ET.parse(path).getroot()
+        if (int(root.get("width", "0")), int(root.get("height", "0")),
+                int(root.get("tilewidth", "0")), int(root.get("tileheight", "0"))) != (40, 24, 8, 8):
+            raise ValueError(f"{path}: shared HUD layout requires a 40x24 8-pixel grid")
+        layers = [layer for layer in root.findall("layer")
+                  if layer.get("name") == layer_name]
+        if len(layers) != 1:
+            raise ValueError(f"{path}: expected one {layer_name!r} layout layer")
+        cells = parse_csv(layers[0].find("data"), layer_name)
+        if len(cells) != MAP_BYTES:
+            raise ValueError(f"{path}: {layer_name} has {len(cells)} cells, expected {MAP_BYTES}")
+        if screen == "gameplay":
+            template_cells = cells
+        elif cells != template_cells:
+            raise ValueError(f"{path}: {layer_name} differs from the shared template placeholders")
+        layouts[screen] = {
+            "source_map": filename,
+            "source_layer": layer_name,
+            "field_count": len(fields),
+            "placeholder_cell_count": len(cells),
+            "fields": fields,
+        }
+    return layouts
 
 
 def parse_high_score_layout(
@@ -1831,6 +1896,7 @@ def compile_profile_maps(
     tile_ids: dict[bytes, int], development_profile: bool,
     highscore_test_profile: bool = False, complete_profile: bool = False,
     colour_config: dict[str, object] | None = None,
+    hud_layout: dict[str, dict[str, object]] | None = None,
 ) -> tuple[list[bytes], list[dict[str, object]]]:
     """Validate every map while omitting maps unreachable in the selected profile."""
     maps: list[bytes | None] = []
@@ -1848,7 +1914,7 @@ def compile_profile_maps(
             isolated_ids: dict[bytes, int] = {}
             authored, info = compile_map(
                 path, chars, isolated_tiles, isolated_ids,
-                colour_config=colour_config,
+                colour_config=colour_config, hud_layout=hud_layout,
             )
             authored_frame = title_framebuffer(authored, isolated_tiles)
             maps.append(None)
@@ -1863,6 +1929,7 @@ def compile_profile_maps(
                 highscore_test_profile,
                 complete_profile,
                 colour_config,
+                hud_layout,
             )
             authored_frame = title_framebuffer(authored, tiles)
             maps.append(authored)
@@ -2225,6 +2292,7 @@ def main() -> None:
     colour_config = load_text_colours(args.text_colours)
     hud_layout = parse_hud_layout(args.tiled_dir / "coco-template.tmx")
     args.hud_layout = hud_layout
+    hud_screen_layouts = parse_hud_screen_layouts(args.tiled_dir, hud_layout)
     high_score_layout = parse_high_score_layout(
         args.tiled_dir / MAP_FILES["high-score"], colour_config
     )
@@ -2271,7 +2339,7 @@ def main() -> None:
     tile_ids: dict[bytes, int] = {}
     maps, map_info = compile_profile_maps(
         args.tiled_dir, chars, tiles, tile_ids, development_profile,
-        highscore_test_profile, complete_profile, colour_config,
+        highscore_test_profile, complete_profile, colour_config, hud_layout,
     )
     if development_profile:
         instruction = parse_instruction_contract(
@@ -2672,8 +2740,9 @@ def main() -> None:
             "source_template": "coco-template.tmx",
             "layer": HUD_LAYOUT_LAYER,
             "grid_pixels": [8, 8],
-            "screen_count": len(HUD_LAYOUT_SCREENS),
-            "screens": list(HUD_LAYOUT_SCREENS),
+            "screen_count": len(hud_screen_layouts),
+            "screens": list(hud_screen_layouts),
+            "layouts": hud_screen_layouts,
             "fields": hud_layout,
         },
         "raw_sprite_markers": {
