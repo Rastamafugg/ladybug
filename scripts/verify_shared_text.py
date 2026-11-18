@@ -211,15 +211,31 @@ def main():
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
     assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
     instruction_fields=shared['colour_configuration']['fields']
+    colour_config=p.load_text_colours(root/'assets/arcade/text-colours.json')
     hud_fields=manifest['shared_hud_layout']['fields']
-    expected_inactive={(int(hud_fields[name]['cell'][0])+1,
-                        int(hud_fields[name]['cell'][1]))
-                       for name in ('MULTIPLIER_X2','MULTIPLIER_X3','MULTIPLIER_X5')}
+    expected_inactive_cells=set();expected_inactive_digits=set()
+    for name in ('MULTIPLIER_X2','MULTIPLIER_X3','MULTIPLIER_X5'):
+        field=hud_fields[name]
+        field_x,field_y=(int(value) for value in field['cell'])
+        field_width,field_height=(int(value) for value in field['size'])
+        expected_inactive_cells.update((x,y)
+                                       for y in range(field_y,field_y+field_height)
+                                       for x in range(field_x,field_x+field_width))
+        expected_inactive_digits.update((field_x+field_width-1,y)
+                                        for y in range(field_y,field_y+field_height))
     inactive=[r for r in shared['coverage']
-              if r['screen']=='instructions' and (r['x'],r['y']) in expected_inactive]
-    assert {(r['x'],r['y']) for r in inactive}==expected_inactive and all(
+              if r['screen']=='instructions' and (r['x'],r['y']) in expected_inactive_digits]
+    assert {(r['x'],r['y']) for r in inactive}==expected_inactive_digits and all(
         r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
         'instruction multipliers must start inactive gray',inactive)
+    for x,y in expected_inactive_cells:
+        palette=p.presentation_pen_map(
+            'instructions',x,y,source_layer='Instructions Overlay',
+            colour_config=colour_config,hud_layout=hud_fields)
+        assert palette==(p.BLACK,instruction_fields['instruction_multiplier_inactive'],
+                         instruction_fields['instruction_multiplier_inactive'],
+                         instruction_fields['instruction_multiplier_inactive']),(
+            'both cells of each instruction multiplier must start inactive gray',x,y,palette)
     p2_cells=set()
     for field_name in ('P2_LABEL','P2_SCORE'):
         field=hud_fields[field_name]
@@ -264,7 +280,7 @@ def main():
             colour=shared['colour_configuration']['fields']['bonus']
         elif colour is None and name=='attract' and y==15:colour=9
         elif colour is None and name=='attract' and y==18:colour=2 if r['code']==1 else 6
-        elif colour is None and name=='instructions' and (x,y) in expected_inactive:colour=instruction_fields['instruction_multiplier_inactive']
+        elif colour is None and name=='instructions' and (x,y) in expected_inactive_digits:colour=instruction_fields['instruction_multiplier_inactive']
         elif colour is None and name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
         elif colour is None and name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
         if colour is not None:
@@ -275,7 +291,6 @@ def main():
     equals=[r for r in shared['coverage'] if r['screen']=='gameplay' and (r['x'],r['y'])==bonus_cell]
     assert len(equals)==1 and equals[0]['colour']==shared['colour_configuration']['fields']['bonus']
     chars=s.load_chars(root/'assets/arcade/chars.json');cases=[]
-    colour_config=p.load_text_colours(root/'assets/arcade/text-colours.json')
     high_score_layout=p.parse_high_score_layout(
         root/'tiled/coco-high-score-screen.tmx',colour_config)
     high_score_cells={(r['screen'],r['x'],r['y']):r for r in shared['coverage']}

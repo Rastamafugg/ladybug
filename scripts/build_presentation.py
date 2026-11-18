@@ -164,7 +164,7 @@ HIGH_SCORE_LAYOUT_LAYER = "High Score Data Layout"
 HIGH_SCORE_LAYOUT_SLOTS = tuple(f"RANK_{index:02d}" for index in range(1, 10))
 HUD_LAYOUT_LAYER = "HUD Field Definitions"
 HUD_LAYOUT_SCREEN_SOURCES = {
-    "gameplay": ("coco-template.tmx", "HUD Placeholders"),
+    "gameplay": ("coco-screen.tmx", "HUD Placeholders"),
     "instructions": ("coco-instructions-screen.tmx", "CoCo Side HUD"),
     "level-start": ("coco-level-start-screen.tmx", "CoCo Side HUD"),
     "game-over": ("coco-game-over-screen.tmx", "CoCo Side HUD"),
@@ -912,7 +912,12 @@ def presentation_pen_map(
             for field_name in ("MULTIPLIER_X2", "MULTIPLIER_X3", "MULTIPLIER_X5"):
                 field = hud_layout[field_name]
                 cell_x, cell_y = (int(value) for value in field["cell"])
-                inactive_cells.add((cell_x + 1, cell_y))
+                width, height = (int(value) for value in field["size"])
+                inactive_cells.update(
+                    (cell_x + dx, cell_y + dy)
+                    for dy in range(height)
+                    for dx in range(width)
+                )
         if (x, y) in inactive_cells:
             inactive = int(colour_config["fields"].get(
                 "instruction_multiplier_inactive", GREY
@@ -1138,9 +1143,21 @@ def parse_hud_layout(path: Path) -> dict[str, dict[str, object]]:
 def parse_hud_screen_layouts(
     tiled_dir: Path, fields: dict[str, dict[str, object]],
 ) -> dict[str, dict[str, object]]:
-    """Bind each authored shared-HUD layer to the template's field geometry."""
+    """Bind each consuming map layer to the template's fields and placeholders."""
     layouts: dict[str, dict[str, object]] = {}
-    template_cells: list[int] | None = None
+    template_path = tiled_dir / "coco-template.tmx"
+    template_root = ET.parse(template_path).getroot()
+    template_layers = [layer for layer in template_root.findall("layer")
+                       if layer.get("name") == "HUD Placeholders"]
+    if len(template_layers) != 1:
+        raise ValueError(f"{template_path}: expected one 'HUD Placeholders' layer")
+    template_cells = parse_csv(
+        template_layers[0].find("data"), "HUD Placeholders"
+    )
+    if len(template_cells) != MAP_BYTES:
+        raise ValueError(
+            f"{template_path}: HUD Placeholders has {len(template_cells)} cells, expected {MAP_BYTES}"
+        )
     for screen, (filename, layer_name) in HUD_LAYOUT_SCREEN_SOURCES.items():
         path = tiled_dir / filename
         root = ET.parse(path).getroot()
@@ -1154,9 +1171,7 @@ def parse_hud_screen_layouts(
         cells = parse_csv(layers[0].find("data"), layer_name)
         if len(cells) != MAP_BYTES:
             raise ValueError(f"{path}: {layer_name} has {len(cells)} cells, expected {MAP_BYTES}")
-        if screen == "gameplay":
-            template_cells = cells
-        elif cells != template_cells:
+        if cells != template_cells:
             raise ValueError(f"{path}: {layer_name} differs from the shared template placeholders")
         layouts[screen] = {
             "source_map": filename,
