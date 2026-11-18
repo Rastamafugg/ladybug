@@ -1,0 +1,60 @@
+{
+  "schema": "rsch018-current-source-audit-v1",
+  "recorded_date": "2026-11-17",
+  "purpose": "Read-only current-revision review of the proposed $02A0-$02BF HUD snapshot range; current source-phase audit supports it as a candidate, but no allocation decision was made.",
+  "source": {
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat012-visible-input-r5\\ladybug",
+    "revision": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "profile": "complete keyboard/adaptive, CPU 6809",
+    "source_file": "src/keybinding_runtime.s",
+    "source_file_sha256": "21212d6de6be6a03b61604483a678b68c5147d368ebe84523388ae731110c3f1",
+    "build_receipt": "build/source-build-receipt.json",
+    "build_receipt_sha256": "87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd",
+    "build_receipt_source_revision": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "retained_listing": "build/ladybug-keybinding-runtime.lst",
+    "retained_listing_sha256": "c28882f403baf6dc7c1043a2dbcac948ba20a61f0cf23ceff9b2482cb0b1ca5d"
+  },
+  "keybinding_indexed_store": {
+    "source_constants": {
+      "KB_BIND": "$0287",
+      "KB_ACTION_COUNT": 5
+    },
+    "source_check": "key_capture loads the shared selection index from $E0, compares it with KB_ACTION_COUNT, and branches to kc_reject when the value is 5 or greater before storing through B,X.",
+    "emitted_listing": "$BBDF loads $E0; $BBE1 compares #5; $BBE3 branches to kc_reject on unsigned >=5; $BBE5 loads the captured key; $BBE8 performs STA B,X.",
+    "bounded_destination": "Valid B values 0..4 write $0287..$028B. This emitted path cannot write $02A0..$02BF.",
+    "conclusion": "The earlier 2026-11-02 concern about this keybinding store reaching the proposed snapshot range does not apply to this current built revision."
+  },
+  "range_review": {
+    "literal_search": "Searched shipped src/ and scripts/ for literal $02A0..$02BF and exact endpoint forms. The only match is a comment in src/audio_runtime.s describing boot tables ending at $02BF; it is not a storage declaration.",
+    "mapping": "The current source initializes PAR0 to physical page $38. No separate PAR0 register reference was found after startup setup; the current documented runtime borrowers change PAR1..PAR5. PAR0 would therefore keep the candidate CPU range visible while PAR5 changes, subject to the existing mapping contract.",
+    "remaining": "The range remains unallocated. A future implementation must assign a runtime owner, clear the snapshot after boot-table retirement and before the first HUD read, and preserve PAR0=$38. This is a current-revision conclusion, not a guarantee for future source revisions or external probes."
+  },
+  "boot_phase_audit": {
+    "receipt_bound_generated_input": "build/ladybug-sparse-loader.inc",
+    "sha256": "4514f0873a069e42381d9db182c918f53e4d2ae24b0a046dfc1ae14c5b73c4bc",
+    "generated_sparse_copy_table": {
+      "address": "$0200",
+      "bytes": 96,
+      "inclusive_end": "$025F",
+      "candidate_overlap": false
+    },
+    "boot_copy_destinations": [
+      {"selector": "$FF", "range": "$06B0-$06B1", "purpose": "boot overflow proof"},
+      {"selector": "$FF", "range": "$06B2-$07FC", "purpose": "perimeter reset helper"},
+      {"selector": "$FF", "range": "$1900-$1DEB", "purpose": "presentation module"},
+      {"selector": "$23", "range": "$BF80-$BFFF", "purpose": "phase tile patches"},
+      {"selector": "$34", "ranges": ["$A3B0-$A46E", "$A8A0-$A8F6", "$BD44-$BFFB"], "purpose": "runtime helpers"},
+      {"selector": "$FE", "ranges": ["$A422-$ADFF", "$AE00-$AE0F", "$AE10-$B5FD", "$B5FE-$B8BD"], "purpose": "late presentation auxiliary page $24"},
+      {"selector": "$3B", "range": "$B720-$BEDB", "purpose": "Attract actor bundle"}
+    ],
+    "compressed_stream_destination_pages": ["$35", "$36", "$37", "$39", "$3A", "$3B", "$3D"],
+    "retirement": "The boot descriptor table retires at boot_streams_retired before runtime initialization.",
+    "result": "No receipt-bound generated boot copy range or compressed destination page overlaps candidate $02A0-$02BF. The source declarations at $0287-$029F, audio start at $02C0, bootstrap scratch at $02F0-$02FE, and protected stack window $1E00-$1FFF also do not overlap it."
+  },
+  "capacity_context": {
+    "presentation_module": "1260/1280 bytes; 20 bytes free, measured by the existing matching build receipt for this revision.",
+    "active_cycle_target": "27000 cycles, as recorded by RSCH-018; no timing measurement was made for a shared HUD design.",
+    "implementation_fit": "unknown; design review only."
+  },
+  "execution": "No build, test, emulator, runtime, source edit, or memory allocation was performed for this review."
+}

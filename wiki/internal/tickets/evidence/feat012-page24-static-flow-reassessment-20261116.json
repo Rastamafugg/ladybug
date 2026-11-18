@@ -1,0 +1,50 @@
+{
+  "date": "2026-11-16",
+  "assignment_state": "Assignment 5 approved; not Ready; one-shot not dispatched",
+  "approved_callback_order_fix": {
+    "applied_locally": true,
+    "committed": false,
+    "path": "scripts/verify_presentation_flow.py",
+    "working_sha256": "bebfa72348370d5d870192cfaa3c591e8b09714029166332257f9bdcdfe7700e",
+    "change": "Update four expected callback sequences to actor refresh before menu/paint or logo; state/repaint/timer assertions unchanged"
+  },
+  "qualification_attempts": [
+    {
+      "fixture": "retained complete/keyboard/adaptive/6809 presentation module",
+      "module_sha256": "3f695df8dcf8837dbaed7db65140a6504aed015cb3ff5aaac64d1fba08404df6",
+      "verifier_sha256": "14741595f94187d7d2d6c0cf30e89903e17566a777d023cd2561e0ebbc4253b2",
+      "elapsed_seconds": 0.2,
+      "exit_code": 1,
+      "result": "FAIL: Attract schedule queued repaint did not yield"
+    },
+    {
+      "fixture": "%TEMP%/ladybug-feat012-static-flow-r6/valid",
+      "verifier_sha256": "bebfa72348370d5d870192cfaa3c591e8b09714029166332257f9bdcdfe7700e",
+      "profile": "complete, keyboard, adaptive, 6809",
+      "retained_build_receipt_revision": "ae177ba5c74f0af43191aaa3baa0e60b0adf8657",
+      "elapsed_seconds": 0.17,
+      "exit_code": 1,
+      "result": "FAIL: demo completion does not enter high-score"
+    }
+  ],
+  "emitted_listing": {
+    "profile_flags": "COMPLETE_PROFILE=1; BUG011_DEVELOPMENT_PROFILE=1; INPUT_JOYSTICK=0; ADAPTIVE_RENDERING=1",
+    "demo_tick_address": "$1CD4",
+    "demo_death_done_address": "$1CE2",
+    "observed_route": "Active listing clears stage pending, sets demo High Score context, installs High Score helper, and calls start_screen with PRESENTATION_MAP_HIGH_SCORE"
+  },
+  "analysis": "The failed assertion scans textual source branches across assembler conditionals and expects two High Score transitions in each of two split regions. The complete-profile emitted listing shows its active demo-death route. The source-route requirement is not adjudicated by this qualification failure.",
+  "negative_control": "not run because the positive fixture still fails",
+  "one_shot_package": {
+    "r5_package_sha256": "497a848f99c2322564bca1f17f3f7114ee84b92671f1c1a5ac6476f87b63fc24",
+    "invoked": false,
+    "r6_package_frozen": false
+  },
+  "not_run": [
+    "new clean build",
+    "cold-start runtime card",
+    "XRoar launch",
+    "visible A/Return input"
+  ],
+  "next_decision": "Approve a narrow branch-aware correction for the demo-completion source assertion, preserving the required active High Score route and adding a negative route fixture. Then qualify both fixtures before freezing a new package identity."
+}

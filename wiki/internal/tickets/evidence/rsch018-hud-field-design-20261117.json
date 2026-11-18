@@ -1,0 +1,92 @@
+{
+  "schema": "rsch018-hud-field-design-v1",
+  "recorded_date": "2026-11-17",
+  "purpose": "Source-backed, read-only HUD field, template, and screen-ownership design for RSCH-018.",
+  "source": {
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat012-visible-input-r5\\ladybug",
+    "revision": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "worktree_clean": true,
+    "build_receipt": "build/source-build-receipt.json",
+    "build_receipt_sha256": "87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd",
+    "profile": "complete",
+    "rom_sha256": "9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d",
+    "retained_presentation_manifest_sha256": "82159a66c235acb365828b66b96957799741727e3de3911bc988a89a66986770",
+    "retained_sparse_loader_include_sha256": "4514f0873a069e42381d9db182c918f53e4d2ae24b0a046dfc1ae14c5b73c4bc"
+  },
+  "template_match": {
+    "template": "tiled/coco-template.tmx",
+    "template_layer": "HUD Placeholders",
+    "grid": "40x24 cells; 8x8 pixels per cell",
+    "cells_per_map": 960,
+    "nonblank_placeholder_cells": 162,
+    "comparison": "Compared tile GIDs cell-by-cell; zero differing cells in each listed map.",
+    "maps": [
+      {"file": "tiled/coco-screen.tmx", "layer": "HUD Placeholders", "different_cells": 0},
+      {"file": "tiled/coco-instructions-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0},
+      {"file": "tiled/coco-level-start-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0},
+      {"file": "tiled/coco-game-over-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0},
+      {"file": "tiled/coco-enter-high-score-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0},
+      {"file": "tiled/coco-extra-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0},
+      {"file": "tiled/coco-special-screen.tmx", "layer": "CoCo Side HUD", "different_cells": 0}
+    ],
+    "active_runtime_scope": ["attract", "instructions", "level-start", "high-score", "game-over", "enter-high-score", "options", "credits", "keybind-options"],
+    "legacy_map_note": "EXTRA and SPECIAL side-HUD maps are present as synchronized Tiled inputs but are not names in the current active presentation MAP_NAMES list."
+  },
+  "instruction_multiplier_initial_state": {
+    "cells": [[2, 7], [4, 7], [6, 7]],
+    "current_generated_palette_index": 3,
+    "current_config_key": "instruction_multiplier",
+    "current_output": "All three left-side multiplier indicators are blue before the first heart event.",
+    "requested_entry_state": "unset/inactive gray like EXTRA and SPECIAL, as recorded by FEAT-010 and reaffirmed by the user on 2026-11-17.",
+    "active_behavior_to_preserve": "After each matching heart event, light only the matching indicator and publish blue X2/X3/X5 values to both right-side point rows in the same committed update.",
+    "source_contracts": [
+      "wiki/internal/tickets/feat-010-attract-menu-free-start.html#feat010-final-integrated-manual-result-20261105",
+      "wiki/internal/tickets/bug-011-instruction-choreography.html",
+      "wiki/internal/tickets/bug-065-instruction-multiplier-number-colour.html"
+    ],
+    "status": "Design requirement only; no production change."
+  },
+  "object_layer_review": {
+    "template_object_layer_count": 0,
+    "template_reader_in_current_build_scripts": false,
+    "high_score_precedent": {
+      "file": "tiled/coco-high-score-screen.tmx",
+      "object_layer": "High Score Data Layout",
+      "object_count": 18,
+      "meaning": "Nine named name rectangles and nine named score rectangles, each 56x8 pixels.",
+      "consumer": "scripts/build_presentation.py parse_high_score_layout"
+    },
+    "enter_high_score": {
+      "file": "tiled/coco-enter-high-score-screen.tmx",
+      "current_object_layer_count": 0,
+      "current_layout_source": "Name-entry grid, name fields, score fields, and cursor destinations are partly encoded as constants in scripts/build_presentation.py.",
+      "recommendation": "Keep keypad, pending name, candidate row, and cursor geometry in a map-local layout extension; share semantic IDs only for fields that also exist in the common HUD."
+    },
+    "recommendation": "Add one HUD Field Definitions object layer to the shared template and extend the existing presentation builder to generate named descriptors and validate the seven matching map copies. Do not add a second tool or renderer."
+  },
+  "provider_and_rendering_design": {
+    "authoritative_owners": {
+      "gameplay": ["score", "reserve lives", "stage/part", "vegetable progress", "EXTRA/SPECIAL bits", "gameplay multiplier"],
+      "ranking": ["record names and scores", "pending high-score name", "candidate rank"]
+    },
+    "view": "Compact by-value fields with validity/state; no retained pointers into PAR5-mapped pages.",
+    "refresh": "Gameplay publishes after relevant state changes. Ranking publishes at game/Attract initialization and after a committed record change.",
+    "fallback": "On screen entry, clear validity and use authored neutral placeholders for unavailable fields; never reuse a prior screen value.",
+    "life_handoff": "Existing gameplay/event flow completes the moving award, commits one reserve-life increment, then requests a static marker-row redraw capped at 12 visible markers.",
+    "framebuffer": "Join the existing RF_HUD/RF_LIVES render-intent transaction; draw to selected BACK, preserve both persistent surfaces, and publish only through the existing completed-frame handoff."
+  },
+  "capacity_context": {
+    "presentation_module": {"measured_bytes": 1260, "limit_bytes": 1280, "free_bytes": 20, "source": "matching retained build receipt"},
+    "active_cycle_target_cycles": 27000,
+    "design_cycle_measurement": null,
+    "implementation_fit": "unknown"
+  },
+  "execution": {
+    "production_source_changed": false,
+    "tiled_map_changed": false,
+    "build_run": false,
+    "tests_run": false,
+    "emulator_or_game_launched": false,
+    "result": "Read-only design evidence only. Implementation requires a separate approved and Ready ticket."
+  }
+}

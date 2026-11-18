@@ -97,16 +97,13 @@ def main():
     request = load(sys.argv[1])
     output = Path(request["output"])
     xroar = None
-    delegated_sidecar = False
     result = {"schema": 1, "classification": "harness_failure", "game_acceptance": "not_claimed"}
     start = time.monotonic()
     try:
         scenario = load(request["scenario"])
         if scenario.get("mode") == "attract-manual-down":
-            delegated_sidecar = True
             return run_menu(request, scenario, output, start)
         if scenario.get("mode") == "attract-actor-ab":
-            delegated_sidecar = True
             return run_actor(request, scenario, output, start)
         path, build, address, expected = plan(request["description"], scenario)
         if build["build_result"]["classification"] != "passed":
@@ -165,8 +162,7 @@ def main():
                 result.update(classification="cleanup_failure", reason="XRoar did not exit after KILL")
             result["emulator_exited"] = xroar.poll() is not None
         result["elapsed_seconds"] = round(time.monotonic() - start, 4)
-        if not delegated_sidecar:
-            save_new(output / "observation.json", result)
+        save_new(output / "observation.json", result)
     return 0 if result["classification"] == "observed" else 1
 
 
@@ -628,7 +624,7 @@ class ActorCapture:
         pages = self.read(0xFFA0, 5)
         if (pages[0] & 63) != marker["expected_pages"]["0"]:
             raise HarnessError("marker_page_mismatch")
-        return pages, actual
+        return pages
 
     def actor_crops(self):
         crops = []
@@ -656,7 +652,7 @@ class ActorCapture:
             self.terminal = {"classification": "incomplete", "reason": "callback_cap", "coverage_complete": False}
             return
         if pc == self.context["phase_pc"]:
-            pages, marker_bytes = self.marker_pages(pc, self.context["phase_marker"], {
+            pages = self.marker_pages(pc, self.context["phase_marker"], {
                 "address": self.context["phase_pc"], "bytes": self.context["phase_bytes"]})
             state = self.state()
             if (state["mode"] == 2 and state["screen"] == 0 and
@@ -664,12 +660,11 @@ class ActorCapture:
                     state["actor_phase"] == 0 and state["timer_phase"] == 1):
                 self.phase_change = {"timer": state["timer"], "from_phase": 0,
                                      "to_phase": 1, "front": state["front"],
-                                     "back": state["back"], "par0": pages[0] & 63,
-                                     "marker_bytes_hex": marker_bytes.hex()}
+                                     "back": state["back"], "par0": pages[0] & 63}
             return
         if pc != self.context["post_pc"]:
             raise HarnessError("unexpected_stopped_pc")
-        pages, marker_bytes = self.marker_pages(pc, self.context["post_marker"], {
+        pages = self.marker_pages(pc, self.context["post_marker"], {
             "address": self.context["post_pc"], "bytes": self.context["post_bytes"]})
         state = self.state()
         if self.last_commit is None:
@@ -697,7 +692,7 @@ class ActorCapture:
         sample = dict(timer=state["timer"], timer_phase=state["timer_phase"],
                       actor_phase=state["actor_phase"], front=state["front"], back=state["back"],
                       pending=state["pending"], commit=state["commit"],
-                      marker_bytes_hex=marker_bytes.hex(), raw_pars=pages.hex(), actors=crops)
+                      raw_pars=pages.hex(), actors=crops)
         sample["timer_phase_match"] = state["timer_phase"] == state["actor_phase"]
         self.samples.append(sample)
         self.owners.add(state["front"])

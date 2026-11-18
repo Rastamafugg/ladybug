@@ -1,0 +1,425 @@
+                      (er_reset_helper.s):00001         ; PERF-004 low-RAM gateway for the generated perimeter-reset program.
+                      (er_reset_helper.s):00002         ; The boot-synthesized payload occupies physical page $20 and returns here before PAR5 is
+                      (er_reset_helper.s):00003         ; restored to the game-state page.  This code must remain within $06B2-$07FF.
+                      (er_reset_helper.s):00004         ; DOC-002 source-contract mirror begins. Canonical definitions:
+                      (er_reset_helper.s):00005         ; wiki/internal/implementation/routine-catalog.html
+                      (er_reset_helper.s):00006         ; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+                      (er_reset_helper.s):00007         ; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+                      (er_reset_helper.s):00008         ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (er_reset_helper.s):00009         ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+                      (er_reset_helper.s):00010         ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+                      (er_reset_helper.s):00011         ; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+                      (er_reset_helper.s):00012         ; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
+                      (er_reset_helper.s):00013         ; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+                      (er_reset_helper.s):00014         ; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+                      (er_reset_helper.s):00015         ; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (er_reset_helper.s):00016         ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+                      (er_reset_helper.s):00017         ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+                      (er_reset_helper.s):00018         ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+                      (er_reset_helper.s):00019         ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
+                      (er_reset_helper.s):00020         ; DOC-002 source-contract mirror profile root Inputs: Entry-specific machine state and the shared direct-page protocol named by the routine purpose
+                      (er_reset_helper.s):00021         ; DOC-002 source-contract mirror profile root Outputs: Control transfers or status values defined by the routine purpose
+                      (er_reset_helper.s):00022         ; DOC-002 source-contract mirror profile root Clobbers: A, B, D, X, Y, U, and condition codes unless the caller-facing entry contract states otherwise
+                      (er_reset_helper.s):00023         ; DOC-002 source-contract mirror profile root Reads: Always-mapped direct-page protocol state plus the module-owned state required by the selected operation
+                      (er_reset_helper.s):00024         ; DOC-002 source-contract mirror profile root Writes: Module-owned state and mapped hardware registers required to establish or dispatch the operation
+                      (er_reset_helper.s):00025         ; DOC-002 source-contract mirror profile root Side effects: May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose
+                      (er_reset_helper.s):00026         ; DOC-002 source-contract mirror profile root Invariants: The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return
+                      (er_reset_helper.s):00027         ; DOC-002 source-contract mirror contract PERIMETER_RESET_HELPER profile=root: Map and invoke the synthesized perimeter reset payload, then restore PAR5.
+                      (er_reset_helper.s):00028         ; DOC-002 source-contract mirror contract hold_copy_chunk profile=copy: Copy one bounded chunk while constructing or restoring a held presentation surface.
+                      (er_reset_helper.s):00029         ; DOC-002 source-contract mirror contract presentation_attract_phase profile=presentation: Advance the helper-owned attract overlay phase.
+                      (er_reset_helper.s):00030         ; DOC-002 source-contract mirror ends.
+                      (er_reset_helper.s):00031         
+                      (er_reset_helper.s):00032                 pragma  nodollarlocal,6809
+     00               (er_reset_helper.s):00033                 setdp   $00
+                      (er_reset_helper.s):00034                 include "ladybug_presentation_symbols.inc"
+     D5A7             (ation_symbols.inc):00001         PRES_MAIN_BLIT_TILE equ $D5A7
+     CD0E             (ation_symbols.inc):00002         PRES_MAIN_CAN_MOVE equ $CD0E
+     D2E1             (ation_symbols.inc):00003         PRES_MAIN_DEATH equ $D2E1
+     FC7E             (ation_symbols.inc):00004         PRES_MAIN_DYNAMIC_TEXT equ $FC7E
+     D4DF             (ation_symbols.inc):00005         PRES_MAIN_ENEMY equ $D4DF
+     D4E2             (ation_symbols.inc):00006         PRES_MAIN_ENEMY_TICK equ $D4E2
+     C5AA             (ation_symbols.inc):00007         PRES_MAIN_ENTITIES equ $C5AA
+     CA86             (ation_symbols.inc):00008         PRES_MAIN_GATES equ $CA86
+     C23C             (ation_symbols.inc):00009         PRES_MAIN_INIT equ $C23C
+     DEE9             (ation_symbols.inc):00010         PRES_MAIN_INSTALL_PHASE_TILES equ $DEE9
+     DF1E             (ation_symbols.inc):00011         PRES_MAIN_KEY_SERVICE equ $DF1E
+     F5C8             (ation_symbols.inc):00012         PRES_MAIN_MAP_STREAM_OFFSETS equ $F5C8
+     C597             (ation_symbols.inc):00013         PRES_MAIN_MAZE equ $C597
+     DF31             (ation_symbols.inc):00014         PRES_MAIN_NAME_LATE_TURN equ $DF31
+     C296             (ation_symbols.inc):00015         PRES_MAIN_NEXT_STAGE equ $C296
+     DF15             (ation_symbols.inc):00016         PRES_MAIN_PAGE24_RESUME equ $DF15
+     CAC6             (ation_symbols.inc):00017         PRES_MAIN_PLAYER equ $CAC6
+     CB65             (ation_symbols.inc):00018         PRES_MAIN_PLAYER_TICK equ $CB65
+     CAE3             (ation_symbols.inc):00019         PRES_MAIN_READ_JOY equ $CAE3
+     DF02             (ation_symbols.inc):00020         PRES_MAIN_READ_STAGE_LETTERS equ $DF02
+     D4B5             (ation_symbols.inc):00021         PRES_MAIN_RENDER equ $D4B5
+     D561             (ation_symbols.inc):00022         PRES_MAIN_RESTORE_PLAYER equ $D561
+     D538             (ation_symbols.inc):00023         PRES_MAIN_SAVE_PLAYER equ $D538
+     F5E6             (ation_symbols.inc):00024         PRES_MAIN_SCAN_BITS equ $F5E6
+     F5E3             (ation_symbols.inc):00025         PRES_MAIN_SCAN_DRIVES equ $F5E3
+     F5DA             (ation_symbols.inc):00026         PRES_MAIN_SCREEN_MODES equ $F5DA
+     FBBC             (ation_symbols.inc):00027         PRES_MAIN_SHARED_MASK equ $FBBC
+     FBA3             (ation_symbols.inc):00028         PRES_MAIN_STATIC_TEXT equ $FBA3
+     FCAF             (ation_symbols.inc):00029         PRES_MAIN_TOP_HUD equ $FCAF
+     0E5A             (ation_symbols.inc):00030         PRES_MAIN_FB_CAPTURE equ $0E5A
+     0E49             (ation_symbols.inc):00031         PRES_MAIN_FB_FINISH equ $0E49
+     0DDF             (ation_symbols.inc):00032         PRES_MAIN_FB_PREPARE equ $0DDF
+     0E4F             (ation_symbols.inc):00033         PRES_MAIN_FB_PUBLISH equ $0E4F
+     1B7E             (ation_symbols.inc):00034         PRES_MODULE_COLD_PTR equ $1B7E
+     1D4A             (ation_symbols.inc):00035         PRES_MODULE_COLOUR_SURFACE equ $1D4A
+     1D24             (ation_symbols.inc):00036         PRES_MODULE_COLOUR_TILE equ $1D24
+     1D07             (ation_symbols.inc):00037         PRES_MODULE_DRAW_ACTOR equ $1D07
+     1B77             (ation_symbols.inc):00038         PRES_MODULE_DRAW_RAW_TILE equ $1B77
+     1D8A             (ation_symbols.inc):00039         PRES_MODULE_DRAW_SCORE equ $1D8A
+     FC7E             (ation_symbols.inc):00040         PRES_MODULE_DRAW_TILE equ $FC7E
+     1BA3             (ation_symbols.inc):00041         PRES_MODULE_MAP_BACK equ $1BA3
+     19C8             (ation_symbols.inc):00042         PRES_MODULE_START_SCREEN equ $19C8
+     0561             (ation_symbols.inc):00043         PRES_RANKING_SLICE equ $0561
+     037C             (ation_symbols.inc):00044         PRES_HIGHSCORE_FB_PREPARE equ $037C
+     05E5             (ation_symbols.inc):00045         PRES_HIGHSCORE_FB_FINISH equ $05E5
+                      (er_reset_helper.s):00035         
+                      (er_reset_helper.s):00036                 org     $06B2
+                      (er_reset_helper.s):00037         
+06B2                  (er_reset_helper.s):00038         PERIMETER_RESET_HELPER
+06B2 3401             (er_reset_helper.s):00039                 pshs    cc
+06B4 1A50             (er_reset_helper.s):00040                 orcc    #$50
+06B6 8620             (er_reset_helper.s):00041                 lda     #$20
+06B8 B7FFA5           (er_reset_helper.s):00042                 sta     $FFA5
+06BB BDA000           (er_reset_helper.s):00043                 jsr     $A000
+06BE 8634             (er_reset_helper.s):00044                 lda     #$34
+06C0 B7FFA5           (er_reset_helper.s):00045                 sta     $FFA5
+06C3 3581             (er_reset_helper.s):00046                 puls    cc,pc
+                      (er_reset_helper.s):00047         
+06C5                  (er_reset_helper.s):00048         PERIMETER_RESET_HELPER_END
+                      (er_reset_helper.s):00049         
+                      (er_reset_helper.s):00050         ; Fixed BUG-010 helper ABI. These jumps remain at fixed addresses so the copied
+                      (er_reset_helper.s):00051         ; presentation module does not need a relocation table.
+06C5                  (er_reset_helper.s):00052         PRESENTATION_HOLD_BEGIN
+06C5 2005             (er_reset_helper.s):00053                 bra     presentation_hold_begin_impl
+06C7                  (er_reset_helper.s):00054         PRESENTATION_HOLD_TICK
+06C7 2012             (er_reset_helper.s):00055                 bra     presentation_hold_tick_impl
+06C9                  (er_reset_helper.s):00056         PRESENTATION_ATTRACT_OVERLAY
+06C9 1600AE           (er_reset_helper.s):00057                 lbra    presentation_attract_overlay_impl
+                      (er_reset_helper.s):00058         
+     FFA1             (er_reset_helper.s):00059         PAR1    equ $FFA1
+     FFA2             (er_reset_helper.s):00060         PAR2    equ $FFA2
+     FFA3             (er_reset_helper.s):00061         PAR3    equ $FFA3
+     FFA4             (er_reset_helper.s):00062         PAR4    equ $FFA4
+     FFA5             (er_reset_helper.s):00063         PAR5    equ $FFA5
+     008F             (er_reset_helper.s):00064         FB_FRONT_ID equ $008F
+     0090             (er_reset_helper.s):00065         FB_BACK_ID equ $0090
+     0091             (er_reset_helper.s):00066         PENDING equ $0091
+     00B0             (er_reset_helper.s):00067         PRES_TIMER equ $00B0
+     00D3             (er_reset_helper.s):00068         PRES_ACTOR_PHASE equ $00D3
+                      (er_reset_helper.s):00069         ; Presentation-only count: two BACK pages need the new actor phase.
+                      (er_reset_helper.s):00070         ; $D2 is unused presentation scratch here and is instruction-runtime state
+                      (er_reset_helper.s):00071         ; only while the mutually exclusive instructions mode owns the flow.
+     00D2             (er_reset_helper.s):00072         PRES_ACTOR_REFRESHES equ $00D2
+     00D4             (er_reset_helper.s):00073         PRES_HOLD_STATE equ $00D4
+     00D5             (er_reset_helper.s):00074         PRES_HOLD_CHUNK equ $00D5
+     00D6             (er_reset_helper.s):00075         PRES_HOLD_SAVED_FRONT equ $00D6
+     00D7             (er_reset_helper.s):00076         PRES_HOLD_SAVED_BACK equ $00D7
+     00D8             (er_reset_helper.s):00077         PRES_HOLD_GEN equ $00D8
+     00D9             (er_reset_helper.s):00078         PRES_HOLD_OWNER equ $00D9
+     0080             (er_reset_helper.s):00079         PRES_HOLD_COPY equ $80
+     0081             (er_reset_helper.s):00080         PRES_HOLD_PUBLISH equ $81
+     0003             (er_reset_helper.s):00081         PRES_HOLD_HYDRATE equ 3
+     0081             (er_reset_helper.s):00082         PRES_HOLD_FINAL equ $81
+     00AE             (er_reset_helper.s):00083         PRES_DST equ $00AE
+     00B9             (er_reset_helper.s):00084         PRES_REMAIN equ $00B9
+     00D0             (er_reset_helper.s):00085         PRES_ACTOR_KIND equ $00D0
+     0E5A             (er_reset_helper.s):00086         PRESENTATION_MODULE_CAPTURE_BACK equ PRES_MAIN_FB_CAPTURE
+     1BA3             (er_reset_helper.s):00087         PRESENTATION_MODULE_MAP_BACK equ PRES_MODULE_MAP_BACK
+                      (er_reset_helper.s):00088         
+06CC                  (er_reset_helper.s):00089         presentation_hold_begin_impl
+06CC 0DD4             (er_reset_helper.s):00090                 tst     PRES_HOLD_STATE
+06CE 260A             (er_reset_helper.s):00091                 bne     phb_done
+06D0 0FD8             (er_reset_helper.s):00092                 clr     PRES_HOLD_GEN
+06D2 8680             (er_reset_helper.s):00093                 lda     #PRES_HOLD_COPY
+06D4 97D4             (er_reset_helper.s):00094                 sta     PRES_HOLD_STATE
+06D6 0FD5             (er_reset_helper.s):00095                 clr     PRES_HOLD_CHUNK
+06D8 0FD9             (er_reset_helper.s):00096                 clr     PRES_HOLD_OWNER
+06DA                  (er_reset_helper.s):00097         phb_done
+06DA 39               (er_reset_helper.s):00098                 rts
+                      (er_reset_helper.s):00099         
+06DB                  (er_reset_helper.s):00100         presentation_hold_tick_impl
+06DB 96D4             (er_reset_helper.s):00101                 lda     PRES_HOLD_STATE
+06DD 8181             (er_reset_helper.s):00102                 cmpa    #PRES_HOLD_PUBLISH
+06DF 273A             (er_reset_helper.s):00103                 beq     pht_publish
+06E1                  (er_reset_helper.s):00104         pht_copy
+06E1 0D91             (er_reset_helper.s):00105                 tst     PENDING
+06E3 2635             (er_reset_helper.s):00106                 bne     pht_active
+06E5 96D8             (er_reset_helper.s):00107                 lda     PRES_HOLD_GEN
+06E7 811E             (er_reset_helper.s):00108                 cmpa    #30
+06E9 2422             (er_reset_helper.s):00109                 bhs     pht_request
+06EB 4D               (er_reset_helper.s):00110                 tsta
+06EC 2608             (er_reset_helper.s):00111                 bne     pht_copy_do
+06EE 0DD9             (er_reset_helper.s):00112                 tst     PRES_HOLD_OWNER
+06F0 2604             (er_reset_helper.s):00113                 bne     pht_copy_do
+06F2 DC8F             (er_reset_helper.s):00114                 ldd     FB_FRONT_ID
+06F4 DDD6             (er_reset_helper.s):00115                 std     PRES_HOLD_SAVED_FRONT
+06F6                  (er_reset_helper.s):00116         pht_copy_do
+06F6 170046           (er_reset_helper.s):00117                 lbsr    hold_copy_chunk
+06F9 0CD8             (er_reset_helper.s):00118                 inc     PRES_HOLD_GEN
+06FB 0CD5             (er_reset_helper.s):00119                 inc     PRES_HOLD_CHUNK
+06FD 96D5             (er_reset_helper.s):00120                 lda     PRES_HOLD_CHUNK
+06FF 8108             (er_reset_helper.s):00121                 cmpa    #8
+0701 2517             (er_reset_helper.s):00122                 blo     pht_active
+0703 0FD5             (er_reset_helper.s):00123                 clr     PRES_HOLD_CHUNK
+0705 0CD9             (er_reset_helper.s):00124                 inc     PRES_HOLD_OWNER
+0707 96D8             (er_reset_helper.s):00125                 lda     PRES_HOLD_GEN
+0709 811E             (er_reset_helper.s):00126                 cmpa    #30
+070B 250D             (er_reset_helper.s):00127                 blo     pht_active
+070D                  (er_reset_helper.s):00128         pht_request
+070D 1A10             (er_reset_helper.s):00129                 orcc    #$10
+070F CC0201           (er_reset_helper.s):00130                 ldd     #$0201
+0712 DD90             (er_reset_helper.s):00131                 std     FB_BACK_ID
+0714 0CD4             (er_reset_helper.s):00132                 inc     PRES_HOLD_STATE
+0716 96D4             (er_reset_helper.s):00133                 lda     PRES_HOLD_STATE
+0718 1CEF             (er_reset_helper.s):00134                 andcc   #$EF
+071A                  (er_reset_helper.s):00135         pht_active
+071A 39               (er_reset_helper.s):00136                 rts
+071B                  (er_reset_helper.s):00137         pht_publish
+071B 0AD9             (er_reset_helper.s):00138                 dec     PRES_HOLD_OWNER
+071D 2713             (er_reset_helper.s):00139                 beq     pht_cancel_final
+071F 0D91             (er_reset_helper.s):00140                 tst     PENDING
+0721 26F7             (er_reset_helper.s):00141                 bne     pht_active
+0723 1A10             (er_reset_helper.s):00142                 orcc    #$10
+                      (er_reset_helper.s):00143                 ; The two saved IDs and the live IDs are adjacent byte pairs.
+0725 DCD6             (er_reset_helper.s):00144                 ldd     PRES_HOLD_SAVED_FRONT
+0727 DD8F             (er_reset_helper.s):00145                 std     FB_FRONT_ID
+0729 0FD9             (er_reset_helper.s):00146                 clr     PRES_HOLD_OWNER
+072B 8603             (er_reset_helper.s):00147                 lda     #PRES_HOLD_HYDRATE
+072D 97D4             (er_reset_helper.s):00148                 sta     PRES_HOLD_STATE
+072F 1CEF             (er_reset_helper.s):00149                 andcc   #$EF
+0731 39               (er_reset_helper.s):00150                 rts
+0732                  (er_reset_helper.s):00151         pht_cancel_final
+0732 1A10             (er_reset_helper.s):00152                 orcc    #$10
+0734 0F91             (er_reset_helper.s):00153                 clr     PENDING
+0736 0FD9             (er_reset_helper.s):00154                 clr     PRES_HOLD_OWNER
+                      (er_reset_helper.s):00155                 ; Dispatcher branches on Z: retain presentation ownership on return.
+0738 8603             (er_reset_helper.s):00156                 lda     #PRES_HOLD_HYDRATE
+073A 97D4             (er_reset_helper.s):00157                 sta     PRES_HOLD_STATE
+073C 1CEF             (er_reset_helper.s):00158                 andcc   #$EF
+073E 39               (er_reset_helper.s):00159                 rts
+                      (er_reset_helper.s):00160         ; Copy one 1 KiB visible chunk. The source page is selected through PAR1 and the
+                      (er_reset_helper.s):00161         ; corresponding compatibility page through PAR5. The normal BACK mapping is restored
+                      (er_reset_helper.s):00162         ; before returning to the presentation module.
+073F                  (er_reset_helper.s):00163         hold_copy_chunk
+073F 96D5             (er_reset_helper.s):00164                 lda     PRES_HOLD_CHUNK
+0741 48               (er_reset_helper.s):00165                 lsla
+0742 48               (er_reset_helper.s):00166                 lsla
+0743 5F               (er_reset_helper.s):00167                 clrb
+0744 1F02             (er_reset_helper.s):00168                 tfr     d,y
+0746 D6D9             (er_reset_helper.s):00169                 ldb     PRES_HOLD_OWNER
+0748 8E07F5           (er_reset_helper.s):00170                 ldx     #hold_source_pages
+074B A685             (er_reset_helper.s):00171                 lda     b,x
+074D 0DD6             (er_reset_helper.s):00172                 tst     PRES_HOLD_SAVED_FRONT
+074F 2602             (er_reset_helper.s):00173                 bne     hold_source_page
+0751 8B04             (er_reset_helper.s):00174                 adda    #4
+0753                  (er_reset_helper.s):00175         hold_source_page
+0753 B7FFA1           (er_reset_helper.s):00176                 sta     PAR1
+0756 8E07F9           (er_reset_helper.s):00177                 ldx     #hold_destination_pages
+0759 A685             (er_reset_helper.s):00178                 lda     b,x
+075B B7FFA5           (er_reset_helper.s):00179                 sta     PAR5
+075E 8E2000           (er_reset_helper.s):00180                 ldx     #$2000
+0761 1F20             (er_reset_helper.s):00181                 tfr     y,d
+0763 308B             (er_reset_helper.s):00182                 leax    d,x
+0765 CEA000           (er_reset_helper.s):00183                 ldu     #$A000
+0768 33CB             (er_reset_helper.s):00184                 leau    d,u
+076A 108E0200         (er_reset_helper.s):00185                 ldy     #512
+076E                  (er_reset_helper.s):00186         hold_copy_word
+076E EC81             (er_reset_helper.s):00187                 ldd     ,x++
+0770 EDC1             (er_reset_helper.s):00188                 std     ,u++
+0772 313F             (er_reset_helper.s):00189                 leay    -1,y
+0774 26F8             (er_reset_helper.s):00190                 bne     hold_copy_word
+0776 BD1BA3           (er_reset_helper.s):00191                 jsr     PRESENTATION_MODULE_MAP_BACK
+0779 39               (er_reset_helper.s):00192                 rts
+                      (er_reset_helper.s):00193         
+077A                  (er_reset_helper.s):00194         presentation_attract_overlay_impl
+077A 170067           (er_reset_helper.s):00195                 lbsr    presentation_attract_phase
+077D 91D3             (er_reset_helper.s):00196                 cmpa    PRES_ACTOR_PHASE
+077F 2706             (er_reset_helper.s):00197                 beq     pao_refresh_check
+0781                  (er_reset_helper.s):00198         pao_phase_change
+0781 97D3             (er_reset_helper.s):00199                 sta     PRES_ACTOR_PHASE
+0783 8602             (er_reset_helper.s):00200                 lda     #2
+0785 97D2             (er_reset_helper.s):00201                 sta     PRES_ACTOR_REFRESHES
+0787                  (er_reset_helper.s):00202         pao_refresh_check
+0787 0DD2             (er_reset_helper.s):00203                 tst     PRES_ACTOR_REFRESHES
+0789 2755             (er_reset_helper.s):00204                 beq     pao_done
+078B 0D91             (er_reset_helper.s):00205                 tst     PENDING
+078D 2651             (er_reset_helper.s):00206                 bne     pao_done
+078F BD0DDF           (er_reset_helper.s):00207                 jsr     PRES_MAIN_FB_PREPARE
+0792 254C             (er_reset_helper.s):00208                 bcs     pao_done
+0794 863C             (er_reset_helper.s):00209                 lda     #$3C
+0796 B7FFA5           (er_reset_helper.s):00210                 sta     PAR5
+0799 96D3             (er_reset_helper.s):00211                 lda     PRES_ACTOR_PHASE
+079B 8103             (er_reset_helper.s):00212                 cmpa    #3
+079D 2601             (er_reset_helper.s):00213                 bne     pao_phase_ready
+079F 44               (er_reset_helper.s):00214                 lsra
+07A0                  (er_reset_helper.s):00215         pao_phase_ready
+07A0 48               (er_reset_helper.s):00216                 lsla
+07A1 8EBE28           (er_reset_helper.s):00217                 ldx     #$BE28
+07A4 EE86             (er_reset_helper.s):00218                 ldu     a,x
+07A6 8EBE00           (er_reset_helper.s):00219                 ldx     #$BE00
+07A9 8608             (er_reset_helper.s):00220                 lda     #8              ; eight animated actor records
+07AB 97B9             (er_reset_helper.s):00221                 sta     PRES_REMAIN
+07AD                  (er_reset_helper.s):00222         pao_actor
+07AD 10AE81           (er_reset_helper.s):00223                 ldy     ,x++
+07B0 8610             (er_reset_helper.s):00224                 lda     #16
+07B2 97D0             (er_reset_helper.s):00225                 sta     PRES_ACTOR_KIND
+07B4                  (er_reset_helper.s):00226         pao_row
+07B4 ECC1             (er_reset_helper.s):00227                 ldd     ,u++
+07B6 EDA1             (er_reset_helper.s):00228                 std     ,y++
+07B8 ECC1             (er_reset_helper.s):00229                 ldd     ,u++
+07BA EDA1             (er_reset_helper.s):00230                 std     ,y++
+07BC ECC1             (er_reset_helper.s):00231                 ldd     ,u++
+07BE EDA1             (er_reset_helper.s):00232                 std     ,y++
+07C0 ECC1             (er_reset_helper.s):00233                 ldd     ,u++
+07C2 EDA1             (er_reset_helper.s):00234                 std     ,y++
+07C4 31A90098         (er_reset_helper.s):00235                 leay    152,y
+07C8 0AD0             (er_reset_helper.s):00236                 dec     PRES_ACTOR_KIND
+07CA 26E8             (er_reset_helper.s):00237                 bne     pao_row
+07CC 0AB9             (er_reset_helper.s):00238                 dec     PRES_REMAIN
+07CE 26DD             (er_reset_helper.s):00239                 bne     pao_actor
+07D0                  (er_reset_helper.s):00240         pao_after_pass
+                      (er_reset_helper.s):00241                 ; Count only a completed pixel refresh. A failed prepare leaves the
+                      (er_reset_helper.s):00242                 ; phase work pending for the next safe BACK.
+07D0 0AD2             (er_reset_helper.s):00243                 dec     PRES_ACTOR_REFRESHES
+07D2 8634             (er_reset_helper.s):00244                 lda     #$34
+07D4 B7FFA5           (er_reset_helper.s):00245                 sta     PAR5
+07D7 96D4             (er_reset_helper.s):00246                 lda     PRES_HOLD_STATE
+07D9 8103             (er_reset_helper.s):00247                 cmpa    #PRES_HOLD_HYDRATE
+07DB 2704             (er_reset_helper.s):00248                 beq     pao_capture
+07DD 7E0E49           (er_reset_helper.s):00249                 jmp     PRES_MAIN_FB_FINISH
+07E0                  (er_reset_helper.s):00250         pao_done
+07E0 39               (er_reset_helper.s):00251                 rts
+07E1                  (er_reset_helper.s):00252         pao_capture
+07E1 7E0E5A           (er_reset_helper.s):00253                 jmp     PRESENTATION_MODULE_CAPTURE_BACK
+                      (er_reset_helper.s):00254         
+07E4                  (er_reset_helper.s):00255         presentation_attract_phase
+07E4 DCB0             (er_reset_helper.s):00256                 ldd     PRES_TIMER
+07E6 830006           (er_reset_helper.s):00257                 subd    #6
+07E9 2508             (er_reset_helper.s):00258                 blo     presentation_phase_zero
+07EB 1F98             (er_reset_helper.s):00259                 tfr     b,a
+07ED 44               (er_reset_helper.s):00260                 lsra
+07EE 44               (er_reset_helper.s):00261                 lsra
+07EF 44               (er_reset_helper.s):00262                 lsra
+07F0 8403             (er_reset_helper.s):00263                 anda    #3
+07F2 39               (er_reset_helper.s):00264                 rts
+07F3                  (er_reset_helper.s):00265         presentation_phase_zero
+07F3 4F               (er_reset_helper.s):00266                 clra
+07F4 39               (er_reset_helper.s):00267                 rts
+                      (er_reset_helper.s):00268         
+                      (er_reset_helper.s):00269         
+07F5                  (er_reset_helper.s):00270         hold_source_pages
+07F5 2C2D2E2F         (er_reset_helper.s):00271                 fcb     $2C,$2D,$2E,$2F
+07F9                  (er_reset_helper.s):00272         hold_destination_pages
+07F9 28292A2B         (er_reset_helper.s):00273                 fcb     $28,$29,$2A,$2B
+                      (er_reset_helper.s):00274         
+07FD                  (er_reset_helper.s):00275         PERIMETER_PRESENTATION_HELPER_END
+
+Symbol Table:
+[SG] ADAPTIVE_RENDERING               0001
+[ G] FB_BACK_ID                       0090
+[ G] FB_FRONT_ID                      008F
+[ G] hold_copy_chunk                  073F
+[ G] hold_copy_word                   076E
+[ G] hold_destination_pages           07F9
+[ G] hold_source_page                 0753
+[ G] hold_source_pages                07F5
+[ G] pao_actor                        07AD
+[ G] pao_after_pass                   07D0
+[ G] pao_capture                      07E1
+[ G] pao_done                         07E0
+[ G] pao_phase_change                 0781
+[ G] pao_phase_ready                  07A0
+[ G] pao_refresh_check                0787
+[ G] pao_row                          07B4
+[ G] PAR1                             FFA1
+[ G] PAR2                             FFA2
+[ G] PAR3                             FFA3
+[ G] PAR4                             FFA4
+[ G] PAR5                             FFA5
+[ G] PENDING                          0091
+[ G] PERIMETER_PRESENTATION_HELPER_END 07FD
+[ G] PERIMETER_RESET_HELPER           06B2
+[ G] PERIMETER_RESET_HELPER_END       06C5
+[ G] phb_done                         06DA
+[ G] pht_active                       071A
+[ G] pht_cancel_final                 0732
+[ G] pht_copy                         06E1
+[ G] pht_copy_do                      06F6
+[ G] pht_publish                      071B
+[ G] pht_request                      070D
+[ G] PRES_ACTOR_KIND                  00D0
+[ G] PRES_ACTOR_PHASE                 00D3
+[ G] PRES_ACTOR_REFRESHES             00D2
+[ G] PRES_DST                         00AE
+[ G] PRES_HIGHSCORE_FB_FINISH         05E5
+[ G] PRES_HIGHSCORE_FB_PREPARE        037C
+[ G] PRES_HOLD_CHUNK                  00D5
+[ G] PRES_HOLD_COPY                   0080
+[ G] PRES_HOLD_FINAL                  0081
+[ G] PRES_HOLD_GEN                    00D8
+[ G] PRES_HOLD_HYDRATE                0003
+[ G] PRES_HOLD_OWNER                  00D9
+[ G] PRES_HOLD_PUBLISH                0081
+[ G] PRES_HOLD_SAVED_BACK             00D7
+[ G] PRES_HOLD_SAVED_FRONT            00D6
+[ G] PRES_HOLD_STATE                  00D4
+[ G] PRES_MAIN_BLIT_TILE              D5A7
+[ G] PRES_MAIN_CAN_MOVE               CD0E
+[ G] PRES_MAIN_DEATH                  D2E1
+[ G] PRES_MAIN_DYNAMIC_TEXT           FC7E
+[ G] PRES_MAIN_ENEMY                  D4DF
+[ G] PRES_MAIN_ENEMY_TICK             D4E2
+[ G] PRES_MAIN_ENTITIES               C5AA
+[ G] PRES_MAIN_FB_CAPTURE             0E5A
+[ G] PRES_MAIN_FB_FINISH              0E49
+[ G] PRES_MAIN_FB_PREPARE             0DDF
+[ G] PRES_MAIN_FB_PUBLISH             0E4F
+[ G] PRES_MAIN_GATES                  CA86
+[ G] PRES_MAIN_INIT                   C23C
+[ G] PRES_MAIN_INSTALL_PHASE_TILES    DEE9
+[ G] PRES_MAIN_KEY_SERVICE            DF1E
+[ G] PRES_MAIN_MAP_STREAM_OFFSETS     F5C8
+[ G] PRES_MAIN_MAZE                   C597
+[ G] PRES_MAIN_NAME_LATE_TURN         DF31
+[ G] PRES_MAIN_NEXT_STAGE             C296
+[ G] PRES_MAIN_PAGE24_RESUME          DF15
+[ G] PRES_MAIN_PLAYER                 CAC6
+[ G] PRES_MAIN_PLAYER_TICK            CB65
+[ G] PRES_MAIN_READ_JOY               CAE3
+[ G] PRES_MAIN_READ_STAGE_LETTERS     DF02
+[ G] PRES_MAIN_RENDER                 D4B5
+[ G] PRES_MAIN_RESTORE_PLAYER         D561
+[ G] PRES_MAIN_SAVE_PLAYER            D538
+[ G] PRES_MAIN_SCAN_BITS              F5E6
+[ G] PRES_MAIN_SCAN_DRIVES            F5E3
+[ G] PRES_MAIN_SCREEN_MODES           F5DA
+[ G] PRES_MAIN_SHARED_MASK            FBBC
+[ G] PRES_MAIN_STATIC_TEXT            FBA3
+[ G] PRES_MAIN_TOP_HUD                FCAF
+[ G] PRES_MODULE_COLD_PTR             1B7E
+[ G] PRES_MODULE_COLOUR_SURFACE       1D4A
+[ G] PRES_MODULE_COLOUR_TILE          1D24
+[ G] PRES_MODULE_DRAW_ACTOR           1D07
+[ G] PRES_MODULE_DRAW_RAW_TILE        1B77
+[ G] PRES_MODULE_DRAW_SCORE           1D8A
+[ G] PRES_MODULE_DRAW_TILE            FC7E
+[ G] PRES_MODULE_MAP_BACK             1BA3
+[ G] PRES_MODULE_START_SCREEN         19C8
+[ G] PRES_RANKING_SLICE               0561
+[ G] PRES_REMAIN                      00B9
+[ G] PRES_TIMER                       00B0
+[ G] PRESENTATION_ATTRACT_OVERLAY     06C9
+[ G] presentation_attract_overlay_impl 077A
+[ G] presentation_attract_phase       07E4
+[ G] PRESENTATION_HOLD_BEGIN          06C5
+[ G] presentation_hold_begin_impl     06CC
+[ G] PRESENTATION_HOLD_TICK           06C7
+[ G] presentation_hold_tick_impl      06DB
+[ G] PRESENTATION_MODULE_CAPTURE_BACK 0E5A
+[ G] PRESENTATION_MODULE_MAP_BACK     1BA3
+[ G] presentation_phase_zero          07F3

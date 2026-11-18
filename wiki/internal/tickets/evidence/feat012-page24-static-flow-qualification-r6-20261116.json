@@ -1,0 +1,43 @@
+{
+  "date": "2026-11-16",
+  "result": "PASS: static-flow checker qualified on valid fixture and two independent negative controls",
+  "source_commit": "d74752b930d9fcc821755e3934641b6496236b5f",
+  "branch": "codex/feat012-page24-relocation-r5",
+  "verifier_path": "scripts/verify_presentation_flow.py",
+  "verifier_sha256": "1c0158de3991e7bf1e19ac9d505876b5ca7d1b7d2dfb91a5ff8c46c2debf37ee",
+  "fixture_profile": "complete/keyboard/adaptive/6809",
+  "fixture_build_receipt_revision": "ae177ba5c74f0af43191aaa3baa0e60b0adf8657",
+  "fixture_artifacts": {
+    "rom_sha256": "71140f66117e859bd4a51c8d9becc3a4f81d67ec560ac0145171f4a57822b7ae",
+    "presentation_module_sha256": "3f695df8dcf8837dbaed7db65140a6504aed015cb3ff5aaac64d1fba08404df6",
+    "presentation_map_sha256": "33719d83920c08346847d89dbd0b23384ff2047e9e746c24d7229feaa87a1884",
+    "current_presentation_source_inputs_unchanged": true
+  },
+  "command": "python3 -B scripts/verify_presentation_flow.py",
+  "deadline_seconds": 55,
+  "termination_reserve_seconds": 5,
+  "cases": [
+    {
+      "case": "valid complete keyboard adaptive fixture",
+      "exit_code": 0,
+      "elapsed_seconds": 0.11,
+      "result": "PASS: complete flow; module 1251/1280; helper 331/334; cold 14112/16384; combined 15363/17664; post-audio source spare 6535/512"
+    },
+    {
+      "case": "negative demo handoff fixture",
+      "mutation": "complete-profile High Score selector changed to PRESENTATION_MAP_ATTRACT; helper call retained",
+      "exit_code": 1,
+      "elapsed_seconds": 0.17,
+      "expected_and_observed": "demo completion misses the High Score helper or screen handoff"
+    },
+    {
+      "case": "negative page-$24 installer fixture",
+      "mutation": "generic installer page selector changed from $24 to $23",
+      "exit_code": 1,
+      "elapsed_seconds": 0.15,
+      "expected_and_observed": "auxiliary installer route changed: install_aux_runtime"
+    }
+  ],
+  "scope_note": "Qualification uses the retained presentation module and current candidate source inputs; it is not a fresh game build or product runtime acceptance.",
+  "package_run": "not yet run"
+}

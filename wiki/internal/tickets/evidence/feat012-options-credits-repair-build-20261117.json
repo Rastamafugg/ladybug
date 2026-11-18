@@ -1,0 +1,73 @@
+{
+  "schema": "feat012-options-credits-repair-verification-v1",
+  "recorded_date": "2026-11-17",
+  "status": "automated_pass_manual_user_report_pass",
+  "source": {
+    "base_commit": "51e9649a51c6edfd8d883fa191d776d42d3f9d61",
+    "implementation_commit": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "file": "src/presentation_runtime.s",
+    "file_sha256": "5f6daf55762e024513e5d7ef6e0492f2406123339c520ade913698c073802d92"
+  },
+  "profile": {
+    "LADYBUG_PROFILE": "complete",
+    "COMPLETE_PROFILE": 1,
+    "HIGHSCORE_TEST_PROFILE": 0,
+    "LADYBUG_INPUT": "keyboard",
+    "INPUT_JOYSTICK": 0,
+    "LADYBUG_ADAPTIVE": 1,
+    "ADAPTIVE_RENDERING": 1,
+    "LADYBUG_CPU": "6809"
+  },
+  "build": {
+    "command": "LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 bash scripts/build.sh build",
+    "result": "completed; source-reference coverage and source-documentation audit passed",
+    "hard_cap_seconds": 600,
+    "elapsed": "completed within cap; exact process duration was not separately retained",
+    "receipt_path": "C:/Users/19029/.codex/worktrees/feat012-visible-input-r5/ladybug/build/source-build-receipt.json",
+    "receipt_state": "complete",
+    "receipt_source_revision": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "receipt_sha256": "87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "bytes": 65536,
+      "sha256": "9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d"
+    },
+    "presentation_module": {
+      "bytes": 1260,
+      "limit": 1280,
+      "free": 20,
+      "sha256": "93fb8eb0cfd57281a630d2b3fa0e5ddc17060f65dcc11374a84ae2663a9987e0"
+    },
+    "presentation_listing_sha256": "785a7289c4ba8b01020ce335d551ccb6be38508d42b17ef46adaac4e87828572",
+    "presentation_map_sha256": "c8664e823c58aada5bdfaef2e1bda87c3e6dd58b047aeb1a89eff55a5a445ee3",
+    "other_capacity": {
+      "perimeter_helper_bytes": "331/334",
+      "cold_presentation_bytes": "14112/16384",
+      "combined_bytes": "15372/17664",
+      "post_audio_source_spare_bytes": "6526/512",
+      "resident_bytes": "8076/8192",
+      "assets_bytes": "7647/7680"
+    },
+    "source_reference": "PASS; 16 modules, 36,792 source lines",
+    "source_documentation": "PASS; 16 modules, 321/321 routines, 5,225/5,225 labels"
+  },
+  "static_flow": {
+    "command": "python3 -B scripts/verify_presentation_flow.py",
+    "exit_code": 0,
+    "elapsed_seconds": 0.402,
+    "hard_cap_seconds": 60,
+    "result": "PASS",
+    "summary": "complete flow; eight title actor surfaces; authored TMX coordinates; direct selected-screen streaming; bounded loading; Attract free-start menu; instruction choreography; atomic surface copy; module 1260/1280; helper 331/334; cold 14112/16384; combined 15372/17664; post-audio source spare 6526/512"
+  },
+  "manual": {
+    "status": "pass_user_reported",
+    "required": "two entries each into Options and Credits; no GDB or injected input",
+    "artifact_sha256": "9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d",
+    "readiness": "user confirmed Attract is visible and responding in the launched XRoar window",
+    "xroar_launch": "visible RGB XRoar; no GDB or injected input",
+    "setup_notes": "XRoar printed GTK menu warnings and failed to open an audio device; the user confirmed the game screen is visible and responding. Audio is outside this card.",
+    "user_report": "User reports successful loading and use of Options, Keybindings, and Credits without issue. Options/Keybindings were entered, exited, and re-entered multiple times. User confirmed at least two Credits entries, answering whether they entered, exited, and re-entered Credits on this ROM.",
+    "coverage": "The approved two-entry Options and Credits coverage is reported successful in aggregate: repeated Options/Keybindings use and at least two Credits entries with exit and re-entry. No manual failure was reported. The report is user-owned and was not independently observed or itemized by entry.",
+    "failure": "No failure reported during these repaired-ROM cycles. Earlier crash images and runtime snapshots remain historical evidence; this pass does not identify their cause or prove they cannot recur."
+  }
+}

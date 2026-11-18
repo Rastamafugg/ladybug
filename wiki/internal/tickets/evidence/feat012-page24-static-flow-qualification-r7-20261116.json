@@ -1,0 +1,71 @@
+{
+  "date": "2026-11-16",
+  "result": "PASS",
+  "source_commit": "51e9649a51c6edfd8d883fa191d776d42d3f9d61",
+  "branch": "codex/feat012-page24-relocation-r5",
+  "verifier_path": "scripts/verify_presentation_flow.py",
+  "verifier_sha256": "192c4ef5c5fa2fbc2966a4a34b41bb0ad8b7e3401322a8142b6d7593462291d6",
+  "fixture_profile": "complete/keyboard/adaptive/6809",
+  "fixture_root": "C:\\Users\\19029\\AppData\\Local\\Temp\\ladybug-feat012-static-flow-r7",
+  "fixture_build_receipt_revision": "ae177ba5c74f0af43191aaa3baa0e60b0adf8657",
+  "fixture_artifacts": {
+    "rom_sha256": "71140f66117e859bd4a51c8d9becc3a4f81d67ec560ac0145171f4a57822b7ae",
+    "presentation_module_sha256": "3f695df8dcf8837dbaed7db65140a6504aed015cb3ff5aaac64d1fba08404df6",
+    "presentation_map_sha256": "33719d83920c08346847d89dbd0b23384ff2047e9e746c24d7229feaa87a1884",
+    "current_presentation_source_inputs_unchanged": true
+  },
+  "cases": [
+    {
+      "case": "valid",
+      "command": "python3 -B scripts/verify_presentation_flow.py",
+      "deadline_seconds": 55,
+      "termination_reserve_seconds": 5,
+      "elapsed_seconds": 0.251,
+      "expected_exit_code": 0,
+      "exit_code": 0,
+      "expected_output": "complete flow",
+      "source_file": "src/presentation_runtime.s",
+      "source_file_sha256": "8a433c5b17b2b5efbd71065515ccd99c1d66863569a5595f4aae44719ad392d7",
+      "verifier_sha256": "192c4ef5c5fa2fbc2966a4a34b41bb0ad8b7e3401322a8142b6d7593462291d6",
+      "stdout": "presentation flow proof: complete flow, eight title actor surfaces, authored TMX coordinates, direct selected-screen streaming, bounded loading, Attract free-start menu, instruction choreography, atomic surface copy, module 1251/1280, helper 331/334, cold 14112/16384 (preferred 9989), combined 15363/17664, post-audio source spare 6535/512\n",
+      "stderr": "",
+      "output_sha256": "45b06dcc46f828ca00f892f77f56cfe36342c542f646750be19363d52b7327c8",
+      "result": "PASS"
+    },
+    {
+      "case": "bad-demo-route",
+      "command": "python3 -B scripts/verify_presentation_flow.py",
+      "deadline_seconds": 55,
+      "termination_reserve_seconds": 5,
+      "elapsed_seconds": 0.235,
+      "expected_exit_code": 1,
+      "exit_code": 1,
+      "expected_output": "demo completion misses the High Score helper or screen handoff",
+      "source_file": "src/presentation_runtime.s",
+      "source_file_sha256": "0995e6388984d8ece9a6c230d392504dc738c8b4f3ac82d28bc896abc4fdea9a",
+      "verifier_sha256": "192c4ef5c5fa2fbc2966a4a34b41bb0ad8b7e3401322a8142b6d7593462291d6",
+      "stdout": "",
+      "stderr": "presentation flow proof: demo completion misses the High Score helper or screen handoff\n",
+      "output_sha256": "6ae252f53dfc5653f5d4ec385743e0bc7b69593db5df00e2670b2f2bf06aa5a8",
+      "result": "PASS"
+    },
+    {
+      "case": "bad",
+      "command": "python3 -B scripts/verify_presentation_flow.py",
+      "deadline_seconds": 55,
+      "termination_reserve_seconds": 5,
+      "elapsed_seconds": 0.22,
+      "expected_exit_code": 1,
+      "exit_code": 1,
+      "expected_output": "auxiliary installer route changed: install_aux_runtime",
+      "source_file": "src/presentation_runtime.s",
+      "source_file_sha256": "8523a5b4ffbc11c46b80c8e87ba2b929c04bc846c19487327fc8ee1e3eeb1463",
+      "verifier_sha256": "192c4ef5c5fa2fbc2966a4a34b41bb0ad8b7e3401322a8142b6d7593462291d6",
+      "stdout": "",
+      "stderr": "presentation flow proof: auxiliary installer route changed: install_aux_runtime\n",
+      "output_sha256": "099df816c77950dc716c8dbe7b43fac4a75af79b04de12d6d42f47dc111d50ca",
+      "result": "PASS"
+    }
+  ],
+  "scope_note": "Qualified the committed branch-aware static-flow checker using retained complete keyboard/adaptive artifacts and isolated current-source fixtures. This is not a fresh game build or product runtime acceptance."
+}

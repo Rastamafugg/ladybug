@@ -5,7 +5,9 @@ export LC_ALL=C
 unset LADYBUG_BUILD_DIR
 readonly ROOT=/mnt/c/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug
 readonly EXPECTED_COMMIT=ee79fe6af79755d76ffe7d571c15e2c16e6086e7
-readonly OUTPUT="$ROOT/repro/feat012-wake-sizing-package-20261113-01"
+readonly WSL_GIT_DIR=/mnt/e/projects/ladybug/.git/worktrees/ladybug17
+readonly WSL_GIT_COMMON_DIR=/mnt/e/projects/ladybug/.git
+readonly OUTPUT="$ROOT/repro/feat012-wake-sizing-package-20261113-02"
 cd "$ROOT"
 [[ "$(pwd -P)" == "$ROOT" ]] || { printf '%s\n' 'setup failure: checkout path'; exit 2; }
 [[ ! -e build && ! -L build ]] || { printf '%s\n' 'setup failure: build already exists'; exit 2; }
@@ -27,6 +29,11 @@ HASHES
 }
 mkdir -p "$OUTPUT"
 printf '%s\n' 'preflight in progress' >"$OUTPUT/sequence-status.txt"
+mkdir -p "$OUTPUT/git-bin"
+printf '%s\n' '#!/bin/sh' 'exec /usr/bin/git -c core.autocrlf=true -c core.filemode=false "$@"' >"$OUTPUT/git-bin/git"
+chmod +x "$OUTPUT/git-bin/git"
+export GIT_DIR="$WSL_GIT_DIR" GIT_COMMON_DIR="$WSL_GIT_COMMON_DIR" GIT_WORK_TREE="$ROOT"
+export PATH="$OUTPUT/git-bin:$PATH"
 if ! verify_source >"$OUTPUT/preflight.log" 2>&1; then
   printf '%s\n' 'source identity failure' >"$OUTPUT/sequence-status.txt"
   exit 2
@@ -101,7 +108,13 @@ for profile in keyboard-adaptive joystick-adaptive keyboard-nonadaptive; do
       printf 'missing build artifact: %s\n' "$artifact" >"$OUTPUT/sequence-status.txt"
       exit 66
     fi
-    cp -- "build/$artifact" "$directory/artifacts/$artifact"
+    if cp -- "build/$artifact" "$directory/artifacts/$artifact"; then
+      :
+    else
+      copy_rc=$?
+      printf 'evidence-copy-failed: %s (exit %s)\n' "$artifact" "$copy_rc" >"$OUTPUT/sequence-status.txt"
+      exit "$copy_rc"
+    fi
   done
   (cd "$directory/artifacts"; sha256sum -- "$@" >SHA256SUMS; wc -c -- "$@" >SIZES.txt)
   if [[ "$profile" != keyboard-nonadaptive ]]; then

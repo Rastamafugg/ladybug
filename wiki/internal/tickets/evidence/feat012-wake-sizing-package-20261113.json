@@ -2,7 +2,7 @@
   "candidate_commit": "ee79fe6af79755d76ffe7d571c15e2c16e6086e7",
   "candidate_worktree": "C:/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug",
   "command_file": "wiki/internal/tickets/evidence/feat012-wake-sizing-commands-20261113.sh",
-  "command_file_sha256": "c7290f7c2c5b1fcf5d3592c1b427852e44709cd0daf735a86bf572296263cb44",
+  "command_file_sha256": "a2197b3db336f63d4259f449189b2875fcef6354f7fd4ab27606fdff9ce54946",
   "line_endings": "LF",
   "prior_qualified_baseline": "cb9a2173913fe7e09f6719cac456381e07f15f23",
   "unchanged_gate_blobs": {
@@ -10,12 +10,127 @@
     "scripts/build_sparse_sprites.py": "e2aa59aa8d9eff97d7844f8903edcef29e231b5c",
     "scripts/verify_presentation_flow.py": "dc53f18bd3f1be4497a9507c27d801f2306f1647"
   },
-  "profiles": ["keyboard-adaptive", "joystick-adaptive", "keyboard-nonadaptive"],
+  "profiles": [
+    "keyboard-adaptive",
+    "joystick-adaptive",
+    "keyboard-nonadaptive"
+  ],
   "build_phase_cap_seconds": 600,
   "static_phase_cap_seconds": 60,
   "six_command_maximum_seconds": 1980,
-  "maximum_excludes": ["preflight", "artifact collection", "cleanup", "user-owned manual sessions"],
-  "checks_performed": ["bash -n syntax only", "Windows and WSL SHA-256 match", "LF transport", "candidate clean, build and output absent", "prior gate Git blob identity comparison"],
-  "not_run": ["command package", "build", "static game verifier", "emulator", "game"],
-  "qualification": "Package behavior has not been executed; no fit or runtime result."
+  "maximum_excludes": [
+    "preflight",
+    "artifact collection",
+    "cleanup",
+    "user-owned manual sessions"
+  ],
+  "checks_performed": [
+    "bash -n syntax only",
+    "Windows and WSL SHA-256 match for corrected package",
+    "LF transport",
+    "candidate pre-dispatch Windows HEAD/clean/source-hash check",
+    "copy-failure guard isolated negative probe passed",
+    "WSL explicit worktree metadata plus Windows Git checkout settings produced expected HEAD and clean status",
+    "corrected package preflight passed and keyboard-adaptive build started"
+  ],
+  "not_run": [
+    "keyboard-adaptive static-flow check",
+    "joystick-adaptive build and static-flow check",
+    "keyboard-nonadaptive build and static-flow check",
+    "emulator",
+    "game"
+  ],
+  "qualification": "Copy-failure guard passed isolation. The first dispatch stopped during WSL worktree identity setup; after user-directed correction, the second dispatch passed preflight and stopped at the keyboard-adaptive build with a title/auxiliary packing overlap at $B880. Sizing is incomplete; no runtime result.",
+  "copy_failure_probe": {
+    "date": "2026-11-16",
+    "result": "pass",
+    "method": "The exact cp guard block was extracted from the package and run in a disposable WSL fixture; the destination symlink targeted /dev/full.",
+    "copy_exit_code": 1,
+    "sequence_status": "evidence-copy-failed: copy-sentinel.bin (exit 1)",
+    "prior_artifact_retained": true,
+    "source_build_file_retained": true,
+    "post_guard_sentinel_absent": true,
+    "package_run": false,
+    "game_build_or_launch": false
+  },
+  "pre_dispatch_preflight": {
+    "date": "2026-11-16",
+    "environment": "Windows PowerShell",
+    "candidate_commit": "ee79fe6af79755d76ffe7d571c15e2c16e6086e7",
+    "candidate_clean": true,
+    "candidate_source_hashes_match": true,
+    "build_directory_absent": true,
+    "output_directory_absent": true
+  },
+  "dispatch_attempts": [
+    {
+      "attempt": 1,
+      "package_sha256": "843d8d344f2e40d8db471d895c12962827738b08b62ca3a485a8e93380d77fb6",
+      "package_hash_verified": true,
+      "result": "stopped during source-identity preflight before first build",
+      "sequence_status": "source identity failure",
+      "preflight_log": "C:/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug/repro/feat012-wake-sizing-package-20261113-01/preflight.log",
+      "git_pointer": "gitdir: E:/projects/ladybug/.git/worktrees/ladybug17",
+      "windows_gitdir_target_exists": true,
+      "wsl_gitdir_resolved": false,
+      "build_started": false
+    },
+    {
+      "attempt": 2,
+      "user_direction": "fix the setup failure and continue",
+      "package_sha256": "a2197b3db336f63d4259f449189b2875fcef6354f7fd4ab27606fdff9ce54946",
+      "package_hash_verified": true,
+      "result": "keyboard-adaptive build failed; sequence stopped as assigned",
+      "sequence_status": "build failed; inspect retained evidence",
+      "build_exit_code": 1,
+      "elapsed_seconds": 221.81,
+      "build_cap_seconds": 600,
+      "failure": "ValueError: presentation auxiliary overlaps compressed title at $B880",
+      "build_started": true,
+      "static_flow_ran": false,
+      "later_profiles_ran": false,
+      "build_directory_retained": true,
+      "evidence_root": "C:/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug/repro/feat012-wake-sizing-package-20261113-02"
+    }
+  ],
+  "partial_build_observations": {
+    "presentation_module": "1251/1280 bytes (29 free)",
+    "presentation_helper": "331/334 bytes (3 free)",
+    "resident": "8076/8192 bytes (116 free)",
+    "assets": "7647/7680 bytes (33 free)",
+    "adaptive_active": "568/777 bytes (209 free)",
+    "page_3d_payload": "6550/8192 bytes",
+    "highscore_runtime_build_report": "867/938 bytes",
+    "cold_presentation": "15839 bytes padded to 16384 bytes",
+    "measurements": "Partial build log observations only; no profile sign-off or ROM acceptance."
+  },
+  "auxiliary_collision": {
+    "source": "candidate scripts/build_sparse_sprites.py, pack_candidate_banks placement and guard",
+    "stage_start": "$A422",
+    "title_boundary": "$B880",
+    "stage_available_bytes": 5214,
+    "instruction_runtime_binary_bytes": 938,
+    "instruction_runtime_reported_code_bytes": 935,
+    "demo_runtime_bytes": 143,
+    "highscore_runtime_start": "$A880",
+    "highscore_runtime_bytes": 867,
+    "gap_before_highscore_helper_bytes": 93,
+    "highscore_helper_start": "$AC40",
+    "highscore_helper_bytes": 3198,
+    "helper_space_to_boundary_bytes": 3136,
+    "staged_end": "$B8BE",
+    "calculated_overlap_bytes": 62,
+    "stage_total_bytes": 5276,
+    "method": "I calculated placement from the retained partial-build binary lengths and the candidate packer addresses. The packer reads these binary artifacts and rejects auxiliary_end > $B880."
+  },
+  "cause_review": {
+    "wake_path_in_overflowing_helper": true,
+    "source": "candidate src/shared_text_stage.inc",
+    "helper_conditional": "HIGHSCORE_PHASE_HELPER",
+    "menu_scan_line": 1073,
+    "helper_end_label": "highscore_phase_helper_end",
+    "helper_end_line": 1471,
+    "wake_byte_contribution": "unmeasured",
+    "interpretation": "The current overflowing helper contains the wake path; the 62-byte overrun is for the complete helper and is not a measured wake-only delta."
+  }
 }
