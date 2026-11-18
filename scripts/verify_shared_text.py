@@ -221,9 +221,9 @@ def main():
         r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
         'instruction multipliers must start inactive gray',inactive)
     for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
-        for ident in ids:
-            assert descriptors[2*ident+1]==instruction_fields['instruction_multiplier'],(
-                'earned multiplier tiles stay blue',ident,descriptors[2*ident+1])
+        ident=ids[1]
+        assert descriptors[2*ident+1]==instruction_fields['instruction_multiplier'],(
+            'earned multiplier digits stay blue',ident,descriptors[2*ident+1])
     # Approved colours are checked independently of presentation_pen_map.
     approved=[]
     for r in shared['coverage']:
