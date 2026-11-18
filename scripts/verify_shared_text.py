@@ -211,9 +211,14 @@ def main():
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
     assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
     instruction_fields=shared['colour_configuration']['fields']
+    hud_fields=manifest['shared_hud_layout']['fields']
+    expected_inactive={(int(hud_fields[name]['cell'][0])+1,
+                        int(hud_fields[name]['cell'][1]))
+                       for name in ('MULTIPLIER_X2','MULTIPLIER_X3','MULTIPLIER_X5')}
     inactive=[r for r in shared['coverage']
               if r['screen']=='instructions' and r['y']==7 and 1<=r['x']<=6]
-    assert len(inactive)==6 and all(r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
+    assert {(r['x'],r['y']) for r in inactive}==expected_inactive and all(
+        r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
         'instruction multipliers must start inactive gray',inactive)
     for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
         for ident in ids:
