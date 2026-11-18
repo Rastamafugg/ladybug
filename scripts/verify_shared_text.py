@@ -206,7 +206,7 @@ def main():
     if not cold_path.exists():cold_path=folder/'cold.bin'
     cold=cold_path.read_bytes();data=(folder/'ladybug_shared_text.inc').read_text()
     highscore_logo=verify_highscore_logo(root,manifest,cold,p.load_chars(root/'assets/arcade/chars.json'))
-    font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','no_end')
+    font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','hud_life_marker_positions')
     masks=[font[i:i+8] for i in range(0,len(font),8)]
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
     assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
