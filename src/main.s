@@ -1301,22 +1301,17 @@ draw_multiplier_hud
         cmpa    #5
         beq     dmh_five
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X2_X*4)
         bra     dmh_position
 dmh_three
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
-        bra     dmh_row_three_five
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X3_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X3_X*4)
+        bra     dmh_position
 dmh_five
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
-dmh_row_three_five
-        ; The builder verifies that X3 and X5 share this row.
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X3_Y*1280)
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X5_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X5_X*4)
 dmh_position
         std     HUD_X
-        lda     HUD_X
-        lsla
-        lsla
-        leay    a,y
         lda     #TEXT_MULTIPLIER
         sta     HUD_COLOR
 ; @audit-use {"id":"multiplier-x","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC"}

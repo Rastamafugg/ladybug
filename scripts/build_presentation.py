@@ -1132,11 +1132,6 @@ def parse_hud_layout(path: Path) -> dict[str, dict[str, object]]:
     missing = set(HUD_LAYOUT_FIELDS) - set(fields)
     if missing:
         raise ValueError(f"{path}: missing HUD fields {sorted(missing)}")
-    if (int(fields["MULTIPLIER_X3"]["cell"][1])
-            != int(fields["MULTIPLIER_X5"]["cell"][1])):
-        raise ValueError(
-            f"{path}: MULTIPLIER_X3 and MULTIPLIER_X5 must share a renderer row"
-        )
     return fields
 
 
