@@ -282,6 +282,11 @@ def main():
     for name,start in zip(p.MAP_NAMES,manifest['map_stream_offsets']):
         tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True,colour_config)
         expected=bytearray(p.title_framebuffer(mapping,tiles))
+        if name in manifest['shared_hud_layout']['screens']:
+            for x,y in p2_cells:
+                at=y*1280+x*4
+                for row in range(8):
+                    expected[at+row*160:at+row*160+4]=bytes(4)
         seed=bytearray((i*37+11)&255 for i in range(30720)) if name=='game-over' else bytearray(30720)
         actual=seed.copy()
         for run in shared['colour_configuration']['runs']:
