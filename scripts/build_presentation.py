@@ -2229,7 +2229,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         "",
         "; FEAT-013 named HUD geometry shared by gameplay and side-HUD screens.",
         f"PRESENTATION_HUD_FIELD_COUNT equ {len(hud_layout)}",
-        f"PRESENTATION_HUD_LAYOUT_SCREEN_COUNT equ {len(HUD_LAYOUT_SCREENS)}",
+        f"PRESENTATION_HUD_LAYOUT_SCREEN_COUNT equ {manifest['shared_hud_layout']['screen_count']}",
     ))
     for name, field in hud_layout.items():
         x, y = (int(value) for value in field["cell"])
