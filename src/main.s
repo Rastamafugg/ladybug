@@ -12,8 +12,8 @@
 ADAPTIVE_RENDERING equ 0
         endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
-; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, then seed TOP from table row one.
-; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy all current player-owned HUD values into the shared low-RAM snapshot before drawing.
+; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
+; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress bits into the shared snapshot before drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
