@@ -142,7 +142,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
 ; DOC-002 source-contract mirror contract init_player profile=state: Initialize player.
 ; DOC-002 source-contract mirror contract install_phase_tiles_for_screen profile=state: Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.
-; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.
+; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch and return U=$C2, B=3.
 ; DOC-002 source-contract mirror contract irq_handler profile=framebuffer: Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.
 ; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
 ; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
@@ -245,6 +245,7 @@ BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
 SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
+PRES_TMP_H equ $00C2
 PRES_HIGHSCORE_BASE equ $AF84
 ; FEAT-013 shared snapshot; boot streams have retired before initialization.
 ; @audit {"id":"hud-shared-snapshot","kind":"scratch","symbol":"HUD_SHARED_BASE","width":32,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident HUD provider","lifetime":"Gameplay values are refreshed before their selected BACK draw; TOP persists from boot seed through committed ranking changes.","initialization":"hud_snapshot_init after boot-stream retirement; hud_snapshot_capture_player sets HUD_PLAYER_VALID after all player-one bytes are copied","clobbers":"The provider exclusively owns $02A0-$02BF; player two is reserved and zero while one-player mode is active."}
@@ -4919,6 +4920,8 @@ read_stage_letter_variants
         std     <$C2
         lda     8,x
         sta     <$C4
+        ldu     #PRES_TMP_H
+        ldb     #3
         rts
 
 ; Return bridge for code executing from the page-$24 auxiliary through a
@@ -5019,10 +5022,8 @@ hsi_clear
 hud_snapshot_capture_player
         ldx     #HUD_P1_SCORE
         ldu     #SCORE_BCD
-        lda     ,u+
-        sta     ,x+
-        lda     ,u+
-        sta     ,x+
+        ldd     ,u++
+        std     ,x++
         lda     ,u+
         sta     ,x+
         lda     STAGE

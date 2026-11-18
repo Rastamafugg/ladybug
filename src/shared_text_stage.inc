@@ -545,7 +545,7 @@ name_rank_data
         fcb 8,29,17
         fcb 9,29,17
 
-; The 25-byte alias wrapper and five setup bytes occupy the $B062-$B080 helper gap.
+; The resident reader returns U/B, leaving only the PAR4 alias wrapper here.
 stage_panel_read_letters
         pshs cc
         orcc #$10
@@ -557,8 +557,6 @@ stage_panel_read_letters
         puls a
         sta PAR4
         puls cc
-        ldu #PRES_TMP_H
-        ldb #3
         rts
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
