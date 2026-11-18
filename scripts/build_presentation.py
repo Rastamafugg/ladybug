@@ -198,13 +198,11 @@ INSTRUCTION_COIN_ROOT = (28, 10)
 INSTRUCTION_ANGEL_ROOT = (28, 14)
 INSTRUCTION_CUCUMBER_MARKER = PART_VEGETABLE_MARKER
 INSTRUCTION_TARGETS = (
-    ((13, 7), (1, 4)), ((15, 7), (2, 4)), ((17, 7), (3, 4)),
-    ((19, 7), (4, 4)), ((21, 7), (5, 4)),
-    ((13, 10), (1, 1)), ((15, 10), (2, 1)), ((17, 10), (3, 1)),
-    ((19, 10), (4, 1)), ((21, 10), (5, 1)), ((23, 10), (6, 1)),
-    ((25, 10), (7, 1)),
-    ((13, 13), (1, 7)), ((17, 13), (3, 7)), ((21, 13), (5, 7)),
-    ((28, 13), (0, 0)),
+    (13, 7), (15, 7), (17, 7), (19, 7), (21, 7),
+    (13, 10), (15, 10), (17, 10), (19, 10), (21, 10), (23, 10),
+    (25, 10),
+    (13, 13), (17, 13), (21, 13),
+    (28, 13),
 )
 INSTRUCTION_EVENT_BYTES = 12
 INSTRUCTION_STOPS = (
@@ -212,6 +210,30 @@ INSTRUCTION_STOPS = (
     (13, 11), (15, 11), (17, 11), (19, 11), (21, 11), (23, 11),
     (25, 11), (13, 14), (17, 14), (21, 14), INSTRUCTION_ANGEL_ROOT,
 )
+
+
+def instruction_hud_target(hud_layout, event_index):
+    """Resolve event HUD cells from the shared named-field layout."""
+    extra = hud_layout["EXTRA_PROGRESS"]
+    extra_x, extra_y = (int(value) for value in extra["cell"])
+    extra_width = int(extra["size"][0])
+    if event_index < extra_width:
+        return extra_x + event_index, extra_y
+    event_index -= extra_width
+
+    special = hud_layout["SPECIAL_PROGRESS"]
+    special_x, special_y = (int(value) for value in special["cell"])
+    special_width = int(special["size"][0])
+    if event_index < special_width:
+        return special_x + event_index, special_y
+    event_index -= special_width
+
+    multiplier_names = ("MULTIPLIER_X2", "MULTIPLIER_X3", "MULTIPLIER_X5")
+    if event_index < len(multiplier_names):
+        return tuple(int(value) for value in hud_layout[multiplier_names[event_index]]["cell"])
+    if event_index == len(multiplier_names):
+        return (0, 0)
+    raise ValueError("instruction event has no shared HUD field")
 PRESENTATION_LAYER_CONTRACTS = {
     "attract": {
         "static": ("Background", "Attract Title and Prompts"),
@@ -847,6 +869,7 @@ def presentation_pen_map(
         role: str, x: int, y: int, source_layer: str = "",
         raw_code: int = -1, highscore_test_profile: bool = False,
         colour_config: dict[str, object] | None = None,
+        hud_layout: dict[str, dict[str, object]] | None = None,
 ) -> tuple[int, int, int, int]:
     """Apply the established CoCo palette adaptation to authored raw chars."""
     if role == "high-score" and source_layer in HIGH_SCORE_LOGO_CELL_LAYERS and colour_config:
@@ -855,11 +878,20 @@ def presentation_pen_map(
             return (BLACK, colour, colour, colour)
     if role == "high-score" and source_layer in HIGH_SCORE_LOGO_LAYERS:
         return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
-    if role == "instructions" and y == 7 and 1 <= x <= 6:
-        inactive = int(colour_config["fields"].get(
-            "instruction_multiplier_inactive", GREY
-        )) if colour_config else BLUE
-        return (BLACK, inactive, inactive, inactive)
+    if role == "instructions":
+        if hud_layout is None:
+            inactive_cells = {(column, 7) for column in range(1, 7)}
+        else:
+            inactive_cells = set()
+            for field_name in ("MULTIPLIER_X2", "MULTIPLIER_X3", "MULTIPLIER_X5"):
+                field = hud_layout[field_name]
+                cell_x, cell_y = (int(value) for value in field["cell"])
+                inactive_cells.add((cell_x + 1, cell_y))
+        if (x, y) in inactive_cells:
+            inactive = int(colour_config["fields"].get(
+                "instruction_multiplier_inactive", GREY
+            )) if colour_config else BLUE
+            return (BLACK, inactive, inactive, inactive)
     if role == "attract":
         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
@@ -1365,7 +1397,8 @@ def parse_instruction_contract(
         tuple(int(v) for v in hud_layout[name]["cell"])
         for name in multiplier_names
     )
-    for target, hud in INSTRUCTION_TARGETS:
+    for event_index, target in enumerate(INSTRUCTION_TARGETS):
+        hud = instruction_hud_target(hud_layout, event_index)
         for dy in range(2):
             for dx in range(2):
                 index = (target[1] + dy) * SCREEN_WIDTH + target[0] + dx
@@ -1439,8 +1472,9 @@ def parse_instruction_contract(
     row_time_offsets = (0, 0, 0)
     reference_consumes = []
     instruction_colour_dwell = 32
-    for index, (source, (target, hud), stop) in enumerate(
+    for index, (source, target, stop) in enumerate(
             zip(source_targets, INSTRUCTION_TARGETS, INSTRUCTION_STOPS)):
+        hud = instruction_hud_target(hud_layout, index)
         row = 0 if index < 5 else 1 if index < 12 else 2
         motion = int(source["motion_first_frame"]) - first + row_time_offsets[row]
         consume_key = "collision_frame" if index == 15 else "consume_frame"

@@ -216,10 +216,26 @@ def main():
                         int(hud_fields[name]['cell'][1]))
                        for name in ('MULTIPLIER_X2','MULTIPLIER_X3','MULTIPLIER_X5')}
     inactive=[r for r in shared['coverage']
-              if r['screen']=='instructions' and r['y']==7 and 1<=r['x']<=6]
+              if r['screen']=='instructions' and (r['x'],r['y']) in expected_inactive]
     assert {(r['x'],r['y']) for r in inactive}==expected_inactive and all(
         r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
         'instruction multipliers must start inactive gray',inactive)
+    p2_cells=set()
+    for field_name in ('P2_LABEL','P2_SCORE'):
+        field=hud_fields[field_name]
+        x,y=(int(value) for value in field['cell'])
+        width,height=(int(value) for value in field['size'])
+        p2_cells.update((field_x,field_y)
+                        for field_y in range(y,y+height)
+                        for field_x in range(x,x+width))
+    p2_records=[r for r in shared['coverage']
+                if r['screen'] in manifest['shared_hud_layout']['screens']
+                and (r['x'],r['y']) in p2_cells]
+    required_p2_screens={'gameplay','instructions','level-start','game-over','enter-high-score'}
+    assert required_p2_screens <= {r['screen'] for r in p2_records},(
+        'P2 field coverage missing from a shared HUD screen',p2_records)
+    assert all(r['colour']==0 for r in p2_records),(
+        'one-player P2 label and score must be hidden on shared HUD screens',p2_records)
     for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
         ident=ids[1]
         assert descriptors[2*ident+1]==instruction_fields['instruction_multiplier'],(
@@ -234,7 +250,7 @@ def main():
             colour=shared['colour_configuration']['fields']['bonus']
         elif name=='attract' and y==15:colour=9
         elif name=='attract' and y==18:colour=2 if r['code']==1 else 6
-        elif name=='instructions' and y==7 and 1<=x<=6:colour=instruction_fields['instruction_multiplier_inactive']
+        elif name=='instructions' and (x,y) in expected_inactive:colour=instruction_fields['instruction_multiplier_inactive']
         elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
         elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
         if colour is not None:

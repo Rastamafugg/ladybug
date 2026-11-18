@@ -1082,6 +1082,9 @@ reset_bonus_colour
         rts
 
 next_stage
+        ifne COMPLETE_PROFILE
+        clr     HUD_PLAYER_VALID
+        endc
         clr     STAGE_PENDING
         inc     STAGE
         bne     ns_stage_valid
@@ -1203,7 +1206,11 @@ alp_special_draw
         leax    special_letter_x,pcr
         ldb     a,x
         stb     HUD_X
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        else
         lda     #1
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_SPECIAL
@@ -1244,7 +1251,11 @@ alp_extra_draw
         leax    extra_letter_x,pcr
         ldb     a,x
         stb     HUD_X
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        else
         lda     #4
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_EXTRA
@@ -1335,11 +1346,21 @@ dmh_legacy_draw
 special_letter_bits
         fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
 special_letter_x
+        ifne COMPLETE_PROFILE
+        fcb     0,0,PRESENTATION_HUD_SPECIAL_PROGRESS_X+5,PRESENTATION_HUD_SPECIAL_PROGRESS_X+3,PRESENTATION_HUD_SPECIAL_PROGRESS_X+2,PRESENTATION_HUD_SPECIAL_PROGRESS_X+4
+        fcb     PRESENTATION_HUD_SPECIAL_PROGRESS_X+6,PRESENTATION_HUD_SPECIAL_PROGRESS_X+1,0,PRESENTATION_HUD_SPECIAL_PROGRESS_X+0,0,0
+        else
         fcb     0,0,6,4,3,5,7,2,0,1,0,0
+        endc
 extra_letter_bits
         fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
 extra_letter_x
+        ifne COMPLETE_PROFILE
+        fcb     0,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+4,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+0,0
+        fcb     0,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+3,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+2,PRESENTATION_HUD_EXTRA_PROGRESS_X+1
+        else
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
+        endc
 
 check_stage_clear
         tst     STAGE_PENDING
@@ -1477,6 +1498,8 @@ draw_hud
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
+        lda     #33
+        sta     HUD_X
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
         ldd     #$2701
@@ -5021,10 +5044,9 @@ hsi_clear
 ; Capture the current player-owned values before any gameplay HUD painter runs.
 hud_snapshot_capture_player
         ldx     #HUD_P1_SCORE
-        ldu     #SCORE_BCD
-        ldd     ,u++
+        ldd     <SCORE_BCD
         std     ,x++
-        lda     ,u+
+        lda     <SCORE_BCD+2
         sta     ,x+
         lda     STAGE
         sta     ,x+

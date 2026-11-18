@@ -32,6 +32,17 @@ class SharedText:
     def __init__(self, args, p):
         self.args, self.p = args, p
         self.hud_layout = args.hud_layout
+        self.p2_hud_cells = set()
+        self.hidden_p2_record_indices = set()
+        for field_name in ('P2_LABEL', 'P2_SCORE'):
+            field = self.hud_layout[field_name]
+            x, y = (int(value) for value in field['cell'])
+            width, height = (int(value) for value in field['size'])
+            self.p2_hud_cells.update(
+                (field_x, field_y)
+                for field_y in range(y, y + height)
+                for field_x in range(x, x + width)
+            )
         config_path=getattr(args,'text_colours',None) or Path(__file__).resolve().parents[1]/'assets/arcade/text-colours.json'
         self.colours=json.loads(config_path.read_text())
         required={'score','high_score','part','bonus','special','extra','multiplier','instruction_points','instruction_special','instruction_extra','instruction_multiplier','instruction_multiplier_inactive','stage_part','stage_bonus','stage_name','stage_good_luck','ranking','name','game_over_score'}
@@ -39,7 +50,7 @@ class SharedText:
         if any(type(v) is not int or not 1<=v<=15 for v in self.colours['fields'].values()):raise ValueError('dynamic text colours must be palette indices 1..15')
         gameplay_field_colours={
             'PART_LABEL':'part', 'PART_VALUE':'part',
-            'P1_LABEL':'score', 'P1_SCORE':'score',
+            'P1_SCORE':'score',
             'P2_LABEL':None, 'P2_SCORE':None,
             'TOP_SCORE':'high_score',
             'VEGETABLE_EQUALS':'bonus', 'VEGETABLE_VALUE':'bonus',
@@ -85,11 +96,16 @@ class SharedText:
                     elif x>=32:colour={1:8,2:8,4:1,5:1,7:6,8:6,10:3,11:3,12:5}.get(y,0)
                     else:raise ValueError(('unexpected gameplay text',x,y))
                 else:
-                    pens=p.presentation_pen_map(name,x,y,sources[i],code,False,self.colours)
+                    pens=p.presentation_pen_map(name,x,y,sources[i],code,False,self.colours,self.hud_layout)
                     colours={pens[v] for row in rows for v in row if v}
                     if len(colours)!=1:raise ValueError(('text is not monochrome',name,x,y))
                     colour=colours.pop()
+                    if sources[i]=='CoCo Side HUD' and (x,y) in self.p2_hud_cells:
+                        colour=0
                 self.records.append(dict(screen=name,x=x,y=y,code=code,glyph=self.font.index(value),colour=colour,mask=value.hex()))
+                if ((name == 'gameplay' or sources[i] == 'CoCo Side HUD')
+                        and (x,y) in self.p2_hud_cells):
+                    self.hidden_p2_record_indices.add(len(self.records) - 1)
         # Compile the registered native heart raster through the existing
         # monochrome descriptor path so name field roles apply to its pixels.
         # Raw code41 text translation remains blank. Keep blank last: the
@@ -97,6 +113,12 @@ class SharedText:
         heart_mask=mask(s.rotate_ccw(chars[41]))
         if heart_mask not in self.font:self.font.append(heart_mask)
         if bytes(8) not in self.font:self.font.append(bytes(8))
+        self.blank_glyph=self.font.index(bytes(8))
+        for record_index in self.hidden_p2_record_indices:
+            record=self.records[record_index]
+            record['glyph']=self.blank_glyph
+            record['colour']=0
+            record['mask']=bytes(8).hex()
         if len(self.font)>82:raise ValueError('shared font exceeds one-byte static encoding')
         self.cells={(r['screen'],r['y']*40+r['x']):r for r in self.records}
         self.overridden=apply_fixed_colour_runs(self.cells,self.colours['runs'])
