@@ -644,6 +644,34 @@
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
         {
+          "name": "hud_snapshot_init",
+          "profile": "copy",
+          "purpose": "Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-hud-snapshot-init"
+        },
+        {
+          "name": "hud_snapshot_capture_player",
+          "profile": "copy",
+          "purpose": "Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-hud-snapshot-capture-player"
+        },
+        {
+          "name": "hud_snapshot_refresh_top",
+          "profile": "copy",
+          "purpose": "Copy the committed ten-byte row-one score and name into the shared TOP snapshot.",
+          "reasons": [
+            "called",
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-hud-snapshot-refresh-top"
+        },
+        {
           "name": "gameplay_dispatch",
           "profile": "state",
           "purpose": "Gameplay dispatch.",
@@ -3573,7 +3601,7 @@
         {
           "name": "init_scores",
           "profile": "presentation",
-          "purpose": "Init scores.",
+          "purpose": "Initialize all nine ranking rows to 10,000 with the default name, once per runtime session.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-runtime-init-scores"
         },
@@ -3699,13 +3727,14 @@
         "PRES_MAIN_READ_JOY",
         "PRES_GAME_PAGE_RETURN",
         "PRES_MAIN_READ_STAGE_LETTERS",
+        "PRES_MAIN_HUD_TOP_REFRESH",
         "PRES_MODULE_DRAW_SCORE"
       ],
       "routines": [
         {
           "name": "highscore_commit_name",
           "profile": "presentation",
-          "purpose": "Highscore commit name.",
+          "purpose": "Commit the accepted name and score into the ranking table, then refresh TOP from row one.",
           "reasons": [],
           "semantic_id": "routines.html#routine-highscore-helper-highscore-commit-name"
         },
@@ -5754,7 +5783,8 @@
       "boot-audio-stream",
       "audio-mode-pending",
       "audio-service-gateway",
-      "audio-bank-guard"
+      "audio-bank-guard",
+      "hud-shared-snapshot"
     ]
   }
 }

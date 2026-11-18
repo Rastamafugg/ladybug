@@ -959,8 +959,9 @@ audio_mix_slot_done
         rts
 
 
-; BUG-037 fitted prototype. Boot tables end at $02BF; this 20-byte gate
-; preserves PAR5 for presentation and page-$24 name helper callers.
+; BUG-037 fitted prototype. Boot descriptors at $1800-$187E have retired;
+; $02A0-$02BF is the shared HUD snapshot and $02C0-$02D3 is the audio guard.
+; This 20-byte gate preserves PAR5 for presentation and page-$24 name helpers.
 audio_guard_bytes
         ldb     PAR5
         pshs    b

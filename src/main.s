@@ -12,6 +12,9 @@
 ADAPTIVE_RENDERING equ 0
         endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
+; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, then seed TOP from table row one.
+; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy all current player-owned HUD values into the shared low-RAM snapshot before drawing.
+; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -243,6 +246,24 @@ SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
 PRES_HIGHSCORE_BASE equ $AF84
+; FEAT-013 shared snapshot; boot streams have retired before initialization.
+; @audit {"id":"hud-shared-snapshot","kind":"scratch","symbol":"HUD_SHARED_BASE","width":32,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident HUD provider","lifetime":"Gameplay values are refreshed before their selected BACK draw; TOP persists from boot seed through committed ranking changes.","initialization":"hud_snapshot_init after boot-stream retirement; hud_snapshot_capture_player sets HUD_PLAYER_VALID after all player-one bytes are copied","clobbers":"The provider exclusively owns $02A0-$02BF; player two is reserved and zero while one-player mode is active."}
+HUD_SHARED_BASE equ $02A0
+HUD_P1_SCORE equ HUD_SHARED_BASE
+HUD_P1_STAGE equ HUD_SHARED_BASE+3
+HUD_P1_LIVES equ HUD_SHARED_BASE+4
+HUD_P1_MULTIPLIER equ HUD_SHARED_BASE+5
+HUD_P1_SPECIAL_BITS equ HUD_SHARED_BASE+6
+HUD_P1_EXTRA_BITS equ HUD_SHARED_BASE+7
+HUD_P2_SCORE equ HUD_SHARED_BASE+8
+HUD_P2_STAGE equ HUD_SHARED_BASE+11
+HUD_P2_LIVES equ HUD_SHARED_BASE+12
+HUD_P2_MULTIPLIER equ HUD_SHARED_BASE+13
+HUD_P2_SPECIAL_BITS equ HUD_SHARED_BASE+14
+HUD_P2_EXTRA_BITS equ HUD_SHARED_BASE+15
+HUD_TOP_SCORE equ HUD_SHARED_BASE+16
+HUD_TOP_NAME equ HUD_SHARED_BASE+19
+HUD_PLAYER_VALID equ HUD_SHARED_BASE+26
 LIVES         equ $0023         ; reserve lives after the active player enters
 MAX_RESERVE_LIVES equ 12        ; active life is additional to these HUD markers
 STAGE         equ $0024         ; current stage, 1..255
@@ -642,7 +663,7 @@ startup_seed_ready
         sta     $EB
         clr     $DF
         ldx     #PRES_HIGHSCORE_BASE
-        lda     #9
+        lda     #1
         sta     ,x+
         clr     ,x
         clr     1,x
@@ -654,6 +675,7 @@ startup_top_name
         sta     ,x+
         decb
         bne     startup_top_name
+        jsr     hud_snapshot_init
         endc
         clr     PLAYER_BG_VALID
         ldd     #$0000
@@ -1001,6 +1023,9 @@ iet_done
 ; Phase 5 score, HUD, and no-enemy stage state.
 ;==============================================================================
 init_game_state
+        ifne COMPLETE_PROFILE
+        clr     HUD_PLAYER_VALID
+        endc
         clr     FB_INIT_STATE
         clr     RENDER_FLAGS
         clr     RENDER_FLAGS2
@@ -1256,39 +1281,51 @@ add_special_score
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
-        lda     MULTIPLIER
-        cmpa    #2
-        bne     dmh_draw
-        deca
-dmh_draw
+        ifne COMPLETE_PROFILE
+        jsr     hud_snapshot_capture_player
+        lda     HUD_P1_MULTIPLIER
+        cmpa    #3
+        beq     dmh_three
+        cmpa    #5
+        beq     dmh_five
+        lda     #PRESENTATION_HUD_MULTIPLIER_X2_X
+        bra     dmh_position
+dmh_three
+        lda     #PRESENTATION_HUD_MULTIPLIER_X3_X
+        bra     dmh_position
+dmh_five
+        lda     #PRESENTATION_HUD_MULTIPLIER_X5_X
+dmh_position
         sta     HUD_X
-        ifne COMPLETE_PROFILE
-        lsla
-        lsla
-        ldy     #FB_VIRT+(7*1280)
-        leay    a,y
-        endc
-        lda     #7
+        lda     #PRESENTATION_HUD_MULTIPLIER_X2_Y
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
+        lda     HUD_X
+        lsla
+        lsla
+        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)
+        leay    a,y
         lda     #TEXT_MULTIPLIER
-        else
-        lda     #COLOR_BLUE
-        endc
         sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-; @audit-use {"id": "multiplier-x", "symbol": "PRESENTATION_MULTIPLIER_X_GRAPHIC"}
+; @audit-use {"id":"multiplier-x","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC"}
         ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
         jsr     presentation_dispatch
         lda     #$34            ; restore game-state PAR5 after cold graphic read
         sta     GIME_PAR5
-        else
-        lbsr    draw_recolored_map_tile
-        endc
         inc     HUD_X
-        ifne COMPLETE_PROFILE
-        jmp    draw_recolored_map_tile
+        jmp     draw_recolored_map_tile
         else
+        lda     MULTIPLIER
+        cmpa    #2
+        bne     dmh_legacy_draw
+        deca
+dmh_legacy_draw
+        sta     HUD_X
+        lda     #7
+        sta     HUD_Y
+        lda     #COLOR_BLUE
+        sta     HUD_COLOR
+        lbsr    draw_recolored_map_tile
+        inc     HUD_X
         lbsr    draw_recolored_map_tile
         rts
         endc
@@ -1322,14 +1359,27 @@ csc_done
 ; Side effects: redraws every collected SPECIAL/EXTRA letter in the HUD
 ;==============================================================================
 draw_word_progress_hud
+        ifne COMPLETE_PROFILE
+        jsr     hud_snapshot_capture_player
+        lda     HUD_P1_SPECIAL_BITS
+        else
         lda     SPECIAL_BITS
+        endc
         sta     HUD_BCD_BYTE
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_X
+        else
         lda     #1
+        endc
         sta     HUD_X
 dwph_special
         lsr     HUD_BCD_BYTE
         bcc     dwph_special_next
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        else
         lda     #1
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_SPECIAL
@@ -1345,17 +1395,33 @@ dwph_special
 dwph_special_next
         inc     HUD_X
         lda     HUD_X
+        ifne COMPLETE_PROFILE
+        cmpa    #PRESENTATION_HUD_SPECIAL_PROGRESS_X+PRESENTATION_HUD_SPECIAL_PROGRESS_WIDTH
+        else
         cmpa    #8
+        endc
         blo     dwph_special
 
+        ifne COMPLETE_PROFILE
+        lda     HUD_P1_EXTRA_BITS
+        else
         lda     EXTRA_BITS
+        endc
         sta     HUD_BCD_BYTE
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_X
+        else
         lda     #1
+        endc
         sta     HUD_X
 dwph_extra
         lsr     HUD_BCD_BYTE
         bcc     dwph_extra_next
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        else
         lda     #4
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_EXTRA
@@ -1371,58 +1437,59 @@ dwph_extra
 dwph_extra_next
         inc     HUD_X
         lda     HUD_X
+        ifne COMPLETE_PROFILE
+        cmpa    #PRESENTATION_HUD_EXTRA_PROGRESS_X+PRESENTATION_HUD_EXTRA_PROGRESS_WIDTH
+        else
         cmpa    #6
+        endc
         blo     dwph_extra
         rts
 
 draw_hud
+        ifne COMPLETE_PROFILE
+        jsr     hud_snapshot_capture_player
+        lda     #PRESENTATION_HUD_P1_SCORE_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_P1_SCORE_Y
+        sta     HUD_Y
+        lda     #TEXT_SCORE
+        sta     HUD_COLOR
+        ldu     #HUD_P1_SCORE
+        lbsr    draw_bcd_line
+        jsr     asset_draw_top_hud
+        lda     #PRESENTATION_HUD_PART_VALUE_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_PART_VALUE_Y
+        sta     HUD_Y
+        lda     HUD_P1_STAGE
+        jsr     asset_draw_part_value
+        else
         lda     #6
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_SCORE
-        else
         lda     #COLOR_LIGHT_GREEN
-        endc
         sta     HUD_COLOR
+        lda     #33
+        sta     HUD_X
         ldu     #SCORE_BCD
         lbsr    draw_bcd_line
-        ifne COMPLETE_PROFILE
-        jsr     asset_draw_top_hud
-        else
         lda     #13
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
-        endc
-        ifne COMPLETE_PROFILE
-        ldd     #$2501
-        else
         ldd     #$2701
-        endc
         std     HUD_X
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_PART
-        else
         lda     #COLOR_BLUE
-        endc
         sta     HUD_COLOR
         lda     STAGE
-        ifne COMPLETE_PROFILE
-        jsr     asset_draw_part_value
-        else
 dhu_mod10
         cmpa    #10
         blo     dhu_stage_digit
         suba    #10
         bra     dhu_mod10
 dhu_stage_digit
-        ifne COMPLETE_PROFILE
-        jsr    draw_hud_digit
-        else
         lbsr    draw_hud_digit
-        endc
         endc
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
 
@@ -1430,7 +1497,11 @@ dhu_stage_digit
 ; marker (cell (33,3), sprite root (33,2)), followed by
 ; its four-digit 1000..9500 value at columns 36-39 on row 3.
 draw_vegetable_hud
+        ifne COMPLETE_PROFILE
+        lda     HUD_P1_STAGE
+        else
         lda     STAGE
+        endc
         cmpa    #18
         bls     dvh_stage_ok
         lda     #18
@@ -1441,7 +1512,7 @@ dvh_stage_ok
         mul
         leay    vegetable_sprites,pcr
         leay    d,y
-        ldx     #PRESENTATION_PART_VEGETABLE_DST
+        ldx     #PRESENTATION_HUD_VEGETABLE_ICON_DST
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
 
@@ -1449,8 +1520,10 @@ dvh_stage_ok
         lsla
         leau    vegetable_values,pcr
         leau    a,u
-        ldd     #$2403
-        std     HUD_X
+        lda     #PRESENTATION_HUD_VEGETABLE_VALUE_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_VEGETABLE_VALUE_Y
+        sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_BONUS
         else
@@ -1467,8 +1540,6 @@ vegetable_values
         fdb     $7000,$7500,$8000,$8500,$9000,$9500
 
 draw_bcd_line
-        lda     #33
-        sta     HUD_X
         lda     #3
         sta     HUD_BCD_COUNT
 dbl_byte
@@ -1594,12 +1665,13 @@ asset_part_finish
 
 draw_lives
         ifne COMPLETE_PROFILE
+        jsr     hud_snapshot_capture_player
         clr     ENTITY_WORK
 dl_marker
         lda     ENTITY_WORK
         jsr     life_marker_position
         lda     ENTITY_WORK
-        cmpa    LIVES
+        cmpa    HUD_P1_LIVES
         bhs     dl_erase
         bsr     draw_life_marker
         bra     dl_next
@@ -4928,6 +5000,55 @@ nlt_delta
         rts
 nlt_deltas
         fdb     -320,1,320,-1
+        endc
+
+        ifne COMPLETE_PROFILE
+; Clear the shared snapshot after boot descriptors are retired. The boot path
+; has already seeded table row one and passes its mapped ten-byte record.
+hud_snapshot_init
+        ldx     #HUD_SHARED_BASE
+        ldb     #32
+hsi_clear
+        clr     ,x+
+        decb
+        bne     hsi_clear
+        ldu     #PRES_HIGHSCORE_BASE
+        bra     hud_snapshot_refresh_top
+
+; Capture the current player-owned values before any gameplay HUD painter runs.
+hud_snapshot_capture_player
+        ldx     #HUD_P1_SCORE
+        ldu     #SCORE_BCD
+        lda     ,u+
+        sta     ,x+
+        lda     ,u+
+        sta     ,x+
+        lda     ,u+
+        sta     ,x+
+        lda     STAGE
+        sta     ,x+
+        lda     LIVES
+        sta     ,x+
+        lda     MULTIPLIER
+        sta     ,x+
+        lda     SPECIAL_BITS
+        sta     ,x+
+        lda     EXTRA_BITS
+        sta     ,x
+        lda     #1
+        sta     HUD_PLAYER_VALID
+        rts
+
+; U points to an accessible committed ten-byte row-one record.
+hud_snapshot_refresh_top
+        ldx     #HUD_TOP_SCORE
+        ldb     #10
+hst_copy
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     hst_copy
+        rts
         endc
 
 ; PERF-008 helper contract mirrors for keyed pickup background repair.

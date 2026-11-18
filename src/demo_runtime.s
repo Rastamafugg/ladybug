@@ -5,7 +5,7 @@
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
 ; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan input and route safe automatic-loop wake while preserving local menu edges.
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
-; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Commit the accepted name and score into the ranking table, then refresh TOP from row one.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
 ; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
@@ -22,7 +22,7 @@
 ; DOC-002 source-contract mirror contract draw_name_fields profile=presentation: Draw name fields.
 ; DOC-002 source-contract mirror contract draw_record_name profile=presentation: Draw record name.
 ; DOC-002 source-contract mirror contract draw_score profile=presentation: Tail-call the shared presentation score painter for record and name-entry score fields.
-; DOC-002 source-contract mirror contract init_scores profile=presentation: Init scores.
+; DOC-002 source-contract mirror contract init_scores profile=presentation: Initialize all nine ranking rows to 10,000 with the default name, once per runtime session.
 ; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
 ; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
 ; DOC-002 source-contract mirror contract name_cell_arrival profile=presentation: Name cell arrival.

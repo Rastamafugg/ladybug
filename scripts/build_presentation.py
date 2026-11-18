@@ -162,6 +162,25 @@ ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
 )
 HIGH_SCORE_LAYOUT_LAYER = "High Score Data Layout"
 HIGH_SCORE_LAYOUT_SLOTS = tuple(f"RANK_{index:02d}" for index in range(1, 10))
+HUD_LAYOUT_LAYER = "HUD Field Definitions"
+HUD_LAYOUT_SCREENS = (
+    "gameplay", "instructions", "level-start", "game-over",
+    "enter-high-score", "extra", "special",
+)
+HUD_LAYOUT_FIELDS = {
+    "PART_LABEL": (4, 1), "PART_VALUE": (3, 1),
+    "P1_LABEL": (3, 1), "P1_SCORE": (6, 1),
+    "P2_LABEL": (3, 1), "P2_SCORE": (6, 1),
+    "TOP_LABEL": (3, 1), "TOP_NAME": (7, 1), "TOP_SCORE": (6, 1),
+    "VEGETABLE_ICON": (2, 2), "VEGETABLE_EQUALS": (1, 1),
+    "VEGETABLE_VALUE": (4, 1),
+    "SPECIAL_PROGRESS": (7, 1), "EXTRA_PROGRESS": (5, 1),
+    "MULTIPLIER_X2": (2, 1), "MULTIPLIER_X3": (2, 1),
+    "MULTIPLIER_X5": (2, 1),
+    **{f"LIFE_{index:02d}": (2, 2) for index in range(1, 13)},
+    "INSTRUCTION_EXTRA_VALUE": (2, 1),
+    "INSTRUCTION_SPECIAL_VALUE": (2, 1),
+}
 HIGH_SCORE_DISPLAY_RECORDS = tuple(range(9))
 HIGH_SCORE_SCORE_BYTES = 3
 HIGH_SCORE_BCD_DIGITS_PER_BYTE = 2
@@ -178,7 +197,6 @@ INSTRUCTION_LIFE_ROOT = (28, 7)
 INSTRUCTION_COIN_ROOT = (28, 10)
 INSTRUCTION_ANGEL_ROOT = (28, 14)
 INSTRUCTION_CUCUMBER_MARKER = PART_VEGETABLE_MARKER
-INSTRUCTION_MULTIPLIER_ROOTS = ((27, 17), (27, 20))
 INSTRUCTION_TARGETS = (
     ((13, 7), (1, 4)), ((15, 7), (2, 4)), ((17, 7), (3, 4)),
     ((19, 7), (4, 4)), ((21, 7), (5, 4)),
@@ -838,7 +856,10 @@ def presentation_pen_map(
     if role == "high-score" and source_layer in HIGH_SCORE_LOGO_LAYERS:
         return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "instructions" and y == 7 and 1 <= x <= 6:
-        return (BLACK, BLUE, BLUE, BLUE)
+        inactive = int(colour_config["fields"].get(
+            "instruction_multiplier_inactive", GREY
+        )) if colour_config else BLUE
+        return (BLACK, inactive, inactive, inactive)
     if role == "attract":
         if 7 <= y <= 12 and 9 <= x <= 30 and 164 <= raw_code <= 197:
             return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
@@ -990,6 +1011,69 @@ def compile_map(
 def framebuffer_destination(cell: tuple[int, int]) -> int:
     x, y = cell
     return 0x2000 + y * 1280 + x * 4
+
+
+def parse_hud_layout(path: Path) -> dict[str, dict[str, object]]:
+    """Read named HUD rectangles from the shared CoCo authoring template."""
+    root = ET.parse(path).getroot()
+    width, height = int(root.attrib["width"]), int(root.attrib["height"])
+    tile_width, tile_height = int(root.attrib["tilewidth"]), int(root.attrib["tileheight"])
+    if (width, height, tile_width, tile_height) != (40, 24, 8, 8):
+        raise ValueError(f"{path}: HUD layout requires a 40x24 8-pixel grid")
+    layers = [layer for layer in root.findall("objectgroup")
+              if layer.get("name") == HUD_LAYOUT_LAYER]
+    if len(layers) != 1:
+        raise ValueError(f"{path}: expected one {HUD_LAYOUT_LAYER!r} object layer")
+    layer = layers[0]
+    if any(float(layer.get(key, "0")) != 0
+           for key in ("x", "y", "offsetx", "offsety")):
+        raise ValueError(f"{path}: {HUD_LAYOUT_LAYER} may not be offset")
+
+    fields: dict[str, dict[str, object]] = {}
+    claimed: set[tuple[int, int]] = set()
+    for obj in layer.findall("object"):
+        name = obj.get("name", "")
+        if name not in HUD_LAYOUT_FIELDS:
+            raise ValueError(f"{path}: unexpected HUD field {name!r}")
+        if name in fields:
+            raise ValueError(f"{path}: duplicate HUD field {name!r}")
+        if obj.get("gid") is not None or any(
+                obj.find(shape) is not None
+                for shape in ("point", "ellipse", "polygon", "polyline", "text")):
+            raise ValueError(f"{path}: HUD field {name} must be a rectangle")
+        try:
+            values = tuple(float(obj.get(key, "nan"))
+                           for key in ("x", "y", "width", "height"))
+        except ValueError as exc:
+            raise ValueError(f"{path}: HUD field {name} has invalid geometry") from exc
+        if not all(value == value and abs(value) != float("inf") for value in values):
+            raise ValueError(f"{path}: HUD field {name} has invalid geometry")
+        x_px, y_px, width_px, height_px = values
+        expected_width, expected_height = HUD_LAYOUT_FIELDS[name]
+        if (x_px % tile_width or y_px % tile_height
+                or width_px != expected_width * tile_width
+                or height_px != expected_height * tile_height):
+            raise ValueError(f"{path}: HUD field {name} has wrong size or is off-grid")
+        x, y = int(x_px // tile_width), int(y_px // tile_height)
+        cells = {(column, row)
+                 for row in range(y, y + expected_height)
+                 for column in range(x, x + expected_width)}
+        if (x < 0 or y < 0 or x + expected_width > width
+                or y + expected_height > height):
+            raise ValueError(f"{path}: HUD field {name} is outside the screen")
+        overlap = claimed & cells
+        if overlap:
+            raise ValueError(f"{path}: HUD fields overlap at {sorted(overlap)}")
+        claimed.update(cells)
+        fields[name] = {
+            "cell": [x, y],
+            "size": [expected_width, expected_height],
+            "destination": framebuffer_destination((x, y)),
+        }
+    missing = set(HUD_LAYOUT_FIELDS) - set(fields)
+    if missing:
+        raise ValueError(f"{path}: missing HUD fields {sorted(missing)}")
+    return fields
 
 
 def parse_high_score_layout(
@@ -1246,6 +1330,7 @@ def parse_instruction_contract(
     sprites: list[list[list[int]]],
     tiles: list[bytes],
     tile_ids: dict[bytes, int],
+    hud_layout: dict[str, dict[str, object]],
 ) -> dict[str, object]:
     root = ET.parse(path).getroot()
     layers = {layer.get("name", ""): layer for layer in root.findall("layer")}
@@ -1275,6 +1360,11 @@ def parse_instruction_contract(
     overlay_cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
     hud_layer = layers["CoCo Side HUD"]
     hud_cells = parse_csv(hud_layer.find("data"), hud_layer.get("name", ""))
+    multiplier_names = ("MULTIPLIER_X2", "MULTIPLIER_X3", "MULTIPLIER_X5")
+    multiplier_roots = tuple(
+        tuple(int(v) for v in hud_layout[name]["cell"])
+        for name in multiplier_names
+    )
     for target, hud in INSTRUCTION_TARGETS:
         for dy in range(2):
             for dx in range(2):
@@ -1327,13 +1417,13 @@ def parse_instruction_contract(
     multiplier_tiles = {
         str(value): [register_tile(instruction_char_tile(
             root, path,
-            hud_cells[7 * SCREEN_WIDTH + 1], (1, 7), chars,
+            hud_cells[cell[1] * SCREEN_WIDTH + cell[0]], cell, chars,
             (BLACK, BLUE, BLUE, BLUE),
         ), tiles, tile_ids), register_tile(
             pack_tile(recolor(rotated[value], (BLACK, BLUE, BLUE, BLUE))),
             tiles, tile_ids,
         )]
-        for value in (2, 3, 5)
+        for value, cell in zip((2, 3, 5), multiplier_roots)
     }
 
     reference = json.loads(INSTRUCTION_REFERENCE.read_text(encoding="ascii"))
@@ -1500,8 +1590,9 @@ def parse_instruction_contract(
         "cucumber_source_code": cucumber_code,
         "cucumber_stream": cucumber_stream,
         "cucumber_native": cucumber_native,
-        "multiplier_destinations": [framebuffer_destination(cell)
-                                    for cell in INSTRUCTION_MULTIPLIER_ROOTS],
+        "multiplier_destinations": [framebuffer_destination(
+            tuple(int(v) for v in hud_layout[name]["cell"])
+        ) for name in ("INSTRUCTION_EXTRA_VALUE", "INSTRUCTION_SPECIAL_VALUE")],
         "multiplier_tile_ids": multiplier_tiles,
         "value_destination": framebuffer_destination((16, 20)),
         "value_tile_ids": value_tiles,
@@ -1885,7 +1976,8 @@ def load_demo_walk(path: Path, route: dict[str, object]) -> tuple[bytes, dict[st
 def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
                  encoded_maps: list[bytes], manifest: dict[str, object],
                  chars: list[list[list[int]]],
-                 high_score_layout: list[dict[str, object]]) -> None:
+                 high_score_layout: list[dict[str, object]],
+                 hud_layout: dict[str, dict[str, object]]) -> None:
     lines = [
         "; Generated by scripts/build_presentation.py; do not edit.",
         f"PRESENTATION_MAP_COUNT equ {len(maps)}",
@@ -1945,7 +2037,7 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         f"PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ ${instruction['colour_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ ${instruction['cucumber_stream_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_CUCUMBER_DST equ ${instruction['cucumber_destination']:04X}",
-        f"PRESENTATION_PART_VEGETABLE_DST equ ${instruction['cucumber_destination']:04X}",
+        f"PRESENTATION_PART_VEGETABLE_DST equ ${int(hud_layout['VEGETABLE_ICON']['destination']):04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_POINTERS equ ${instruction['death_pointer_offset']:04X}",
         f"PRESENTATION_INSTRUCTION_DEATH_COUNT equ {len(instruction['death_stream_offsets'])}",
         f"PRESENTATION_INSTRUCTION_DEATH_TICK equ {instruction['death_collision_tick']}",
@@ -2032,6 +2124,23 @@ def emit_include(path: Path, maps: list[bytes], tiles: list[bytes],
         lines.append(
             f"PRESENTATION_HIGHSCORE_DEFAULT_NAME_{index} equ ${int(tile_id):02X}"
         )
+    lines.extend((
+        "",
+        "; FEAT-013 named HUD geometry shared by gameplay and side-HUD screens.",
+        f"PRESENTATION_HUD_FIELD_COUNT equ {len(hud_layout)}",
+        f"PRESENTATION_HUD_LAYOUT_SCREEN_COUNT equ {len(HUD_LAYOUT_SCREENS)}",
+    ))
+    for name, field in hud_layout.items():
+        x, y = (int(value) for value in field["cell"])
+        width, height = (int(value) for value in field["size"])
+        prefix = f"PRESENTATION_HUD_{name}"
+        lines.extend((
+            f"{prefix}_X equ {x}",
+            f"{prefix}_Y equ {y}",
+            f"{prefix}_WIDTH equ {width}",
+            f"{prefix}_HEIGHT equ {height}",
+            f"{prefix}_DST equ ${int(field['destination']):04X}",
+        ))
     rotated = [rotate_ccw(tile) for tile in chars]
     for code in range(37):
         packed = pack_tile(recolor(rotated[code], (BLACK, WHITE, WHITE, WHITE)))
@@ -2080,6 +2189,8 @@ def main() -> None:
     complete_profile = bool(args.complete_profile)
     highscore_test_profile = bool(args.highscore_test_profile)
     colour_config = load_text_colours(args.text_colours)
+    hud_layout = parse_hud_layout(args.tiled_dir / "coco-template.tmx")
+    args.hud_layout = hud_layout
     high_score_layout = parse_high_score_layout(
         args.tiled_dir / MAP_FILES["high-score"], colour_config
     )
@@ -2131,11 +2242,12 @@ def main() -> None:
     if development_profile:
         instruction = parse_instruction_contract(
             args.tiled_dir / MAP_FILES["instructions"], chars, sprites,
-            tiles, tile_ids,
+            tiles, tile_ids, hud_layout,
         )
     else:
         instruction = parse_instruction_contract(
-            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {}
+            args.tiled_dir / MAP_FILES["instructions"], chars, sprites, [], {},
+            hud_layout,
         )
     name_entry = (
         parse_enter_high_score_contract(
@@ -2522,6 +2634,14 @@ def main() -> None:
         "layer_contracts": {
             info["name"]: info["layer_contract"] for info in map_info
         },
+        "shared_hud_layout": {
+            "source_template": "coco-template.tmx",
+            "layer": HUD_LAYOUT_LAYER,
+            "grid_pixels": [8, 8],
+            "screen_count": len(HUD_LAYOUT_SCREENS),
+            "screens": list(HUD_LAYOUT_SCREENS),
+            "fields": hud_layout,
+        },
         "raw_sprite_markers": {
             "gameplay": [
                 {"cell": list(cell), "gid": value & GID_MASK,
@@ -2732,7 +2852,7 @@ def main() -> None:
     args.manifest_output.write_text(json.dumps(manifest, indent=2) + "\n",
                                     encoding="ascii")
     emit_include(args.include_output, maps, tiles, encoded_maps, manifest, chars,
-                 high_score_layout)
+                 high_score_layout, hud_layout)
     if shared:
         shared.finish(manifest, tiles, cold_payload, instruction)
         # BUG-052: reuse the High Score map's authored phase-changing logo tiles.

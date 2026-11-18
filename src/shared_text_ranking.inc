@@ -682,12 +682,12 @@ init_scores
         tst     PRES_HS_READY
         bne     init_scores_done
         ldu     #PRES_HIGHSCORE_BASE
-        lda     #9
+        ldb     #9
 init_scores_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 init_scores_name
@@ -695,8 +695,7 @@ init_scores_name
         sta     ,u+
         leay    -1,y
         bne     init_scores_name
-        puls    a
-        deca
+        decb
         bne     init_scores_row
         inc     PRES_HS_READY
 init_scores_done

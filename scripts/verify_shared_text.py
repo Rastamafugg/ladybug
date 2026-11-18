@@ -210,6 +210,15 @@ def main():
     masks=[font[i:i+8] for i in range(0,len(font),8)]
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
     assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
+    instruction_fields=shared['colour_configuration']['fields']
+    inactive=[r for r in shared['coverage']
+              if r['screen']=='instructions' and r['y']==7 and 1<=r['x']<=6]
+    assert len(inactive)==6 and all(r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
+        'instruction multipliers must start inactive gray',inactive)
+    for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
+        for ident in ids:
+            assert descriptors[2*ident+1]==instruction_fields['instruction_multiplier'],(
+                'earned multiplier tiles stay blue',ident,descriptors[2*ident+1])
     # Approved colours are checked independently of presentation_pen_map.
     approved=[]
     for r in shared['coverage']:
@@ -220,6 +229,7 @@ def main():
             colour=shared['colour_configuration']['fields']['bonus']
         elif name=='attract' and y==15:colour=9
         elif name=='attract' and y==18:colour=2 if r['code']==1 else 6
+        elif name=='instructions' and y==7 and 1<=x<=6:colour=instruction_fields['instruction_multiplier_inactive']
         elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
         elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
         if colour is not None:

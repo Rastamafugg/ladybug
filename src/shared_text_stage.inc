@@ -337,12 +337,12 @@ highscore_prepare_name
         tst     PRES_HS_READY
         bne     highscore_prepare_ready
         ldu     #PRES_HIGHSCORE_ALIAS
-        lda     #9
+        ldb     #9
 highscore_prepare_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 highscore_prepare_default
@@ -350,8 +350,7 @@ highscore_prepare_default
         sta     ,u+
         leay    -1,y
         bne     highscore_prepare_default
-        puls    a
-        deca
+        decb
         bne     highscore_prepare_row
         inc     PRES_HS_READY
 highscore_prepare_ready
@@ -378,7 +377,7 @@ highscore_qualify_loop
         blo     highscore_qualify_next
         lda     PRES_SCORE_L
         cmpa    2,x
-        bhi     highscore_qualify_found
+        bhs     highscore_qualify_found
 highscore_qualify_next
         leax    10,x
         incb
@@ -468,6 +467,8 @@ highscore_commit_name_loop
         sta     ,x+
         decb
         bne     highscore_commit_name_loop
+        ldu     #PRES_HIGHSCORE_ALIAS
+        jsr     PRES_MAIN_HUD_TOP_REFRESH
         puls    a
         sta     PAR4
         puls    cc
