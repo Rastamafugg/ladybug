@@ -786,11 +786,11 @@ stage_panel_text
         bne     stage_panel_text
         rts
 
-; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
+; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score at the generated P1 score field during hidden level-start hydration.
 stage_player_score
         lda #8
         sta $29
-        ldx #$2A84
+        ldx #PRESENTATION_HUD_P1_SCORE_DST
         ldy #$001D
         ldb #3
 stage_player_score_pair

@@ -50,8 +50,10 @@ class SharedText:
         if any(type(v) is not int or not 1<=v<=15 for v in self.colours['fields'].values()):raise ValueError('dynamic text colours must be palette indices 1..15')
         gameplay_field_colours={
             'PART_LABEL':'part', 'PART_VALUE':'part',
+            'P1_LABEL':'score',
             'P1_SCORE':'score',
             'P2_LABEL':None, 'P2_SCORE':None,
+            'TOP_LABEL':'high_score',
             'TOP_SCORE':'high_score',
             'VEGETABLE_EQUALS':'bonus', 'VEGETABLE_VALUE':'bonus',
         }

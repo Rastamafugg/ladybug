@@ -229,9 +229,19 @@ dynamic_graphic
         tfr y,u
         jmp presentation_fast_blit
 
-; Draw the committed first score and name on the gameplay/demo HUD.
-; The table owner refreshes this low-RAM record only at boot and after commit.
+; Draw the active player's score during play, but keep the authored zero in
+; demo mode. Then draw committed TOP name and score.
 asset_draw_top_hud
+        lda PRES_MODE
+        cmpa #MODE_DEMO
+        beq asset_top_score_done
+        ldd #(PRESENTATION_HUD_P1_SCORE_X*256+PRESENTATION_HUD_P1_SCORE_Y)
+        std HUD_X
+        lda #TEXT_SCORE
+        sta HUD_COLOR
+        ldu #HUD_P1_SCORE
+        jsr draw_bcd_line
+asset_top_score_done
         lda #PRESENTATION_HUD_TOP_SCORE_X
         sta HUD_X
         lda #PRESENTATION_HUD_TOP_SCORE_Y

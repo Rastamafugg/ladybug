@@ -11,7 +11,7 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo, then draw committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
@@ -1466,19 +1466,13 @@ dwph_extra_next
 draw_hud
         ifne COMPLETE_PROFILE
         jsr     hud_snapshot_capture_player
-        lda     #PRESENTATION_HUD_P1_SCORE_X
-        sta     HUD_X
-        lda     #PRESENTATION_HUD_P1_SCORE_Y
-        sta     HUD_Y
-        lda     #TEXT_SCORE
-        sta     HUD_COLOR
-        ldu     #HUD_P1_SCORE
-        lbsr    draw_bcd_line
         jsr     asset_draw_top_hud
         lda     #PRESENTATION_HUD_PART_VALUE_X
         sta     HUD_X
         lda     #PRESENTATION_HUD_PART_VALUE_Y
         sta     HUD_Y
+        lda     #TEXT_PART
+        sta     HUD_COLOR
         lda     HUD_P1_STAGE
         jsr     asset_draw_part_value
         else

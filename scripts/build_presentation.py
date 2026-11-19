@@ -158,7 +158,7 @@ ENTER_HIGH_SCORE_TOP_DESTINATIONS = tuple(
     0x2000 + 13 * 1280 + (1 + index) * 4 for index in range(6)
 )
 ENTER_HIGH_SCORE_TOP_RIGHT_DESTINATIONS = tuple(
-    0x2000 + 6 * 1280 + (33 + index) * 4 for index in range(6)
+    0x2000 + 6 * 1280 + (34 + index) * 4 for index in range(6)
 )
 HIGH_SCORE_LAYOUT_LAYER = "High Score Data Layout"
 HIGH_SCORE_LAYOUT_SLOTS = tuple(f"RANK_{index:02d}" for index in range(1, 10))
@@ -175,8 +175,10 @@ HUD_LAYOUT_SCREEN_SOURCES = {
 HUD_LAYOUT_COLOUR_FIELDS = {
     "PART_LABEL": "part",
     "PART_VALUE": "part",
+    "P1_LABEL": "score",
     "P1_SCORE": "score",
     "P2_SCORE": "inactive_player",
+    "TOP_LABEL": "high_score",
     "TOP_SCORE": "high_score",
     "VEGETABLE_EQUALS": "bonus",
     "VEGETABLE_VALUE": "bonus",
