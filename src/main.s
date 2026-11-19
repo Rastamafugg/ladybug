@@ -1485,16 +1485,15 @@ draw_shared_hud equ draw_hud
         sta     HUD_COLOR
         lda     HUD_P1_STAGE
         jsr     asset_draw_part_value
-        jsr     draw_vegetable_hud
+        bsr     draw_vegetable_hud
         tst     1,s
         beq     dhu_shared_done
         jsr     draw_word_progress_hud
         jsr     draw_lives
         jsr     draw_multiplier_hud
 dhu_shared_done
-        puls    a
+        puls    a,b
         sta     GIME_PAR5
-        leas    1,s
         rts
         else
         lda     #6
