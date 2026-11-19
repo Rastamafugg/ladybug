@@ -222,7 +222,7 @@
         {
           "name": "draw_shared_hud",
           "profile": "render",
-          "purpose": "Dispatch selected common HUD fields and generated instruction glyphs through one resident entry, restoring the incoming PAR5 mapping.",
+          "purpose": "Draw either the primary HUD fields or all common HUD fields through one resident entry, refreshing player values once and restoring the incoming PAR5 mapping.",
           "reasons": [
             "exported"
           ],
@@ -2639,7 +2639,7 @@
         {
           "name": "draw_hud_event_tiles",
           "profile": "render",
-          "purpose": "Pass generated instruction event glyphs to the shared resident HUD renderer.",
+          "purpose": "Draw generated instruction event glyphs at their authored framebuffer destination.",
           "reasons": [
             "called"
           ],
@@ -2730,7 +2730,6 @@
         "PRES_MAIN_FB_PREPARE",
         "PRES_MAIN_RESTORE_PLAYER",
         "PRES_MAIN_SAVE_PLAYER",
-        "PRES_MAIN_SHARED_HUD",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE"
       ],

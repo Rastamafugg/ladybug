@@ -34,7 +34,7 @@
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Pass generated instruction-event HUD tile IDs and destination through the shared resident HUD renderer.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction-event tile IDs at their authored framebuffer destination.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -189,21 +189,23 @@ event_ptr_a
         addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
         jmp     PRES_MODULE_COLD_PTR
 
-; X points to one generated instruction event. Route its precoloured common
-; HUD glyphs through the resident renderer while preserving the event payload.
+; X points to one generated instruction event. These animated, screen-local
+; glyphs use the generic tile painter; common HUD fields use draw_shared_hud.
 draw_hud_event_tiles
         ldy     8,x
         beq     dhet_done
-        ldd     10,x
-        pshs    d
-        lda     ,s
-        tfr     a,b
-        clra
-        tfr     d,x
-        ldb     1,s
-        lda     #PRESENTATION_HUD_DRAW_EVENT_TILES
-        jsr     PRES_MAIN_SHARED_HUD
-        leas    2,s
+        ldb     10,x
+        beq     dhet_primary
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    b,y
+        bra     dhet_draw
+dhet_primary
+        ldb     11,x
+dhet_draw
+        jsr     PRES_MODULE_DRAW_TILE
 dhet_done
         rts
 
@@ -616,7 +618,7 @@ instruction_runtime_end
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Pass generated instruction-event HUD tile IDs and destination through the shared resident HUD renderer.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction-event tile IDs at their authored framebuffer destination.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.

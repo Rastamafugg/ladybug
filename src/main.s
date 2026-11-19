@@ -15,7 +15,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Draw selected shared HUD fields and event tiles through one resident entry while restoring the caller PAR5 mapping.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Draw primary or all common HUD fields through one resident entry, refreshing player values once and restoring the caller PAR5 mapping.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -1294,74 +1294,29 @@ add_special_score
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
         ifne COMPLETE_PROFILE
-; A selects common HUD groups. Event-tile calls also supply B=left tile ID,
-; X=optional right tile ID, and Y=the first framebuffer destination.
+; A selects primary-only or the complete common HUD. Preserve PAR5 around
+; each existing field painter so every call sees the caller's game-state map.
 draw_shared_hud
         pshs    a
         lda     GIME_PAR5
         pshs    a
         lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_ALL
-        beq     dsh_snapshot_ready
+        cmpa    #PRESENTATION_HUD_DRAW_PRIMARY
+        beq     dsh_primary
         jsr     hud_snapshot_capture_player
-dsh_snapshot_ready
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_PRIMARY
-        beq     dsh_progress
         jsr     draw_hud
         lda     ,s
         sta     GIME_PAR5
-dsh_progress
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_PROGRESS
-        beq     dsh_lives
         jsr     draw_word_progress_hud
         lda     ,s
         sta     GIME_PAR5
-dsh_lives
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_LIVES
-        beq     dsh_multiplier
         jsr     draw_lives
         lda     ,s
         sta     GIME_PAR5
-dsh_multiplier
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_MULTIPLIER
-        beq     dsh_recoloured_tile
         jsr     draw_multiplier_hud
-        lda     ,s
-        sta     GIME_PAR5
-dsh_recoloured_tile
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_RECOLOURED_TILE
-        beq     dsh_event_tiles
-        jsr     draw_recolored_map_tile
-        lda     ,s
-        sta     GIME_PAR5
-dsh_event_tiles
-        lda     1,s
-        bita    #PRESENTATION_HUD_DRAW_EVENT_TILES
-        beq     dsh_done
-        pshs    b
-        pshs    x
-        pshs    y
-        ldx     2,s
-        beq     dsh_event_primary
-        tfr     x,d
-        tstb
-        beq     dsh_event_primary
-        ldy     ,s
-        leay    4,y
-        tfr     x,d
-        jsr     dynamic_dispatch
-dsh_event_primary
-        ldy     ,s
-        ldb     4,s
-        jsr     dynamic_dispatch
-        lda     5,s
-        sta     GIME_PAR5
-        leas    5,s
+        bra     dsh_done
+dsh_primary
+        jsr     draw_hud
 dsh_done
         puls    a
         sta     GIME_PAR5

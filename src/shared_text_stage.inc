@@ -703,7 +703,7 @@ stage_panel_letter_loop
         leax -2552,x
         decb
         bne stage_panel_letter_loop
-        lda #PRESENTATION_HUD_DRAW_PROGRESS
+        lda #PRESENTATION_HUD_DRAW_ALL
         jmp PRES_MAIN_SHARED_HUD
 stage_schedule
         fdb 288

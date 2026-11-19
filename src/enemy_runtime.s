@@ -962,23 +962,25 @@ fri_dot
         jsr     draw_maze_state_cell
 fri_hud
         lbsr    enemy_render_impl
+        ifne COMPLETE_PROFILE
+        lda     RENDER_FLAGS
+        anda    #(RF_HUD+RF_LIVES)
+        bne     fri_draw_hud
+        lda     RENDER_FLAGS2
+        bita    #RF2_MULTIPLIER
+        beq     fri_box
+fri_draw_hud
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         lda     RENDER_FLAGS
         bita    #RF_HUD
         beq     fri_lives
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_DRAW_PRIMARY
-        jsr     PRES_MAIN_SHARED_HUD
-        else
         jsr     draw_hud
-        endc
 fri_lives
         lda     RENDER_FLAGS
         bita    #RF_LIVES
         beq     fri_box
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_DRAW_LIVES
-        jsr     PRES_MAIN_SHARED_HUD
-        else
         jsr     draw_lives
         endc
 fri_box
@@ -998,21 +1000,11 @@ fri_box
 fri_secondary
         lda     RENDER_FLAGS2
         bita    #RF2_PERIM_RESET
-        beq     fri_multiplier
+        beq     fri_letter
         ifeq    PERSISTENT_FB
         lbsr    render_perimeter_reset
         else
         bsr     render_perimeter_reset
-        endc
-fri_multiplier
-        lda     RENDER_FLAGS2
-        bita    #RF2_MULTIPLIER
-        beq     fri_letter
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_DRAW_MULTIPLIER
-        jsr     PRES_MAIN_SHARED_HUD
-        else
-        jsr     draw_multiplier_hud
         endc
 fri_letter
         lda     RENDER_FLAGS2
@@ -1024,12 +1016,7 @@ fri_letter
         sta     HUD_Y
         lda     RENDER_LETTER_COLOR
         sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_DRAW_RECOLOURED_TILE
-        jsr     PRES_MAIN_SHARED_HUD
-        else
         jsr     draw_recolored_map_tile
-        endc
 fri_gate
         lda     RENDER_GATE_ID
         beq     fri_background_done
