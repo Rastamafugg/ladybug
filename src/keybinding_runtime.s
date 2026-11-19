@@ -26,11 +26,11 @@
 INPUT_JOYSTICK equ 0
         endc
         include "ladybug_runtime_symbols.inc"
-        include "ladybug_presentation_symbols.inc"
         ifndef PRESENTATION_NAME_ENTRY_DATA
 PRESENTATION_NAME_ENTRY_DATA equ 0
         endc
         include "ladybug_presentation.inc"
+        include "ladybug_presentation_symbols.inc"
 KB_BIND equ $0287
 ; Bit 7: scan history primed; bit 6: wake-only joystick sample;
 ; bits 1-3: previous joystick direction (4 is neutral); bit 0: wake edge.
