@@ -129,7 +129,7 @@ irt_event
         cmpd    ,x
         blo     irt_draw_player
         cmpd    2,x
-        bhs     consume_event
+        lbhs    consume_event
         ldb     PRES_TIMER+1
         bitb    #1
         beq     irt_draw_player
