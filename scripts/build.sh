@@ -769,6 +769,7 @@ with open(output, 'w', encoding='ascii') as handle:
 PY
 
     lwasm -9 --format=raw \
+          -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
           --output="$ENEMY_ROM" \
           --list="$ENEMY_LST" \
           --symbols \
