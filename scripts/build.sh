@@ -745,6 +745,8 @@ if int(complete):
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
         'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
+        'PRESENTATION_HUD_DRAW_PRIMARY': 'PRESENTATION_HUD_DRAW_PRIMARY',
+        'PRESENTATION_HUD_DRAW_ALL': 'PRESENTATION_HUD_DRAW_ALL',
         'hud_snapshot_refresh_top': 'PRES_MAIN_HUD_TOP_REFRESH',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',
