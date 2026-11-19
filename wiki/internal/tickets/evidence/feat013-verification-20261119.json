@@ -229,6 +229,21 @@
           "OSS audio device unavailable"
         ],
         "capture_observer": "Two Windows screen-capture attempts failed with Direct3D device-suspended error; user confirmed the game is visible."
+      },
+      "static_review_finding": {
+        "result": "open; no runtime observation",
+        "shared_vegetable_path": "The Instructions route sends a cucumber graphic stream through PRESENTATION_MODULE_DRAW. Level Start stage_panel_finish and gameplay draw_vegetable_hud independently select a sprite and call blit_packed_sprite. Those two routes share the generic packed-sprite blitter, but all three do not call one vegetable-specific function.",
+        "name_entry_score_destination": "$2A84",
+        "destination_meaning": "The generated framebuffer formula maps this to cell x=33, y=2, the VEGETABLE_ICON origin.",
+        "score_route": "ENTER_HIGH_SCORE_SCORE_DESTINATIONS hard-codes x=33, y=2; draw_entry_scores passes PRESENTATION_NAME_ENTRY_SCORE_DST to draw_score.",
+        "consequence": "The Enter High Score score field targets the vegetable icon location. User states the score does not belong there. The correct screen-local destination has not been bound; do not treat the current placement as accepted.",
+        "evidence": [
+          "scripts/build_presentation.py:154-155, 1077-1079",
+          "src/presentation_runtime.s:483-489",
+          "src/shared_text_stage.inc:655-687",
+          "src/main.s:1513-1531",
+          "build/ladybug.lst generated PRESENTATION_*_DST values"
+        ]
       }
     },
     "G4": {
