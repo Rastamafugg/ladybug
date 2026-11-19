@@ -34,7 +34,7 @@
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction-event tile IDs at their authored framebuffer destination.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction event glyphs at their authored framebuffer destination.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -618,7 +618,7 @@ instruction_runtime_end
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction-event tile IDs at their authored framebuffer destination.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction event glyphs at their authored framebuffer destination.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.

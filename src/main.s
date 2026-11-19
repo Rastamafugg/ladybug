@@ -15,7 +15,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Alias to draw_hud, the shared primary or full HUD painter that refreshes player values and restores caller PAR5.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Entry alias to draw_hud for modules using the generated shared-HUD import.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -110,7 +110,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw primary or all common HUD fields, refreshing the player snapshot for full draws and restoring caller PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary HUD fields, or all shared HUD fields when the caller selects the full mode; refresh player values and restore PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
