@@ -124,6 +124,7 @@ ADAPTIVE_RENDERING equ 0
 
         pragma  nodollarlocal,6809
         include "ladybug_runtime_symbols.inc"
+        include "ladybug_presentation_symbols.inc"
         include "ladybug_shared_mode.inc"
         org     $0800
 
@@ -964,12 +965,22 @@ fri_hud
         lda     RENDER_FLAGS
         bita    #RF_HUD
         beq     fri_lives
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_PRIMARY
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_hud
+        endc
 fri_lives
         lda     RENDER_FLAGS
         bita    #RF_LIVES
         beq     fri_box
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_LIVES
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_lives
+        endc
 fri_box
         lda     RENDER_FLAGS
         bita    #RF_BOX
@@ -997,7 +1008,12 @@ fri_multiplier
         lda     RENDER_FLAGS2
         bita    #RF2_MULTIPLIER
         beq     fri_letter
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_MULTIPLIER
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_multiplier_hud
+        endc
 fri_letter
         lda     RENDER_FLAGS2
         bita    #RF2_LETTER
@@ -1008,7 +1024,12 @@ fri_letter
         sta     HUD_Y
         lda     RENDER_LETTER_COLOR
         sta     HUD_COLOR
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_RECOLOURED_TILE
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_recolored_map_tile
+        endc
 fri_gate
         lda     RENDER_GATE_ID
         beq     fri_background_done
@@ -1100,9 +1121,14 @@ fri_stage_background
         ; is drawn. ERF_INIT is consumed by enemy_render_impl below.
         lbsr    capture_zone_bg
         jsr     draw_entities
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_hud
         jsr     draw_word_progress_hud
         jsr     draw_lives
+        endc
         lbsr    enemy_render_impl
         ifeq    PERSISTENT_FB
         jsr     draw_player

@@ -671,20 +671,21 @@ PY
     guard_layout "$MAP" "$RUNTIME_ROM"
     pad_cart "$RUNTIME_ROM"
 
-    python3 - "$MAP" "$RUNTIME_SYMBOLS" <<'PY'
+    python3 - "$MAP" "$RUNTIME_SYMBOLS" "$COMPLETE_PROFILE" <<'PY'
 import re
 import sys
-source, output = sys.argv[1:]
+source, output, complete = sys.argv[1:]
+complete = int(complete)
 wanted = {
-    'blit_packed_sprite', 'draw_hud', 'restore_player',
-    'draw_death_frame', 'draw_entities', 'draw_lives', 'draw_maze_state_cell',
-    'draw_multiplier_hud', 'draw_perimeter_box', 'draw_player',
+    'blit_packed_sprite', 'restore_player',
+    'draw_death_frame', 'draw_entities', 'draw_maze_state_cell',
+    'draw_perimeter_box', 'draw_player',
     'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
     'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities',
     'draw_gate_transition', 'draw_all_gates', 'framebuffer_project_gate_only',
     'mark_gate_enemy_overlap', 'repair_settled_entity_gates',
-    'draw_word_progress_hud', 'gate_redraw_neighbors',
+    'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'restore_entity_footprint', 'sprite_attr0_pairs', 'sprite_blue_pairs', 'object_masks',
@@ -692,6 +693,8 @@ wanted = {
     'sync_entity_cache_colour', 'render_entity_colour',
     'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
+if not complete:
+    wanted.update({'draw_hud', 'draw_lives', 'draw_multiplier_hud', 'draw_word_progress_hud'})
 symbols = {}
 for line in open(source, encoding='utf-8'):
     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
@@ -741,7 +744,7 @@ if int(complete):
         'presentation_dispatch': 'PRES_MAIN_STATIC_TEXT',
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
-        'asset_draw_top_hud': 'PRES_MAIN_TOP_HUD',
+        'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
         'hud_snapshot_refresh_top': 'PRES_MAIN_HUD_TOP_REFRESH',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',

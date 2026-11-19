@@ -1104,6 +1104,8 @@ render_name_screen
         lbsr    prepare_name
         endc
         jsr     PRES_MODULE_MAP_BACK
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        jsr     PRES_MAIN_SHARED_HUD
         bsr     draw_name_fields
         bsr     draw_entry_scores
         lbsr    capture_initial
@@ -1121,10 +1123,6 @@ draw_name_fields
         lda #1
         sta PRES_NAME_TIMER_PHASE
         ldx     #PRES_HIGHSCORE_BASE+3
-        tst PRES_INSERT
-        bne name_top_authority_ready
-        ldx #PRES_PENDING_NAME
-name_top_authority_ready
         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
         bsr     draw_record_name
         ldx #PRES_PENDING_NAME
@@ -1139,21 +1137,9 @@ render_high_score
 draw_entry_scores
         lda PRES_NAME_TIMER_PHASE
         pshs a
-        lda #8
-        sta PRES_NAME_TIMER_PHASE
-        ldx     #PRES_SCORE_H
-        ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
-        bsr     draw_score
         lda #1
         sta PRES_NAME_TIMER_PHASE
-        ldx     #PRES_HIGHSCORE_BASE
-        tst PRES_INSERT
-        bne score_top_authority_ready
-        ldx #PRES_SCORE_H
-score_top_authority_ready
-        ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
-        bsr     draw_score
-        ldx #PRES_SCORE_H
+        ldx     #PRES_SCORE_H
         ldy #$8404             ; left pending score, authored x1,row20
         bsr draw_score
         bra draw_name_done

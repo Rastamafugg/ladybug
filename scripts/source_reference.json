@@ -220,6 +220,15 @@
           ]
         },
         {
+          "name": "draw_shared_hud",
+          "profile": "render",
+          "purpose": "Dispatch selected common HUD fields and generated instruction glyphs through one resident entry, restoring the incoming PAR5 mapping.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-draw-shared-hud"
+        },
+        {
           "name": "draw_hud_digit",
           "profile": "render",
           "purpose": "Draw hud digit.",
@@ -1275,6 +1284,7 @@
       "binary": "ladybug-enemy-runtime.rom",
       "external_symbols": [
         "PERIMETER_RESET_HELPER",
+        "PRES_MAIN_SHARED_HUD",
         "blit_packed_sprite",
         "draw_all_gates",
         "draw_death_frame",
@@ -1283,16 +1293,12 @@
         "draw_gate_diagonal",
         "draw_gate_entities",
         "draw_gate_transition",
-        "draw_hud",
-        "draw_lives",
         "draw_maze_state_cell",
-        "draw_multiplier_hud",
         "draw_perimeter_box",
         "draw_player",
         "draw_recolored_map_tile",
         "draw_score_popup",
         "draw_screen",
-        "draw_word_progress_hud",
         "efn_cache_guard",
         "efn_normal",
         "efn_preview",
@@ -2631,6 +2637,15 @@
           "reasons": []
         },
         {
+          "name": "draw_hud_event_tiles",
+          "profile": "render",
+          "purpose": "Pass generated instruction event glyphs to the shared resident HUD renderer.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-development-instruction-runtime-draw-hud-event-tiles"
+        },
+        {
           "name": "event_ptr_a",
           "profile": "copy",
           "purpose": "Resolve the current development instruction event record into an address.",
@@ -2715,6 +2730,7 @@
         "PRES_MAIN_FB_PREPARE",
         "PRES_MAIN_RESTORE_PLAYER",
         "PRES_MAIN_SAVE_PLAYER",
+        "PRES_MAIN_SHARED_HUD",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE"
       ],
@@ -3652,6 +3668,7 @@
         "PRES_MAIN_FB_PREPARE",
         "PRES_MAIN_NAME_LATE_TURN",
         "PRES_MAIN_READ_JOY",
+        "PRES_MAIN_SHARED_HUD",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE",
         "PRES_MODULE_MAP_BACK",
@@ -3728,6 +3745,7 @@
         "PRES_GAME_PAGE_RETURN",
         "PRES_MAIN_READ_STAGE_LETTERS",
         "PRES_MAIN_HUD_TOP_REFRESH",
+        "PRES_MAIN_SHARED_HUD",
         "PRES_MODULE_DRAW_SCORE"
       ],
       "routines": [

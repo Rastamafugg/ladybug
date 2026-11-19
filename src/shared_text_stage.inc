@@ -703,7 +703,8 @@ stage_panel_letter_loop
         leax -2552,x
         decb
         bne stage_panel_letter_loop
-        jmp draw_word_progress_hud
+        lda #PRESENTATION_HUD_DRAW_PROGRESS
+        jmp PRES_MAIN_SHARED_HUD
 stage_schedule
         fdb 288
         fdb $3450
@@ -1051,7 +1052,17 @@ top_panel_draw
         cmpa    #1
         bhi     top_panel_done
 top_panel_publish
-        jmp     PRES_MAIN_TOP_HUD
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     top_panel_instructions
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        bra     top_panel_draw_common
+top_panel_instructions
+        ; Keep the authored inactive progress indicators; the instruction
+        ; choreography sends their earned-colour changes through this entry.
+        lda     #PRESENTATION_HUD_DRAW_PRIMARY
+top_panel_draw_common
+        jmp     PRES_MAIN_SHARED_HUD
 top_panel_done
         rts
 
