@@ -767,7 +767,12 @@ if missing:
     raise SystemExit('build: presentation symbols missing: ' + ', '.join(sorted(missing)))
 with open(output, 'w', encoding='ascii') as handle:
     for name in sorted(symbols):
-        handle.write(f'{name} equ ${symbols[name]}\n')
+        if name in {'PRESENTATION_HUD_DRAW_ALL', 'PRESENTATION_HUD_DRAW_PRIMARY'}:
+            handle.write(f'        ifndef {name}\n')
+            handle.write(f'{name} equ ${symbols[name]}\n')
+            handle.write('        endc\n')
+        else:
+            handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
     lwasm -9 --format=raw \
