@@ -216,7 +216,20 @@
       "owner": "user",
       "artifact": "build/ladybug.rom",
       "rom_sha256": "8d92c3927516da5e0bcc7e3600525e7fc5ee2e64591d97c9c03bccf9376b3d3f",
-      "summary": "Receipt-bound visible check is prepared but has not been run. The user owns the XRoar readiness confirmation and acceptance report. No emulator launch occurred in this verification pass."
+      "summary": "The receipt-bound XRoar session was launched and the user confirmed the game is visible. M1 manual observations are not yet reported; acceptance remains pending. The agent sent no game input. Windows screen capture failed twice with a Direct3D device-suspended error; the user-visible confirmation is the readiness evidence.",
+      "launch": {
+        "command": "wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh run'",
+        "xroar_process": "XRoar (Ubuntu), WSL process 1097",
+        "rom_sha256": "8d92c3927516da5e0bcc7e3600525e7fc5ee2e64591d97c9c03bccf9376b3d3f",
+        "user_visible_confirmation": true,
+        "agent_sent_input": false,
+        "gdb_or_breakpoints": false,
+        "startup_warnings": [
+          "GTK menu XML warning",
+          "OSS audio device unavailable"
+        ],
+        "capture_observer": "Two Windows screen-capture attempts failed with Direct3D device-suspended error; user confirmed the game is visible."
+      }
     },
     "G4": {
       "result": "deferred by user",
