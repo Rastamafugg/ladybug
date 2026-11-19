@@ -244,6 +244,21 @@
           "src/main.s:1513-1531",
           "build/ladybug.lst generated PRESENTATION_*_DST values"
         ]
+      },
+      "scope_review": {
+        "result": "proposed; awaits explicit approval",
+        "user_clarification": "One common implementation must render all left/right HUD fields shared across Instructions, Level Start, gameplay, demo, Game Over, and Enter High Score. Only the Enter High Score bottom-left HI SCORE HUD block is screen-unique.",
+        "current_candidate_disposition": "The e3c9bdf implementation centralizes layout/value state but retains screen-specific render paths. Existing G1-G3 evidence applies to that prior scope; M1 must be rebound after an approved revised implementation.",
+        "proposed_common_destinations": {
+          "enter_high_score_player_score": "P1_SCORE",
+          "enter_high_score_top_score": "TOP_SCORE",
+          "screen_local_hud": "bottom-left HI SCORE block"
+        },
+        "out_of_scope": [
+          "FEAT-011 EXTRA/SPECIAL intermission routes",
+          "Options/Credits",
+          "G4 performance setup and timing, deferred by user"
+        ]
       }
     },
     "G4": {
