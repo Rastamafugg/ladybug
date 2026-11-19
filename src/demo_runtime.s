@@ -7,7 +7,7 @@
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Commit the accepted name and score into the ranking table, then refresh TOP from row one.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
-; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
+; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score at the generated P1 score field during hidden level-start hydration.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
 ; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.
 ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
