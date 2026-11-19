@@ -15,7 +15,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Draw primary or all common HUD fields through one resident entry, refreshing player values once and restoring the caller PAR5 mapping.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Alias to draw_hud, the shared primary or full HUD painter that refreshes player values and restores caller PAR5.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -110,7 +110,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw hud.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw primary or all common HUD fields, refreshing the player snapshot for full draws and restoring caller PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
@@ -1293,37 +1293,6 @@ add_special_score
         rts
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
-        ifne COMPLETE_PROFILE
-; A selects primary-only or the complete common HUD. Preserve PAR5 around
-; each existing field painter so every call sees the caller's game-state map.
-draw_shared_hud
-        pshs    a
-        lda     GIME_PAR5
-        pshs    a
-        lda     1,s
-        cmpa    #PRESENTATION_HUD_DRAW_PRIMARY
-        beq     dsh_primary
-        jsr     hud_snapshot_capture_player
-        jsr     draw_hud
-        lda     ,s
-        sta     GIME_PAR5
-        jsr     draw_word_progress_hud
-        lda     ,s
-        sta     GIME_PAR5
-        jsr     draw_lives
-        lda     ,s
-        sta     GIME_PAR5
-        jsr     draw_multiplier_hud
-        bra     dsh_done
-dsh_primary
-        jsr     draw_hud
-dsh_done
-        puls    a
-        sta     GIME_PAR5
-        leas    1,s
-        rts
-        endc
-
 draw_multiplier_hud
         ifne COMPLETE_PROFILE
         lda     HUD_P1_MULTIPLIER
@@ -1497,6 +1466,16 @@ dwph_extra_next
 
 draw_hud
         ifne COMPLETE_PROFILE
+; The generated entry mode is saved with the caller's mapping. Individual
+; asset painters select their own cold page; this entry restores PAR5 once.
+        pshs    a
+        lda     GIME_PAR5
+        pshs    a
+        tst     1,s
+        beq     dhu_primary_snapshot_ready
+        jsr     hud_snapshot_capture_player
+dhu_primary_snapshot_ready
+draw_shared_hud equ draw_hud
         jsr     asset_draw_top_hud
         lda     #PRESENTATION_HUD_PART_VALUE_X
         sta     HUD_X
@@ -1506,6 +1485,17 @@ draw_hud
         sta     HUD_COLOR
         lda     HUD_P1_STAGE
         jsr     asset_draw_part_value
+        jsr     draw_vegetable_hud
+        tst     1,s
+        beq     dhu_shared_done
+        jsr     draw_word_progress_hud
+        jsr     draw_lives
+        jsr     draw_multiplier_hud
+dhu_shared_done
+        puls    a
+        sta     GIME_PAR5
+        leas    1,s
+        rts
         else
         lda     #6
         sta     HUD_Y
@@ -1537,6 +1527,7 @@ dhu_stage_digit
         lbsr    draw_hud_digit
         endc
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
+        endc
 
 ; Display the stage vegetable at the destination generated from its authored
 ; marker (cell (33,3), sprite root (33,2)), followed by
@@ -1812,6 +1803,7 @@ draw_life_marker
         endc
         rts
 
+        ifeq COMPLETE_PROFILE
 draw_authored_hud_tile
         lda     HUD_Y
         ldb     #40
@@ -1820,6 +1812,7 @@ draw_authored_hud_tile
         adca    #0
         leay    screen_map,pcr
         ldb     d,y
+        endc
 draw_hud_tile
         stb     DRAW_TILE
         bsr     hud_fb_address

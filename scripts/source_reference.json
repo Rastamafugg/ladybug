@@ -138,7 +138,7 @@
         {
           "name": "draw_authored_hud_tile",
           "profile": "render",
-          "purpose": "Draw authored hud tile.",
+          "purpose": "Resolve one HUD tile from screen_map at HUD_X/Y for the legacy life-marker painter.",
           "reasons": []
         },
         {
@@ -214,15 +214,16 @@
         {
           "name": "draw_hud",
           "profile": "render",
-          "purpose": "Draw hud.",
+          "purpose": "Draw the common primary HUD fields, or all shared HUD fields when the caller selects the full mode; refresh player values and restore PAR5.",
           "reasons": [
             "exported"
-          ]
+          ],
+          "semantic_id": "routines.html#routine-resident-runtime-draw-hud"
         },
         {
           "name": "draw_shared_hud",
           "profile": "render",
-          "purpose": "Draw either the primary HUD fields or all common HUD fields through one resident entry, refreshing player values once and restoring the incoming PAR5 mapping.",
+          "purpose": "Entry alias to draw_hud for modules using the generated shared-HUD import.",
           "reasons": [
             "exported"
           ],
