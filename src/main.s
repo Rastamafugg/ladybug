@@ -1577,7 +1577,7 @@ draw_hud
         pshs    a
         lda     2,s
         anda    #$E0
-        bne     dhu_shared_done
+        lbne    dhu_shared_done
         tst     1,s
         beq     dhu_selector_valid
         lda     2,s
@@ -1586,7 +1586,7 @@ draw_hud
         cmpa    #PRESENTATION_HUD_DRAW_SPECIAL
         beq     dhu_selector_special
         cmpa    #PRESENTATION_HUD_DRAW_EXTRA
-        bne     dhu_shared_done
+        lbne    dhu_shared_done
         ldb     1,s
         cmpb    #5
         bhi     dhu_shared_done
