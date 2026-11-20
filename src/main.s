@@ -16,6 +16,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
 ; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud for common fields and authored event tiles.
+; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
