@@ -19,6 +19,17 @@ PRES_TIMER equ $00B0
         jmp adaptive_key_binding
         jmp adaptive_audio_binding
         jmp adaptive_render
+        jmp check_stage_clear
+check_stage_clear
+        tst     STAGE_PENDING
+        bne     csc_done
+        lda     DOTS_LEFT
+        bne     csc_done
+        lda     BONUS_LEFT
+        bne     csc_done
+        inc     STAGE_PENDING
+csc_done
+        rts
 adaptive_work
         clra
         jsr adaptive_audio_binding

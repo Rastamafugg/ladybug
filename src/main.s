@@ -95,7 +95,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract cache_entity_overlay profile=copy: Cache entity overlay.
 ; DOC-002 source-contract mirror contract can_move profile=movement: Determine whether move.
 ; DOC-002 source-contract mirror contract check_entity_pickup profile=state: Check entity pickup.
-; DOC-002 source-contract mirror contract check_stage_clear profile=state: Check stage clear.
+; DOC-002 source-contract mirror contract AD_STAGE_CLEAR_EXEC profile=state: Set stage-clear pending after all dots and bonuses are cleared.
 ; DOC-002 source-contract mirror contract clear_life_marker profile=state: Clear life marker.
 ; DOC-002 source-contract mirror contract death_tick profile=state: Advance death state for one scheduled tick.
 ; DOC-002 source-contract mirror contract draw_all_gates profile=render: Draw all gates.
@@ -1407,6 +1407,7 @@ extra_letter_x
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
         endc
 
+        ifeq ADAPTIVE_RENDERING
 check_stage_clear
         tst     STAGE_PENDING
         bne     csc_done
@@ -1417,6 +1418,7 @@ check_stage_clear
         inc     STAGE_PENDING
 csc_done
         rts
+        endc
 
 ;==============================================================================
 ; draw_word_progress_hud
@@ -4207,7 +4209,11 @@ cep_letter
         lbsr    apply_letter_pickup
 cep_check_clear
         bsr    begin_score_popup
+        ifne ADAPTIVE_RENDERING
+        jsr     AD_STAGE_CLEAR_EXEC
+        else
         lbsr    check_stage_clear
+        endc
         rts
 cep_skull
         ldx     #ENTITY_TABLE
@@ -4617,7 +4623,11 @@ eat_dot
         bsr    refresh_enemy_zone_dot
         lbsr    add_dot_score
         dec     DOTS_LEFT
+        ifne ADAPTIVE_RENDERING
+        jsr     AD_STAGE_CLEAR_EXEC
+        else
         lbsr    check_stage_clear
+        endc
 ed_done
         rts
 
