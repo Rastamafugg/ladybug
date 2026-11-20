@@ -698,7 +698,7 @@ stage_name_pending_score
         lda #1
         sta PRES_NAME_TIMER_PHASE
         ldx #PRES_SCORE_H
-        ldy #PRESENTATION_NAME_ENTRY_SCORE_DST
+        ldy #$8404               ; unique lower-left pending score at authored x1,row20
         jsr PRES_MODULE_DRAW_SCORE
         puls a
         sta PRES_NAME_TIMER_PHASE

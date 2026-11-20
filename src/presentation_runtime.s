@@ -49,7 +49,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
 ; DOC-002 source-contract mirror contract PRES_MAIN_DYNAMIC_TEXT profile=render: Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.
-; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, and showing an all-zero value as one zero.
+; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
@@ -1733,6 +1733,8 @@ PRES_NAME_END equ $FD
 
 ; Shared by the Attract ranking refresh and post-game name-entry painters.
 draw_score_value
+        lda     PAR5
+        pshs    a
         pshs    u
         clr     PRES_TMP_M
         lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
@@ -1761,6 +1763,8 @@ draw_score_value_byte
         bsr     draw_score_value_digit
 draw_score_value_done
         puls    u
+        puls    a
+        sta     PAR5
         rts
 draw_score_value_digit
         tst     PRES_TMP_M
