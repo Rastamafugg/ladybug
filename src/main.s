@@ -11,7 +11,7 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo, then draw committed TOP name and score.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo, then draw the committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
@@ -116,7 +116,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Draw the earned multiplier at its generated HUD field destination.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all generated multiplier fields gray, then show the active multiplier in blue.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -124,7 +124,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
-; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Draw word progress hud.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Repaint every generated SPECIAL/EXTRA field using gray for unearned letters and its earned color for collected letters.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
 ; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.
@@ -665,18 +665,22 @@ startup_seed_ready
         sta     $EB
         clr     $DF
         ldx     #PRES_HIGHSCORE_BASE
+        ldy     #PRESENTATION_HIGHSCORE_COUNT
+startup_score_row
         lda     #1
         sta     ,x+
-        clr     ,x
-        clr     1,x
-        leax    2,x
-        leay    asset_top_default_name,pcr
-        ldb     #7
+        clr     ,x+
+        clr     ,x+
+        leau    asset_top_default_name,pcr
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
 startup_top_name
-        lda     ,y+
+        lda     ,u+
         sta     ,x+
         decb
         bne     startup_top_name
+        leay    -1,y
+        bne     startup_score_row
+        inc     PRES_HS_READY
         jsr     hud_snapshot_init
         endc
         clr     PLAYER_BG_VALID
@@ -1293,34 +1297,49 @@ add_special_score
         rts
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
+; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
         ifne COMPLETE_PROFILE
-        lda     HUD_P1_MULTIPLIER
-        cmpa    #3
-        beq     dmh_three
-        cmpa    #5
-        beq     dmh_five
+        lda     GIME_PAR5
+        pshs    a
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X2_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X2_X*4)
-        bra     dmh_position
-dmh_three
-        ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X3_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X3_X*4)
-        bra     dmh_position
-dmh_five
-        ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
-        ldy     #FB_VIRT+(PRESENTATION_HUD_MULTIPLIER_X5_Y*1280)+(PRESENTATION_HUD_MULTIPLIER_X5_X*4)
-dmh_position
         std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X2_DST
+        lda     #2
+        bsr     draw_multiplier_slot
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
+        std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X3_DST
+        lda     #3
+        bsr     draw_multiplier_slot
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
+        std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X5_DST
+        lda     #5
+        bsr     draw_multiplier_slot
+        puls    a
+        sta     GIME_PAR5
+        rts
+draw_multiplier_slot
+        sta     HUD_BCD_COUNT
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        sta     HUD_COLOR
+        ldb     HUD_P1_MULTIPLIER
+        cmpb    HUD_BCD_COUNT
+        bne     dms_draw_inactive
         lda     #TEXT_MULTIPLIER
         sta     HUD_COLOR
 ; @audit-use {"id":"multiplier-x","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC"}
         ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
-        lda     GIME_PAR5
-        pshs    a
+        bra     dms_draw
+dms_draw_inactive
+; @audit-use {"id":"multiplier-x-inactive","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC"}
+        ldb     #PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC
+dms_draw
+        pshs    y
+; DOC-002 source-contract mirror contract draw_multiplier_slot profile=render: Draw one generated multiplier field with gray X and value when inactive and blue X and value when it matches the player's current multiplier.
         jsr     presentation_dispatch
-        puls    a
-        sta     GIME_PAR5
+        puls    y
         inc     HUD_X
         jmp     draw_recolored_map_tile
         else
@@ -1393,19 +1412,22 @@ draw_word_progress_hud
         sta     HUD_X
 dwph_special
         lsr     HUD_BCD_BYTE
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        bcc     dwph_special_colour
+        lda     #TEXT_SPECIAL
+dwph_special_colour
+        else
         bcc     dwph_special_next
+        lda     #COLOR_RED
+        endc
+        sta     HUD_COLOR
         ifne COMPLETE_PROFILE
         lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
         else
         lda     #1
         endc
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_SPECIAL
-        else
-        lda     #COLOR_RED
-        endc
-        sta     HUD_COLOR
         ifne COMPLETE_PROFILE
         jsr    draw_recolored_map_tile
         else
@@ -1435,19 +1457,22 @@ dwph_special_next
         sta     HUD_X
 dwph_extra
         lsr     HUD_BCD_BYTE
+        ifne COMPLETE_PROFILE
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        bcc     dwph_extra_colour
+        lda     #TEXT_EXTRA
+dwph_extra_colour
+        else
         bcc     dwph_extra_next
+        lda     #COLOR_YELLOW
+        endc
+        sta     HUD_COLOR
         ifne COMPLETE_PROFILE
         lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
         else
         lda     #4
         endc
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_EXTRA
-        else
-        lda     #COLOR_YELLOW
-        endc
-        sta     HUD_COLOR
         ifne COMPLETE_PROFILE
         jsr    draw_recolored_map_tile
         else
@@ -1551,6 +1576,15 @@ dvh_stage_ok
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
 
+        ifne COMPLETE_PROFILE
+        lda     ENTITY_WORK
+        lsla
+        leax    vegetable_values,pcr
+        leax    a,x
+        ldy     #PRESENTATION_HUD_VEGETABLE_VALUE_DST
+        ldb     #TEXT_BONUS
+        jmp     PRES_MODULE_DRAW_SCORE_SHORT
+        else
         lda     ENTITY_WORK
         lsla
         leau    vegetable_values,pcr
@@ -1559,21 +1593,19 @@ dvh_stage_ok
         sta     HUD_X
         lda     #PRESENTATION_HUD_VEGETABLE_VALUE_Y
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_BONUS
-        else
         lda     #COLOR_GREEN
-        endc
         sta     HUD_COLOR
         lda     #2
         sta     HUD_BCD_COUNT
         bra     dbl_byte
+        endc
 
 vegetable_values
         fdb     $1000,$1500,$2000,$2500,$3000,$3500
         fdb     $4000,$4500,$5000,$5500,$6000,$6500
         fdb     $7000,$7500,$8000,$8500,$9000,$9500
 
+        ifeq COMPLETE_PROFILE
 draw_bcd_line
         lda     #3
         sta     HUD_BCD_COUNT
@@ -1601,6 +1633,7 @@ dbl_byte
         dec     HUD_BCD_COUNT
         bne     dbl_byte
         rts
+        endc
 
 ; A=digit 0..9. HUD_X/HUD_Y/HUD_COLOR select destination and colour.
         ifne COMPLETE_PROFILE

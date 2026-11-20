@@ -295,12 +295,12 @@ highscore_prepare_name
         tst     PRES_HS_READY
         bne     highscore_prepare_ready
         ldu     #PRES_HIGHSCORE_ALIAS
-        lda     #9
+        ldb     #9
 highscore_prepare_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 highscore_prepare_default
@@ -308,8 +308,7 @@ highscore_prepare_default
         sta     ,u+
         leay    -1,y
         bne     highscore_prepare_default
-        puls    a
-        deca
+        decb
         bne     highscore_prepare_row
         inc     PRES_HS_READY
 highscore_prepare_ready
@@ -917,23 +916,28 @@ draw_name_done
         rts
 
 draw_entry_scores
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score
         lda     PRES_INSERT
         bne     entry_top_old
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         bra     entry_top_right
 entry_top_old
+        ldb     #TEXT_HIGH_SCORE
         ldx     #PRES_HIGHSCORE_BASE
 entry_top_right
         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
         bsr     draw_score
         lda     PRES_INSERT
         bne     entry_top_left_old
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         bra     entry_top_left
 entry_top_left_old
+        ldb     #TEXT_HIGH_SCORE
         ldx     #PRES_HIGHSCORE_BASE
 entry_top_left
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
@@ -982,6 +986,7 @@ draw_high_score_entry
         tfr     u,y
         leay    PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA,y
         ldx     PRES_NAME_PTR
+        ldb     #TEXT_HIGH_SCORE
         bsr     draw_score
         puls    u,y
         leax    7,x

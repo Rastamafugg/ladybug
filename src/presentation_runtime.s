@@ -49,15 +49,16 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
 ; DOC-002 source-contract mirror contract PRES_MAIN_DYNAMIC_TEXT profile=render: Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.
-; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
-; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
+; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, preserving U, and restoring the caller's PAR5 mapping before return; clobber PRES_TMP_H/M/L and HUD_COLOR.
+; DOC-002 source-contract mirror contract draw_score_value_short profile=presentation: Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes, preserving U, and restoring the caller's PAR5 mapping before return; clobber PRES_TMP_H/M/L and HUD_COLOR.
+; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
 ; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
@@ -71,6 +72,8 @@ PAR2    equ $FFA2
 PAR3    equ $FFA3
 PAR4    equ $FFA4
 PAR5    equ $FFA5
+HUD_COLOR equ $0029
+HUD_P1_SCORE equ $02A0
 PIA_DA  equ $FF00
 PIA_CRA equ $FF01
 PIA_DB  equ $FF02
@@ -357,7 +360,12 @@ start_screen_context_ready
         ifne    COMPLETE_PROFILE
         jsr     init_gameplay
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     start_screen_instruction_install
+        bne     start_screen_instruction_check_done
+        clra
+        clrb
+        std     HUD_P1_SCORE
+        sta     HUD_P1_SCORE+2
+start_screen_instruction_check_done
         tsta
         bne     start_screen_no_instruction_install
 start_screen_instruction_install
@@ -1248,6 +1256,7 @@ draw_name_done
         rts
 
 draw_entry_scores
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score_value
@@ -1255,6 +1264,7 @@ draw_entry_scores
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+        ldb     #TEXT_HIGH_SCORE
         lbsr    draw_score_value
         rts
 
@@ -1269,7 +1279,9 @@ draw_high_score_screen
         leay    PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_SCORE_DST-24,y
         ldb     #PRESENTATION_HIGHSCORE_COUNT-1
 draw_high_score_rows
+        pshs    b
         lbsr    draw_high_score_entry
+        puls    b
         leau    1280,u
         leay    1256,y
         decb
@@ -1285,6 +1297,7 @@ draw_high_score_entry
         lbsr    draw_name_record
         puls    y
         ldx     PRES_NAME_PTR
+        ldb     #TEXT_HIGH_SCORE
         lbsr    draw_score_value
         leax    7,x
         rts
@@ -1733,12 +1746,17 @@ PRES_NAME_END equ $FD
 
 ; Shared by the Attract ranking refresh and post-game name-entry painters.
 draw_score_value
+        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
+        bra     draw_score_value_init
+draw_score_value_short
+        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES-1
+draw_score_value_init
+        stb     HUD_COLOR
+        sta     PRES_TMP_H
         lda     PAR5
         pshs    a
         pshs    u
         clr     PRES_TMP_M
-        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
-        sta     PRES_TMP_H
 draw_score_value_byte
         lda     #$34
         sta     PAR5
@@ -1772,25 +1790,22 @@ draw_score_value_digit
         tsta
         bne     draw_score_value_start
         ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
-        bra     draw_score_value_draw
+        bra     draw_score_value_blank
 draw_score_value_start
         inc     PRES_TMP_M
 draw_score_value_numeric
-        tfr     a,b
-        ldu     #score_value_glyphs
-        ldb     b,u
-draw_score_value_draw
+        pshs    x,y
+        tfr     y,x
+        jsr     PRES_MAIN_SHARED_MASK ; A is the numeric glyph; HUD_COLOR sets its field color.
+        puls    x,y
+        leay    4,y
+        rts
+draw_score_value_blank
         pshs    b,x,y
-        jsr     PRES_MAIN_DYNAMIC_TEXT ; B is a dynamic glyph/blank descriptor ID.
+        jsr     PRES_MAIN_DYNAMIC_TEXT ; B is the black leading-cell descriptor ID.
         puls    b,x,y
         leay    4,y
         rts
-score_value_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
 
 presentation_module_end
 
@@ -1839,7 +1854,7 @@ presentation_module_end
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
 ; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
@@ -2954,9 +2969,13 @@ draw_name_done
         rts
 
 draw_entry_scores
+        lda     #TEXT_SCORE
+        sta     HUD_COLOR
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score_value
+        lda     #TEXT_HIGH_SCORE
+        sta     HUD_COLOR
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
@@ -2967,6 +2986,8 @@ draw_entry_scores
 draw_high_score_screen
         lda     #$34
         sta     PAR5
+        lda     #TEXT_HIGH_SCORE
+        sta     HUD_COLOR
         ldx     #PRESENTATION_HIGHSCORE_BASE
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST

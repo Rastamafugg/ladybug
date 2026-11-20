@@ -1144,7 +1144,8 @@ draw_entry_scores
         lda #1
         sta PRES_NAME_TIMER_PHASE
         ldx     #PRES_SCORE_H
-        ldy #$8404             ; left pending score, authored x1,row20
+        ldb #TEXT_HIGH_SCORE
+        ldy #$8408             ; pending score, right-justified to authored x7 zero
         bsr draw_score
         bra draw_name_done
 
@@ -1171,6 +1172,7 @@ ranking_slice_authored_defaults
         puls b,x,y
         rts
 ranking_score
+        tfr a,b
         bra draw_score
 
 draw_record_name

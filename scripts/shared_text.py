@@ -186,6 +186,30 @@ class SharedText:
 
     def finish(self,manifest,tiles,cold,instruction_source):
         graphics=sorted({self.visual_tiles[t] for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps) for i,t in enumerate(mapping) if (name,i) not in self.cells})
+        multiplier_x_ids = {
+            ids[0] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()
+        }
+        multiplier_x_tiles = {tiles[ident] for ident in multiplier_x_ids}
+        if len(multiplier_x_tiles) != 1:
+            raise ValueError('instruction multiplier x must share one source graphic')
+        multiplier_x_tile = next(iter(multiplier_x_tiles))
+        multiplier_colour = self.colours['fields']['instruction_multiplier']
+        source_colours = {
+            value for byte in multiplier_x_tile for value in (byte >> 4, byte & 15)
+        } - {0}
+        if source_colours != {multiplier_colour}:
+            raise ValueError('instruction multiplier x must use the configured active colour')
+        inactive_colour = self.colours['fields']['instruction_multiplier_inactive']
+        inactive_multiplier_x_tile = bytes(
+            ((inactive_colour if byte >> 4 else 0) << 4) |
+            (inactive_colour if byte & 15 else 0)
+            for byte in multiplier_x_tile
+        )
+        if inactive_multiplier_x_tile in graphics:
+            inactive_x_graphic = graphics.index(inactive_multiplier_x_tile)
+        else:
+            inactive_x_graphic = len(graphics)
+            graphics.append(inactive_multiplier_x_tile)
         static_count=len(graphics)
         if static_count>174:raise ValueError('static graphics exceed text threshold174')
         descriptors=[]
@@ -214,6 +238,8 @@ class SharedText:
         x_graphic=next(iter(x_descriptors))[0]
         if not 0<=x_graphic<min(len(graphics),174):
             raise ValueError('instruction multiplier x exceeds native dispatch range')
+        if not 0<=inactive_x_graphic<min(len(graphics),174):
+            raise ValueError('inactive instruction multiplier x exceeds native dispatch range')
         if len(graphics)>224 or len(descriptors)>256:raise ValueError('shared graphic/descriptor capacity exceeded')
         streams=[]
         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
@@ -273,8 +299,9 @@ class SharedText:
         life_positions=bytes(value for index in range(1,13)
                              for value in self.hud_layout[f'LIFE_{index:02d}']['cell'])
         asset_data+=emit('hud_life_marker_positions',life_positions)
-# @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC"]}
+# @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC", "PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC"]}
         asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
+        asset_data+=f'PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC equ {inactive_x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
         translation=[]

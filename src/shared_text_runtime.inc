@@ -235,21 +235,15 @@ asset_draw_top_hud
         lda PRES_MODE
         cmpa #MODE_DEMO
         beq asset_top_score_done
-        ldd #(PRESENTATION_HUD_P1_SCORE_X*256+PRESENTATION_HUD_P1_SCORE_Y)
-        std HUD_X
-        lda #TEXT_SCORE
-        sta HUD_COLOR
-        ldu #HUD_P1_SCORE
-        jsr draw_bcd_line
+        ldx #HUD_P1_SCORE
+        ldy #FB_VIRT+(PRESENTATION_HUD_P1_SCORE_Y*1280)+(PRESENTATION_HUD_P1_SCORE_X*4)
+        ldb #TEXT_SCORE
+        jsr PRES_MODULE_DRAW_SCORE
 asset_top_score_done
-        lda #PRESENTATION_HUD_TOP_SCORE_X
-        sta HUD_X
-        lda #PRESENTATION_HUD_TOP_SCORE_Y
-        sta HUD_Y
-        lda #TEXT_HIGH_SCORE
-        sta HUD_COLOR
-        ldu #HUD_TOP_SCORE
-        jsr draw_bcd_line
+        ldx #HUD_TOP_SCORE
+        ldy #FB_VIRT+(PRESENTATION_HUD_TOP_SCORE_Y*1280)+(PRESENTATION_HUD_TOP_SCORE_X*4)
+        ldb #TEXT_HIGH_SCORE
+        jsr PRES_MODULE_DRAW_SCORE
         ldx #FB_VIRT+(PRESENTATION_HUD_TOP_NAME_Y*1280)+(PRESENTATION_HUD_TOP_NAME_X*4)
         ldu #HUD_TOP_NAME
         ldb #7

@@ -502,7 +502,7 @@ cmd_build() {
     fi
 
     printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\nMENU_SCAN equ $B086\nMENU_TICK equ $B089\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
-    printf 'SHARED_COLD_PTR equ $1B96\n' > "$BUILD_DIR/ladybug_shared_link.inc"
+    printf 'SHARED_COLD_PTR equ $1B96\nPRES_MODULE_DRAW_SCORE equ $0000\nPRES_MODULE_DRAW_SCORE_SHORT equ $0000\n' > "$BUILD_DIR/ladybug_shared_link.inc"
     local shared_text_args=()
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then shared_text_args=(--shared-text); fi
 
@@ -899,6 +899,7 @@ wanted = {
     'map_back': 'PRES_MODULE_MAP_BACK',
     'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
     'draw_score_value': 'PRES_MODULE_DRAW_SCORE',
+    'draw_score_value_short': 'PRES_MODULE_DRAW_SCORE_SHORT',
     'cold_ptr': 'PRES_MODULE_COLD_PTR',
     'draw_raw_tile': 'PRES_MODULE_DRAW_RAW_TILE',
     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
@@ -913,6 +914,7 @@ required = {
     'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
     'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR', 'PRES_MODULE_DRAW_RAW_TILE',
     'PRES_MODULE_DRAW_SCORE',
+    'PRES_MODULE_DRAW_SCORE_SHORT',
     'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
     'PRES_MODULE_START_SCREEN',
 }
@@ -927,7 +929,9 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${value}\n')
 from pathlib import Path
 Path(output).with_name('ladybug_shared_link.inc').write_text(
-    f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n")
+    f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n"
+    f"PRES_MODULE_DRAW_SCORE equ ${symbols['PRES_MODULE_DRAW_SCORE']}\n"
+    f"PRES_MODULE_DRAW_SCORE_SHORT equ ${symbols['PRES_MODULE_DRAW_SCORE_SHORT']}\n")
 PY
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then

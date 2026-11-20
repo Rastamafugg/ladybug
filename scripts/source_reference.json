@@ -275,10 +275,25 @@
         {
           "name": "draw_multiplier_hud",
           "profile": "render",
-          "purpose": "Draw the earned multiplier at its generated HUD field destination.",
+          "purpose": "Repaint all generated multiplier fields gray, then show the active multiplier in blue.",
           "reasons": [
             "exported"
           ]
+        },
+        {
+          "name": "draw_multiplier_slot",
+          "profile": "render",
+          "purpose": "Draw one generated multiplier field with gray X and value when inactive and blue X and value when it matches the player's current multiplier.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-draw-multiplier-slot",
+          "inputs": "A contains the multiplier value; HUD_X/HUD_Y and Y select the generated field coordinates and destination; HUD_P1_MULTIPLIER contains the current player value.",
+          "outputs": "Draws the multiplier graphic and recolors the matching field in the current BACK target.",
+          "clobbers": "A, B, condition codes, HUD_COLOR, HUD_BCD_COUNT, HUD_X, and the drawing scratch used by presentation_dispatch.",
+          "reads": "HUD_P1_MULTIPLIER, PRESENTATION_MULTIPLIER_X_GRAPHIC, and PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC.",
+          "writes": "The selected field through presentation_dispatch and draw_recolored_map_tile.",
+          "invariants": "Called once for each generated x2, x3, and x5 field; PAR5 is restored by draw_multiplier_hud after all three calls."
         },
         {
           "name": "draw_perimeter_box",
@@ -331,7 +346,7 @@
         {
           "name": "draw_word_progress_hud",
           "profile": "render",
-          "purpose": "Draw word progress hud.",
+          "purpose": "Repaint every generated SPECIAL/EXTRA field using gray for unearned letters and its earned color for collected letters.",
           "reasons": [
             "exported"
           ]
@@ -649,7 +664,7 @@
         {
           "name": "asset_draw_top_hud",
           "profile": "render",
-          "purpose": "Draw the active player score except during demo, then draw committed TOP name and score.",
+          "purpose": "Draw the active player score except during demo, then draw the committed TOP name and score.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
@@ -901,6 +916,8 @@
         "PLAYER_MODULE_DRAW",
         "PRESENTATION_MODULE_DRAW",
         "AUDIO_ENGINE_EXEC",
+        "PRES_MODULE_DRAW_SCORE",
+        "PRES_MODULE_DRAW_SCORE_SHORT",
         "SHARED_COLD_PTR"
       ],
       "label_classifications": [
@@ -2281,7 +2298,7 @@
         {
           "name": "start_screen",
           "profile": "presentation",
-          "purpose": "Initialize and draw the requested presentation screen.",
+          "purpose": "Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.",
           "reasons": []
         },
         {
@@ -2335,27 +2352,48 @@
         {
           "name": "draw_score_value",
           "profile": "presentation",
-          "purpose": "Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.",
+          "purpose": "Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.",
           "reasons": [
             "exported"
           ],
-          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value",
+          "inputs": "B selects the digit palette; X points to three packed-BCD bytes; Y points to a six-digit field.",
+          "outputs": "Draws the six-digit value with leading zeroes blanked, advances X by three bytes and Y by six tiles, preserves U, and restores PAR5.",
+          "clobbers": "A, B, condition codes, PRES_TMP_H/PRES_TMP_M/PRES_TMP_L, and HUD_COLOR; X and Y advance as specified.",
+          "reads": "Three packed-BCD bytes through X and the selected palette in B.",
+          "writes": "The destination field through PRES_MAIN_SHARED_MASK or PRES_MAIN_DYNAMIC_TEXT, plus the declared scratch bytes.",
+          "invariants": "Internal zeroes use numeric glyphs; leading cells are blanked while preserving the caller-provided field width; an all-zero value leaves one visible zero."
+        },
+        {
+          "name": "draw_score_value_short",
+          "profile": "presentation",
+          "purpose": "Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes and restoring the caller's PAR5 mapping before return.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value-short",
+          "inputs": "B selects the digit palette; X points to two packed-BCD bytes; Y points to a four-digit field.",
+          "outputs": "Draws the four-digit value with leading zeroes blanked, advances X by two bytes and Y by four tiles, and restores PAR5.",
+          "clobbers": "A, B, condition codes, PRES_TMP_H/PRES_TMP_M/PRES_TMP_L, and HUD_COLOR; X and Y advance as specified. U is preserved.",
+          "reads": "Two packed-BCD bytes through X and the selected palette in B.",
+          "writes": "The destination field through PRES_MAIN_SHARED_MASK or PRES_MAIN_DYNAMIC_TEXT, plus the declared scratch bytes.",
+          "invariants": "Uses the same digit-formatting routine as six-digit scores; requires a four-cell destination and valid packed BCD."
         },
         {
           "name": "draw_score_value_digit",
           "profile": "presentation",
-          "purpose": "Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.",
+          "purpose": "Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.",
           "reasons": [
             "called"
           ],
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-draw-score-value-digit",
-          "inputs": "A contains one unpacked decimal digit from 0 to 9; Y points to the next score tile; PRES_TMP_M records whether a significant digit has started.",
+          "inputs": "A contains one unpacked decimal digit from 0 to 9; Y points to the next score tile; HUD_COLOR selects the digit palette; PRES_TMP_M records whether a significant digit has started.",
           "outputs": "Draws one digit or blank tile, advances Y by 4 bytes, and sets PRES_TMP_M when the first nonzero digit is reached.",
           "clobbers": "A, B, U, and condition codes; X is preserved; Y advances by 4 bytes.",
-          "reads": "A, PRES_TMP_M, score_value_glyphs, and the current tile-render context.",
-          "writes": "PRES_TMP_M when significance starts and the destination tile through PRES_MAIN_DYNAMIC_TEXT.",
+          "reads": "A, HUD_COLOR, PRES_TMP_M, and the current tile-render context.",
+          "writes": "PRES_TMP_M when significance starts and the destination tile through PRES_MAIN_SHARED_MASK or PRES_MAIN_DYNAMIC_TEXT.",
           "side_effects": "Draws one score tile and advances the score destination to the next tile.",
-          "invariants": "Leading zeroes before the first nonzero digit use the blank tile; later zeroes use the numeric glyph; A must be from 0 to 9."
+          "invariants": "Leading zeroes before the first nonzero digit use the blank tile; later zeroes use the numeric glyph; HUD_COLOR selects the numeric glyph color; A must be from 0 to 9."
         }
       ],
       "relocations": [
@@ -2381,6 +2419,7 @@
         "PRESENTATION_MODULE_DRAW",
         "PRES_MAIN_DEATH",
         "PRES_MAIN_DYNAMIC_TEXT",
+        "PRES_MAIN_SHARED_MASK",
         "PRES_MAIN_ENEMY",
         "PRES_MAIN_ENTITIES",
         "PRES_MAIN_FB_CAPTURE",
@@ -2448,11 +2487,6 @@
           "name": "MENU_SCAN",
           "kind": "data",
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
-        },
-        {
-          "name": "score_value_glyphs",
-          "kind": "data",
-          "reason": "Generated glyph lookup table used by the shared score painter."
         }
       ],
       "basic_blocks": [
