@@ -704,9 +704,7 @@ stage_name_pending_score
         puls a
         sta PRES_NAME_TIMER_PHASE
 stage_name_common_hud
-        ifne    COMPLETE_PROFILE
         jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
-        endc
         lda #PRESENTATION_HUD_DRAW_ALL
         clrb
         jmp PRES_MAIN_SHARED_HUD
@@ -1032,9 +1030,7 @@ top_panel_publish
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         beq     top_panel_instructions
         lda     #PRESENTATION_HUD_DRAW_ALL
-        ifne    COMPLETE_PROFILE
         jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
-        endc
         clrb
         bra     top_panel_draw_common
 top_panel_instructions
