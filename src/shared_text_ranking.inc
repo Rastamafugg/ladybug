@@ -293,7 +293,7 @@ highscore_qualify_loop
         blo     highscore_qualify_next
         lda     PRES_SCORE_L
         cmpa    2,x
-        bhi     highscore_qualify_found
+        bhs     highscore_qualify_found
 highscore_qualify_next
         leax    10,x
         incb
