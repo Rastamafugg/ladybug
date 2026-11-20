@@ -962,17 +962,7 @@ fri_dot
         jsr     draw_maze_state_cell
 fri_hud
         lbsr    enemy_render_impl
-        ifne COMPLETE_PROFILE
-        lda     RENDER_FLAGS
-        anda    #(RF_HUD+RF_LIVES)
-        bne     fri_draw_hud
-        lda     RENDER_FLAGS2
-        bita    #RF2_MULTIPLIER
-        beq     fri_box
-fri_draw_hud
-        lda     #PRESENTATION_HUD_DRAW_ALL
-        jsr     PRES_MAIN_SHARED_HUD
-        else
+        ifeq COMPLETE_PROFILE
         lda     RENDER_FLAGS
         bita    #RF_HUD
         beq     fri_lives
@@ -1112,6 +1102,7 @@ fri_stage_background
         jsr     draw_entities
         ifne COMPLETE_PROFILE
         lda     #PRESENTATION_HUD_DRAW_ALL
+        clrb
         jsr     PRES_MAIN_SHARED_HUD
         else
         jsr     draw_hud

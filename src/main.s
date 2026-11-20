@@ -11,11 +11,11 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo, then draw the committed TOP name and score.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo and Instructions, then draw committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud for common fields and authored event tiles.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud for A-selected HUD groups and typed Instructions events.
 ; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
@@ -111,13 +111,13 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary fields, all shared fields, or authored event tiles from the selected caller mode using the typed descriptor dispatcher; refresh player values only for a full draw and restore PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all generated multiplier fields gray, then show the active multiplier in blue.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all or the B-selected generated multiplier field gray, then show the active multiplier in blue.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -138,7 +138,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract gate_render_hidden profile=render: Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.
 ; DOC-002 source-contract mirror contract init_enemy profile=state: Initialize enemy.
 ; DOC-002 source-contract mirror contract init_entities profile=state: Initialize entities.
-; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.
+; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.
 ; DOC-002 source-contract mirror contract init_gate_state profile=state: Initialize gate state.
 ; DOC-002 source-contract mirror contract init_joystick profile=state: Initialize joystick.
 ; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
@@ -149,7 +149,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
 ; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
 ; DOC-002 source-contract mirror contract merge_sprite_byte profile=state: Merge sprite byte.
-; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.
+; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state; reset only the multiplier and retain SPECIAL/EXTRA progress.
 ; DOC-002 source-contract mirror contract perimeter_box_coordinates profile=copy: Convert the active perimeter box index into its semantic screen coordinates.
 ; DOC-002 source-contract mirror contract perimeter_timer_tick profile=state: Advance perimeter timer state for one scheduled tick.
 ; DOC-002 source-contract mirror contract pickup_tick profile=state: Advance pickup state for one scheduled tick.
@@ -247,6 +247,7 @@ BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
 SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
+PRES_SCREEN equ $00A6
 PRES_TMP_H equ $00C2
 PRES_HIGHSCORE_BASE equ $AF84
 ; FEAT-013 shared snapshot; boot streams have retired before initialization.
@@ -1209,7 +1210,13 @@ alp_special
         inc     STAGE_PENDING
 alp_special_draw
         ifne COMPLETE_PROFILE
-        rts                     ; add_bonus_score already queued shared HUD refresh
+        clr     RENDER_LETTER_X ; zero selects the whole generated word row
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        sta     RENDER_LETTER_Y
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
+        rts                     ; shared refresh redraws earned SPECIAL progress
         else
         lda     ENTITY_VARIANT
         leax    special_letter_x,pcr
@@ -1254,11 +1261,20 @@ alp_extra
         cmpa    #MAX_RESERVE_LIVES
         bhs     alp_extra_pending
         inc     LIVES
+        lda     RENDER_FLAGS
+        ora     #RF_LIVES
+        sta     RENDER_FLAGS
 alp_extra_pending
         inc     STAGE_PENDING
 alp_extra_draw
         ifne COMPLETE_PROFILE
-        rts                     ; add_bonus_score already queued shared HUD refresh
+        clr     RENDER_LETTER_X ; zero selects the whole generated word row
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        sta     RENDER_LETTER_Y
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
+        rts                     ; shared refresh redraws earned EXTRA progress
         else
         lda     ENTITY_VARIANT
         leax    extra_letter_x,pcr
@@ -1309,25 +1325,49 @@ add_special_score
 ; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
         ifne COMPLETE_PROFILE
+        pshs    b
         lda     GIME_PAR5
         pshs    a
+        ldb     1,s
+        beq     dmh_x2_draw
+        cmpb    #2
+        bne     dmh_x3_test
+dmh_x2_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X2_DST
         lda     #2
         bsr     draw_multiplier_slot
+        ldb     1,s
+        bne     dmh_done
+dmh_x3_test
+        ldb     1,s
+        beq     dmh_x3_draw
+        cmpb    #3
+        bne     dmh_x5_test
+dmh_x3_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X3_DST
         lda     #3
         bsr     draw_multiplier_slot
+        ldb     1,s
+        bne     dmh_done
+dmh_x5_test
+        ldb     1,s
+        beq     dmh_x5_draw
+        cmpb    #5
+        bne     dmh_done
+dmh_x5_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X5_DST
         lda     #5
         bsr     draw_multiplier_slot
+dmh_done
         puls    a
         sta     GIME_PAR5
+        puls    b
         rts
 draw_multiplier_slot
         sta     HUD_BCD_COUNT
@@ -1372,19 +1412,13 @@ dmh_legacy_draw
 special_letter_bits
         fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
 special_letter_x
-        ifne COMPLETE_PROFILE
-        fcb     0,0,PRESENTATION_HUD_SPECIAL_PROGRESS_X+5,PRESENTATION_HUD_SPECIAL_PROGRESS_X+3,PRESENTATION_HUD_SPECIAL_PROGRESS_X+2,PRESENTATION_HUD_SPECIAL_PROGRESS_X+4
-        fcb     PRESENTATION_HUD_SPECIAL_PROGRESS_X+6,PRESENTATION_HUD_SPECIAL_PROGRESS_X+1,0,PRESENTATION_HUD_SPECIAL_PROGRESS_X+0,0,0
-        else
+        ifeq COMPLETE_PROFILE
         fcb     0,0,6,4,3,5,7,2,0,1,0,0
         endc
 extra_letter_bits
         fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
 extra_letter_x
-        ifne COMPLETE_PROFILE
-        fcb     0,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+4,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+0,0
-        fcb     0,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+3,0,PRESENTATION_HUD_EXTRA_PROGRESS_X+2,PRESENTATION_HUD_EXTRA_PROGRESS_X+1
-        else
+        ifeq COMPLETE_PROFILE
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
         endc
 
@@ -1500,19 +1534,23 @@ dwph_extra_next
 
 draw_hud
         ifne COMPLETE_PROFILE
-; A selects common fields, all fields, or authored event tiles. The entry mode
-; and caller mapping are saved; only a full draw captures player-owned values.
+; A is the HUD-group mask; B=0 selects all requested multiplier fields. On the
+; Instructions page, nonzero B selects the authored event descriptor at X.
+; Callers capture owner data before dispatch; this routine never edits it.
         pshs    a
+        pshs    b
         lda     GIME_PAR5
         pshs    a
-        lda     1,s
-        cmpa    #PRESENTATION_HUD_DRAW_EVENT
-        beq     dhu_event_tiles
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        bne     dhu_group_fields
         tst     1,s
-        beq     dhu_primary_snapshot_ready
-        jsr     hud_snapshot_capture_player
-dhu_primary_snapshot_ready
+        bne     dhu_event_tiles
+dhu_group_fields
 draw_shared_hud equ draw_hud
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_PRIMARY
+        beq     dhu_no_primary
         jsr     asset_draw_top_hud
         lda     #PRESENTATION_HUD_PART_VALUE_X
         sta     HUD_X
@@ -1523,14 +1561,27 @@ draw_shared_hud equ draw_hud
         lda     HUD_P1_STAGE
         jsr     asset_draw_part_value
         bsr     draw_vegetable_hud
-        tst     1,s
-        beq     dhu_shared_done
+dhu_no_primary
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
+        beq     dhu_no_words
         jsr     draw_word_progress_hud
+dhu_no_words
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_LIVES
+        beq     dhu_no_lives
         jsr     draw_lives
+dhu_no_lives
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_MULTIPLIER
+        beq     dhu_shared_done
+        ldb     1,s
         jsr     draw_multiplier_hud
 dhu_shared_done
-        puls    a,b
+        puls    a
         sta     GIME_PAR5
+        puls    b
+        puls    a
         rts
 dhu_event_tiles
 ; X points to one generated instruction event. Read its typed descriptors

@@ -192,7 +192,34 @@ event_ptr_a
 ; X points to one generated instruction event. The complete profile routes
 ; these animated screen-local glyphs through the common HUD renderer.
 draw_hud_event_tiles
-        lda     #PRESENTATION_HUD_DRAW_EVENT
+        lda     PRES_PHASE
+        cmpa    #5
+        blo     dhe_extra
+        cmpa    #12
+        blo     dhe_special
+        cmpa    #12
+        beq     dhe_multiplier_two
+        cmpa    #13
+        beq     dhe_multiplier_three
+        ldb     #5
+        bra     dhe_multiplier
+dhe_multiplier_two
+        ldb     #2
+        bra     dhe_multiplier
+dhe_multiplier_three
+        ldb     #3
+dhe_multiplier
+        lda     #PRESENTATION_HUD_DRAW_MULTIPLIER
+        jmp     PRES_MAIN_SHARED_HUD
+dhe_special
+        suba    #4
+        tfr     a,b
+        lda     #PRESENTATION_HUD_DRAW_SPECIAL
+        jmp     PRES_MAIN_SHARED_HUD
+dhe_extra
+        inca
+        tfr     a,b
+        lda     #PRESENTATION_HUD_DRAW_EXTRA
         jmp     PRES_MAIN_SHARED_HUD
 
 consume_event

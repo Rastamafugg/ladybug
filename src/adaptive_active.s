@@ -92,6 +92,7 @@ adaptive_render
         jsr colour_prepare_nest
         jsr actor_closure_restore
         clr AD_END_TIME
+        jsr hud_snapshot_capture_player
         lda FB_BACK_ID
         jsr AD_REDUCE_EXEC
         bcs ar_bad
@@ -224,6 +225,7 @@ agb_not_stage
         stb ENEMY_RENDER_FLAGS
         puls d
         std RENDER_FLAGS
+        jsr adaptive_draw_hud_intents
         puls a,pc
 agb_masks
         fcb $08,$10,$18
@@ -235,6 +237,13 @@ adaptive_key_binding
         ; Record will be reloaded before the next key and complete caller
         ; intents restored by adaptive_reduce. Copy secondary gate into the
         ; primary lane before suppressing the secondary compositor call.
+        tfr a,b
+        pshs b
+        lda RENDER_FLAGS
+        pshs a
+        lda RENDER_FLAGS2
+        pshs a
+        lda 2,s
         tfr a,b
         cmpa #4
         bne akb_primary
@@ -261,7 +270,52 @@ akb_gate
         bne akb_finish
         bsr pickup_key_prepare
 akb_finish
-        jmp frame_render_background
+        jsr frame_render_background
+        puls a
+        sta RENDER_FLAGS2
+        puls a
+        sta RENDER_FLAGS
+        puls b
+        jsr adaptive_draw_hud_intents
+        rts
+
+; Repaint only shared HUD groups named by the restored gameplay render intents.
+; The player snapshot was captured once before AD_REDUCE_EXEC.
+adaptive_draw_hud_intents
+        lda RENDER_FLAGS
+        anda #RF_HUD|RF_LIVES
+        lsra
+        pshs a
+        lda RENDER_FLAGS2
+        bita #RF2_MULTIPLIER
+        beq adhi_letter
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_MULTIPLIER
+        sta ,s
+adhi_letter
+        lda RENDER_FLAGS2
+        bita #RF2_LETTER
+        beq adhi_dispatch
+        lda RENDER_LETTER_Y
+        cmpa #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        beq adhi_special
+        cmpa #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        bne adhi_dispatch
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_EXTRA
+        sta ,s
+        bra adhi_dispatch
+adhi_special
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_SPECIAL
+        sta ,s
+adhi_dispatch
+        puls a
+        beq adhi_done
+        clrb
+        jsr draw_shared_hud
+adhi_done
+        rts
 akb_masks
         fcb $20,0,$10,0,0,$04,0,0
 

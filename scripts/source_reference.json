@@ -214,7 +214,7 @@
         {
           "name": "draw_hud",
           "profile": "render",
-          "purpose": "Draw the common primary fields, all shared fields, or authored event tiles from the selected caller mode using the typed descriptor dispatcher; refresh player values only for a full draw and restore PAR5.",
+          "purpose": "Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.",
           "reasons": [
             "exported"
           ],
@@ -232,7 +232,7 @@
         {
           "name": "draw_shared_hud",
           "profile": "render",
-          "purpose": "Shared entry alias to draw_hud for common fields and authored event tiles.",
+          "purpose": "Shared entry alias to draw_hud for A-selected HUD groups and typed Instructions events.",
           "reasons": [
             "exported"
           ],
@@ -284,7 +284,7 @@
         {
           "name": "draw_multiplier_hud",
           "profile": "render",
-          "purpose": "Repaint all generated multiplier fields gray, then show the active multiplier in blue.",
+          "purpose": "Repaint all or the B-selected generated multiplier field gray, then show the active multiplier in blue.",
           "reasons": [
             "exported"
           ]
@@ -443,7 +443,7 @@
         {
           "name": "init_game_state",
           "profile": "state",
-          "purpose": "Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.",
+          "purpose": "Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.",
           "reasons": [
             "exported"
           ]
@@ -512,7 +512,7 @@
         {
           "name": "next_stage",
           "profile": "state",
-          "purpose": "Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.",
+          "purpose": "Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state; reset only the multiplier and retain SPECIAL/EXTRA progress.",
           "reasons": []
         },
         {
@@ -673,7 +673,7 @@
         {
           "name": "asset_draw_top_hud",
           "profile": "render",
-          "purpose": "Draw the active player score except during demo, then draw the committed TOP name and score.",
+          "purpose": "Draw the active player score except during demo or Instructions, then draw the committed TOP name and score.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
@@ -2273,7 +2273,7 @@
         {
           "name": "init_gameplay",
           "profile": "presentation",
-          "purpose": "Prepare the first level before its preview and skip the already initialized next-stage context.",
+          "purpose": "Prepare Attract preview and fresh-game Level Start before display; skip next-stage context so SPECIAL/EXTRA progress persists while its multiplier resets.",
           "reasons": []
         },
         {
@@ -2307,7 +2307,7 @@
         {
           "name": "start_screen",
           "profile": "presentation",
-          "purpose": "Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.",
+          "purpose": "Load the requested screen; Instructions begins with authored inactive bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.",
           "reasons": []
         },
         {
@@ -2623,6 +2623,9 @@
       },
       "entrypoints": [],
       "external_symbols": [
+        "PRES_MAIN_HUD_CAPTURE_PLAYER",
+        "PRES_MAIN_SHARED_HUD",
+        "PRESENTATION_HUD_DRAW_ALL",
         "PRES_MODULE_DRAW_SCORE"
       ]
     },
@@ -2777,7 +2780,10 @@
         "PRES_MAIN_SAVE_PLAYER",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE",
-        "PRES_MAIN_SHARED_HUD"
+        "PRES_MAIN_SHARED_HUD",
+        "PRESENTATION_HUD_DRAW_MULTIPLIER",
+        "PRESENTATION_HUD_DRAW_SPECIAL",
+        "PRESENTATION_HUD_DRAW_EXTRA"
       ],
       "binary": "ladybug-instruction-runtime.bin",
       "assembly_output": "ladybug-instruction-runtime.bin.new",
@@ -3719,6 +3725,7 @@
         "PRES_MAIN_NAME_LATE_TURN",
         "PRES_MAIN_READ_JOY",
         "PRES_MAIN_SHARED_HUD",
+        "PRES_MAIN_HUD_CAPTURE_PLAYER",
         "PRES_MODULE_COLD_PTR",
         "PRES_MODULE_DRAW_TILE",
         "PRES_MODULE_MAP_BACK",
@@ -3796,6 +3803,7 @@
         "PRES_MAIN_READ_STAGE_LETTERS",
         "PRES_MAIN_HUD_TOP_REFRESH",
         "PRES_MAIN_SHARED_HUD",
+        "PRES_MAIN_HUD_CAPTURE_PLAYER",
         "PRES_MODULE_DRAW_SCORE"
       ],
       "routines": [

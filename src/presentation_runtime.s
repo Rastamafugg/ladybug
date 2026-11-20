@@ -52,9 +52,9 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_short profile=presentation: Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions begins with its authored inactive bonus indicators and a zero shared P1 score, while Level Start resets game bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
-; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
+; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare Attract preview and fresh-game Level Start before display; skip next-stage context so SPECIAL/EXTRA progress persists while its multiplier resets.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.

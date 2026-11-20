@@ -745,9 +745,13 @@ if int(complete):
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
         'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
+        'hud_snapshot_capture_player': 'PRES_MAIN_HUD_CAPTURE_PLAYER',
         'PRESENTATION_HUD_DRAW_PRIMARY': 'PRESENTATION_HUD_DRAW_PRIMARY',
+        'PRESENTATION_HUD_DRAW_LIVES': 'PRESENTATION_HUD_DRAW_LIVES',
+        'PRESENTATION_HUD_DRAW_MULTIPLIER': 'PRESENTATION_HUD_DRAW_MULTIPLIER',
+        'PRESENTATION_HUD_DRAW_SPECIAL': 'PRESENTATION_HUD_DRAW_SPECIAL',
+        'PRESENTATION_HUD_DRAW_EXTRA': 'PRESENTATION_HUD_DRAW_EXTRA',
         'PRESENTATION_HUD_DRAW_ALL': 'PRESENTATION_HUD_DRAW_ALL',
-        'PRESENTATION_HUD_DRAW_EVENT': 'PRESENTATION_HUD_DRAW_EVENT',
         'hud_snapshot_refresh_top': 'PRES_MAIN_HUD_TOP_REFRESH',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',
@@ -768,7 +772,7 @@ if missing:
     raise SystemExit('build: presentation symbols missing: ' + ', '.join(sorted(missing)))
 with open(output, 'w', encoding='ascii') as handle:
     for name in sorted(symbols):
-        if name in {'PRESENTATION_HUD_DRAW_ALL', 'PRESENTATION_HUD_DRAW_PRIMARY', 'PRESENTATION_HUD_DRAW_EVENT'}:
+        if name.startswith('PRESENTATION_HUD_DRAW_'):
             handle.write(f'        ifndef {name}\n')
             handle.write(f'{name} equ ${symbols[name]}\n')
             handle.write('        endc\n')

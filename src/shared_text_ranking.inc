@@ -1106,6 +1106,10 @@ render_name_screen
         jsr     PRES_MODULE_MAP_BACK
         ifeq    COMPLETE_PHASE_AUX
         lda     #PRESENTATION_HUD_DRAW_ALL
+        ifne    COMPLETE_PROFILE
+        jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
+        endc
+        clrb
         jsr     PRES_MAIN_SHARED_HUD
         endc
         bsr     draw_name_fields
