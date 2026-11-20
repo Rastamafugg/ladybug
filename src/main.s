@@ -117,7 +117,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all or the B-selected generated multiplier field gray, then show the active multiplier in blue.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all three generated multiplier fields gray, then show the active multiplier in blue.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -1325,49 +1325,25 @@ add_special_score
 ; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
         ifne COMPLETE_PROFILE
-        pshs    b
         lda     GIME_PAR5
         pshs    a
-        ldb     1,s
-        beq     dmh_x2_draw
-        cmpb    #2
-        bne     dmh_x3_test
-dmh_x2_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X2_DST
         lda     #2
         bsr     draw_multiplier_slot
-        ldb     1,s
-        bne     dmh_done
-dmh_x3_test
-        ldb     1,s
-        beq     dmh_x3_draw
-        cmpb    #3
-        bne     dmh_x5_test
-dmh_x3_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X3_DST
         lda     #3
         bsr     draw_multiplier_slot
-        ldb     1,s
-        bne     dmh_done
-dmh_x5_test
-        ldb     1,s
-        beq     dmh_x5_draw
-        cmpb    #5
-        bne     dmh_done
-dmh_x5_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X5_DST
         lda     #5
         bsr     draw_multiplier_slot
-dmh_done
         puls    a
         sta     GIME_PAR5
-        puls    b
         rts
 draw_multiplier_slot
         sta     HUD_BCD_COUNT
@@ -1534,8 +1510,8 @@ dwph_extra_next
 
 draw_hud
         ifne COMPLETE_PROFILE
-; A is the HUD-group mask; B=0 selects all requested multiplier fields. On the
-; Instructions page, nonzero B selects the authored event descriptor at X.
+; A is the HUD-group mask. On the Instructions page, nonzero B selects the
+; authored event descriptor at X; common group calls pass B=0.
 ; Callers capture owner data before dispatch; this routine never edits it.
         pshs    a
         pshs    b
