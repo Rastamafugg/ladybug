@@ -11,7 +11,7 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo and Instructions, then draw committed TOP name and score.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo or Instructions, then draw the committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
@@ -111,7 +111,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
