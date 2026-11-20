@@ -232,7 +232,7 @@
         {
           "name": "draw_shared_hud",
           "profile": "render",
-          "purpose": "Shared entry alias to draw_hud for A-selected HUD groups and typed Instructions events.",
+          "purpose": "Shared entry alias to draw_hud for A-selected HUD groups; nonzero B selects a typed Instructions event descriptor at X.",
           "reasons": [
             "exported"
           ],
@@ -284,7 +284,7 @@
         {
           "name": "draw_multiplier_hud",
           "profile": "render",
-          "purpose": "Repaint all three generated multiplier fields gray, then show the active multiplier in blue.",
+          "purpose": "Repaint all three generated multiplier fields; Instructions forces them inactive, otherwise the matching owner multiplier is blue.",
           "reasons": [
             "exported"
           ]
@@ -297,10 +297,10 @@
             "called"
           ],
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-draw-multiplier-slot",
-          "inputs": "A contains the multiplier value; HUD_X/HUD_Y and Y select the generated field coordinates and destination; HUD_P1_MULTIPLIER contains the current player value.",
+          "inputs": "A contains the multiplier value; HUD_X/HUD_Y and Y select the generated field coordinates and destination; HUD_BCD_BYTE contains the current player multiplier.",
           "outputs": "Draws the multiplier graphic and recolors the matching field in the current BACK target.",
           "clobbers": "A, B, condition codes, HUD_COLOR, HUD_BCD_COUNT, HUD_X, and the drawing scratch used by presentation_dispatch.",
-          "reads": "HUD_P1_MULTIPLIER, PRESENTATION_MULTIPLIER_X_GRAPHIC, and PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC.",
+          "reads": "HUD_BCD_BYTE, PRESENTATION_MULTIPLIER_X_GRAPHIC, and PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC.",
           "writes": "The selected field through presentation_dispatch and draw_recolored_map_tile.",
           "invariants": "Called once for each generated x2, x3, and x5 field; PAR5 is restored by draw_multiplier_hud after all three calls."
         },
@@ -355,7 +355,7 @@
         {
           "name": "draw_word_progress_hud",
           "profile": "render",
-          "purpose": "Repaint every generated SPECIAL/EXTRA field using gray for unearned letters and its earned color for collected letters.",
+          "purpose": "Repaint both generated SPECIAL and EXTRA words using gray for unearned letters and their earned colors for collected letters; Instructions forces both words inactive.",
           "reasons": [
             "exported"
           ]
