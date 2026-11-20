@@ -1,0 +1,38 @@
+FEAT-013 relocation negative-control evidence
+Captured before the approved relocation implementation build.
+Capture date: 2026-11-20
+Source worktree: C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug
+Source revision: 7bb9d14d918b8868efca860a7239bca69ed0e966
+Profile: complete, keyboard, adaptive, CPU 6809
+
+Build result:
+The complete-profile build stopped at the resident size guard. The map reports resident_end=$E00E; the resident limit is $E000, so the measured miss is 14 bytes. No receipt-bound ROM was produced. This listing is a capacity-failure control only, not a runnable ROM or runtime control.
+
+Retained generated artifacts and SHA-256:
+build/ladybug.lst — 715639 bytes — 3c4464c0c9bd120876589a7ebf15956395058faea338403c2477fae0669ee812
+build/ladybug.map — 160274 bytes — 2b422bc18866101cb0aef6c5998ed2bc28c4472c501a2f776e7b4323bc4be725
+build/ladybug-adaptive-active.lst — 41281 bytes — 5a7df9a37beedcc0d9b5142d2874d466fc969c58293073e33ddc4fa526e28c15
+build/ladybug-adaptive-active.map — 18169 bytes — 1bcf2b265f11b73581c2136560bbef5c15b8690cb88e71b120f8b6e5660eb507
+build/adaptive-bindings-fit.json — 74 bytes — 822339ea923c7dfff7eb69df24faa4e0b4d9e1b2a914a8cd541defdae44bdb23
+
+Resident listing excerpt:
+C41D 0D26  tst STAGE_PENDING
+C41F 260A  bne csc_done
+C421 9625  lda DOTS_LEFT
+C423 2606  bne csc_done
+C425 9633  lda BONUS_LEFT
+C427 2602  bne csc_done
+C429 0C26  inc STAGE_PENDING
+C42B 39    rts
+
+Resident callers:
+D254 17F1C6  lbsr check_stage_clear  ; after entity-pickup handling
+D4C6 17EF54  lbsr check_stage_clear  ; after dot count decrement
+
+Adaptive-active baseline:
+adaptive_work=$03A1
+adaptive_active_end=$0623
+adaptive-bindings-fit.json reports 660 bytes used, 777-byte cap, 117 bytes free.
+
+Evidence use:
+The reviewer can compare these bytes, callers, and active image boundary with the post-change listing. The baseline has the resident routine and no AD_STAGE_CLEAR_EXEC entry. It proves the old placement and size failure only.
