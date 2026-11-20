@@ -656,7 +656,7 @@
         {
           "name": "hud_snapshot_init",
           "profile": "copy",
-          "purpose": "Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.",
+          "purpose": "Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.",
           "reasons": [
             "called"
           ],
@@ -3846,12 +3846,6 @@
           "semantic_id": "routines.html#routine-highscore-helper-menu-updated"
         },
         {
-          "name": "stage_player_score",
-          "profile": "presentation",
-          "purpose": "Draw zero for a fresh game or current packed-BCD score at the generated P1 score field during hidden level-start hydration.",
-          "reasons": []
-        },
-        {
           "name": "logo_vbord_clock",
           "profile": "presentation",
           "purpose": "Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.",
@@ -4228,21 +4222,6 @@
         {
           "name": "stage_selected",
           "purpose": "FEAT-005 local branch boundary: stage selected."
-        },
-        {
-          "name": "stage_score_row_done",
-          "routine": "stage_player_score",
-          "purpose": "Level-start hidden score-hydration control boundary."
-        },
-        {
-          "name": "stage_player_score_pair",
-          "routine": "stage_player_score",
-          "purpose": "Level-start hidden score-hydration control boundary."
-        },
-        {
-          "name": "stage_player_score_actual",
-          "routine": "stage_player_score",
-          "purpose": "Level-start hidden score-hydration control boundary."
         },
         {
           "name": "stage_name_dispatch",

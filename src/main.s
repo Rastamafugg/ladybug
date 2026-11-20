@@ -12,7 +12,7 @@
 ADAPTIVE_RENDERING equ 0
         endc
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo, then draw committed TOP name and score.
-; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire and seed TOP from the boot table row one.
+; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
 ; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Entry alias to draw_hud for modules using the generated shared-HUD import.
@@ -5050,8 +5050,19 @@ hsi_clear
         clr     ,x+
         decb
         bne     hsi_clear
+        inc     HUD_P1_STAGE
         ldu     #PRES_HIGHSCORE_BASE
-        bra     hud_snapshot_refresh_top
+
+; U points to an accessible committed ten-byte row-one record.
+hud_snapshot_refresh_top
+        ldx     #HUD_TOP_SCORE
+        ldb     #10
+hst_copy
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     hst_copy
+        rts
 
 ; Capture the current player-owned values before any gameplay HUD painter runs.
 hud_snapshot_capture_player
@@ -5072,17 +5083,6 @@ hud_snapshot_capture_player
         sta     ,x
         lda     #1
         sta     HUD_PLAYER_VALID
-        rts
-
-; U points to an accessible committed ten-byte row-one record.
-hud_snapshot_refresh_top
-        ldx     #HUD_TOP_SCORE
-        ldb     #10
-hst_copy
-        lda     ,u+
-        sta     ,x+
-        decb
-        bne     hst_copy
         rts
         endc
 

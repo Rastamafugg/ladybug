@@ -1104,8 +1104,10 @@ render_name_screen
         lbsr    prepare_name
         endc
         jsr     PRES_MODULE_MAP_BACK
+        ifeq    COMPLETE_PHASE_AUX
         lda     #PRESENTATION_HUD_DRAW_ALL
         jsr     PRES_MAIN_SHARED_HUD
+        endc
         bsr     draw_name_fields
         bsr     draw_entry_scores
         lbsr    capture_initial
@@ -1122,9 +1124,11 @@ draw_name_fields
         bsr     draw_record_name
         lda #1
         sta PRES_NAME_TIMER_PHASE
+        ifeq COMPLETE_PHASE_AUX
         ldx     #PRES_HIGHSCORE_BASE+3
         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
         bsr     draw_record_name
+        endc
         ldx #PRES_PENDING_NAME
         ldy #$7F04             ; left pending name, authored x1,row19
         bsr draw_record_name

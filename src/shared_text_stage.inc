@@ -592,11 +592,6 @@ stage_panel_regular_slice
         lbra stage_name_dispatch
 stage_name_schedule_ready
         ldd $AA
-        cmpd #128
-        bne stage_score_row_done
-        lbsr stage_player_score
-stage_score_row_done
-        ldd $AA
         leay stage_schedule,pcr
 stage_schedule_find
         cmpd ,y
@@ -658,8 +653,8 @@ stage_panel_finish
         beq stage_name_sprite_selected
         cmpa #PRESENTATION_MAP_LEVEL_START
         bne stage_slice_return
-        lbsr stage_select
 stage_name_sprite_selected
+        lbsr stage_select
         lda PRES_TMP_H
         bne stage_finish_nonzero
         inca
@@ -674,20 +669,13 @@ stage_finish_index
         addd #vegetable_sprites
         tfr d,y
         pshs y
-        lda PRES_SCREEN
-        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq stage_name_sprite_hud
         ldu #sprite_attr0_pairs
         ldx #$3E40
         jsr blit_packed_sprite
-stage_name_sprite_hud
         puls y
-        ldu #sprite_attr0_pairs
-        ldx #PRESENTATION_PART_VEGETABLE_DST
-        jsr blit_packed_sprite
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_LEVEL_START
-        bne stage_slice_return
+        bne stage_name_common_hud
         jsr stage_panel_read_letters
         ldx #$6644
 stage_panel_letter_loop
@@ -703,6 +691,8 @@ stage_panel_letter_loop
         leax -2552,x
         decb
         bne stage_panel_letter_loop
+        rts
+stage_name_common_hud
         lda #PRESENTATION_HUD_DRAW_ALL
         jmp PRES_MAIN_SHARED_HUD
 stage_schedule
@@ -785,35 +775,6 @@ stage_panel_text
         bsr     stage_panel_char
         decb
         bne     stage_panel_text
-        rts
-
-; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score at the generated P1 score field during hidden level-start hydration.
-stage_player_score
-        lda #8
-        sta $29
-        ldx #PRESENTATION_HUD_P1_SCORE_DST
-        ldy #$001D
-        ldb #3
-stage_player_score_pair
-        lda ,y+
-        pshs a
-        lda $A7
-        cmpa #2
-        puls a
-        beq stage_player_score_actual
-        clra
-stage_player_score_actual
-        pshs a
-        lsra
-        lsra
-        lsra
-        lsra
-        bsr  stage_panel_char
-        puls a
-        anda #15
-        bsr  stage_panel_char
-        decb
-        bne stage_player_score_pair
         rts
 
 ; A=0..44 authored glyph, X=destination, $29=colour; advance X.
