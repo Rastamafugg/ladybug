@@ -675,7 +675,7 @@ stage_finish_index
         puls y
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_LEVEL_START
-        bne stage_name_common_hud
+        bne stage_name_pending_score
         jsr stage_panel_read_letters
         ldx #$6644
 stage_panel_letter_loop
@@ -692,6 +692,16 @@ stage_panel_letter_loop
         decb
         bne stage_panel_letter_loop
         rts
+stage_name_pending_score
+        lda PRES_NAME_TIMER_PHASE
+        pshs a
+        lda #1
+        sta PRES_NAME_TIMER_PHASE
+        ldx #PRES_SCORE_H
+        ldy #PRESENTATION_NAME_ENTRY_SCORE_DST
+        jsr PRES_MODULE_DRAW_SCORE
+        puls a
+        sta PRES_NAME_TIMER_PHASE
 stage_name_common_hud
         lda #PRESENTATION_HUD_DRAW_ALL
         jmp PRES_MAIN_SHARED_HUD
