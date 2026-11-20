@@ -197,7 +197,6 @@ draw_hud_event_tiles
         blo     dhe_extra
         cmpa    #12
         blo     dhe_special
-        cmpa    #12
         beq     dhe_multiplier_two
         cmpa    #13
         beq     dhe_multiplier_three
