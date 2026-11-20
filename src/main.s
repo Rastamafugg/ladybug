@@ -11,11 +11,11 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the active player score except during demo or Instructions, then draw the committed TOP name and score.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the shared player score on every screen except demo, where its authored zero remains visible, then draw the committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud for A-selected HUD groups and typed Instructions events.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; A selects groups, B=0 redraws whole selected groups, and valid nonzero B selects one multiplier or word item; Instructions event records remain in X.
 ; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
@@ -111,13 +111,13 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; B=0 redraws whole groups and valid nonzero B selects one multiplier or word item; Instructions event descriptors at X are retained; preserve PAR5 and reject invalid selectors.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all three generated multiplier fields gray, then show the active multiplier in blue.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint one generated multiplier field or all three when B=0, showing the owner multiplier in blue and the other values gray; Instructions forces all three inactive.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -125,7 +125,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
-; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Repaint every generated SPECIAL/EXTRA field using gray for unearned letters and its earned color for collected letters.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Repaint one selected SPECIAL or EXTRA group from owner bits; B=0 redraws its full word and nonzero B redraws only that numbered letter.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
 ; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.
@@ -1325,31 +1325,60 @@ add_special_score
 ; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
         ifne COMPLETE_PROFILE
+        pshs    b
         lda     GIME_PAR5
         pshs    a
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     dmh_instructions
+        lda     HUD_P1_MULTIPLIER
+        bra     dmh_value_ready
+dmh_instructions
+        lda     #1
+dmh_value_ready
+        sta     HUD_BCD_BYTE
+        lda     1,s
+        beq     dmh_x2_draw
+        cmpa    #2
+        bne     dmh_x3_check
+dmh_x2_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X2_DST
         lda     #2
         bsr     draw_multiplier_slot
+dmh_x3_check
+        lda     1,s
+        beq     dmh_x3_draw
+        cmpa    #3
+        bne     dmh_x5_check
+dmh_x3_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X3_DST
         lda     #3
         bsr     draw_multiplier_slot
+dmh_x5_check
+        lda     1,s
+        beq     dmh_x5_draw
+        cmpa    #5
+        bne     dmh_restore
+dmh_x5_draw
         ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
         std     HUD_X
         ldy     #PRESENTATION_HUD_MULTIPLIER_X5_DST
         lda     #5
         bsr     draw_multiplier_slot
+dmh_restore
         puls    a
         sta     GIME_PAR5
+        puls    b
         rts
 draw_multiplier_slot
         sta     HUD_BCD_COUNT
         lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
         sta     HUD_COLOR
-        ldb     HUD_P1_MULTIPLIER
+        ldb     HUD_BCD_BYTE
         cmpb    HUD_BCD_COUNT
         bne     dms_draw_inactive
         lda     #TEXT_MULTIPLIER
@@ -1412,111 +1441,170 @@ csc_done
 ;==============================================================================
 ; draw_word_progress_hud
 ;
-; Inputs: SPECIAL_BITS, EXTRA_BITS
+; Inputs: A=selected word group, B=0 for full word or 1-based letter index
 ; Returns: A, B, X, Y, U, CC undefined
-; Side effects: redraws every collected SPECIAL/EXTRA letter in the HUD
+; Side effects: redraws the selected owner-backed word progress in the HUD
 ;==============================================================================
 draw_word_progress_hud
         ifne COMPLETE_PROFILE
+        pshs    a
+        pshs    b
+        lda     1,s
+        cmpa    #PRESENTATION_HUD_DRAW_SPECIAL
+        beq     dwph_special_setup
+        cmpa    #PRESENTATION_HUD_DRAW_EXTRA
+        bne     dwph_done
+dwph_extra_setup
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        sta     HUD_Y
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_WIDTH
+        sta     HUD_COUNT
+        lda     #TEXT_EXTRA
+        bra     dwph_colour_ready
+dwph_special_setup
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        sta     HUD_Y
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_WIDTH
+        sta     HUD_COUNT
+        lda     #TEXT_SPECIAL
+dwph_colour_ready
+        sta     HUD_BCD_COUNT
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     dwph_zero_bits
+        lda     1,s
+        cmpa    #PRESENTATION_HUD_DRAW_SPECIAL
+        beq     dwph_special_bits
+        lda     HUD_P1_EXTRA_BITS
+        bra     dwph_bits_ready
+dwph_special_bits
         lda     HUD_P1_SPECIAL_BITS
+        bra     dwph_bits_ready
+dwph_zero_bits
+        clra
+dwph_bits_ready
+        sta     HUD_BCD_BYTE
+        tst     ,s
+        bne     dwph_one_letter
+dwph_full_word
+        lsr     HUD_BCD_BYTE
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        bcc     dwph_full_colour
+        lda     HUD_BCD_COUNT
+dwph_full_colour
+        sta     HUD_COLOR
+        jsr     draw_recolored_map_tile
+        inc     HUD_X
+        dec     HUD_COUNT
+        bne     dwph_full_word
+        bra     dwph_done
+dwph_one_letter
+        lda     HUD_BCD_BYTE
+        ldb     ,s
+        decb
+        beq     dwph_one_bit
+dwph_shift_bit
+        lsra
+        decb
+        bne     dwph_shift_bit
+dwph_one_bit
+        lsra
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        bcc     dwph_one_colour
+        lda     HUD_BCD_COUNT
+dwph_one_colour
+        sta     HUD_COLOR
+        ldb     ,s
+        decb
+        addb    HUD_X
+        stb     HUD_X
+        jsr     draw_recolored_map_tile
+dwph_done
+        puls    b
+        puls    a
+        rts
         else
         lda     SPECIAL_BITS
-        endc
         sta     HUD_BCD_BYTE
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_X
-        else
         lda     #1
-        endc
         sta     HUD_X
 dwph_special
         lsr     HUD_BCD_BYTE
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
-        bcc     dwph_special_colour
-        lda     #TEXT_SPECIAL
-dwph_special_colour
-        else
         bcc     dwph_special_next
         lda     #COLOR_RED
-        endc
         sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
-        else
         lda     #1
-        endc
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
-        else
         lbsr    draw_recolored_map_tile
-        endc
 dwph_special_next
         inc     HUD_X
         lda     HUD_X
-        ifne COMPLETE_PROFILE
-        cmpa    #PRESENTATION_HUD_SPECIAL_PROGRESS_X+PRESENTATION_HUD_SPECIAL_PROGRESS_WIDTH
-        else
         cmpa    #8
-        endc
         blo     dwph_special
-
-        ifne COMPLETE_PROFILE
-        lda     HUD_P1_EXTRA_BITS
-        else
         lda     EXTRA_BITS
-        endc
         sta     HUD_BCD_BYTE
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_X
-        else
         lda     #1
-        endc
         sta     HUD_X
 dwph_extra
         lsr     HUD_BCD_BYTE
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
-        bcc     dwph_extra_colour
-        lda     #TEXT_EXTRA
-dwph_extra_colour
-        else
         bcc     dwph_extra_next
         lda     #COLOR_YELLOW
-        endc
         sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
-        else
         lda     #4
-        endc
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
-        else
         lbsr    draw_recolored_map_tile
-        endc
 dwph_extra_next
         inc     HUD_X
         lda     HUD_X
-        ifne COMPLETE_PROFILE
-        cmpa    #PRESENTATION_HUD_EXTRA_PROGRESS_X+PRESENTATION_HUD_EXTRA_PROGRESS_WIDTH
-        else
         cmpa    #6
-        endc
         blo     dwph_extra
         rts
+        endc
 
 draw_hud
         ifne COMPLETE_PROFILE
-; A is the HUD-group mask. On the Instructions page, nonzero B selects the
-; authored event descriptor at X; common group calls pass B=0.
+; A selects HUD groups. B=0 redraws all fields in each selected group; a
+; valid nonzero B selects one multiplier or word-progress item. Instructions
+; event calls keep their generated descriptor in X.
 ; Callers capture owner data before dispatch; this routine never edits it.
         pshs    a
         pshs    b
         lda     GIME_PAR5
         pshs    a
+        lda     2,s
+        anda    #$E0
+        bne     dhu_shared_done
+        tst     1,s
+        beq     dhu_selector_valid
+        lda     2,s
+        cmpa    #PRESENTATION_HUD_DRAW_MULTIPLIER
+        beq     dhu_selector_multiplier
+        cmpa    #PRESENTATION_HUD_DRAW_SPECIAL
+        beq     dhu_selector_special
+        cmpa    #PRESENTATION_HUD_DRAW_EXTRA
+        bne     dhu_shared_done
+        ldb     1,s
+        cmpb    #5
+        bhi     dhu_shared_done
+        bra     dhu_selector_valid
+dhu_selector_special
+        ldb     1,s
+        cmpb    #7
+        bhi     dhu_shared_done
+        bra     dhu_selector_valid
+dhu_selector_multiplier
+        ldb     1,s
+        cmpb    #2
+        blo     dhu_shared_done
+        cmpb    #5
+        bhi     dhu_shared_done
+        cmpb    #4
+        beq     dhu_shared_done
+dhu_selector_valid
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         bne     dhu_group_fields
@@ -1539,8 +1627,17 @@ draw_shared_hud equ draw_hud
         bsr     draw_vegetable_hud
 dhu_no_primary
         lda     2,s
-        bita    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
+        bita    #PRESENTATION_HUD_DRAW_SPECIAL
+        beq     dhu_no_special
+        lda     #PRESENTATION_HUD_DRAW_SPECIAL
+        ldb     1,s
+        jsr     draw_word_progress_hud
+dhu_no_special
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_EXTRA
         beq     dhu_no_words
+        lda     #PRESENTATION_HUD_DRAW_EXTRA
+        ldb     1,s
         jsr     draw_word_progress_hud
 dhu_no_words
         lda     2,s

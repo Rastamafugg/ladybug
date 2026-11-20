@@ -650,9 +650,23 @@ stage_slice_return
 stage_panel_finish
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq stage_name_sprite_selected
+        beq stage_name_pending_score
         cmpa #PRESENTATION_MAP_LEVEL_START
-        bne stage_slice_return
+        beq stage_name_sprite_selected
+        cmpa #PRESENTATION_MAP_INSTRUCTIONS
+        beq stage_finish_instructions
+        cmpa #PRESENTATION_MAP_GAME_OVER
+        beq stage_finish_game_over
+        rts
+stage_finish_instructions
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
+stage_finish_game_over
+        jsr PRES_MAIN_HUD_CAPTURE_PLAYER
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
 stage_name_sprite_selected
         lbsr stage_select
         lda PRES_TMP_H
@@ -691,7 +705,10 @@ stage_panel_letter_loop
         leax -2552,x
         decb
         bne stage_panel_letter_loop
-        rts
+        jsr PRES_MAIN_HUD_CAPTURE_PLAYER
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
 stage_name_pending_score
         lda PRES_NAME_TIMER_PHASE
         pshs a
@@ -1002,8 +1019,6 @@ highscore_logo_records
 ; Keep the high-score logo and TOP record updates without cabinet-credit UI.
 presentation_panel_slice
         ldd     $AA
-        cmpd    #832
-        beq     presentation_panel_top
         cmpd    #960
         bne     presentation_panel_done
         lda     PRES_SCREEN
@@ -1012,35 +1027,7 @@ presentation_panel_slice
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
         lbra    highscore_logo_prepared
-presentation_panel_top
-        lbra    top_panel_draw
 presentation_panel_done
-        rts
-
-; Publish record zero at TOP on instruction and level-start surfaces.
-top_panel_draw
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_GAME_OVER
-        beq     top_panel_publish
-        deca
-        cmpa    #1
-        bhi     top_panel_done
-top_panel_publish
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     top_panel_instructions
-        lda     #PRESENTATION_HUD_DRAW_ALL
-        jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
-        clrb
-        bra     top_panel_draw_common
-top_panel_instructions
-        ; Keep the authored inactive progress indicators; the instruction
-        ; choreography sends their earned-colour changes through this entry.
-        lda     #PRESENTATION_HUD_DRAW_PRIMARY
-        clrb
-top_panel_draw_common
-        jmp     PRES_MAIN_SHARED_HUD
-top_panel_done
         rts
 
 ; FEAT-005: existing page-$24 owner handles menus. State is direct-page;

@@ -229,14 +229,11 @@ dynamic_graphic
         tfr y,u
         jmp presentation_fast_blit
 
-; Draw the active player's score during play, but keep the authored zero in
-; demo mode. Then draw committed TOP name and score.
+; Draw the shared player score except during demo mode, where the authored
+; zero remains visible. Then draw the committed TOP name and score.
 asset_draw_top_hud
         lda PRES_MODE
         cmpa #MODE_DEMO
-        beq asset_top_score_done
-        lda PRES_SCREEN
-        cmpa #PRESENTATION_MAP_INSTRUCTIONS
         beq asset_top_score_done
         ldx #HUD_P1_SCORE
         ldy #FB_VIRT+(PRESENTATION_HUD_P1_SCORE_Y*1280)+(PRESENTATION_HUD_P1_SCORE_X*4)

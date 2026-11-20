@@ -223,9 +223,9 @@ agb_not_stage
         jsr frame_render_background
         puls b
         stb ENEMY_RENDER_FLAGS
+        jsr adaptive_draw_hud_intents
         puls d
         std RENDER_FLAGS
-        jsr adaptive_draw_hud_intents
         puls a,pc
 agb_masks
         fcb $08,$10,$18
@@ -271,12 +271,12 @@ akb_gate
         bsr pickup_key_prepare
 akb_finish
         jsr frame_render_background
+        jsr adaptive_draw_hud_intents
         puls a
         sta RENDER_FLAGS2
         puls a
         sta RENDER_FLAGS
         puls b
-        jsr adaptive_draw_hud_intents
         rts
 
 ; Repaint only shared HUD groups named by the restored gameplay render intents.

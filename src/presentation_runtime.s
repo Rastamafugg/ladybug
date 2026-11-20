@@ -52,7 +52,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_short profile=presentation: Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions begins with authored inactive bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions draws neutral bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare Attract preview and fresh-game Level Start before display; skip next-stage context so SPECIAL/EXTRA progress persists while its multiplier resets.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
@@ -487,6 +487,7 @@ load_done
         lda     #$34            ; restore game-state page before later helpers
         sta     PAR5
         endc
+        ifeq    COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
         bne     load_done_no_cucumber
@@ -496,6 +497,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -2212,6 +2214,7 @@ load_next
         lda     #1
         rts
 load_done
+        ifeq COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
         bne     load_done_no_cucumber
@@ -2221,6 +2224,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE

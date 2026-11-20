@@ -8,7 +8,7 @@
 ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Commit the accepted name and score into the ranking table, then refresh TOP from row one.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
-; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.
+; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch only the final High Score logo slice; shared HUD fields are painted after the complete map load and unrelated slices remain unchanged.
 ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
 ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
 ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.

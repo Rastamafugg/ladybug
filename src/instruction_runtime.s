@@ -34,7 +34,7 @@
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route generated instruction event tiles through the common renderer in the complete profile; draw locally in legacy profiles.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route one generated instruction event, its selected HUD group/item, and descriptor in X through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -192,7 +192,7 @@ event_ptr_a
 ; X points to one generated instruction event. The complete profile routes
 ; these animated screen-local glyphs through the common HUD renderer.
 draw_hud_event_tiles
-        lda     PRES_PHASE
+        lda     PRES_WORK
         cmpa    #5
         blo     dhe_extra
         cmpa    #12
@@ -225,12 +225,13 @@ consume_event
         inc     IRT_TRACE_CONSUMES
         lbsr    restore_actor
         lda     PRES_PHASE
+        sta     PRES_WORK
         lbsr    event_ptr_a
         ldd     6,x
         std     PRES_DST
         lbsr    clear_target
 
-        lda     PRES_PHASE
+        lda     PRES_WORK
         lbsr    event_ptr_a
         lbsr    draw_hud_event_tiles
 
@@ -254,7 +255,6 @@ consume_heart
         blo     consume_advance
         cmpa    #15
         bhs     consume_advance
-        sta     PRES_WORK
         lbsr    draw_multipliers
 consume_advance
         inc     PRES_PHASE
@@ -630,7 +630,7 @@ instruction_runtime_end
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route generated instruction event tiles through the common renderer in the complete profile; draw locally in legacy profiles.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route one generated instruction event, its selected HUD group/item, and descriptor in X through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.

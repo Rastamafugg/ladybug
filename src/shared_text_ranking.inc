@@ -421,8 +421,6 @@ stage_panel_selected
         sta     $29
         ldx     #$3458          ; PART number, column 22 row 4
         lbsr    stage_panel_number
-        ldx     #$4D84          ; side HUD part number, column 33 row 9
-        lbsr    stage_panel_number
         lda     PRES_TMP_H
         bne     stage_panel_nonzero
         inca
@@ -1105,10 +1103,10 @@ render_name_screen
         endc
         jsr     PRES_MODULE_MAP_BACK
         ifeq    COMPLETE_PHASE_AUX
-        lda     #PRESENTATION_HUD_DRAW_ALL
         ifne    COMPLETE_PROFILE
         jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
         endc
+        lda     #PRESENTATION_HUD_DRAW_ALL
         clrb
         jsr     PRES_MAIN_SHARED_HUD
         endc
