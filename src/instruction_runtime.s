@@ -192,27 +192,8 @@ event_ptr_a
 ; X points to one generated instruction event. The complete profile routes
 ; these animated screen-local glyphs through the common HUD renderer.
 draw_hud_event_tiles
-        ifne    COMPLETE_PROFILE
         lda     #PRESENTATION_HUD_DRAW_EVENT
         jmp     PRES_MAIN_SHARED_HUD
-        else
-        ldy     8,x
-        beq     dhet_done
-        ldb     10,x
-        beq     dhet_primary
-        lda     11,x
-        pshs    a,y
-        leay    4,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        bra     dhet_draw
-dhet_primary
-        ldb     11,x
-dhet_draw
-        jsr     PRES_MODULE_DRAW_TILE
-dhet_done
-        rts
-        endc
 
 consume_event
         inc     IRT_TRACE_CONSUMES
