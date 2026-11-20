@@ -1,0 +1,33 @@
+FEAT-013 stage-clear relocation build failure
+Captured 2026-11-20 after the first approved relocation implementation.
+Source worktree: C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug
+Source revision: 8f6ac546e4a514e571ba17b9f48b1aa84643d587
+Profile: complete, keyboard, adaptive, CPU 6809
+
+Build command:
+wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh build'
+
+Result:
+The build stopped in scripts/build_sparse_sprites.py at the audio/keybinding placement guard with:
+ValueError: keybinding runtime overlaps audio or exceeds $BA00-$BFFF
+No receipt-bound candidate ROM was produced. Do not use this run's intermediate build files as a game image.
+
+Measured placement facts from generated artifacts:
+- Adaptive active image: 678 bytes; allowed maximum 777; 99 bytes free.
+- Audio runtime: 6,660 bytes, loaded at $A000. Its exclusive end is $BA04.
+- Keybinding runtime: 1,164 bytes; fixed assembly and packer start is $BA00.
+- Therefore the fixed keybinding start overlaps the audio runtime by 4 bytes.
+- The active image grew from the retained pre-change 660 bytes by the approved 18-byte jump entry plus moved body. The old 660-byte audio runtime ended at $B9F2, leaving 14 bytes before $BA00; the new 678-byte image ends at $BA04. The 18-byte addition is the cause of the 4-byte collision.
+- Audio plus keybinding totals 7,824 of 8,192 bytes, leaving 368 bytes if keybinding is placed immediately after audio. This sum is a projection of capacity only; the dynamic entry, packer, and verifiers are not yet changed or qualified.
+- The existing keybinding module cap is 1,536 bytes. Page $3D spans the $A000-$BFFF PAR5 window.
+
+Generated artifact SHA-256:
+build/ladybug-adaptive-active.bin 8423768B046F3EAAC63CF284F2110611C9AFBDE210E37A591D6C39268F15396C
+build/ladybug-audio-runtime.bin 1E2548A3A19724EF21FECC6B67466A95450811A6FFECEF08D683DB5E98293224
+build/ladybug-keybinding-runtime.bin 64E7345E99ED1C05DB77AD72DD445D9A47D3245C5853EB01F2E5F68C6FC02BBC
+build/ladybug-audio-runtime.map 79430E8AD1227D7ADBDB4EB089A10FB6737EC6A55A411E5D51F30479A54748E0
+build/ladybug-keybinding-runtime.map 3367BA48038ADE37AEE84CC55EB5183C85D507F6E3FBEFE8F53AB0771CC36D72
+build/ladybug.lst 15E96B406ACDB295655ED076772C13AE260236D54DBD65061C80CD66E31B005B
+
+Proposed follow-on, not approved:
+Keep the approved stage-clear relocation. In the complete profile, derive the keybinding runtime start as the later of $BA00 or the audio runtime's exclusive end. For this measured artifact that is $BA04. Generate that address for the keybinding ORG and resident gateway call, pack the two modules contiguously without overlapping bytes, and update the existing sparse/audio verifiers to check the generated address and exact packed bytes. At the current measured sizes the combined segment ends at $BE90, within $BFFF. This moves only the existing keybinding module by four bytes for this artifact; it adds no code reduction, changes no behavior, and keeps PAR5 on page $3D. The existing complete-profile build and verifiers must pass before a candidate can exist. G3, M1, and performance checks have not run.
