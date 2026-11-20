@@ -110,7 +110,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary fields, all shared fields, or authored event tiles from the selected caller mode; refresh player values only for a full draw and restore PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary fields, all shared fields, or authored event tiles from the selected caller mode using the typed descriptor dispatcher; refresh player values only for a full draw and restore PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
@@ -1532,8 +1532,8 @@ dhu_shared_done
         sta     GIME_PAR5
         rts
 dhu_event_tiles
-; X points to one generated instruction event. Read the record before the
-; generic tile dispatcher maps PAR5 to graphic data.
+; X points to one generated instruction event. Read its typed descriptors
+; before the dynamic tile dispatcher maps PAR5 to graphic data.
         ldy     8,x
         beq     dhu_shared_done
         ldb     10,x
@@ -1541,13 +1541,13 @@ dhu_event_tiles
         lda     11,x
         pshs    a,y
         leay    4,y
-        jsr     presentation_dispatch
+        jsr     dynamic_dispatch
         puls    b,y
-        jsr     presentation_dispatch
+        jsr     dynamic_dispatch
         bra     dhu_shared_done
 dhu_event_single
         ldb     11,x
-        jsr     presentation_dispatch
+        jsr     dynamic_dispatch
         bra     dhu_shared_done
         else
         lda     #6
