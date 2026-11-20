@@ -15,7 +15,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Entry alias to draw_hud for modules using the generated shared-HUD import.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud for common fields and authored event tiles.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
@@ -110,7 +110,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary HUD fields, or all shared HUD fields when the caller selects the full mode; refresh player values and restore PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw the common primary fields, all shared fields, or authored event tiles from the selected caller mode; refresh player values only for a full draw and restore PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
@@ -1499,11 +1499,14 @@ dwph_extra_next
 
 draw_hud
         ifne COMPLETE_PROFILE
-; The generated entry mode is saved with the caller's mapping. Individual
-; asset painters select their own cold page; this entry restores PAR5 once.
+; A selects common fields, all fields, or authored event tiles. The entry mode
+; and caller mapping are saved; only a full draw captures player-owned values.
         pshs    a
         lda     GIME_PAR5
         pshs    a
+        lda     1,s
+        cmpa    #PRESENTATION_HUD_DRAW_EVENT
+        beq     dhu_event_tiles
         tst     1,s
         beq     dhu_primary_snapshot_ready
         jsr     hud_snapshot_capture_player
@@ -1528,6 +1531,24 @@ dhu_shared_done
         puls    a,b
         sta     GIME_PAR5
         rts
+dhu_event_tiles
+; X points to one generated instruction event. Read the record before the
+; generic tile dispatcher maps PAR5 to graphic data.
+        ldy     8,x
+        beq     dhu_shared_done
+        ldb     10,x
+        beq     dhu_event_single
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     presentation_dispatch
+        puls    b,y
+        jsr     presentation_dispatch
+        bra     dhu_shared_done
+dhu_event_single
+        ldb     11,x
+        jsr     presentation_dispatch
+        bra     dhu_shared_done
         else
         lda     #6
         sta     HUD_Y

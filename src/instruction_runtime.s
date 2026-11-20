@@ -34,7 +34,7 @@
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction event glyphs at their authored framebuffer destination.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route generated instruction event tiles through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -189,9 +189,13 @@ event_ptr_a
         addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
         jmp     PRES_MODULE_COLD_PTR
 
-; X points to one generated instruction event. These animated, screen-local
-; glyphs use the generic tile painter; common HUD fields use draw_shared_hud.
+; X points to one generated instruction event. The complete profile routes
+; these animated screen-local glyphs through the common HUD renderer.
 draw_hud_event_tiles
+        ifne    COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_EVENT
+        jmp     PRES_MAIN_SHARED_HUD
+        else
         ldy     8,x
         beq     dhet_done
         ldb     10,x
@@ -208,6 +212,7 @@ dhet_draw
         jsr     PRES_MODULE_DRAW_TILE
 dhet_done
         rts
+        endc
 
 consume_event
         inc     IRT_TRACE_CONSUMES
@@ -618,7 +623,7 @@ instruction_runtime_end
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
-; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Draw generated instruction event glyphs at their authored framebuffer destination.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route generated instruction event tiles through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.

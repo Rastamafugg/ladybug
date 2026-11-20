@@ -747,6 +747,7 @@ if int(complete):
         'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
         'PRESENTATION_HUD_DRAW_PRIMARY': 'PRESENTATION_HUD_DRAW_PRIMARY',
         'PRESENTATION_HUD_DRAW_ALL': 'PRESENTATION_HUD_DRAW_ALL',
+        'PRESENTATION_HUD_DRAW_EVENT': 'PRESENTATION_HUD_DRAW_EVENT',
         'hud_snapshot_refresh_top': 'PRES_MAIN_HUD_TOP_REFRESH',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',
@@ -767,7 +768,7 @@ if missing:
     raise SystemExit('build: presentation symbols missing: ' + ', '.join(sorted(missing)))
 with open(output, 'w', encoding='ascii') as handle:
     for name in sorted(symbols):
-        if name in {'PRESENTATION_HUD_DRAW_ALL', 'PRESENTATION_HUD_DRAW_PRIMARY'}:
+        if name in {'PRESENTATION_HUD_DRAW_ALL', 'PRESENTATION_HUD_DRAW_PRIMARY', 'PRESENTATION_HUD_DRAW_EVENT'}:
             handle.write(f'        ifndef {name}\n')
             handle.write(f'{name} equ ${symbols[name]}\n')
             handle.write('        endc\n')
