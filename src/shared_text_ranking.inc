@@ -1225,6 +1225,7 @@ update_name_frame
         jsr     PRES_MODULE_MAP_BACK
         bsr     restore_cursor
         lbsr    draw_name_fields
+        bsr     draw_entry_scores
         bsr     capture_owner
         bsr     draw_cursor
 highscore_finish_back
