@@ -83,7 +83,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract add_bonus_score profile=state: Add bonus score.
 ; DOC-002 source-contract mirror contract add_dot_score profile=state: Add dot score.
 ; DOC-002 source-contract mirror contract add_special_score profile=state: Add special score.
-; DOC-002 source-contract mirror contract apply_letter_pickup profile=state: Apply letter pickup.
+; DOC-002 source-contract mirror contract apply_letter_pickup profile=state: Update SPECIAL/EXTRA state; complete-profile letter fields are painted by the queued shared HUD refresh.
 ; DOC-002 source-contract mirror contract begin_score_popup profile=state: Begin score popup.
 ; DOC-002 source-contract mirror contract blit_packed_sprite profile=render: Blit packed sprite.
 ; DOC-002 source-contract mirror contract blit_tile profile=render: Blit tile.
@@ -1207,6 +1207,9 @@ alp_special
         bsr    add_special_score
         inc     STAGE_PENDING
 alp_special_draw
+        ifne COMPLETE_PROFILE
+        rts                     ; add_bonus_score already queued shared HUD refresh
+        else
         lda     ENTITY_VARIANT
         leax    special_letter_x,pcr
         ldb     a,x
@@ -1233,6 +1236,7 @@ alp_special_draw
         ora     #RF2_LETTER
         sta     RENDER_FLAGS2
         rts
+        endc
 alp_extra
         lda     ENTITY_VARIANT
         leax    extra_letter_bits,pcr
@@ -1252,6 +1256,9 @@ alp_extra
 alp_extra_pending
         inc     STAGE_PENDING
 alp_extra_draw
+        ifne COMPLETE_PROFILE
+        rts                     ; add_bonus_score already queued shared HUD refresh
+        else
         lda     ENTITY_VARIANT
         leax    extra_letter_x,pcr
         ldb     a,x
@@ -1277,6 +1284,7 @@ alp_extra_draw
         lda     RENDER_FLAGS2
         ora     #RF2_LETTER
         sta     RENDER_FLAGS2
+        endc
 alp_done
         rts
 

@@ -1007,6 +1007,7 @@ fri_secondary
         bsr     render_perimeter_reset
         endc
 fri_letter
+        ifeq COMPLETE_PROFILE
         lda     RENDER_FLAGS2
         bita    #RF2_LETTER
         beq     fri_gate
@@ -1017,6 +1018,7 @@ fri_letter
         lda     RENDER_LETTER_COLOR
         sta     HUD_COLOR
         jsr     draw_recolored_map_tile
+        endc
 fri_gate
         lda     RENDER_GATE_ID
         beq     fri_background_done
