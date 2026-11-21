@@ -76,7 +76,7 @@
           <tr><td><code>$39</code></td><td>Sparse player and presentation payload page. Generated layouts define the byte intervals and destinations.</td></tr>
           <tr><td><code>$3A-$3D</code></td><td>Presentation cold-data span configured by <code>scripts/build_presentation.py</code>, with profile-specific bundles and expansions. Page <code>$3D</code> also receives the boot-expanded audio runtime; the generated layout and phase rules define which bytes are live in each use.</td></tr>
           <tr><td><code>$3C</code></td><td>Expanded attract actor surfaces after bootstrap publication.</td></tr>
-          <tr><td><code>$3D</code></td><td>Audio runtime image and its banked code/data. The keybinding module is appended to this page-$3D runtime image in the complete build.</td></tr>
+          <tr><td><code>$3D</code></td><td>Audio runtime image and its banked code/data. The keybinding module is appended to this page-$3D runtime image in the complete build. The approved FEAT-013 assignment reserves <code>$BF00-$BFFF</code> for the single shared word-progress painter; its generated entry is called with PAR5 temporarily mapped to <code>$3D</code>. On the 98b4 receipt, audio and keybinding ended at <code>$BE90</code>, leaving a 112-byte gap before the 256-byte helper slot. The new combined extent remains unmeasured until its complete-profile build.</td></tr>
           <tr><td><code>$3E</code></td><td>Published resident runtime at CPU <code>$C000-$DFFF</code>.</td></tr>
           <tr><td><code>$3F</code></td><td>Published immutable assets at CPU <code>$E000-$FDFF</code>.</td></tr>
         </tbody>
