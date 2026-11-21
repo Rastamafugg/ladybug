@@ -744,9 +744,6 @@ stage_schedule
         fdb 544
         fdb $4D60
         fcb 2,12,4,TEXT_STAGE_NAME
-        fdb 576
-        fdb $5794
-        fcb 1,0,3,TEXT_STAGE_PART
         fdb 608
         fdb $618C
         fcb 3,0,4,TEXT_STAGE_BONUS
@@ -2042,7 +2039,7 @@ draw_high_score_screen
         ldx     #PRES_HIGHSCORE_BASE
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         bsr     draw_high_score_entry
-        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
+        leau    PRESENTATION_HIGHSCORE_RANK_02_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
         ldb     #PRESENTATION_HIGHSCORE_COUNT-1
 draw_high_score_rows
         pshs    b
