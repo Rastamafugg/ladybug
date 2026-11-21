@@ -1152,7 +1152,7 @@ draw_entry_scores
         bra draw_name_done
 
 ; Draw one initialized record field at the selected destination. Before ranking
-; state is ready, keep the Tiled-authored High Score defaults untouched.
+; state is ready, leave the blank High Score map fields untouched.
 ranking_slice
         pshs b,x,y
         lda #$34

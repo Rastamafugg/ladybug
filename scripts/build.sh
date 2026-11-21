@@ -1129,6 +1129,35 @@ PY
     fi
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 - "$MAP" "$RUNTIME_SYMBOLS" <<'PY'
+import re
+import sys
+
+map_path, aliases_path = sys.argv[1:]
+names = ('sprite_attr0_pairs', 'sprite_blue_pairs')
+final = {}
+for line in open(map_path, encoding='ascii'):
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in names:
+        final[match.group(1)] = int(match.group(2), 16)
+aliases = {}
+for line in open(aliases_path, encoding='ascii'):
+    match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*) equ \$([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in names:
+        aliases[match.group(1)] = int(match.group(2), 16)
+missing = (set(names) - final.keys()) | (set(names) - aliases.keys())
+if missing:
+    raise SystemExit('build: final High Score palette symbols missing: ' + ', '.join(sorted(missing)))
+mismatches = [name for name in names if final[name] != aliases[name]]
+if mismatches:
+    detail = ', '.join(f'{name} alias=${aliases[name]:04X} final=${final[name]:04X}'
+                       for name in mismatches)
+    raise SystemExit('build: stale High Score helper palette address: ' + detail)
+print('build: High Score helper palette aliases match the final resident map')
+PY
+    fi
+
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
         lwasm -9 --format=raw \
               --output="$HUD_WORD_HELPER" \
               --list="$HUD_WORD_HELPER_LST" \

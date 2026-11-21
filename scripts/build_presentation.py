@@ -274,8 +274,7 @@ PRESENTATION_LAYER_CONTRACTS = {
     },
     "high-score": {
         "static": (
-            "Background", "High Score Table and Title",
-            "High Score Names and Scores", "Logo Base",
+            "Background", "High Score Table and Title", "Logo Base",
         ),
         "metadata": (),
         "runtime": (),
@@ -1238,9 +1237,7 @@ def parse_high_score_layout(
     if missing:
         raise ValueError(f"{path}: missing High Score layout markers {sorted(missing)}")
 
-    required_layers = (
-        "High Score Table and Title", "High Score Names and Scores", *HIGH_SCORE_LOGO_LAYERS,
-    )
+    required_layers = ("High Score Table and Title", *HIGH_SCORE_LOGO_LAYERS)
     layer_map: dict[str, ET.Element] = {}
     for layer_name in required_layers:
         found = [item for item in root.findall("layer") if item.get("name") == layer_name]
@@ -1248,8 +1245,8 @@ def parse_high_score_layout(
             raise ValueError(f"{path}: expected one authored layer {layer_name!r}")
         layer_map[layer_name] = found[0]
 
-    # Name/score defaults are intentionally underneath the dynamic fields.
-    # Only title and logo artwork forbids a field rectangle from covering it.
+    # High Score name and score cells are runtime-owned. Keep only title and
+    # logo artwork in the map and reject field rectangles that cover either.
     occupied: set[tuple[int, int]] = set()
     logo_cells: set[tuple[int, int]] = set()
     for layer_name in ("High Score Table and Title", *HIGH_SCORE_LOGO_LAYERS):
@@ -1333,7 +1330,10 @@ def authored_high_score_cells(path: Path, placements: list[dict[str, object]]) -
                 columns.append(column)
             elif code not in (-1, 255):
                 raise ValueError(f"{path}: {placement['slot']} score contains a non-digit at {(column, y)}")
-        if not columns or columns != list(range(x + width - len(columns), x + width)):
+        if not columns:
+            result.append([])
+            continue
+        if columns != list(range(x + width - len(columns), x + width)):
             raise ValueError(f"{path}: {placement['slot']} score digits must be a contiguous right-aligned suffix")
         if len(columns) > placement["score_max_digits"]:
             raise ValueError(f"{path}: {placement['slot']} authored score exceeds its runtime capacity")
