@@ -727,7 +727,7 @@ stage_name_common_hud
         jmp PRES_MAIN_SHARED_HUD
 stage_schedule
         fdb 288
-        fdb $3450
+        fdb $3458
         fcb 1,0,3,TEXT_STAGE_PART
         fdb 320
         fdb $434C

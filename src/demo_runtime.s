@@ -954,9 +954,11 @@ draw_high_score_screen
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST
         bsr     draw_high_score_entry
-        ldx     #PRES_HIGHSCORE_BASE
-        ldu     #PRESENTATION_HIGHSCORE_ENTRY_NAME_DST
-        ldy     #PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST
+        ; The first call paints row 1. Continue with record 2 at its authored
+        ; destination; subsequent rows are one tile row apart.
+        ldx     #PRES_HIGHSCORE_BASE+PRESENTATION_HIGHSCORE_RECORD_BYTES
+        ldu     #PRESENTATION_HIGHSCORE_RANK_02_NAME_DST
+        ldy     #PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST
         ldb     #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
 draw_high_score_rows
         pshs    b

@@ -1383,7 +1383,7 @@ draw_multiplier_slot
         sta     HUD_COLOR
         ldb     HUD_BCD_BYTE
         cmpb    HUD_BCD_COUNT
-        bne     dms_draw_inactive
+        blo     dms_draw_inactive
         lda     #TEXT_MULTIPLIER
         sta     HUD_COLOR
 ; @audit-use {"id":"multiplier-x","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC"}
@@ -1394,7 +1394,7 @@ dms_draw_inactive
         ldb     #PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC
 dms_draw
         pshs    y
-; DOC-002 source-contract mirror contract draw_multiplier_slot profile=render: Draw one generated multiplier field with gray X and value when inactive and blue X and value when it matches the player's current multiplier.
+; DOC-002 source-contract mirror contract draw_multiplier_slot profile=render: Draw one generated multiplier field with gray X and value before it is earned and blue X and value once the player's multiplier reaches it.
         jsr     presentation_dispatch
         puls    y
         inc     HUD_X
