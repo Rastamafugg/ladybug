@@ -851,41 +851,42 @@ ranking_schedule_destination_ready
         ldb 3,u
         jmp PRES_RANKING_SLICE
 ranking_schedule_data
-        fdb 128
-        fcb 0,1
-        fdb 160
-        fcb 0,0
+        ; Events run after the map loader has painted each field's destination cells.
         fdb 192
-        fcb 1,1
+        fcb 0,1
         fdb 224
-        fcb 1,0
-        fdb 256
-        fcb 2,1
+        fcb 0,0
         fdb 288
-        fcb 2,0
+        fcb 1,1
         fdb 320
-        fcb 3,1
+        fcb 1,0
         fdb 352
-        fcb 3,0
+        fcb 2,1
         fdb 384
-        fcb 4,1
+        fcb 2,0
         fdb 416
-        fcb 4,0
+        fcb 3,1
         fdb 448
-        fcb 5,1
+        fcb 3,0
         fdb 480
-        fcb 5,0
+        fcb 4,1
         fdb 512
-        fcb 6,1
+        fcb 4,0
         fdb 544
-        fcb 6,0
+        fcb 5,1
         fdb 576
-        fcb 7,1
+        fcb 5,0
         fdb 608
-        fcb 7,0
+        fcb 6,1
+        fdb 640
+        fcb 6,0
+        fdb 672
+        fcb 7,1
         fdb 704
-        fcb 8,1
+        fcb 7,0
         fdb 736
+        fcb 8,1
+        fdb 768
         fcb 8,0
 ranking_schedule_end
 highscore_row_destinations
