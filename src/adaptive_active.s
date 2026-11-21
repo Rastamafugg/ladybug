@@ -1,4 +1,12 @@
 ; Isolated active phase: demo prefix $0300-$038E remains intact.
+; DOC-002 source-contract mirror contract check_stage_clear profile=state: Set STAGE_PENDING once when DOTS_LEFT and BONUS_LEFT are both zero.
+; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
+; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
+; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile state Reads: Owned direct-page and page-$34 state needed for the operation
+; DOC-002 source-contract mirror profile state Writes: Only the owned state fields and render intents required by the operation
+; DOC-002 source-contract mirror profile state Side effects: May enqueue rendering work but does not publish FRONT
+; DOC-002 source-contract mirror profile state Invariants: Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned
         pragma 6809
         include "adaptive_interface.inc"
         include "adaptive_reference.inc"

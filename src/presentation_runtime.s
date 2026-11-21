@@ -1856,7 +1856,7 @@ presentation_module_end
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
 ; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen, clearing the shared player-one score when entering Instructions.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions begins with authored inactive bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809

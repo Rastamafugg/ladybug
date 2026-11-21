@@ -1,6 +1,6 @@
 ; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.
 ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
-; DOC-002 source-contract mirror contract KEY_SERVICE_EXEC profile=input: Enter the generated page-$3D keybinding address after the audio block while preserving caller PAR5.
+; DOC-002 source-contract mirror contract KEY_SERVICE_EXEC profile=input: Generated page-$3D entry address for key_service, placed after the audio runtime with $BA00 as the minimum.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
 ; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
@@ -127,6 +127,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
 ; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Repaint both generated SPECIAL and EXTRA words from owner bits; Instructions forces both words inactive.
+; DOC-002 source-contract mirror contract dwph_word profile=render: Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
 ; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.

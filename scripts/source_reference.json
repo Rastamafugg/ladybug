@@ -208,7 +208,7 @@
         {
           "name": "draw_hud",
           "profile": "render",
-          "purpose": "Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the typed event descriptors at X; preserve PAR5.",
+          "purpose": "Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the event descriptor at X; preserve PAR5.",
           "reasons": [
             "exported"
           ],
@@ -226,7 +226,7 @@
         {
           "name": "draw_shared_hud",
           "profile": "render",
-          "purpose": "Shared entry alias to draw_hud for A-selected HUD groups; nonzero B selects a typed Instructions event descriptor at X.",
+          "purpose": "Shared entry alias to draw_hud; A selects groups, while nonzero B selects an Instructions event descriptor at X.",
           "reasons": [
             "exported"
           ],
@@ -278,7 +278,7 @@
         {
           "name": "draw_multiplier_hud",
           "profile": "render",
-          "purpose": "Repaint all three generated multiplier fields; Instructions forces them inactive, otherwise the matching owner multiplier is blue.",
+          "purpose": "Repaint all three generated multiplier fields, showing the owner multiplier in blue and the other values gray; Instructions forces all three inactive.",
           "reasons": [
             "exported"
           ]
@@ -349,10 +349,19 @@
         {
           "name": "draw_word_progress_hud",
           "profile": "render",
-          "purpose": "Repaint both generated SPECIAL and EXTRA words using gray for unearned letters and their earned colors for collected letters; Instructions forces both words inactive.",
+          "purpose": "Repaint both generated SPECIAL and EXTRA words from owner bits; Instructions forces both words inactive.",
           "reasons": [
             "exported"
           ]
+        },
+        {
+          "name": "dwph_word",
+          "profile": "render",
+          "purpose": "Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-dwph-word"
         },
         {
           "name": "eat_dot",
@@ -667,7 +676,7 @@
         {
           "name": "asset_draw_top_hud",
           "profile": "render",
-          "purpose": "Draw the active player score except during demo or Instructions, then draw the committed TOP name and score.",
+          "purpose": "Draw the shared player score on every screen except demo, where its authored zero remains visible, then draw the committed TOP name and score.",
           "reasons": [],
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
@@ -841,7 +850,7 @@
           "reasons": [
             "called"
           ],
-          "semantic_id": "routines.html#routine-keybinding-runtime-key-service-exec"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-keybinding-runtime-key-service-exec"
         },
         {
           "name": "presentation_page24_resume",
@@ -2700,7 +2709,7 @@
         {
           "name": "draw_hud_event_tiles",
           "profile": "render",
-          "purpose": "Route generated instruction event tiles through the common renderer in the complete profile; draw locally in legacy profiles.",
+          "purpose": "Route one generated instruction event, its selected HUD group/item, and descriptor in X through the common renderer in the complete profile; draw locally in legacy profiles.",
           "reasons": [
             "called"
           ],
@@ -3853,7 +3862,7 @@
         {
           "name": "presentation_panel_slice",
           "profile": "presentation",
-          "purpose": "Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.",
+          "purpose": "Dispatch only the final High Score logo slice; shared HUD fields are painted after the complete map load and unrelated slices remain unchanged.",
           "reasons": [
             "called"
           ],
