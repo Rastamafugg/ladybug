@@ -329,7 +329,7 @@ adhi_special
         ora #PRESENTATION_HUD_DRAW_SPECIAL
         sta ,s
 adhi_dispatch
-        puls a
+        lda ,s+
         beq adhi_done
         clrb
         jsr draw_shared_hud

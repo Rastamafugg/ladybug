@@ -2329,7 +2329,7 @@
         {
           "name": "start_screen",
           "profile": "presentation",
-          "purpose": "Load the requested screen; Instructions begins with authored inactive bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.",
+          "purpose": "Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.",
           "reasons": []
         },
         {
@@ -2465,7 +2465,9 @@
         "PRES_MAIN_FB_PUBLISH",
         "PRES_MAIN_INSTALL_PHASE_TILES",
         "PRES_STAGE_SLICE",
-        "PRES_MAIN_PAGE24_RESUME"
+        "PRES_MAIN_PAGE24_RESUME",
+        "HUD_P1_STAGE",
+        "HUD_PLAYER_VALID"
       ],
       "label_classifications": [
         {"name": "PRES_CONTEXT_DEMO_HIGH_SCORE", "kind": "constant", "reason": "Demo-origin marker retained through the High Score presentation."},

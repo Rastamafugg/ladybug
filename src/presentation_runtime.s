@@ -52,7 +52,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_short profile=presentation: Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes and restoring the caller's PAR5 mapping before return.
 ; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions draws neutral bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
 ; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare Attract preview and fresh-game Level Start before display; skip next-stage context so SPECIAL/EXTRA progress persists while its multiplier resets.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
@@ -347,6 +347,7 @@ start_screen
         clr     $E1             ; retire menu replay before another phase
         ldb     #$3F
         stb     $DF
+        clr     HUD_PLAYER_VALID
 menu_screen_retained
         endc
         sta     <PRES_SCREEN
@@ -361,10 +362,16 @@ start_screen_context_ready
         jsr     init_gameplay
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
         bne     start_screen_instruction_check_done
+        ldx     #HUD_P1_SCORE
+        ldb     #8
+start_screen_clear_player_hud
+        clr     ,x+
+        decb
+        bne     start_screen_clear_player_hud
+        lda     #1
+        sta     HUD_P1_STAGE
+        sta     HUD_PLAYER_VALID
         clra
-        clrb
-        std     HUD_P1_SCORE
-        sta     HUD_P1_SCORE+2
 start_screen_instruction_check_done
         tsta
         bne     start_screen_no_instruction_install
@@ -1856,7 +1863,7 @@ presentation_module_end
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
 ; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; Instructions begins with authored inactive bonus indicators and a zero shared P1 score, while Level Start resets bonus state only for Attract preview or fresh-game context.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
