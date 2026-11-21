@@ -1,0 +1,53 @@
+FEAT-013 G3 candidate excerpts
+Candidate source: 660d46dabce9f2f885613d1537bc1a565e3e1d35
+Candidate ROM SHA-256: ff2ed93fa1c07cb865b75a56c1a1acc4dc4c4f0ec63425b865bd17651416c454
+
+Generated page-$3D entry:
+  HUD_WORD_EXEC equ $BF00
+
+Resident gateway, build/ladybug.lst:
+  C44D draw_word_progress_hud
+  C44D 3406  PSHS A,B
+  C44F B6FFA5 LDA GIME_PAR5
+  C452 3402  PSHS A
+  C454 863D  LDA #$3D
+  C456 B7FFA5 STA GIME_PAR5
+  C459 A661  LDA 1,S
+  C45B E662  LDB 2,S
+  C45D BDBF00 JSR HUD_WORD_EXEC
+  C460 3502  PULS A
+  C462 B7FFA5 STA GIME_PAR5
+  C465 3262  LEAS 2,S
+  C467 39    RTS
+
+Helper, build/ladybug-hud-word-helper.lst:
+  0000 hud_word_paint
+  0000 3406  PSHS A,B
+  0002 A6E4  LDA ,S             ; saved A group mask
+  004B dwph_paint_word
+  004B A663  LDA 3,S            ; saved B column after nested BSR return
+  0076 BDFBA5 JSR draw_recolored_map_tile
+  007A dwph_full_row
+  0092 hud_word_paint_end
+
+Active complete-profile route excerpts:
+  Enemy stage load calls PRES_MAIN_SHARED_HUD at $C468.
+  Instructions paths jump to $C468 at $03EA, $03F3, and $03FB.
+  Page-$24 stage/map helper calls $C468 at $B137, $B140, $B194, and $B1B5.
+  Adaptive gameplay letter intents pass the changed column to the same shared dispatcher.
+  The Enter High Score map helper reaches the shared HUD call before the first publish.
+
+Selective inputs:
+  SPECIAL and EXTRA pickup paths load generated one-based columns from special_letter_x and extra_letter_x.
+  Completion/reset paths clear RENDER_LETTER_X to zero; zero repaints the affected full word.
+
+Negative control:
+  Exact approved baseline source commit 98b4bad9558b1574323df703981e7034228fff26 has the old painter that redraws both words.
+  Its receipt-bound emitted listing was not found in retained worktree/evidence files.
+  The approved negative-control listing criterion is therefore incomplete.
+
+Results:
+  Complete-profile keyboard/adaptive 6809 build: pass.
+  verify_audio_runtime.py --rom build/ladybug.rom: pass.
+  verify_presentation_flow.py: pass.
+  User-owned M1: pending. G4 performance/timing: deferred.
