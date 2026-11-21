@@ -298,8 +298,10 @@ akb_finish
         puls b
         rts
 
-; Repaint only shared HUD groups named by the restored gameplay render intents.
+; Repaint only shared HUD groups named by restored gameplay render intents.
 ; The player snapshot was captured once before AD_REDUCE_EXEC.
+; A letter intent carries its changed one-based column in RENDER_LETTER_X;
+; zero selects the full affected word after a completion/reset.
 adaptive_draw_hud_intents
         lda RENDER_FLAGS
         anda #RF_HUD|RF_LIVES
@@ -329,9 +331,14 @@ adhi_special
         ora #PRESENTATION_HUD_DRAW_SPECIAL
         sta ,s
 adhi_dispatch
+        clrb
+        lda RENDER_FLAGS2
+        bita #RF2_LETTER
+        beq adhi_column_ready
+        ldb RENDER_LETTER_X
+adhi_column_ready
         lda ,s+
         beq adhi_done
-        clrb
         jsr draw_shared_hud
 adhi_done
         rts

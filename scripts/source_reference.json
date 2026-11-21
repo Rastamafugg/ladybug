@@ -208,7 +208,7 @@
         {
           "name": "draw_hud",
           "profile": "render",
-          "purpose": "Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the event descriptor at X; preserve PAR5.",
+          "purpose": "Draw A-selected common HUD groups from the owner snapshot; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for a column, and PAR5 is preserved.",
           "reasons": [
             "exported"
           ],
@@ -349,10 +349,11 @@
         {
           "name": "draw_word_progress_hud",
           "profile": "render",
-          "purpose": "Repaint both generated SPECIAL and EXTRA words from owner bits; Instructions forces both words inactive.",
+          "purpose": "Save PAR5, map page $3D, call generated HUD_WORD_EXEC with A/B selection, and restore the exact caller mapping.",
           "reasons": [
             "exported"
-          ]
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-draw-word-progress-hud"
         },
         {
           "name": "dwph_word",
@@ -917,6 +918,15 @@
           "profile": "movement-step",
           "purpose": "Advance the probe origin by one cardinal cell using TEST_DIR without reading world state.",
           "reasons": []
+        },
+        {
+          "name": "HUD_WORD_EXEC",
+          "profile": "render",
+          "purpose": "Generated page-$3D address of the shared word painter at $BF00.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-hud-word-paint"
         }
       ],
       "relocations": [
@@ -947,6 +957,7 @@
         "PRESENTATION_MODULE_DRAW",
         "AUDIO_ENGINE_EXEC",
         "KEY_SERVICE_EXEC",
+        "HUD_WORD_EXEC",
         "PRES_MODULE_DRAW_SCORE",
         "PRES_MODULE_DRAW_SCORE_SHORT",
         "SHARED_COLD_PTR"
@@ -4912,6 +4923,81 @@
         }
       ],
       "entrypoints": []
+    },
+    {
+      "id": "hud-word-helper",
+      "title": "Page-$3D shared HUD word painter",
+      "source": "src/hud_word_runtime.s",
+      "listing": "ladybug-hud-word-helper.lst",
+      "map": "ladybug-hud-word-helper.map",
+      "binary": "ladybug-hud-word-helper.bin",
+      "artifact_include_dirs": [
+        ""
+      ],
+      "source_include_dirs": [
+        "src"
+      ],
+      "routines": [
+        {
+          "name": "hud_word_paint",
+          "profile": "render",
+          "purpose": "Paint the selected SPECIAL/EXTRA row fully or repaint one changed letter column.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-hud-word-paint"
+        },
+        {
+          "name": "dwph_paint_word",
+          "profile": "render",
+          "purpose": "Recolor one generated word row from its owner bits, using the requested column when nonzero.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-dwph-paint-word"
+        }
+      ],
+      "relocations": [
+        {
+          "id": "hud-word-page3d-slot",
+          "assembled": {
+            "address": "0x0000"
+          },
+          "runtime_destination": {
+            "address": "0xBF00",
+            "physical_page": "0x3D"
+          },
+          "length_source": "binary"
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "hud_word_paint",
+          "kind": "boundary",
+          "reason": "Fixed callable entry at runtime destination page $3D:$BF00."
+        },
+        {
+          "name": "hud_word_paint_end",
+          "kind": "boundary",
+          "reason": "End of the measured helper payload; the fixed slot ends at $C000."
+        }
+      ],
+      "external_symbols": [
+        "draw_recolored_map_tile",
+        "PRESENTATION_MAP_INSTRUCTIONS",
+        "PRESENTATION_HUD_DRAW_SPECIAL",
+        "PRESENTATION_HUD_DRAW_EXTRA",
+        "PRESENTATION_HUD_SPECIAL_PROGRESS_X",
+        "PRESENTATION_HUD_SPECIAL_PROGRESS_Y",
+        "PRESENTATION_HUD_SPECIAL_PROGRESS_WIDTH",
+        "PRESENTATION_HUD_EXTRA_PROGRESS_X",
+        "PRESENTATION_HUD_EXTRA_PROGRESS_Y",
+        "PRESENTATION_HUD_EXTRA_PROGRESS_WIDTH",
+        "TEXT_SPECIAL",
+        "TEXT_EXTRA",
+        "TEXT_INSTRUCTION_MULTIPLIER_INACTIVE"
+      ]
     }
   ],
   "coverage": {

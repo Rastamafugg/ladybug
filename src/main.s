@@ -16,7 +16,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; A selects groups, while nonzero B selects an Instructions event descriptor at X.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; Instructions uses nonzero B for an event descriptor at X, while selected word groups use B=0 for a full row or B=1..7 for one column.
+; DOC-002 source-contract mirror contract HUD_WORD_EXEC profile=render: Generated page-$3D entry for the shared SPECIAL/EXTRA word painter at $BF00.
 ; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
@@ -112,7 +113,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the event descriptor at X; preserve PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the event descriptor at X; for word groups, B selects a letter column or zero selects the full group; preserve PAR5.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
@@ -126,7 +127,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
-; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Repaint both generated SPECIAL and EXTRA words from owner bits; Instructions forces both words inactive.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Map page $3D, call the shared full-word/selective-letter painter for A/B, then restore the caller's PAR5.
 ; DOC-002 source-contract mirror contract dwph_word profile=render: Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
@@ -355,7 +356,7 @@ RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
 RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
 RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
 RENDER_BOX_COLOR equ $0082     ; perimeter colour snapshot
-RENDER_LETTER_X equ $0083      ; recoloured HUD-letter snapshot
+RENDER_LETTER_X equ $0083      ; zero=full selected word, nonzero=changed one-based column
 RENDER_LETTER_Y equ $0084
 RENDER_LETTER_COLOR equ $0085
 ENEMY_OLD_VALID equ $0086      ; saved-background ownership before enemy mutation
@@ -1208,11 +1209,21 @@ alp_special
         cmpb    #$7F
         bne     alp_special_draw
         clr     SPECIAL_BITS
+        ifne    COMPLETE_PROFILE
+        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        endc
         bsr    add_special_score
         inc     STAGE_PENDING
+        ifne    COMPLETE_PROFILE
+        bra     alp_special_queue
+        endc
 alp_special_draw
         ifne COMPLETE_PROFILE
-        clr     RENDER_LETTER_X ; zero selects the whole generated word row
+        lda     ENTITY_VARIANT
+        leax    special_letter_x,pcr
+        ldb     a,x
+        stb     RENDER_LETTER_X
+alp_special_queue
         lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
         sta     RENDER_LETTER_Y
         lda     RENDER_FLAGS2
@@ -1257,6 +1268,9 @@ alp_extra
         cmpb    #$1F
         bne     alp_extra_draw
         clr     EXTRA_BITS
+        ifne    COMPLETE_PROFILE
+        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        endc
         ; LIVES counts reserve lives after the active player has entered.
         ; Keep twelve reserve markers; the active life is additional.
         lda     LIVES
@@ -1268,9 +1282,16 @@ alp_extra
         sta     RENDER_FLAGS
 alp_extra_pending
         inc     STAGE_PENDING
+        ifne    COMPLETE_PROFILE
+        bra     alp_extra_queue
+        endc
 alp_extra_draw
         ifne COMPLETE_PROFILE
-        clr     RENDER_LETTER_X ; zero selects the whole generated word row
+        lda     ENTITY_VARIANT
+        leax    extra_letter_x,pcr
+        ldb     a,x
+        stb     RENDER_LETTER_X
+alp_extra_queue
         lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
         sta     RENDER_LETTER_Y
         lda     RENDER_FLAGS2
@@ -1399,15 +1420,11 @@ dmh_legacy_draw
 special_letter_bits
         fcb     0,0,$20,$08,$04,$10,$40,$02,0,$01,0,0
 special_letter_x
-        ifeq COMPLETE_PROFILE
         fcb     0,0,6,4,3,5,7,2,0,1,0,0
-        endc
 extra_letter_bits
         fcb     0,0,$10,0,$01,0,0,0,$08,0,$04,$02
 extra_letter_x
-        ifeq COMPLETE_PROFILE
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
-        endc
 
         ifeq ADAPTIVE_RENDERING
 check_stage_clear
@@ -1425,57 +1442,23 @@ csc_done
 ;==============================================================================
 ; draw_word_progress_hud
 ;
-; Inputs: owner-backed SPECIAL/EXTRA bits
+; Inputs: A selects SPECIAL/EXTRA; B is zero for a full redraw or the changed column
 ; Returns: A, B, X, Y, U, CC undefined
-; Side effects: redraws both owner-backed word progress fields in the HUD
+; Side effects: maps page $3D for the shared word painter, then restores PAR5
 ;==============================================================================
 draw_word_progress_hud
         ifne COMPLETE_PROFILE
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     dwph_zero_special
-        lda     HUD_P1_SPECIAL_BITS
-        bra     dwph_special_bits_ready
-dwph_zero_special
-        clra
-dwph_special_bits_ready
-        sta     HUD_BCD_BYTE
-        ldd     #(PRESENTATION_HUD_SPECIAL_PROGRESS_X*256+PRESENTATION_HUD_SPECIAL_PROGRESS_Y)
-        std     HUD_X
-        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_WIDTH
-        sta     HUD_COUNT
-        lda     #TEXT_SPECIAL
-        sta     HUD_BCD_COUNT
-        bsr     dwph_word
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     dwph_zero_extra
-        lda     HUD_P1_EXTRA_BITS
-        bra     dwph_extra_bits_ready
-dwph_zero_extra
-        clra
-dwph_extra_bits_ready
-        sta     HUD_BCD_BYTE
-        ldd     #(PRESENTATION_HUD_EXTRA_PROGRESS_X*256+PRESENTATION_HUD_EXTRA_PROGRESS_Y)
-        std     HUD_X
-        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_WIDTH
-        sta     HUD_COUNT
-        lda     #TEXT_EXTRA
-        sta     HUD_BCD_COUNT
-        bsr     dwph_word
-        rts
-dwph_word
-dwph_word_loop
-        lsr     HUD_BCD_BYTE
-        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
-        bcc     dwph_colour_ready
-        lda     HUD_BCD_COUNT
-dwph_colour_ready
-        sta     HUD_COLOR
-        jsr     draw_recolored_map_tile
-        inc     HUD_X
-        dec     HUD_COUNT
-        bne     dwph_word_loop
+        pshs    a,b
+        lda     GIME_PAR5
+        pshs    a
+        lda     #$3D
+        sta     GIME_PAR5
+        lda     1,s
+        ldb     2,s
+        jsr     HUD_WORD_EXEC
+        puls    a
+        sta     GIME_PAR5
+        leas    2,s
         rts
         else
         lda     SPECIAL_BITS
@@ -1548,6 +1531,8 @@ dhu_no_primary
         lda     2,s
         bita    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
         beq     dhu_no_words
+        anda    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
+        ldb     1,s
         jsr     draw_word_progress_hud
 dhu_no_words
         lda     2,s

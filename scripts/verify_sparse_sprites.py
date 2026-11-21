@@ -27,6 +27,8 @@ PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
 KEYBINDING_BASE_ADDRESS = 0xBA00
 KEYBINDING_MAX_BYTES = 0x600
+HUD_WORD_HELPER_ADDRESS = 0xBF00
+HUD_WORD_HELPER_MAX_BYTES = 0x100
 CART_BANK_BYTES = 0x4000
 CART_READABLE_BYTES = 0x3E00
 BOOT_OVERFLOW_START = 0x0800
@@ -85,6 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
+    parser.add_argument("--hud-word-helper", type=Path, default=BUILD / "ladybug-hud-word-helper.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
         "--aux-runtime-role",
@@ -329,6 +332,7 @@ def main() -> None:
     highscore_helper = args.highscore_helper.read_bytes()
     enemy_helper = args.enemy_helper.read_bytes() if args.enemy_helper else b""
     audio_runtime = args.audio_runtime.read_bytes()
+    hud_word_helper = args.hud_word_helper.read_bytes()
     tile_patches = args.tile_patches.read_bytes()
     if enemy_helper and (len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD):
         raise SystemExit("sparse proof: page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
@@ -419,6 +423,17 @@ def main() -> None:
         manifest["audio_runtime"]["address"] != WINDOW_BASE
     ):
         raise SystemExit("sparse proof: audio runtime is not placed at page $3D")
+    helper = manifest.get("hud_word_helper", {})
+    if (
+        helper.get("bytes") != len(hud_word_helper) or
+        helper.get("page") != 0x3D or
+        helper.get("address") != HUD_WORD_HELPER_ADDRESS or
+        helper.get("sha256") != (sha256(hud_word_helper) if hud_word_helper else None) or
+        len(hud_word_helper) > HUD_WORD_HELPER_MAX_BYTES
+    ):
+        raise SystemExit("sparse proof: HUD word helper manifest placement/hash/size differs")
+    if hud_word_helper and len(audio_runtime) + WINDOW_BASE > HUD_WORD_HELPER_ADDRESS:
+        raise SystemExit("sparse proof: HUD word helper overlaps audio runtime")
     if manifest["aux_runtime"]["role"] != args.aux_runtime_role:
         raise SystemExit("sparse proof: auxiliary runtime profile mismatch")
     if (
@@ -787,6 +802,11 @@ def main() -> None:
                         keybinding_offset + len(payload) > PAGE_BYTES):
                     raise SystemExit("sparse proof: keybinding placement or page-$3D fit differs")
                 expected = audio_runtime.ljust(keybinding_offset, b"\x00") + payload
+            if hud_word_helper:
+                helper_offset = HUD_WORD_HELPER_ADDRESS - WINDOW_BASE
+                if len(expected) + WINDOW_BASE > HUD_WORD_HELPER_ADDRESS:
+                    raise SystemExit("sparse proof: keybinding/audio overlaps HUD word helper")
+                expected = expected.ljust(helper_offset, b"\x00") + hud_word_helper
             if raw != expected or len(raw) > PAGE_BYTES:
                 raise SystemExit("sparse proof: combined audio/keybinding page differs")
             reconstructed["audio_runtime"][:] = raw[:len(audio_runtime)]

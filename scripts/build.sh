@@ -19,6 +19,7 @@ PRESENTATION_ACTOR_UNDERLAYS="$BUILD_DIR/ladybug-attract-actor-underlays.bin"
 PRESENTATION_TILE_PATCHES="$BUILD_DIR/ladybug-presentation-tile-patches.bin"
 PRESENTATION_TIMER_RECORDS="$BUILD_DIR/ladybug_presentation_timer_records.inc"
 PRESENTATION_INC="$BUILD_DIR/ladybug_presentation.inc"
+HUD_LAYOUT_INC="$BUILD_DIR/ladybug_hud_layout.inc"
 PRESENTATION_RESIDENT_INC="$BUILD_DIR/ladybug_presentation_resident.inc"
 PRESENTATION_MANIFEST="$BUILD_DIR/ladybug-presentation.json"
 PRESENTATION_MODULE="$BUILD_DIR/ladybug-presentation-runtime.bin"
@@ -31,6 +32,10 @@ AUDIO_RUNTIME_SRC="$ROOT/src/audio_runtime.s"
 AUDIO_RUNTIME_LST="$BUILD_DIR/ladybug-audio-runtime.lst"
 AUDIO_RUNTIME_MAP="$BUILD_DIR/ladybug-audio-runtime.map"
 AUDIO_SYMBOLS="$BUILD_DIR/ladybug_audio_symbols.inc"
+HUD_WORD_HELPER="$BUILD_DIR/ladybug-hud-word-helper.bin"
+HUD_WORD_HELPER_LST="$BUILD_DIR/ladybug-hud-word-helper.lst"
+HUD_WORD_HELPER_MAP="$BUILD_DIR/ladybug-hud-word-helper.map"
+HUD_WORD_HELPER_SRC="$ROOT/src/hud_word_runtime.s"
 AUDIO_CUE_MANIFEST_SOURCE="$ROOT/assets/arcade/audio/gmc-runtime-cues.json"
 AUDIO_CUE_MANIFEST="$BUILD_DIR/audio/gmc-runtime/gmc-runtime-cues.json"
 INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
@@ -539,6 +544,7 @@ cmd_build() {
         --demo-walk "$DEMO_WALK" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
+        --hud-layout-output "$HUD_LAYOUT_INC" \
         --manifest-output "$PRESENTATION_MANIFEST" \
         --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS" \
@@ -624,6 +630,7 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write("AUDIO_RUNTIME_ADDRESS equ $A000\n")
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
     handle.write(f"KEY_SERVICE_EXEC equ ${key_service_exec:04X}\n")
+    handle.write("HUD_WORD_EXEC equ $BF00\n")
 PY
 
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
@@ -1122,6 +1129,24 @@ PY
     fi
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        lwasm -9 --format=raw \
+              --output="$HUD_WORD_HELPER" \
+              --list="$HUD_WORD_HELPER_LST" \
+              --symbols \
+              --map="$HUD_WORD_HELPER_MAP" \
+              -I "$BUILD_DIR" -I "$ROOT/src" \
+              "$HUD_WORD_HELPER_SRC"
+        python3 - "$HUD_WORD_HELPER" <<'PY'
+import sys
+size = len(open(sys.argv[1], "rb").read())
+if not 0 < size <= 0x100:
+    raise SystemExit(f"build: HUD word helper is {size}/256 bytes at $BF00")
+PY
+    else
+        : > "$HUD_WORD_HELPER"
+    fi
+
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
         lwasm -9 --format=raw --symbols \
             --output="$BUILD_DIR/ladybug-keybinding-runtime.bin" \
             --list="$BUILD_DIR/ladybug-keybinding-runtime.lst" \
@@ -1156,6 +1181,7 @@ PY
         --highscore-runtime "$HIGHSCORE_RUNTIME" \
         --highscore-helper "$HIGHSCORE_HELPER" \
         --audio-runtime "$AUDIO_RUNTIME" \
+        --hud-word-helper "$HUD_WORD_HELPER" \
         --tile-patches "$PRESENTATION_TILE_PATCHES" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0-output "$SPARSE_BANK0" \
@@ -1187,6 +1213,7 @@ PY
         --highscore-runtime "$HIGHSCORE_RUNTIME" \
         --highscore-helper "$HIGHSCORE_HELPER" \
         --audio-runtime "$AUDIO_RUNTIME" \
+        --hud-word-helper "$HUD_WORD_HELPER" \
         --tile-patches "$PRESENTATION_TILE_PATCHES" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0 "$SPARSE_BANK0" \

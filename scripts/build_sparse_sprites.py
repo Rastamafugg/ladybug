@@ -71,6 +71,8 @@ AUDIO_RUNTIME_PAGE = 0x3D
 AUDIO_RUNTIME_ADDRESS = WINDOW_BASE
 KEYBINDING_BASE_ADDRESS = 0xBA00
 KEYBINDING_MAX_BYTES = 0x600
+HUD_WORD_HELPER_ADDRESS = 0xBF00
+HUD_WORD_HELPER_MAX_BYTES = 0x100
 AUXILIARY_RUNTIME_PAGE = 0x24
 PHASE_TILE_PATCH_PAGE = 0x23
 SPARSE_COPY_LATE_SELECTOR = 0xFE
@@ -154,6 +156,7 @@ class RomAsset:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keybinding-runtime", type=Path)
+    parser.add_argument("--hud-word-helper", type=Path)
     parser.add_argument("--event-art-input", type=Path, required=True)
     parser.add_argument("--dinosaur-input", type=Path, required=True)
     parser.add_argument("--asset-manifest-input", type=Path, required=True)
@@ -431,6 +434,7 @@ def pack_candidate_banks(
         enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
+        hud_word_helper: bytes = b"",
         rom_asset_inputs: list[tuple[str, bytes, dict[str, object]]] | None = None,
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
@@ -540,6 +544,7 @@ def pack_candidate_banks(
                                    page, WINDOW_BASE))
     audio_transport = audio_runtime
     keybinding_address = KEYBINDING_BASE_ADDRESS
+    keybinding_end = AUDIO_RUNTIME_ADDRESS + len(audio_runtime)
     if keybinding_runtime:
         keybinding_address = keybinding_address_for_audio(len(audio_runtime))
         keybinding_offset = keybinding_address - AUDIO_RUNTIME_ADDRESS
@@ -547,7 +552,17 @@ def pack_candidate_banks(
             raise ValueError("keybinding runtime exceeds its 1,536-byte cap")
         if keybinding_offset + len(keybinding_runtime) > PAGE_BYTES:
             raise ValueError("keybinding runtime does not fit after audio in page $3D")
+        keybinding_end = keybinding_address + len(keybinding_runtime)
         audio_transport = audio_runtime.ljust(keybinding_offset, b"\x00") + keybinding_runtime
+    if hud_word_helper:
+        helper_offset = HUD_WORD_HELPER_ADDRESS - AUDIO_RUNTIME_ADDRESS
+        if len(hud_word_helper) > HUD_WORD_HELPER_MAX_BYTES:
+            raise ValueError("HUD word helper exceeds its 256-byte page-$3D slot")
+        if keybinding_end > HUD_WORD_HELPER_ADDRESS:
+            raise ValueError("page-$3D keybinding runtime overlaps HUD word helper")
+        if helper_offset + len(hud_word_helper) > PAGE_BYTES:
+            raise ValueError("HUD word helper exceeds page $3D")
+        audio_transport = audio_transport.ljust(helper_offset, b"\x00") + hud_word_helper
     stream_targets.append((
         "audio_page_3d", audio_transport, AUDIO_RUNTIME_PAGE,
         AUDIO_RUNTIME_ADDRESS,
@@ -894,6 +909,9 @@ def main() -> None:
     keybinding_runtime = (
         args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b""
     )
+    hud_word_helper = (
+        args.hud_word_helper.read_bytes() if args.hud_word_helper else b""
+    )
     keybinding_address = (
         keybinding_address_for_audio(len(audio_runtime))
         if keybinding_runtime else KEYBINDING_BASE_ADDRESS
@@ -928,6 +946,7 @@ def main() -> None:
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
         keybinding_runtime=keybinding_runtime,
+        hud_word_helper=hud_word_helper,
         rom_asset_inputs=asset_inputs,
     )
     outputs = (
@@ -1080,6 +1099,12 @@ def main() -> None:
             "page": 0x3D,
             "address": keybinding_address,
             "sha256": digest(args.keybinding_runtime.read_bytes()) if args.keybinding_runtime else None,
+        },
+        "hud_word_helper": {
+            "bytes": len(hud_word_helper),
+            "page": AUDIO_RUNTIME_PAGE,
+            "address": HUD_WORD_HELPER_ADDRESS,
+            "sha256": digest(hud_word_helper) if hud_word_helper else None,
         },
         "aux_runtime": {
             "role": args.aux_runtime_role,
