@@ -33,7 +33,7 @@ HUD_BCD_COUNT equ $002E
 ; Runtime entry is fixed at $BF00 in the page-$3D loader stream.
 hud_word_paint
         pshs    a,b
-        lda     1,s
+        lda     ,s              ; PSHS A,B leaves A (the group mask) at 0,S
         bita    #PRESENTATION_HUD_DRAW_SPECIAL
         beq     hwp_extra
         lda     PRES_SCREEN
@@ -53,7 +53,7 @@ hwp_special_ready
         sta     HUD_COLOR
         bsr     dwph_paint_word
 hwp_extra
-        lda     1,s
+        lda     ,s
         bita    #PRESENTATION_HUD_DRAW_EXTRA
         beq     hwp_done
         lda     PRES_SCREEN
@@ -77,7 +77,7 @@ hwp_done
         rts
 
 dwph_paint_word
-        lda     2,s             ; caller's selected column, zero means full row
+        lda     3,s             ; B follows A at 1,S; BSR return address adds two bytes
         sta     HUD_BYTE
         lda     HUD_COLOR       ; retain active color across tile drawing
         sta     HUD_BCD_COUNT
