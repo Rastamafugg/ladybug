@@ -25,6 +25,8 @@ BUILD = ROOT / "build"
 ENEMY_PAGE_BASE = 0x35
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
 CART_BANK_BYTES = 0x4000
 CART_READABLE_BYTES = 0x3E00
 BOOT_OVERFLOW_START = 0x0800
@@ -775,7 +777,16 @@ def main() -> None:
                 payload = (args.audio_runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
                 if len(payload) != keys["bytes"] or sha256(payload) != keys["sha256"]:
                     raise SystemExit("sparse proof: keybinding module identity differs")
-                expected = audio_runtime.ljust(0x1A00, b"\x00") + payload
+                keybinding_offset = max(
+                    KEYBINDING_BASE_ADDRESS - WINDOW_BASE,
+                    len(audio_runtime),
+                )
+                expected_address = WINDOW_BASE + keybinding_offset
+                if (keys.get("page") != 0x3D or keys.get("address") != expected_address or
+                        len(payload) > KEYBINDING_MAX_BYTES or
+                        keybinding_offset + len(payload) > PAGE_BYTES):
+                    raise SystemExit("sparse proof: keybinding placement or page-$3D fit differs")
+                expected = audio_runtime.ljust(keybinding_offset, b"\x00") + payload
             if raw != expected or len(raw) > PAGE_BYTES:
                 raise SystemExit("sparse proof: combined audio/keybinding page differs")
             reconstructed["audio_runtime"][:] = raw[:len(audio_runtime)]

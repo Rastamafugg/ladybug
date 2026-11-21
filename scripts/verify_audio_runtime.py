@@ -15,6 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
 CART_BANK_BYTES = 0x4000
 ENGINE_LIMIT = 920
 PACKED_SOUND_BYTES = 3478
@@ -154,7 +156,7 @@ def symbols(path: Path) -> dict[str, int]:
     found: dict[str, int] = {}
     pattern = re.compile(
         r"^Symbol: (audio_engine_start|audio_engine_end|audio_install_page|audio_mix_write|"
-        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end) .* = ([0-9A-Fa-f]+)$"
+        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end|key_service) .* = ([0-9A-Fa-f]+)$"
     )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
@@ -328,7 +330,22 @@ def main() -> None:
             payload = (args.runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
             if len(payload) != keys["bytes"] or digest(payload) != keys["sha256"]:
                 raise SystemExit("audio proof: adjacent keybinding module identity differs")
-            expected = runtime.ljust(0x1A00, b"\x00") + payload
+            keybinding_offset = max(
+                KEYBINDING_BASE_ADDRESS - WINDOW_BASE,
+                len(runtime),
+            )
+            expected_address = WINDOW_BASE + keybinding_offset
+            if (keys.get("page") != 0x3D or keys.get("address") != expected_address or
+                    len(payload) > KEYBINDING_MAX_BYTES or
+                    keybinding_offset + len(payload) > PAGE_BYTES):
+                raise SystemExit("audio proof: keybinding placement or page-$3D fit differs")
+            keybinding_map = args.runtime.parent / "ladybug-keybinding-runtime.map"
+            if not keybinding_map.is_file():
+                raise SystemExit("audio proof: keybinding runtime map is missing")
+            keybinding_symbols = symbols(keybinding_map)
+            if keybinding_symbols.get("key_service") != expected_address:
+                raise SystemExit("audio proof: key_service map address differs from generated placement")
+            expected = runtime.ljust(keybinding_offset, b"\x00") + payload
         if expanded != expected:
             raise SystemExit("audio proof: combined page transport differs")
         rebuilt[:] = expanded[:len(runtime)]

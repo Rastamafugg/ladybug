@@ -69,6 +69,8 @@ PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
 AUDIO_RUNTIME_PAGE = 0x3D
 AUDIO_RUNTIME_ADDRESS = WINDOW_BASE
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
 AUXILIARY_RUNTIME_PAGE = 0x24
 PHASE_TILE_PATCH_PAGE = 0x23
 SPARSE_COPY_LATE_SELECTOR = 0xFE
@@ -78,6 +80,11 @@ INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
 HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
 PHASE_TILE_PATCH_ADDRESS = 0xBF80
+
+
+def keybinding_address_for_audio(audio_bytes: int) -> int:
+    """Keep keybinding at $BA00 unless the audio runtime extends farther."""
+    return max(KEYBINDING_BASE_ADDRESS, AUDIO_RUNTIME_ADDRESS + audio_bytes)
 
 
 @dataclass(frozen=True)
@@ -532,10 +539,15 @@ def pack_candidate_banks(
                                    enemy_payload[offset:offset + PAGE_BYTES],
                                    page, WINDOW_BASE))
     audio_transport = audio_runtime
+    keybinding_address = KEYBINDING_BASE_ADDRESS
     if keybinding_runtime:
-        if len(audio_runtime) > 0x1A00 or len(keybinding_runtime) > 0x600:
-            raise ValueError("keybinding runtime overlaps audio or exceeds $BA00-$BFFF")
-        audio_transport = audio_runtime.ljust(0x1A00, b"\x00") + keybinding_runtime
+        keybinding_address = keybinding_address_for_audio(len(audio_runtime))
+        keybinding_offset = keybinding_address - AUDIO_RUNTIME_ADDRESS
+        if len(keybinding_runtime) > KEYBINDING_MAX_BYTES:
+            raise ValueError("keybinding runtime exceeds its 1,536-byte cap")
+        if keybinding_offset + len(keybinding_runtime) > PAGE_BYTES:
+            raise ValueError("keybinding runtime does not fit after audio in page $3D")
+        audio_transport = audio_runtime.ljust(keybinding_offset, b"\x00") + keybinding_runtime
     stream_targets.append((
         "audio_page_3d", audio_transport, AUDIO_RUNTIME_PAGE,
         AUDIO_RUNTIME_ADDRESS,
@@ -879,6 +891,13 @@ def main() -> None:
     highscore_runtime = args.highscore_runtime.read_bytes()
     highscore_helper = args.highscore_helper.read_bytes()
     audio_runtime = args.audio_runtime.read_bytes()
+    keybinding_runtime = (
+        args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b""
+    )
+    keybinding_address = (
+        keybinding_address_for_audio(len(audio_runtime))
+        if keybinding_runtime else KEYBINDING_BASE_ADDRESS
+    )
     tile_patches = args.tile_patches.read_bytes()
     if len(tile_patches) not in (0, 128):
         raise SystemExit("sparse: phase tile patches must be empty or exactly 128 bytes")
@@ -908,7 +927,7 @@ def main() -> None:
         rate_helper=args.rate_helper.read_bytes() if args.rate_helper else b"",
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
-        keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
+        keybinding_runtime=keybinding_runtime,
         rom_asset_inputs=asset_inputs,
     )
     outputs = (
@@ -1059,7 +1078,7 @@ def main() -> None:
         "keybinding_runtime": {
             "bytes": args.keybinding_runtime.stat().st_size if args.keybinding_runtime else 0,
             "page": 0x3D,
-            "address": 0xBA00,
+            "address": keybinding_address,
             "sha256": digest(args.keybinding_runtime.read_bytes()) if args.keybinding_runtime else None,
         },
         "aux_runtime": {

@@ -15,7 +15,7 @@
 ; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows, current screen ID from the generated presentation map, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
 ; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
 ; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
-; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
+; DOC-002 source-contract mirror profile keybindings Invariants: The page-$3D stream places key_service at generated KEY_SERVICE_EXEC=max($BA00,audio runtime end); caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
 ; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D holds foreground wake latch, scan-prime, joystick sample and previous joystick direction bits; key_init clears keyboard history before startup input","lifetime":"Boot descriptors retire before initialization. Bindings and previous physical samples retain between scans; page-$24 menu scan consumes the wake latch; joystick sample bit is transient","clobbers":"Key service owns $0287-$029A; page-$24 menu scan also updates $028D and main.s reads its wake-only bit; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; "}
 ; RSCH-014 C3 prototype extension: menu edges track physical state in all phases.
 ; Source edit is isolated research, not the approved repair implementation.
@@ -26,6 +26,7 @@
 INPUT_JOYSTICK equ 0
         endc
         include "ladybug_runtime_symbols.inc"
+        include "ladybug_audio_symbols.inc"
         ifndef PRESENTATION_NAME_ENTRY_DATA
 PRESENTATION_NAME_ENTRY_DATA equ 0
         endc
@@ -45,7 +46,7 @@ KB_PREV equ $0297
 KB_STATE equ $0298
 KB_CAND equ $0299
 KB_WORK equ $029A
-        org $BA00
+        org KEY_SERVICE_EXEC
 key_service
         tstb
         lbeq key_scan

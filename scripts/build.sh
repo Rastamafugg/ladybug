@@ -615,6 +615,7 @@ if set(symbols) != {"audio_engine_start", "audio_engine_end", "audio_install_pag
     raise SystemExit("build: audio symbols missing required placement symbols")
 engine_bytes = symbols["audio_engine_end"] - symbols["audio_engine_start"]
 runtime_bytes = len(open(runtime_path, "rb").read())
+key_service_exec = max(0xBA00, 0xA000 + runtime_bytes)
 with open(output_path, "w", encoding="ascii") as handle:
     handle.write("; Generated audio runtime placement constants.\n")
     handle.write(f"AUDIO_ENGINE_BYTES equ {engine_bytes}\n")
@@ -622,6 +623,7 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write("AUDIO_RUNTIME_PAGE equ $3D\n")
     handle.write("AUDIO_RUNTIME_ADDRESS equ $A000\n")
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
+    handle.write(f"KEY_SERVICE_EXEC equ ${key_service_exec:04X}\n")
 PY
 
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then

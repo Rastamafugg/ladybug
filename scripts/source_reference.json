@@ -835,6 +835,15 @@
           "reasons": []
         },
         {
+          "name": "KEY_SERVICE_EXEC",
+          "profile": "input",
+          "purpose": "Generated page-$3D entry address for key_service, placed after the audio runtime with $BA00 as the minimum.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-keybinding-runtime-key-service-exec"
+        },
+        {
           "name": "presentation_page24_resume",
           "profile": "root",
           "purpose": "Restore PAR5 to physical page $24, then resume the saved page-$24 presentation continuation after a resident borrow.",
@@ -928,6 +937,7 @@
         "PLAYER_MODULE_DRAW",
         "PRESENTATION_MODULE_DRAW",
         "AUDIO_ENGINE_EXEC",
+        "KEY_SERVICE_EXEC",
         "PRES_MODULE_DRAW_SCORE",
         "PRES_MODULE_DRAW_SCORE_SHORT",
         "SHARED_COLD_PTR"
@@ -4824,7 +4834,8 @@
         }
       ],
       "external_symbols": [
-        "PRES_MAIN_SHARED_MASK"
+        "PRES_MAIN_SHARED_MASK",
+        "KEY_SERVICE_EXEC"
       ]
     },
     {
@@ -5803,7 +5814,7 @@
       "reads": "PIA keyboard rows, current screen ID from the generated presentation map, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.",
       "writes": "Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.",
       "side_effects": "Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.",
-      "invariants": "The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage."
+      "invariants": "The page-$3D stream places key_service at generated KEY_SERVICE_EXEC=max($BA00,audio runtime end); caller gateway restores its PAR5; bindings reset at startup and never persist to storage."
     },
     "movement-step": {
       "inputs": "TEST_X/Y origin coordinates and cardinal TEST_DIR",

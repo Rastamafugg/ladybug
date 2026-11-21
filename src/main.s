@@ -1,5 +1,6 @@
 ; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.
 ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+; DOC-002 source-contract mirror contract KEY_SERVICE_EXEC profile=input: Enter the generated page-$3D keybinding address after the audio block while preserving caller PAR5.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
 ; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
@@ -5076,7 +5077,7 @@ presentation_key_service
         pshs    a
         lda     #$3D
         sta     PAR_EXEC+5
-        jsr     $BA00
+        jsr     KEY_SERVICE_EXEC
         puls    a
         sta     PAR_EXEC+5
         rts
