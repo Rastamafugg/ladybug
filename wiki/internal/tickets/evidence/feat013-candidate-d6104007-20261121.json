@@ -49,15 +49,51 @@
       "background_only_cells_in_row_rectangles": 126,
       "boot_default": "nine 10,000-point records named LADYBUG",
       "row_destinations": [
-        {"rank": 1, "name": "$343C", "score": "$3460"},
-        {"rank": 2, "name": "$3E3C", "score": "$3E60"},
-        {"rank": 3, "name": "$433C", "score": "$4360"},
-        {"rank": 4, "name": "$483C", "score": "$4860"},
-        {"rank": 5, "name": "$4D3C", "score": "$4D60"},
-        {"rank": 6, "name": "$523C", "score": "$5260"},
-        {"rank": 7, "name": "$573C", "score": "$5760"},
-        {"rank": 8, "name": "$5C3C", "score": "$5C60"},
-        {"rank": 9, "name": "$613C", "score": "$6160"}
+        {
+          "rank": 1,
+          "name": "$343C",
+          "score": "$3460"
+        },
+        {
+          "rank": 2,
+          "name": "$3E3C",
+          "score": "$3E60"
+        },
+        {
+          "rank": 3,
+          "name": "$433C",
+          "score": "$4360"
+        },
+        {
+          "rank": 4,
+          "name": "$483C",
+          "score": "$4860"
+        },
+        {
+          "rank": 5,
+          "name": "$4D3C",
+          "score": "$4D60"
+        },
+        {
+          "rank": 6,
+          "name": "$523C",
+          "score": "$5260"
+        },
+        {
+          "rank": 7,
+          "name": "$573C",
+          "score": "$5760"
+        },
+        {
+          "rank": 8,
+          "name": "$5C3C",
+          "score": "$5C60"
+        },
+        {
+          "rank": 9,
+          "name": "$613C",
+          "score": "$6160"
+        }
       ]
     }
   },
@@ -110,7 +146,7 @@
       "owner": "user",
       "rom_sha256": "62EEE93BB81C0B4F12DC5F98F52E54FDD1CC59F5C47B77E9C188D4B5E563F34A",
       "game_launched": true,
-      "summary": "Two visible checks pass by user report on this ROM: the Attract High Score list is correct and Level Start graphics are fixed. The remaining approved M1 checks are pending; no deadline or monitoring applies.",
+      "summary": "Five visible check groups pass by user report on this ROM: Attract High Score list, Level Start graphics, shared HUD colors/positions and one-player P2 visibility, Instructions/gameplay multiplier and baseline checks, and Game Over first-frame/stability. Detailed Enter High Score acceptance remains open after the earlier reported load crash and has not been retested on this ROM. Natural ranking acceptance is deferred while that issue is prioritized. No deadline or monitoring applies.",
       "reported_results": [
         {
           "date": "2026-11-21",
@@ -125,6 +161,41 @@
           "result": "pass",
           "reported_by": "user",
           "observation": "The user reports the previously corrupted graphics are fixed."
+        },
+        {
+          "date": "2026-11-21",
+          "check": "Shared HUD colors, positions, and one-player P2 visibility",
+          "result": "pass",
+          "reported_by": "user",
+          "observation": "The user confirms the listed HUD colors and positions across the approved screens and confirms 2ND/P2 is hidden for one-player play."
+        },
+        {
+          "date": "2026-11-21",
+          "check": "Instructions multipliers and gameplay baseline",
+          "result": "pass",
+          "reported_by": "user",
+          "observation": "The user confirms the x2/x3/x5 indicator checks and gameplay PART 100, row-three vegetable, and HUD placement/refresh baseline."
+        },
+        {
+          "date": "2026-11-21",
+          "check": "Game Over first visible frame and stability",
+          "result": "pass",
+          "reported_by": "user",
+          "observation": "The user confirms the Game Over HUD on first view and through its normal dwell."
+        },
+        {
+          "date": "2026-11-21",
+          "check": "Enter High Score detailed screen and re-entry acceptance",
+          "result": "not-retested",
+          "reported_by": "user",
+          "observation": "The user requests fixing the previously reported load crash before resuming detailed screen-behavior checks. The explicit crash report is from the earlier ff2ed93f ROM; this d6104007 ROM has not been retested for that failure."
+        },
+        {
+          "date": "2026-11-21",
+          "check": "Natural ranking insertion/tie acceptance",
+          "result": "deferred",
+          "reported_by": "user",
+          "observation": "The user believes ranking behavior works and wants the Enter High Score crash addressed first; no natural acceptance result is recorded."
         }
       ]
     },
