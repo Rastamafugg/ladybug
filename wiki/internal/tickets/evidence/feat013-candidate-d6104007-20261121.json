@@ -1,0 +1,125 @@
+{
+  "schema": 1,
+  "ticket": "FEAT-013",
+  "date": "2026-11-21",
+  "source": {
+    "branch": "codex/feat013-shared-hud",
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat013-shared-hud\\ladybug",
+    "revision": "d6104007827ef87391d96352d1b58ad3bf196c3a",
+    "worktree_clean_at_build": true
+  },
+  "candidate": {
+    "profile": "complete",
+    "input": "keyboard",
+    "adaptive": true,
+    "cpu": "6809",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "size_bytes": 65536,
+      "sha256": "62EEE93BB81C0B4F12DC5F98F52E54FDD1CC59F5C47B77E9C188D4B5E563F34A"
+    },
+    "receipt": {
+      "path": "build/source-build-receipt.json",
+      "sha256": "3DEDC0A0565018D9044A5F646144E12548F28D60D0CA107852625AEE4060167C",
+      "revision": "d6104007827ef87391d96352d1b58ad3bf196c3a",
+      "profile": "complete",
+      "state": "complete"
+    },
+    "inputs": {
+      "high_score_map_sha256": "44A4A3D6621F0C0AA1B0E21A3C8834591C598409D4E4DABFFF57427718C61AA1",
+      "template_map_sha256": "CA640AC00EBBA7833A616BB3C4BD0CD7FD30DF1CA65E85ACBD9AA5EB3105EBE9",
+      "text_colours_sha256": "F44501D8E2A086ADD8700D9B6BF3DA14FC2D47CA2E9FECB0341450459EA75826"
+    },
+    "artifacts": {
+      "main_listing_sha256": "3FB3537EE4EF2E28338BE33D142C9138595C502F1D7C37E9032660FF2906713A",
+      "presentation_runtime_listing_sha256": "0CACD60ADE6AB5491024F33C1E0C10AC95BB042455DE865B1672142171D5004A",
+      "highscore_runtime_listing_sha256": "E007CF4C80E95E30828205F7488BE274DC65CF4FC64D48FD89EBCF01FE865D07",
+      "highscore_helper_listing_sha256": "6F5BA04133A56BFFE2E7E1DD48A7512FBE0BA8BA9CDFA7A8AB71B5533B323093",
+      "presentation_manifest_sha256": "492EB935AA16CEAAE4D97E0CA3CF93ECF3AE05F753F610D3CF66980745E79EFE",
+      "shared_text_verification_sha256": "3731AB6187A515DF78764BAB00E5D522EEEFE102AAB662BCAC12702DE0820F9C",
+      "sparse_layout_sha256": "BCFEAF8B46D6CBADC51A66CAE88E6C45C07E26099AAE9EAFCFF2250E0829E209"
+    },
+    "high_score_fields": {
+      "static_names_scores_layer_present": false,
+      "high_score_data_layout_objects": 18,
+      "shared_template_hud_fields": 31,
+      "rank_rows_generated": 9,
+      "authored_name_cells": "blank",
+      "authored_score_cells": "blank",
+      "background_only_cells_in_row_rectangles": 126,
+      "boot_default": "nine 10,000-point records named LADYBUG",
+      "row_destinations": [
+        {"rank": 1, "name": "$343C", "score": "$3460"},
+        {"rank": 2, "name": "$3E3C", "score": "$3E60"},
+        {"rank": 3, "name": "$433C", "score": "$4360"},
+        {"rank": 4, "name": "$483C", "score": "$4860"},
+        {"rank": 5, "name": "$4D3C", "score": "$4D60"},
+        {"rank": 6, "name": "$523C", "score": "$5260"},
+        {"rank": 7, "name": "$573C", "score": "$5760"},
+        {"rank": 8, "name": "$5C3C", "score": "$5C60"},
+        {"rank": 9, "name": "$613C", "score": "$6160"}
+      ]
+    }
+  },
+  "results": {
+    "G1": {
+      "result": "pass",
+      "type": "approved one-time object-layer migration check",
+      "command": "python scripts/test_high_score_layout.py",
+      "summary": "One test passed. The current map has 18 named row objects and no static names/scores layer. All 126 name/score cells contain only black background tiles. The builder generated seven synchronized HUD layouts; the candidate manifest has nine row destinations and empty authored score cells."
+    },
+    "G2": {
+      "result": "pass",
+      "exit_code": 0,
+      "whole_phase_cap_seconds": 600,
+      "command": "wsl.exe bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh build'",
+      "summary": "Full assembly, packer/loader/bank boundary checks, exact 9/9 screen pixel comparison, High Score palette-alias check, and post-build source-reference/DOC-002 checks passed (17 modules, 332/332 routines, 6762/6762 labels). The complete-profile listing shows boot seeding nine rows with BCD 01 00 00 and LADYBUG before setting PRES_HS_READY.",
+      "capacity_bytes": {
+        "resident": "8191/8192, 1 free",
+        "assets": "7668/7680, 12 free",
+        "presentation_runtime": "1272/1280, 8 free",
+        "presentation_helper": "331/334, 3 free",
+        "enemy_runtime": "4091/4096, 5 free",
+        "instruction_runtime": "938/938, 0 free",
+        "demo_runtime": "143/938, 795 free",
+        "highscore_runtime": "827/938, 111 free",
+        "page_34_enemy_helper": "87/93, 6 free",
+        "audio_engine": "681/920, 239 free",
+        "page_3d_audio_payload": "6668/8192, 1524 free",
+        "adaptive_mapped": "198/220, 22 free",
+        "adaptive_banked": "696/698, 2 free",
+        "adaptive_active": "686/777, 91 free",
+        "presentation_cold": "14112/16384, 2272 free",
+        "highscore_helper": "3159 bytes staged at $AC40",
+        "keybinding": "1164 bytes at $BA0C",
+        "hud_word_helper": "146/256 at $BF00",
+        "page_3d_high_water": "ends at $BF92; 110 bytes to $C000",
+        "sparse_enemy_frames": "23005 bytes across 3 pages",
+        "sparse_player_frames": "2294 bytes across 1 page",
+        "sparse_gate": "832 bytes",
+        "sparse_presentation": "896 bytes",
+        "loader_and_compression": "12 segments, 7 LZSS streams, 6395 CPU-readable GMC bytes spare"
+      }
+    },
+    "G3": {
+      "result": "incomplete",
+      "summary": "Formal static-flow qualification was not run on this candidate. The approved exact negative-control listing is still unavailable."
+    },
+    "M1": {
+      "result": "pending",
+      "owner": "user",
+      "rom_sha256": "62EEE93BB81C0B4F12DC5F98F52E54FDD1CC59F5C47B77E9C188D4B5E563F34A",
+      "game_launched": false,
+      "summary": "Use the approved natural-play visible card on this exact ROM; no deadline or monitoring."
+    },
+    "G4": {
+      "result": "deferred by user",
+      "summary": "Performance testing remains deferred; the 27,000-cycle maximum is still required before Done."
+    },
+    "resolved_build_stops": [
+      "Restored the approved 31-object shared HUD template layer omitted from the copied template.",
+      "Removed nine stale static name-color overrides for runtime-owned blank High Score rows.",
+      "Updated the existing shared-text verifier to accept blank fields or complete LADYBUG/10000 boot defaults and to verify generated destinations."
+    ]
+  }
+}
