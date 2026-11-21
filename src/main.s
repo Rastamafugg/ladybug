@@ -16,8 +16,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
-; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; Instructions uses nonzero B for an event descriptor at X, while selected word groups use B=0 for a full row or B=1..7 for one column.
-; DOC-002 source-contract mirror contract HUD_WORD_EXEC profile=render: Generated page-$3D entry for the shared SPECIAL/EXTRA word painter at $BF00.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for one column.
+; DOC-002 source-contract mirror contract HUD_WORD_EXEC profile=render: Generated page-$3D address of the shared word painter at $BF00.
 ; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
@@ -113,7 +113,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; on Instructions, nonzero B selects the event descriptor at X; for word groups, B selects a letter column or zero selects the full group; preserve PAR5.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for a column, and PAR5 is preserved.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
@@ -127,7 +127,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
-; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Map page $3D, call the shared full-word/selective-letter painter for A/B, then restore the caller's PAR5.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Save PAR5, map page $3D, call generated HUD_WORD_EXEC with A/B selection, and restore the exact caller mapping.
 ; DOC-002 source-contract mirror contract dwph_word profile=render: Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.

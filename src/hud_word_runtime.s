@@ -1,14 +1,14 @@
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
-; DOC-002 source-contract mirror profile render Inputs: A selects SPECIAL and/or EXTRA; B is zero for a whole-row redraw or the changed one-based letter column
-; DOC-002 source-contract mirror profile render Outputs: Selected authored word cells are recolored in the prepared BACK framebuffer
-; DOC-002 source-contract mirror profile render Clobbers: A, B, X, Y, and condition codes; uses the HUD tile scratch at $0027-$002E
-; DOC-002 source-contract mirror profile render Reads: The player-one word bits, current presentation screen, generated HUD field geometry, and generated glyph cell table
-; DOC-002 source-contract mirror profile render Writes: Only the selected SPECIAL or EXTRA word cells in BACK
-; DOC-002 source-contract mirror profile render Side effects: Calls the resident recolored-map-tile painter while PAR5 maps page $3D
-; DOC-002 source-contract mirror profile render Invariants: Caller maps page $3D before entry and restores its prior PAR5 after return; zero column redraws the selected whole word after a reset
-; DOC-002 source-contract mirror contract hud_word_paint profile=render: Paint the selected SPECIAL/EXTRA word fully or repaint only the changed letter column.
-; DOC-002 source-contract mirror contract dwph_paint_word profile=render: Recolor one generated word row from its owner bits, using the requested single column when nonzero.
+; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+; DOC-002 source-contract mirror contract hud_word_paint profile=render: Paint the selected SPECIAL/EXTRA row fully or repaint one changed letter column.
+; DOC-002 source-contract mirror contract dwph_paint_word profile=render: Recolor one generated word row from its owner bits, using the requested column when nonzero.
 ; DOC-002 source-contract mirror ends.
 
         pragma  nodollarlocal,6809
