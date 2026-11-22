@@ -39,6 +39,67 @@
       </p>
     </section>
 
+    <section id="presentation-map-ids-and-loading">
+      <h2>Presentation map IDs and loading</h2>
+      <p>
+        A <strong>map ID</strong> is a zero-based index into the generated
+        presentation map list. The build derives these IDs from
+        <code>MAP_NAMES</code> in <code>scripts/build_presentation.py</code>;
+        each entry names a <code>coco-*-screen.tmx</code> authoring map. A
+        <strong>runtime mode</strong> is a separate dispatcher value selected
+        after that map has loaded. In the complete profile, the post-load modes
+        below come from the generated <code>presentation_screen_modes</code>
+        table in <code>scripts/build.sh</code>. The map IDs and modes reflect
+        source revision <code>d6104007827ef87391d96352d1b58ad3bf196c3a</code>.
+        These numbers are identifiers, not sizes or measurements.
+      </p>
+      <table class="wiki-table">
+        <thead><tr><th>Map ID</th><th>Authored map</th><th>Complete-profile mode after loading</th></tr></thead>
+        <tbody>
+          <tr><td>0</td><td>Attract</td><td><code>MODE_ATTRACT</code> (2)</td></tr>
+          <tr><td>1</td><td>Instructions</td><td><code>MODE_LEVEL</code> (6); development profile uses <code>MODE_INSTRUCTIONS</code> (3)</td></tr>
+          <tr><td>2</td><td>Level Start</td><td><code>MODE_LEVEL</code> (6)</td></tr>
+          <tr><td>3</td><td>High Score</td><td><code>MODE_PRESENTATION_UI</code> (5)</td></tr>
+          <tr><td>4</td><td>Game Over</td><td><code>MODE_GAMEOVER</code> (7)</td></tr>
+          <tr><td>5</td><td>Enter High Score</td><td><code>MODE_NAME</code> (8)</td></tr>
+          <tr><td>6</td><td>Options</td><td><code>MODE_PRESENTATION_UI</code> (5)</td></tr>
+          <tr><td>7</td><td>Credits</td><td><code>MODE_PRESENTATION_UI</code> (5)</td></tr>
+          <tr><td>8</td><td>Keybinding Options</td><td><code>MODE_PRESENTATION_UI</code> (5)</td></tr>
+        </tbody>
+      </table>
+      <p>
+        Every requested map first enters temporary <code>MODE_LOAD</code> (1).
+        <code>start_screen</code> keeps the requested ID in
+        <code>PRES_SCREEN</code>, uses that ID to select its generated cold-data
+        stream offset, initializes the map cursor and destination at
+        <code>$2000</code>, and maps the hidden BACK framebuffer for drawing.
+        <code>load_tick</code> decodes the compressed map stream into BACK in
+        chunks of 32 cells. In the complete profile it also runs the stage
+        presentation slice between chunks.
+      </p>
+      <p>
+        When the final map cell is consumed, <code>load_done</code> runs the
+        completion work for the screen. If the screen uses the hold-and-hydrate
+        path, the first completed BACK image is captured, the other framebuffer
+        owner is loaded, and the finished image is published at Vbord (the
+        vertical-border interrupt). Then
+        <code>load_done_publish</code> marks the frame pending and replaces
+        <code>MODE_LOAD</code> with the mode indexed by the same map ID. This is
+        why map IDs 3 and 4 can use the shared completion path without using
+        name-entry mode: only map ID 5 selects <code>MODE_NAME</code>. The current
+        <code>start_screen</code> path has one relevant exception: Level Start
+        skips <code>PRESENTATION_HOLD_BEGIN</code>, so it does not use that
+        two-owner hold sequence.
+      </p>
+      <p>
+        Source basis: <code>src/presentation_runtime.s</code> for screen setup,
+        incremental loading, completion, and dispatch; <code>scripts/build_presentation.py</code>
+        for map names and generated IDs; and <code>scripts/build.sh</code> for
+        the profile-specific post-load mode table. This is a source-level
+        description and does not qualify a ROM built from the current candidate.
+      </p>
+    </section>
+
     <section>
       <h2>Coordinate and storage model</h2>
       <p>
