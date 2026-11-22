@@ -149,8 +149,8 @@ def capture_snapshot(
 
 
 def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) -> None:
-    # Snapshots start at resident ad_dispatch_work; each following entry closes
-    # one active interval without saving PC from XRoar's copied low-RAM page.
+    # The caller may stop at the shared helper entry so the preceding resident
+    # dispatch JSR is emitted before trace output is disabled.
     run_xroar(
         [
             "-load", str(snapshot),
@@ -228,6 +228,7 @@ def main() -> None:
     # Use the emitted adaptive entry. The listing also names excluded branches,
     # whose addresses may alias unrelated emitted code.
     stop_pc = map_symbol(BUILD / "ladybug.map", "ad_dispatch_work")
+    active_entry_pc = map_symbol(BUILD / "ladybug.map", "AD_WORK_EXEC")
     snapshot_pc = stop_pc
 
     baseline = BUILD / "perf-baseline.sna"
@@ -257,7 +258,9 @@ def main() -> None:
             ],
         )
         capture_snapshot(BUILD / "perf-gate-final.sna", snapshot_pc, 1, gate)
-        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        # Stop on the third helper entry, after the third dispatch JSR has
+        # emitted its trace row. Stopping at stop_pc suppresses that row.
+        capture_trace(gate, BUILD / "perf-gate.raw.trace", active_entry_pc, 3)
         reversed_gate = BUILD / "perf-gate-reversed.sna"
         swap_framebuffer_owners(
             hydrated,
@@ -269,7 +272,12 @@ def main() -> None:
                 "008F=00", "0090=01",
             ],
         )
-        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
+        capture_trace(
+            reversed_gate,
+            BUILD / "perf-gate-reversed.raw.trace",
+            active_entry_pc,
+            3,
+        )
         print("performance capture: current-revision gate scenario written to build/")
         return
 
