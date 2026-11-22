@@ -1,0 +1,33 @@
+FEAT-013 G4 timing setup and baseline qualification
+Date: 2026-11-22
+Status: capture/parser baseline qualification incomplete; no G4 timing result.
+
+Approved G4 target and workload
+The canonical FEAT-013 ticket requires measuring the complete-profile adaptive gameplay HUD worklist against a maximum of 27,000 active CPU cycles. The named work includes the shared snapshot refresh, field painter, persistent damage replay, and completed-frame publication for score/stage, lives, multiplier, SPECIAL/EXTRA progress, and vegetable value. The target is a maximum, not a baseline measurement.
+
+Artifacts
+Baseline source: 3f1277de302e18ad319ba9986a4aa62c9c4caffe, complete profile, keyboard input, adaptive rendering, 6809 CPU.
+Baseline ROM SHA-256: 9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d
+Baseline receipt SHA-256: 87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd
+Baseline listing SHA-256: aa76831860172b171032a28b95bb9e663c10b9c858067b392e14199ca1e056ac
+Candidate source/ROM: 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6
+Candidate ROM SHA-256: b9277dd4bfc7777c91729bf8059d501774b302603fbdd913baefb17fd90ab347
+Candidate receipt SHA-256: 46fd8713fb55de9b643b6e23d0fcbb6ce26945b9c03f9c4d92e94d42d52c029f
+
+Capture-tool correction
+Commit e4ba856d39e7b1b433aff36b9cc00eb2eaf49325 changes only scripts/capture_performance_baseline.py. main_render is a local label, absent from ladybug.map; the capture script now resolves it from build/ladybug.lst and requires one match. The baseline and candidate listings were independently matched to their build receipts. The baseline listing has one match at $C175; the candidate listing has one at $C180. The corrected script SHA-256 is EACBCFF0E75C5F651BD5E123634FD9EECACF0BDDE35E48A8F5F089DA36B4C3E6. `git diff --check` and `python -m py_compile` passed. These static checks do not qualify an XRoar capture.
+
+Attempted baseline qualification
+The approved baseline checkout was temporarily given the corrected capture script, then restored. The one bounded WSL command was:
+
+timeout --signal=TERM --kill-after=2 60s bash -c 'cd /mnt/c/Users/19029/.codex/worktrees/feat012-visible-input-r5/ladybug && python3 scripts/capture_performance_baseline.py --skip-build --gate-only && python3 scripts/verify_gate_performance.py > /dev/null'
+
+XRoar 1.10 was present. The command did not produce build/perf-baseline.sna, either perf-gate raw trace, or build/gate-performance.json. build/perf-baseline.log exists and is empty. The verifier was not reached. The command wrapper did not retain its final exit code, so the exact stop reason is unknown. The baseline capture script was restored to its prior SHA-256 FF1AD905F0634B8890A54392CD704FAC4A8D3DB1EACF3A5AF472FB1740DC3966; the baseline worktree is clean.
+
+This is a capture/setup failure, not a game timing result or product assertion. No candidate build, candidate timing run, or visible XRoar launch occurred. The --gate-only fixture is a gate-rendering worklist, not a HUD worklist; even a successful run would qualify only the generic capture/parser path, not FEAT-013 G4.
+
+Offline review confirmed the baseline enemy-runtime listing contains frame_render_impl at $09D4, and the baseline main listing contains main_render at $C175. XRoar 1.10 help exposes cart autorun, trap-range, trap-snapshot, and a trap-timeout that starts after a trap fires. This confirms the symbols and CLI options exist, but it does not explain why the initial marker was not captured. Repository search found no existing HUD-specific performance fixture: the shared capture script has only the broad scenario set and the gate-only option.
+
+Proposed G4 event binding, pending user approval: (1) the final SPECIAL pickup, which awards score and requests the full SPECIAL word plus shared HUD; (2) the final EXTRA pickup with a reserve-life slot available, which requests lives and the full EXTRA word; and (3) a multiplier pickup, which requests the multiplier painter. Each captures the normal shared snapshot refresh and full active frame. Report each result and the maximum, not an average. This changes the deferred single-predecessor binding to three source-legal event cases. Exact controlled snapshots and the candidate command remain unbound. Readiness still requires user approval of this card, successful baseline capture/parser qualification, and a separately checked cycle total. The timing reference in wiki/internal/platform/timing.html defines trace dt as event ticks: discard the first trace delta, convert subsequent deltas by /8, and exclude only the identified SYNC wait. The 60-second bound applies to the entire automated phase. Candidate timing remains unrun.
+
+Next: diagnose in one bounded phase whether cold autorun reaches the $09D4 marker or whether the capture setup misses it. After approval, bind exact controlled snapshots and a command in the existing capture tooling, qualify capture/parser behavior on the baseline, and only then run candidate timing under the approved cap.
