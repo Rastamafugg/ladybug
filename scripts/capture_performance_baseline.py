@@ -45,6 +45,18 @@ def symbol(path: Path, name: str) -> int:
     raise ValueError(f"{path}: missing symbol {name}")
 
 
+def listing_label(path: Path, name: str) -> int:
+    pattern = re.compile(rf"^([0-9A-Fa-f]{{4}})\s+.*:\d+\s+{re.escape(name)}$")
+    matches = [
+        int(match.group(1), 16)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if (match := pattern.match(line))
+    ]
+    if len(matches) != 1:
+        raise ValueError(f"{path}: expected one local label {name}, found {len(matches)}")
+    return matches[0]
+
+
 def xroar_base() -> list[str]:
     executable = shutil.which("xroar")
     if not executable:
@@ -167,7 +179,8 @@ def main() -> None:
         subprocess.run([str(ROOT / "scripts" / "build.sh"), "build"], cwd=ROOT, check=True)
 
     frame_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "frame_render_impl")
-    stop_pc = symbol(BUILD / "ladybug.map", "main_render")
+    # main_render is local to main.s and is present in the listing, not the map.
+    stop_pc = listing_label(BUILD / "ladybug.lst", "main_render")
 
     baseline = BUILD / "perf-baseline.sna"
     capture_snapshot(baseline, frame_pc, 20)
