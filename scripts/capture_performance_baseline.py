@@ -43,15 +43,15 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def listing_label(path: Path, name: str) -> int:
-    pattern = re.compile(rf"^([0-9A-Fa-f]{{4}})\s+.*:\d+\s+{re.escape(name)}$")
+def map_symbol(path: Path, name: str) -> int:
+    pattern = re.compile(rf"^Symbol: {re.escape(name)} .* = ([0-9A-Fa-f]+)$")
     matches = [
         int(match.group(1), 16)
         for line in path.read_text(encoding="utf-8").splitlines()
         if (match := pattern.match(line))
     ]
     if len(matches) != 1:
-        raise ValueError(f"{path}: expected one local label {name}, found {len(matches)}")
+        raise ValueError(f"{path}: expected one active symbol {name}, found {len(matches)}")
     return matches[0]
 
 
@@ -149,8 +149,8 @@ def capture_snapshot(
 
 
 def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) -> None:
-    # Snapshots start at resident main_render; each following entry closes one
-    # complete active interval without saving PC from XRoar's copied low-RAM page.
+    # Snapshots start at resident ad_dispatch_work; each following entry closes
+    # one active interval without saving PC from XRoar's copied low-RAM page.
     run_xroar(
         [
             "-load", str(snapshot),
@@ -225,8 +225,9 @@ def main() -> None:
         subprocess.run([str(ROOT / "scripts" / "build.sh"), "build"], cwd=ROOT, check=True)
 
     PHASE_DEADLINE = time.monotonic() + CAPTURE_PHASE_SECONDS
-    # main_render is resident and local to main.s, so resolve it from the listing.
-    stop_pc = listing_label(BUILD / "ladybug.lst", "main_render")
+    # Use the emitted adaptive entry. The listing also names excluded branches,
+    # whose addresses may alias unrelated emitted code.
+    stop_pc = map_symbol(BUILD / "ladybug.map", "ad_dispatch_work")
     snapshot_pc = stop_pc
 
     baseline = BUILD / "perf-baseline.sna"
