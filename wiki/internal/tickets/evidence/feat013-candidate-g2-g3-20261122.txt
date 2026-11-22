@@ -1,0 +1,45 @@
+FEAT-013 candidate G2/G3 qualification — 2026-11-22
+
+Candidate identity
+- Source revision: 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6
+- Profile: complete; keyboard input; adaptive rendering; 6809 CPU.
+- ROM: build/ladybug.rom
+- ROM SHA-256: b9277dd4bfc7777c91729bf8059d501774b302603fbdd913baefb17fd90ab347
+- Receipt SHA-256: 46fd8713fb55de9b643b6e23d0fcbb6ce26945b9c03f9c4d92e94d42d52c029f
+- Main listing SHA-256: 3fb3537ee4ef2e28338be33d142c9138595c502f1d7c37e9032660ff2906713a
+- Presentation runtime listing SHA-256: 74ec4577d933cc6aece4f14184fc517418e7bc05c16cca58ed7112fa81134844
+- High Score runtime listing SHA-256: e007cf4c80e95e30828205f7488be274dc65cf4fc64d48fd89ebcf01fe865d07
+- High Score helper listing SHA-256: 6f5ba04133a56bffe2e7e1dd48a7512fbe0ba8ba9cdfa7a8ab71b5533b323093
+
+Worktree mapping
+- Windows source worktree: C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug
+- Windows Git reports this worktree clean at the source revision above.
+- Its .git pointer names E:/projects/ladybug/.git/worktrees/ladybug6. WSL Git was explicitly mapped to /mnt/e/projects/ladybug/.git/worktrees/ladybug6 and this /mnt/c worktree path. The build inherited core.autocrlf=true to match Windows Git and avoid line-ending-only dirty status.
+
+G2 complete-profile build
+- Command, from PowerShell:
+  wsl.exe -d Ubuntu -- bash -lc 'export GIT_DIR=/mnt/e/projects/ladybug/.git/worktrees/ladybug6 GIT_WORK_TREE=/mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.autocrlf GIT_CONFIG_VALUE_0=true; cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && timeout 600s env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh build'
+- Result: exit 0; receipt complete and bound to source revision 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6.
+- Capacity readings from the build: resident 8,191/8,192 B (1 B free); assets 7,668/7,680 B (12 B free); presentation runtime 1,272/1,280 B (8 B free); presentation helper 331/334 B (3 B free); adaptive active image 686/777 B (91 B free); mapped active core 198/220 B (22 B free); banked active core 696/698 B (2 B free). The build's remaining placement, sparse-image, ROM, and source-documentation gates also passed.
+- Source documentation audit: PASS, 17 modules, 332/332 routines, 6,762/6,762 labels.
+- The 600-second limit is the approved whole-build cap; exact elapsed time was not retained.
+
+G3 presentation flow verifier
+- Command: timeout 900s python3 scripts/verify_presentation_flow.py in the mapped candidate worktree.
+- Result: exit 0. Output reports complete flow, eight title actor surfaces, authored TMX coordinates, direct selected-screen streaming, bounded loading, Attract free-start menu, instruction choreography, atomic surface copy, and module/helper/cold/combined capacity checks. Post-audio source spare is 6,395 B against the 512 B minimum.
+- The 900-second limit is the approved whole-phase cap; exact elapsed time was not retained.
+
+Focused candidate route review
+- Candidate presentation listing at $1AD6 compares PRES_SCREEN to map IDs 3 and 5, branches below 3 and above 5, and calls $0300 at $1AE1. This includes High Score map 3, Game Over map 4, and Enter High Score map 5; it excludes Options map 6 and Credits map 7.
+- The active complete-profile mode table bytes at $F5DA are 02 03 06 05 07 08 05 05 05. Thus maps 3, 4, and 5 select modes 5, 7, and 8. start_screen stores MODE_LOAD=1 at $1A0F. The map-load call at $1AE1 occurs before load_done_publish at $1B3A reads the table and stores the screen mode at $1B4F.
+- On the natural death route, normal_tick calls install_highscore_runtime at $1998 before selecting map 4 at $199A. The copy routine reads from page-$24 address $A880, copies $033B bytes to low RAM $0300, and restores PAR5 to $34. gameover_tick starts map 5 using the already installed runtime; it does not replace that runtime.
+- The emitted runtime entry at $0300 reads MODE_LOAD, then compares PRES_SCREEN to map 5 at $0314-$0318 and branches to render_name_screen at $04EC. That routine calls capture_initial at $057C before returning; the cursor destination is $894C. This is the existing name renderer/cursor initialization, now reached before publication.
+- The retained page-$24 map helper still routes map 5 from stage_panel_finish at $B121/$B125 to stage_name_pending_score at $B197, draws the pending score at $8408, then calls the shared HUD entry at $C468 from $B1B5. The new low-RAM call at $1AE1 performs the existing screen-specific name initialization; it adds no second common HUD painter. The High Score runtime listing hash matches the previously retained d610 listing hash.
+- Result: candidate G3 static route assertions pass. This is listing/source evidence, not a live crash reproduction or visible screen test.
+
+Initial audit failure and correction
+- The first G2 attempt at revision 0bdcc29bee907ba65d38702f2ca662b7356f7e40 exited 1 after the assembly, layout, and ROM gates passed. The post-build source-documentation audit rejected the existing internal branch label presentation-runtime:load_done_dynamic_owner as unclassified.
+- Inspection confirmed that this label already existed in the source at d610 and is an internal branch target, not a new callable routine or exported interface. Added its basic-block classification to scripts/source_reference.json, committed as 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6, and reran the approved build once. Runtime source was unchanged by this correction. The corrected source-documentation audit and complete build passed.
+
+Disposition
+- G2 and candidate G3 pass for the receipt-bound candidate above. The approved user-owned M1 Enter High Score visible check remains pending; no emulator or game launch occurred. G4 timing remains deferred by user direction and required before FEAT-013 can be marked Done.
