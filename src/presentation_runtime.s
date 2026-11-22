@@ -523,9 +523,9 @@ load_done_dynamic_ready
         ifne    COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
-        beq     load_done_dynamic_owner
-        cmpb    #PRESENTATION_MAP_GAME_OVER
-        bne     load_done_dynamic_ready
+        blo     load_done_dynamic_ready
+        cmpb    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        bhi     load_done_dynamic_ready
 load_done_dynamic_owner
         jsr     DEMO_RUNTIME_TICK
 load_done_dynamic_ready
