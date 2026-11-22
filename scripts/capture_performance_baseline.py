@@ -88,22 +88,13 @@ def stop_xroar(process: subprocess.Popen[bytes]) -> None:
     if process.poll() is not None:
         return
     if os.name == "nt":
-        process.terminate()
+        process.kill()
     else:
         try:
-            os.killpg(process.pid, signal.SIGTERM)
+            os.killpg(process.pid, signal.SIGKILL)
         except ProcessLookupError:
-            return
-    try:
-        process.wait(timeout=1)
-    except subprocess.TimeoutExpired:
-        if os.name == "nt":
-            process.kill()
-        else:
-            try:
-                os.killpg(process.pid, signal.SIGKILL)
-            except ProcessLookupError:
-                pass
+            pass
+    if process.poll() is None:
         process.wait()
 
 
