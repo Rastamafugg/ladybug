@@ -1,6 +1,6 @@
 FEAT-013 G4 timing setup and baseline qualification
 Date: 2026-11-22
-Status: capture/parser baseline qualification incomplete; no G4 timing result.
+Status: three-case worklist plan approved; capture/parser baseline qualification incomplete; no G4 timing result.
 
 Approved G4 target and workload
 The canonical FEAT-013 ticket requires measuring the complete-profile adaptive gameplay HUD worklist against a maximum of 27,000 active CPU cycles. The named work includes the shared snapshot refresh, field painter, persistent damage replay, and completed-frame publication for score/stage, lives, multiplier, SPECIAL/EXTRA progress, and vegetable value. The target is a maximum, not a baseline measurement.
@@ -24,12 +24,25 @@ timeout --signal=TERM --kill-after=2 60s bash -c 'cd /mnt/c/Users/19029/.codex/w
 
 XRoar 1.10 was present. The command did not produce build/perf-baseline.sna, either perf-gate raw trace, or build/gate-performance.json. build/perf-baseline.log exists and is empty. The verifier was not reached. The command wrapper did not retain its final exit code, so the exact stop reason is unknown. The baseline capture script was restored to its prior SHA-256 FF1AD905F0634B8890A54392CD704FAC4A8D3DB1EACF3A5AF472FB1740DC3966; the baseline worktree is clean.
 
-Second marker diagnostic: one read-only XRoar 1.10 run used the same baseline ROM and a 60-second external timeout, trapping at the earlier main_render address $C175 and requesting build/perf-main-render.sna. It exited 124 from timeout and produced no snapshot. The capture observed neither the requested trap nor a snapshot within the bound. It cannot distinguish whether guest startup failed to reach the marker or the trap/snapshot observer failed.
+Offline capture-failure review
+The first checkpoint selected by capture_performance_baseline.py is frame_render_impl at $09D4, inside copied low RAM $0800-$17FF. The XRoar wiki warns that trap snapshots taken inside this copied module can serialize that page incorrectly and directs saved renderer captures to resident main_render. This makes $09D4 unsuitable as a retained snapshot point, but does not explain why the file was absent.
 
-This is a capture/setup failure, not a game timing result or product assertion. No candidate build, candidate timing run, or visible XRoar launch occurred. The --gate-only fixture is a gate-rendering worklist, not a HUD worklist; even a successful run would qualify only the generic capture/parser path, not FEAT-013 G4.
+The script's run_xroar uses subprocess.run without a host-side timeout or child-process cleanup. The first outer 60-second cap wrapped bash/python; its exit status was not retained and build/perf-baseline.log is empty. This explains the weak failure record, not the missing snapshot. The second direct $C175 attempt did not include -ram-init 0, which the script uses for cold capture, so it was not a controlled comparison.
 
-Offline review confirmed the baseline enemy-runtime listing contains frame_render_impl at $09D4, and the baseline main listing contains main_render at $C175. XRoar 1.10 help exposes cart autorun, trap-range, trap-snapshot, and a trap-timeout that starts after a trap fires. This confirms the symbols and CLI options exist, but it does not explain why the initial marker was not captured. Repository search found no existing HUD-specific performance fixture: the shared capture script has only the broad scenario set and the gate-only option.
+Baseline-only startup diagnosis
+Command, from the exact baseline worktree:
 
-Proposed G4 event binding, pending user approval: (1) the final SPECIAL pickup, which awards score and requests the full SPECIAL word plus shared HUD; (2) the final EXTRA pickup with a reserve-life slot available, which requests lives and the full EXTRA word; and (3) a multiplier pickup, which requests the multiplier painter. Each captures the normal shared snapshot refresh and full active frame. Report each result and the maximum, not an average. This changes the deferred single-predecessor binding to three source-legal event cases. Exact controlled snapshots and the candidate command remain unbound. Readiness still requires user approval of this card, successful baseline capture/parser qualification, and a separately checked cycle total. The timing reference in wiki/internal/platform/timing.html defines trace dt as event ticks: discard the first trace delta, convert subsequent deltas by /8, and exclude only the identified SYNC wait. The 60-second bound applies to the entire automated phase. Candidate timing remains unrun.
+timeout --signal=TERM --kill-after=2 60s python3 scripts/verify_gmc_boot.py --rom build/ladybug.rom --map build/ladybug.map --manifest build/ladybug-sparse-layout.json --startup-only --loader-timeout 10 --resident-timeout 10
 
-Stop further emulator probes under the current setup. Offline source/tool review must first distinguish startup/autorun failure from marker-address or trap-observer failure. After the proposed three-event card is approved, bind exact controlled snapshots and a command in the existing capture tooling, qualify capture/parser behavior on the baseline, and only then run candidate timing under the approved cap.
+Exit code 0. The command returned in about 3.4 seconds and reported STARTUP_BOOT_COMPLETE, STARTUP_LOADER_HANDOFF, STARTUP_RESIDENT_ENTRY, STARTUP_RESIDENT_STARTUP_COMPLETE, STARTUP_BANK1_RAM_EXACT, and STARTUP_AUDIO_PAGE_EXACT. GDB printed a warning that no executable was specified, but the startup and byte-comparison checks completed. This proves cold autorun reached resident startup and the checked resident/audio data matched. It does not prove the later Attract-to-demo route reached gameplay rendering.
+
+Corrected resident marker attempt
+Command, from the exact baseline worktree:
+
+timeout --signal=TERM --kill-after=2 60s xroar -ui null -ao null -machine coco3 -machine-cpu 6809 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -ram-init 0 -cart-autorun -no-ratelimit -trap pc=0xC175 -trap-range 1 -trap-snap build/feat013-g4-main-render.sna -trap-timeout 1
+
+XRoar returned exit code 1 before the 60-second cap. The command returned no console text and wrote no snapshot. The retained result cannot establish whether the trap fired or why XRoar exited. No further emulator probe ran after this result.
+
+The approved three-case G4 binding is: (1) completing SPECIAL, covering its full word redraw plus awarded score/shared HUD; (2) completing EXTRA with reserve-life capacity, covering its full word redraw and lives; and (3) a multiplier pickup. Each is measured as a complete active frame including the shared snapshot refresh and damage replay. All three must be at or below 27,000 active CPU cycles; report each and the maximum, not an average. Use the timing rule in wiki/internal/platform/timing.html: discard the first XRoar event delta, divide subsequent deltas by 8, and exclude only identified SYNC wait. The 60-second limit covers the entire automated phase.
+
+G4 remains unqualified. Exact controlled snapshots, a complete-frame capture command, and parser-oracle binding remain incomplete. The next setup change should stay in the existing capture runner: use a resident checkpoint, preserve the same -ram-init 0 startup flags, add a host-side whole-phase deadline and child cleanup, and retain XRoar output and exit status. Reuse the existing cleanup pattern in verify_gmc_boot.py; do not add a new harness. Baseline capture/parser qualification must pass before candidate timing. No candidate build, candidate timing run, or visible XRoar launch occurred.
