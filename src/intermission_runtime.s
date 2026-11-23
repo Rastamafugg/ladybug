@@ -38,6 +38,7 @@ PRESENTATION_MODULE_DRAW equ $0821
 JOY_DIR                 equ $0005
 PLAYER_FB               equ $000B
 PLAYER_WANT             equ $000F
+SCORE_BCD               equ $001D
 LIVES                   equ $0023
 FB_BACK                 equ $0090
 PLAYER_BG_PTR           equ $00A2
@@ -46,10 +47,10 @@ PRES_CONTEXT            equ $00A7
 PRES_INTERMISSION       equ $00A8
 PRES_EVENT              equ $00A9
 
-HUD_P1_LIVES            equ $02A4
 AUDIO_MUSIC_BUSY        equ $02D4
 IM_SAVE_A               equ $A300
 IM_SAVE_B               equ $AB00
+IM_SPECIAL_COIN_FB      equ $2A28       ; coin 16x16 root at (10,2) = (80,16) px
 
 MODE_INTERMISSION       equ 9
 PRES_CONTEXT_NEXT_STAGE equ 2
@@ -79,6 +80,10 @@ im_stage_entry
         lda     <PRES_INTERMISSION
         bne     im_begin_intermission
         ; Plain stage clear (no EXTRA/SPECIAL intermission).
+        ; Map hidden BACK before next_stage so erase_entity_footprints never writes FRONT.
+        jsr     PRES_MODULE_MAP_BACK
+        lda     #$34
+        sta     PAR5
         jsr     PRES_MAIN_NEXT_STAGE
         lda     #PRES_CONTEXT_NEXT_STAGE
         sta     <PRES_CONTEXT
@@ -103,12 +108,9 @@ im_begin_intermission
         lda     #30
         sta     im_dwell
 
-        ; Compute EXTRA reserve target slot = min(pre_award_lives, 11).
-        ; alp_extra already incremented LIVES (saturating at 255).
+        ; Compute EXTRA reserve target slot = min(pre-award LIVES, 11).
+        ; LIVES is incremented upon Lady Bug arrival at the reserve slot.
         lda     <LIVES
-        beq     im_slot_zero
-        deca
-im_slot_zero
         cmpa    #11
         bls     im_slot_ok
         lda     #11
@@ -137,22 +139,8 @@ im_route_selected
         sta     PAR5
         lbsr    im_load_segment
 
-        ; Capture shared HUD snapshot. For EXTRA when LIVES <= 12, hold the
-        ; newly won marker off until Lady Bug arrives at the reserve row.
+        ; Capture pre-award HUD snapshot (score and lives update on arrival).
         jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
-        lda     im_kind
-        cmpa    #1
-        bne     im_entry_done
-        lda     <LIVES
-        cmpa    #12
-        bhi     im_entry_done
-        beq     im_hide_new_life
-        tsta
-        beq     im_entry_done
-im_hide_new_life
-        deca
-        sta     HUD_P1_LIVES
-im_entry_done
         lda     #1
         rts
 
@@ -174,7 +162,9 @@ im_tick
 im_wait_audio
         tst     AUDIO_MUSIC_BUSY
         bne     im_hold
-        ; Clean exit: clear intermission flag and any held/buffered inputs.
+        ; Clean exit: map hidden BACK before next_stage so erase_entity_footprints
+        ; never writes to the visible FRONT intermission surface during Level Start load.
+        jsr     PRES_MODULE_MAP_BACK
         lda     #$34
         sta     PAR5
         clr     <PRES_INTERMISSION
@@ -251,13 +241,13 @@ im_after_restore
         ; Step 3: Advance route once both buffers are initialized.
         lda     im_init_mask
         cmpa    #3
-        bne     im_draw_current
+        lbne    im_draw_current
         tst     im_route_done
         bne     im_check_final_hud
         inc     im_parity
         lda     im_parity
         bita    #1
-        beq     im_draw_current         ; 2 px every 2nd Vbord = 1 px/frame
+        lbeq    im_draw_current         ; 2 px every 2nd Vbord = 1 px/frame
 
         ; Advance one 2-pixel step along im_dir.
         lda     im_dir
@@ -292,11 +282,27 @@ im_step_done
         lbsr    im_load_segment
         tst     im_route_done
         beq     im_draw_current
-        ; Route just completed: refresh live HUD snapshot (reveals EXTRA life).
+        ; Route just completed: apply the arrival reward before refreshing HUD.
+        lda     im_kind
+        cmpa    #1
+        beq     im_award_extra
+        ; SPECIAL arrival: award 100,000 BCD points when Lady Bug overlaps coin.
+        lda     <SCORE_BCD
+        adda    #$10
+        daa
+        sta     <SCORE_BCD
+        bra     im_award_capture
+im_award_extra
+        ; EXTRA arrival: saturate reserve lives at 255 before replacing sprite.
+        lda     <LIVES
+        cmpa    #$FF
+        bhs     im_award_capture
+        inc     <LIVES
+im_award_capture
         jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
 
 im_check_final_hud
-        ; Repaint LIVES HUD on each buffer once after route completion for EXTRA.
+        ; Apply arrival visual update once on each A/B buffer.
         lda     im_cur_bit
         bita    im_final_mask
         bne     im_draw_current
@@ -304,7 +310,26 @@ im_check_final_hud
         sta     im_final_mask
         lda     im_kind
         cmpa    #1
-        bne     im_draw_current
+        beq     im_final_extra
+        ; SPECIAL: update P1 score HUD and despawn the 16x16 coin at (80,16).
+        lda     #PRESENTATION_HUD_DRAW_PRIMARY
+        clrb
+        jsr     PRES_MAIN_SHARED_HUD
+        ldx     #IM_SPECIAL_COIN_FB
+        lda     #16
+        sta     im_row_cnt
+        ldd     #0
+im_clear_coin_row
+        std     ,x
+        std     2,x
+        std     4,x
+        std     6,x
+        leax    160,x
+        dec     im_row_cnt
+        bne     im_clear_coin_row
+        bra     im_draw_current
+im_final_extra
+        ; EXTRA: paint permanent 16x16 reserve marker in place of moving sprite.
         lda     #PRESENTATION_HUD_DRAW_LIVES
         clrb
         jsr     PRES_MAIN_SHARED_HUD

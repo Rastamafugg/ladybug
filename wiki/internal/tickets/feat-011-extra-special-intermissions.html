@@ -40,12 +40,12 @@
         <tbody>
           <tr><td>Primary resident ROM (<code>complete / keyboard / adaptive=1 / none</code>)</td><td>8,163 B</td><td>&le; 8,192 B</td><td>+29 B</td><td>PASS</td></tr>
           <tr><td>Primary presentation module (<code>$1900&ndash;$1DFF</code>)</td><td>1,273 B</td><td>&le; 1,280 B</td><td>+7 B</td><td>PASS</td></tr>
-          <tr><td>Primary adaptive active image (<code>$038F&ndash;$0697</code>)</td><td>735 B</td><td>&le; 777 B</td><td>+42 B</td><td>PASS</td></tr>
+          <tr><td>Primary adaptive active image (<code>$038F&ndash;$0697</code>)</td><td>708 B</td><td>&le; 777 B</td><td>+69 B</td><td>PASS</td></tr>
           <tr><td>Primary intermission stage stub (<code>$24:$B900</code>)</td><td>21 B</td><td>&le; 32 B</td><td>+11 B</td><td>PASS</td></tr>
-          <tr><td>Primary intermission runtime (<code>$24:$B920 &rarr; $0300</code>)</td><td>801 B</td><td>&le; 938 B</td><td>+137 B</td><td>PASS</td></tr>
-          <tr><td>Primary page-<code>$24</code> auxiliary staging (<code>$A422&ndash;$C000</code>)</td><td>6,175 B (ends <code>$BC41</code>)</td><td>&le; 7,134 B</td><td>+959 B</td><td>PASS</td></tr>
+          <tr><td>Primary intermission runtime (<code>$24:$B920 &rarr; $0300</code>)</td><td>851 B</td><td>&le; 938 B</td><td>+87 B</td><td>PASS</td></tr>
+          <tr><td>Primary page-<code>$24</code> auxiliary staging (<code>$A422&ndash;$C000</code>)</td><td>6,225 B (ends <code>$BC73</code>)</td><td>&le; 7,134 B</td><td>+909 B</td><td>PASS</td></tr>
           <tr><td>Primary EVD1 expanded pages <code>$25</code> / <code>$26</code></td><td>7,744 B / 1,254 B (8,998 B total)</td><td>&le; 8,192 B each / &le; 16,384 B total</td><td>+7,386 B</td><td>PASS</td></tr>
-          <tr><td>Primary boot LZSS descriptors / GMC spare</td><td>9 / 9 streams; 5,464 B spare</td><td>&le; 9 streams; &ge; 512 B spare</td><td>0 slots / +4,952 B</td><td>PASS</td></tr>
+          <tr><td>Primary boot LZSS descriptors / GMC spare</td><td>9 / 9 streams; 5,438 B spare</td><td>&le; 9 streams; &ge; 512 B spare</td><td>0 slots / +4,926 B</td><td>PASS</td></tr>
           <tr><td>Fixture ROMs (<code>special-e</code> &amp; <code>extra-e</code>, resident)</td><td>8,190 B each</td><td>&le; 8,192 B</td><td>+2 B</td><td>PASS</td></tr>
           <tr><td>Option 2 compile-only: <code>complete / joystick / adaptive=1</code></td><td>8,199 B</td><td>&le; 8,192 B</td><td>&minus;7 B (improved from &minus;35 B baseline)</td><td>FAIL (compile-only report)</td></tr>
           <tr><td>Option 2 compile-only: <code>complete / keyboard / adaptive=0</code></td><td>8,281 B</td><td>&le; 8,192 B</td><td>&minus;89 B (vs. &minus;79 B baseline)</td><td>FAIL (compile-only report)</td></tr>
@@ -56,13 +56,17 @@
       <ul>
         <li><strong>F11-01 (PASS):</strong> <code>generate_feat011_extra_connectors.py --check</code> passed; <code>test_feat011_extra_connectors.py</code> passed (7/7); <code>build_event_asset_bundle.py --self-test</code> rejected 4/4 marker negative controls (missing, duplicate, transformed, wrong-GID); <code>verify_sparse_sprites.py</code> verified exact EVD1 pages <code>$25&ndash;$26</code> round-trip and <code>$2A84</code> destinations.</li>
         <li><strong>F11-02 (PASS):</strong> Primary build passed with DOC-002 <code>PASS: 19 modules, 341/341 routines, 7,303/7,303 labels</code>; <code>verify_audio_runtime.py --rom build/ladybug.rom</code> passed (18 cues, 1,959 PSG bytes); <code>verify_presentation_flow.py</code>, <code>verify_gmc_overflow.py</code>, and <code>verify_presentation_sparse.py</code> passed; 3/3 fixture-selector rejection controls exited <code>2</code> before creating build directories (<code>reason=unknown value=invalid</code>, <code>reason=release value=special-e</code>, <code>reason=release value=extra-e</code>); static listing audit confirmed all 16 <code>PAR5</code> stores in <code>intermission_runtime</code> restore <code>$34</code> and <code>extra_complete</code> saturates <code>LIVES</code> at <code>$FF</code>.</li>
-        <li><strong>Built ROM SHA-256 hashes (post-<code>im_draw_sprite</code> <code>D</code>-clobber fix):</strong>
+        <li><strong>Built ROM SHA-256 hashes (post-arrival-reward &amp; clean-transition fix):</strong>
           <ul>
-            <li>Primary (<code>LADYBUG_FEAT011_FIXTURE=none</code>): <code>build/ladybug.rom</code> &mdash; <code>f647f4b99b4d5aaa5d3da6b4d68c4c29e01819943a820c950caa83c95fa3ac45</code></li>
-            <li>SPECIAL playtest fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>ffa704bcc39121c0306f3e6f514b08d1aafc372c9b19f334e92c644c54ac6156</code></li>
-            <li>EXTRA playtest fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>63a9ce394c74085ce0600de16039c5745a5042230e74b7f5cd8cb82f5eaa9314</code></li>
+            <li>Primary (<code>LADYBUG_FEAT011_FIXTURE=none</code>): <code>build/ladybug.rom</code> &mdash; <code>162cc7765e555897e3026007297b540ed8a2d6508c49b7400b6253b8187f6c02</code></li>
+            <li>SPECIAL playtest fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>b49c425af021c891e3900e78497e61bd41dcc329fa02ee8ed7c88ba023e120fa</code></li>
+            <li>EXTRA playtest fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>3a76e07eec188feabcc984af759ffede96f742b8c86db828d4c5bae343a0cde2</code></li>
           </ul>
-          <p><em>Playtest defect fix (2026-11-23):</em> First manual pass on <code>904b03c4</code> showed Lady Bug path smearing plus a horizontal corruption band across the maze and HUDs ~3/4 up the screen. Listing inspection proved <code>lda #$34 / sta PAR5</code> in <code>im_draw_sprite</code> clobbered register <code>A</code> before <code>std im_old_fb_a</code> / <code>std im_old_fb_b</code>, redirecting every save-under restore to <code>$3400&ndash;$34FF</code> (scanlines 32&ndash;49). Moving <code>lda #$34 / sta PAR5</code> ahead of the <code>im_fb_dst</code> calculation fixes both symptoms at 0 bytes net cost (<code>801/938 B</code>); primary build, DOC-002, audio, presentation-flow, and both fixture builds re-passed.</p>
+          <p><em>Playtest defect fixes (2026-11-23):</em></p>
+          <ul>
+            <li><strong>Pass 1 (<code>1cf2de62</code>):</strong> Moved <code>lda #$34 / sta PAR5</code> ahead of <code>im_fb_dst</code> in <code>im_draw_sprite</code> so register <code>A</code> is not clobbered before <code>std im_old_fb_a/b</code> (eliminated path smear and scanline 32&ndash;49 corruption).</li>
+            <li><strong>Pass 2:</strong> (a) Deferred SPECIAL +100,000 BCD award to arrival at coin <code>(80,16)</code> (<code>$2A28</code>), despawning the 16&times;16 coin to black and repainting primary HUD on both A/B buffers; (b) deferred EXTRA 255-saturating <code>LIVES</code> increment to reserve-slot arrival so the slot stays empty during travel and the moving Lady Bug despawns into the permanent 16&times;16 marker; (c) called <code>PRES_MODULE_MAP_BACK</code> + <code>PAR5=$34</code> before <code>PRES_MAIN_NEXT_STAGE</code> so <code>erase_entity_footprints</code> writes only to hidden <code>BACK</code> instead of corrupting visible <code>FRONT</code> right before Level Start publishes.</li>
+          </ul>
         </li>
         <li><strong>F11-03 (PENDING — User-Owned):</strong> Manual XRoar RGB playtest of <code>special-e</code>, <code>extra-e</code>, and primary <code>build/ladybug.rom</code> (including the 12-starting-lives boundary check) must pass before advancing FEAT-011 to <code>Done</code>.</li>
       </ul>

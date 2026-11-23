@@ -1223,10 +1223,11 @@ alp_special
         ifne    ADAPTIVE_RENDERING
         jsr     AD_SPECIAL_SCORE_EXEC
         else
-        bsr     add_special_score
         ifne    COMPLETE_PROFILE
         lda     #2
         sta     PRES_INTERMISSION
+        else
+        bsr     add_special_score
         endc
         endc
         inc     STAGE_PENDING
@@ -1292,7 +1293,9 @@ alp_extra
         clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         lda     #1
         sta     PRES_INTERMISSION
-        endc
+        inc     STAGE_PENDING
+        bra     alp_extra_queue
+        else
         ; LIVES counts reserve lives after the active player has entered.
         ; Saturate the reserve count before it wraps to zero.
         lda     LIVES
@@ -1304,8 +1307,6 @@ alp_extra
         sta     RENDER_FLAGS
 alp_extra_pending
         inc     STAGE_PENDING
-        ifne    COMPLETE_PROFILE
-        bra     alp_extra_queue
         endc
         endc
 alp_extra_draw
