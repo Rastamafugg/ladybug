@@ -1272,9 +1272,9 @@ alp_extra
         clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         endc
         ; LIVES counts reserve lives after the active player has entered.
-        ; Keep twelve reserve markers; the active life is additional.
+        ; Saturate the reserve count before it wraps to zero.
         lda     LIVES
-        cmpa    #MAX_RESERVE_LIVES
+        cmpa    #$FF
         bhs     alp_extra_pending
         inc     LIVES
         lda     RENDER_FLAGS
