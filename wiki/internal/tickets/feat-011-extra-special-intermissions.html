@@ -17,13 +17,13 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Internal · feature · proposed (refreshed plan)</p>
-      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">Proposed</span></h1>
-      <p class="wiki-meta">1.0 behavior approved; refreshed architecture (page-$24/$0300 intermission overlay + resident relocation) and lightweight verification plan proposed against <code>main</code> (<code>40286e80</code>) &middot; awaiting approval before Ready</p>
+      <p class="wiki-eyebrow">Internal · feature · in progress</p>
+      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">In Progress</span></h1>
+      <p class="wiki-meta">Refreshed architecture (page-$24/$0300 intermission overlay + resident relocation) and lightweight verification plan (<code>F11-01</code>&ndash;<code>F11-03</code> + final compile-only <code>joystick</code>/<code>nonadaptive</code> fit check) approved 2026-11-23; Ready &rarr; In Progress on branch <code>feat/feat011-intermissions</code></p>
     </header>
 
     <section id="feat011-refreshed-plan-20261123">
-      <h2>2026-11-23 &mdash; Refreshed architecture &amp; lightweight verification plan (Proposed against <code>main</code> <code>40286e80</code>)</h2>
+      <h2>2026-11-23 &mdash; Refreshed architecture &amp; lightweight verification plan (Approved &rarr; Ready &rarr; In Progress on <code>feat/feat011-intermissions</code>)</h2>
       <p><strong>Why refreshed:</strong> Since FEAT-011 was last updated on 2026-10-31, <a href="feat-010-attract-menu-free-start.html#feat010-done-20261123">FEAT-010</a>, <a href="feat-012-feat010-acceptance-closeout.html#feat012-done-20261123">FEAT-012</a>, <a href="feat-013-shared-hud-fields.html#feat013-g4-amended-done-20261123">FEAT-013</a>, and <a href="bug-129-loading-cue-full-chip.html">BUG-129</a> have all reached <code>Done</code> and merged to <code>main</code> (<code>40286e80</code>). On current <code>main</code>, <code>presentation_runtime.s</code> has only <strong>8 B free</strong> (<code>1,272/1,280 B</code>) and resident ROM <code>src/main.s</code> has only <strong>1 B free</strong> (<code>8,191/8,192 B</code>), while the older IS-02/IS-03/IS-04 plan assumed three legacy build profiles and a patched XRoar <code>-monitor</code> automated observer that is now deferred by project policy. This refresh updates the module layout and simplifies verification to match current <code>main</code>; it does not change the approved 1.0 user-visible intermission behavior.</p>
 
       <h3>What is already in place on <code>main</code> (checked source facts)</h3>
@@ -64,7 +64,7 @@
           </ol>
         </li>
       </ul>
-      <p><strong>Decision needed to advance to <code>Ready</code>:</strong> Approve (1) the refreshed page-<code>$24</code>/<code>$0300</code> intermission-module + <code>add_special_score</code> relocation architecture, (2) the 3-gate lightweight verification plan (<code>F11-01</code>&ndash;<code>F11-03</code>, single complete/keyboard/adaptive profile, no headless XRoar <code>-monitor</code> automation), and (3) starting work on a fresh feature branch from <code>main</code>.</p>
+      <p><strong>Approval &amp; Ready assignment (2026-11-23):</strong> User approved all three items plus Option 2 (one-time compile-only fit check on <code>joystick/adaptive</code> and <code>keyboard/nonadaptive</code> at the end of FEAT-011, preserving both build paths via <code>ifne ADAPTIVE_RENDERING</code> / <code>else</code> guards) and requested delegating implementation to a <code>gpt-6.2-sol</code> (<code>reasoningEffort: high</code>) child agent. Branch: <code>feat/feat011-intermissions</code> (branched from <code>main</code> at <code>956b7eb2</code>). Owned implementation targets: <code>tiled/coco-extra-screen.tmx</code> (connector XML normalization), <code>scripts/build_event_asset_bundle.py</code>, <code>scripts/build_sparse_sprites.py</code>, <code>scripts/verify_sparse_sprites.py</code>, <code>scripts/build.sh</code>, <code>scripts/source_reference.json</code>, <code>scripts/source_reference_adaptive.json</code>, <code>src/main.s</code>, <code>src/adaptive_active.s</code>, <code>src/adaptive_interface.inc</code>, <code>src/presentation_runtime.s</code>, new <code>src/intermission_runtime.s</code>, and <code>wiki/internal/implementation/routine-catalog.html</code>. Read-only: <code>src/audio_runtime.s</code>, <code>src/gmc_bootstrap.s</code> (unless descriptor extent guard requires update), <code>tiled/coco-special-screen.tmx</code>, and <code>tiled/coco-template.tmx</code>. Parent retains QA review, integration, and final status updates. Status advances <code>Proposed</code> &rarr; <code>Approved</code> &rarr; <code>Ready</code> &rarr; <code>In Progress</code>.</p>
     </section>
 
     <section id="metadata">
