@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · work ticket · bug</p>
-      <h1>BUG-129 — Use the full sound chip for the loading cue <span class="wiki-badge">Verification</span></h1>
+      <h1>BUG-129 — Use the full sound chip for the loading cue <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">Restore the dropped Cue 6 lead melody and remove the duplicate bass stream so all three distinct voices play cleanly on one GMC SN76489.</p>
     </header>
 
     <section id="status">
       <h2>Ticket state</h2>
       <ul>
-        <li><strong>Status:</strong> Verification (2026-11-22). Implementation committed as <code>a29b41ec4e256add368c01f647e17729ae0710c3</code> on <code>codex/feat013-shared-hud</code> (bass attenuation <code>2</code>). Automated gates <code>B129-01</code> and <code>B129-02</code> passed with parent QA review. Awaits user-owned manual audible check <code>B129-03</code> on ROM SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code> before Done.</li>
+        <li><strong>Status:</strong> Done (2026-11-22). Source commit <code>a29b41ec4e256add368c01f647e17729ae0710c3</code> on <code>codex/feat013-shared-hud</code> (bass attenuation <code>2</code>). Automated gates <code>B129-01</code> and <code>B129-02</code> passed, and user-owned manual audible check <code>B129-03</code> passed by user report on ROM SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code> (“fixed the issue altogether”).</li>
         <li><strong>Created / updated:</strong> 2026-11-19 / 2026-11-22.</li>
         <li><strong>Priority / order:</strong> P2 / independent of <a href="./feat-013-shared-hud-fields.html">FEAT-013</a> G4 timing; coordinate page-<code>$3D</code> capacity with FEAT-013's <code>$BF00</code> word-painter placement.</li>
         <li><strong>Roadmap or source:</strong> user report; <a href="../platform/sound.html#new-life-cue-20261010">Sound platform plan</a>; <a href="./rsch-001-arcade-audio-capture-design.html">RSCH-001</a>; <a href="./feat-006-gmc-audio-event-integration.html">FEAT-006</a>; <a href="./bug-117-new-life-entry-music.html">BUG-117</a>.</li>
@@ -170,8 +170,8 @@
             <li><code>verify_audio_runtime.py --rom build/ladybug.rom</code> exited <code>0</code>: 18 cue descriptors, <code>6,696 B</code> page-<code>$3D</code> payload, 1 loader stream reconstructs exactly, 18 isolated cues / 400 waits / <code>1,959</code> tester-equivalent PSG bytes (exact <code>+21</code> bytes for Stream 0's 27 commands vs. Stream 3's 20).</li>
           </ul>
         </li>
-        <li><strong>B129-03 (user-owned manual audible acceptance) — Pending:</strong> Awaiting user listening report on <code>C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug\build\ladybug.rom</code> (SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>).</li>
-        <li><strong>QA verdict:</strong> Scope, diff hygiene (<code>git diff --check</code> clean), capacity limits, and automated gates <code>B129-01</code>/<code>B129-02</code> pass. Residual risk: live XRoar/hardware playback and `BUG-128` onset timing remain outside automated checks. Justified next state: <code>Verification</code> pending <code>B129-03</code>.</li>
+        <li><strong>B129-03 (user-owned manual audible acceptance) — Passed (user report, 2026-11-22):</strong> User launched <code>C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug\build\ladybug.rom</code> (SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>) in XRoar RGB and reported that the change “fixed the issue altogether.”</li>
+        <li><strong>QA verdict:</strong> All four acceptance criteria and DOC-014 cards <code>B129-01</code>–<code>B129-03</code> pass on source commit <code>a29b41ec4e256add368c01f647e17729ae0710c3</code>. Scope, diff hygiene, page-<code>$3D</code> capacity, and adjacent-cue invariance verified. Residual notes: physical CoCo 3 GMC hardware listening remains Phase 10 acceptance, and cue-to-visual onset timing remains separate under <a href="./bug-128-audio-cue-visual-timing.html">BUG-128</a>. Final state: <strong>Done</strong>.</li>
       </ul>
     </section>
 
@@ -181,6 +181,7 @@
         <li>2026-11-19 — Draft created from the user report. No cause or implementation result claimed.</li>
         <li>2026-11-22 — Completed read-only source/asset diagnosis and offline 4 MHz SN76489 listening test. Confirmed Cue 6 has 4 arcade tone streams where Streams 2 and 3 are byte-for-byte identical bass tracks; the existing RMS reduction dropped Stream 0 (lead melody) and kept both identical bass streams, causing missing melody and simulated out-of-phase bass cancellation after tick 106. Measured exact <code>+28 B</code> stream delta (<code>337 → 365 B</code>). Reclassified from Draft <code>High-risk</code> to Proposed <code>Standard</code>; retained four 48 kHz WAV comparison clips under <code>repro/bug129-cue06-attenuation-test/</code> so the user can compare bass attenuation <code>4</code> vs. <code>2</code> before approving.</li>
         <li>2026-11-22 — User approved BUG-129, DOC-014 cards <code>B129-01</code>–<code>B129-03</code>, bass attenuation <code>2</code>, and branch <code>codex/feat013-shared-hud</code>. Qualified baseline <code>verify_audio_runtime.py</code> on <code>0fb9f186</code>, implemented and committed bounded fix as <code>a29b41ec4e256add368c01f647e17729ae0710c3</code>, passed <code>B129-01</code> and <code>B129-02</code> (ROM SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>), and moved BUG-129 to <code>Verification</code> pending user-owned <code>B129-03</code> audible check.</li>
+        <li>2026-11-22 — User confirmed on XRoar RGB that ROM <code>496218b7...</code> fixed the Cue 6 playback issue altogether (<code>B129-03</code> passed). Advanced BUG-129 from <code>Verification</code> to <code>Done</code>.</li>
       </ul>
     </section>
 
