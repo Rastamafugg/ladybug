@@ -38,7 +38,7 @@
       <table class="wiki-table">
         <thead><tr><th>Target / profile</th><th>Measured</th><th>Hard cap / target</th><th>Margin</th><th>Status</th></tr></thead>
         <tbody>
-          <tr><td>Primary resident ROM (<code>complete / keyboard / adaptive=1 / none</code>)</td><td>8,155 B</td><td>&le; 8,192 B</td><td>+37 B</td><td>PASS</td></tr>
+          <tr><td>Primary resident ROM (<code>complete / keyboard / adaptive=1 / none</code>)</td><td>8,161 B</td><td>&le; 8,192 B</td><td>+31 B</td><td>PASS</td></tr>
           <tr><td>Primary presentation module (<code>$1900&ndash;$1DFF</code>)</td><td>1,273 B</td><td>&le; 1,280 B</td><td>+7 B</td><td>PASS</td></tr>
           <tr><td>Primary adaptive active image (<code>$038F&ndash;$0697</code>)</td><td>704 B</td><td>&le; 777 B</td><td>+73 B</td><td>PASS</td></tr>
           <tr><td>Primary intermission stage stub (<code>$24:$B900</code>)</td><td>21 B</td><td>&le; 32 B</td><td>+11 B</td><td>PASS</td></tr>
@@ -46,7 +46,7 @@
           <tr><td>Primary page-<code>$24</code> auxiliary staging (<code>$A422&ndash;$C000</code>)</td><td>6,284 B (ends <code>$BCAE</code>)</td><td>&le; 7,134 B</td><td>+850 B</td><td>PASS</td></tr>
           <tr><td>Primary EVD1 expanded pages <code>$25</code> / <code>$26</code></td><td>7,744 B / 1,254 B (8,998 B total)</td><td>&le; 8,192 B each / &le; 16,384 B total</td><td>+7,386 B</td><td>PASS</td></tr>
           <tr><td>Primary boot LZSS descriptors / GMC spare</td><td>9 / 9 streams; 5,384 B spare</td><td>&le; 9 streams; &ge; 512 B spare</td><td>0 slots / +4,872 B</td><td>PASS</td></tr>
-          <tr><td>Fixture ROMs (<code>special-e</code> &amp; <code>extra-e</code>, resident)</td><td>8,182 B each</td><td>&le; 8,192 B</td><td>+10 B</td><td>PASS</td></tr>
+          <tr><td>Fixture ROMs (<code>special-e</code> &amp; <code>extra-e</code>, resident)</td><td>8,188 B each</td><td>&le; 8,192 B</td><td>+4 B</td><td>PASS</td></tr>
           <tr><td>Option 2 compile-only: <code>complete / joystick / adaptive=1</code></td><td>8,199 B</td><td>&le; 8,192 B</td><td>&minus;7 B (improved from &minus;35 B baseline)</td><td>FAIL (compile-only report)</td></tr>
           <tr><td>Option 2 compile-only: <code>complete / keyboard / adaptive=0</code></td><td>8,281 B</td><td>&le; 8,192 B</td><td>&minus;89 B (vs. &minus;79 B baseline)</td><td>FAIL (compile-only report)</td></tr>
         </tbody>
@@ -55,18 +55,19 @@
       <h3>Automated gate results &amp; ROM artifacts</h3>
       <ul>
         <li><strong>F11-01 (PASS):</strong> <code>generate_feat011_extra_connectors.py --check</code> passed; <code>test_feat011_extra_connectors.py</code> passed (7/7); <code>build_event_asset_bundle.py --self-test</code> rejected 4/4 marker negative controls (missing, duplicate, transformed, wrong-GID); <code>verify_sparse_sprites.py</code> verified exact EVD1 pages <code>$25&ndash;$26</code> round-trip and <code>$2A84</code> destinations.</li>
-        <li><strong>F11-02 (PASS):</strong> Primary build passed with DOC-002 <code>PASS: 19 modules, 341/341 routines, 7,303/7,303 labels</code>; <code>verify_audio_runtime.py --rom build/ladybug.rom</code> passed (18 cues, 1,959 PSG bytes); <code>verify_presentation_flow.py</code>, <code>verify_gmc_overflow.py</code>, and <code>verify_presentation_sparse.py</code> passed; 3/3 fixture-selector rejection controls exited <code>2</code> before creating build directories (<code>reason=unknown value=invalid</code>, <code>reason=release value=special-e</code>, <code>reason=release value=extra-e</code>); static listing audit confirmed all 16 <code>PAR5</code> stores in <code>intermission_runtime</code> restore <code>$34</code> and <code>extra_complete</code> saturates <code>LIVES</code> at <code>$FF</code>.</li>
-        <li><strong>Built ROM SHA-256 hashes (post-audio-onset sync fix):</strong>
+        <li><strong>F11-02 (PASS):</strong> Primary build passed with DOC-002 <code>PASS: 19 modules, 341/341 routines, 7,309/7,309 labels</code>; <code>verify_audio_runtime.py --rom build/ladybug.rom</code> passed (18 cues, 1,959 PSG bytes); <code>verify_presentation_flow.py</code>, <code>verify_gmc_overflow.py</code>, and <code>verify_presentation_sparse.py</code> passed; 3/3 fixture-selector rejection controls exited <code>2</code> before creating build directories (<code>reason=unknown value=invalid</code>, <code>reason=release value=special-e</code>, <code>reason=release value=extra-e</code>); static listing audit confirmed all 16 <code>PAR5</code> stores in <code>intermission_runtime</code> restore <code>$34</code> and <code>extra_complete</code> saturates <code>LIVES</code> at <code>$FF</code>.</li>
+        <li><strong>Built ROM SHA-256 hashes (post-13+-lives slot-11 departure fix):</strong>
           <ul>
-            <li>Primary (<code>LADYBUG_FEAT011_FIXTURE=none</code>): <code>build/ladybug.rom</code> &mdash; <code>82339c5cd7a2f60ef49fa71964970803bdca4cf4074c97e95d25bdd4d6dcbb08</code></li>
-            <li>SPECIAL playtest fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>d3d17af5ecd3cfa465d86d76fa146c2e711429402465a4073ec8624a4480e362</code></li>
-            <li>EXTRA playtest fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>677bebcb51f82bc15da1eb8ecf51816edd3ef6367328968affb1032a5e958f49</code></li>
+            <li>Primary (<code>LADYBUG_FEAT011_FIXTURE=none</code>): <code>build/ladybug.rom</code> &mdash; <code>9ca535c955fc429c759fa14129595fb41e7bd0a36457655ec00a24b9a53b0c4a</code></li>
+            <li>SPECIAL playtest fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>a6f824857994aa8076fc84e95a7de8c8694cc53a80d2f663fb5c923ff145e214</code></li>
+            <li>EXTRA playtest fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>53cd2d406d056d45a8f1caea1072490258fc52c2e421321288414d5fc3d7d065</code></li>
           </ul>
           <p><em>Playtest defect fixes (2026-11-23):</em></p>
           <ul>
             <li><strong>Pass 1 (<code>1cf2de62</code>):</strong> Moved <code>lda #$34 / sta PAR5</code> ahead of <code>im_fb_dst</code> in <code>im_draw_sprite</code> so register <code>A</code> is not clobbered before <code>std im_old_fb_a/b</code> (eliminated path smear and scanline 32&ndash;49 corruption).</li>
             <li><strong>Pass 2 (<code>16cf8d88</code>):</strong> Deferred SPECIAL +100,000 BCD award and 16&times;16 coin despawn to coin overlap <code>(80,16)</code> (<code>$2A28</code>), deferred EXTRA 255-saturating <code>LIVES</code> increment and 16&times;16 marker replacement to slot arrival, and called <code>PRES_MODULE_MAP_BACK</code> + <code>PAR5=$34</code> before <code>PRES_MAIN_NEXT_STAGE</code> so <code>erase_entity_footprints</code> writes only to hidden <code>BACK</code>.</li>
-            <li><strong>Pass 3:</strong> Kept <code>SPECIAL_BITS</code>/<code>EXTRA_BITS</code> nonzero through the gameplay pickup popup so <code>audio_poll_gameplay</code> does not start Cue 11/10 before the intermission loads; cleared the completed word in <code>im_begin_intermission</code> (under <code>PRES_MODE=9</code>) and enqueued Cue 10/11 once via page-<code>$3D</code> <code>AUDIO_ENQUEUE_EXEC</code> (<code>$A006</code>) right when Lady Bug starts moving onscreen (<code>im_init_mask == 3</code> and <code>im_pos_y &ge; 0</code>).</li>
+            <li><strong>Pass 3 (<code>ebdf7e9e</code>):</strong> Kept <code>SPECIAL_BITS</code>/<code>EXTRA_BITS</code> nonzero through the gameplay pickup popup so <code>audio_poll_gameplay</code> does not start Cue 11/10 before the intermission loads; cleared the completed word in <code>im_begin_intermission</code> (under <code>PRES_MODE=9</code>) and enqueued Cue 10/11 once via page-<code>$3D</code> <code>AUDIO_ENQUEUE_EXEC</code> (<code>$A006</code>) right when Lady Bug starts moving onscreen (<code>im_init_mask == 3</code> and <code>im_pos_y &ge; 0</code>).</li>
+            <li><strong>Pass 4:</strong> Clamped the post-decrement <code>LIVES</code> index passed to <code>life_marker_position</code> in <code>marker_entry_begin</code> (<code>src/main.s</code>) to <code>MAX_RESERVE_LIVES-1</code> (slot 11) so 13+ lives no longer index past the 12-entry <code>hud_life_marker_positions</code> table and instead walk off from the 12th position while <code>draw_lives</code> keeps the 12th placeholder marker intact until reserves drop below 12.</li>
           </ul>
         </li>
         <li><strong>F11-03 (PENDING — User-Owned):</strong> Manual XRoar RGB playtest of <code>special-e</code>, <code>extra-e</code>, and primary <code>build/ladybug.rom</code> (including the 12-starting-lives boundary check) must pass before advancing FEAT-011 to <code>Done</code>.</li>

@@ -943,9 +943,13 @@ iet_wait_music
         tst     AUDIO_MUSIC_PUBLISHED_BUSY
         lbne    iet_done
         clr     DEATH_TIMER
-; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm an already-consumed HUD marker departure, seed logical exit padding, and derive its full-width framebuffer address.
+; DOC-002 source-contract mirror contract marker_entry_begin profile=movement: Arm an already-consumed HUD marker departure (clamping reserves above 11 to slot 11), seed logical exit padding, and derive its full-width framebuffer address.
 marker_entry_begin
         lda     LIVES
+        cmpa    #MAX_RESERVE_LIVES-1
+        bls     meb_slot_ok
+        lda     #MAX_RESERVE_LIVES-1
+meb_slot_ok
         jsr     life_marker_position
         lda     #80
         sta     DEATH_TIMER
