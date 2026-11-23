@@ -1,12 +1,193 @@
 <!DOCTYPE html>
-<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>BUG-129 - Use the full sound chip for the loading cue - Ladybug</title><link rel="stylesheet" href="../../shared/css/wiki.css"></head>
-<body><div class="wiki-shell"><nav class="wiki-nav"><a href="../../index.html">Wiki home</a> <a href="../index.html">Internal</a> <a href="./index.html">Tickets</a> <a href="./workflow.html">Workflow</a></nav><main class="wiki-main">
-<header class="wiki-header"><p class="wiki-eyebrow">Internal - work ticket - bug</p><h1>BUG-129 - Use the full sound chip for the loading cue <span class="wiki-badge">Draft</span></h1><p class="wiki-meta">User-reported issue; cause and candidate identity are unconfirmed.</p></header>
-<section><h2>Ticket state</h2><ul><li><strong>Status:</strong> Draft; approval brief and test card are incomplete.</li><li><strong>Created / updated:</strong> 2026-11-19 / 2026-11-19.</li><li><strong>Priority / order:</strong> P2 / unassigned.</li><li><strong>Roadmap or source:</strong> user report and related project records.</li><li><strong>Owner:</strong> unassigned.</li><li><strong>Dependencies:</strong> Review <a href="./rsch-001-arcade-audio-capture-design.html">RSCH-001</a> and <a href="./feat-006-gmc-audio-event-integration.html">FEAT-006</a>. <a href="./bug-128-audio-cue-visual-timing.html">BUG-128</a> separately tracks onset timing; no files or worktree assigned.</li><li><strong>Bug risk class:</strong> High-risk. Repair may affect sound streams, channel allocation, playback, and ROM capacity; affected layer is unconfirmed.</li></ul></section>
-<section><h2>Approval brief</h2><h3>Objective and motivation</h3><p>Restore channels reported missing from the Lady Bug loading cue so it uses the full sound chip.</p><h3>Evidence and baseline</h3><p>User compared the CoCo loading cue with the arcade and reports missing channels. ROM, channel map, and reference capture are unknown. <a href="./rsch-001-arcade-audio-capture-design.html">RSCH-001</a> is the existing arcade audio-capture design record.</p><h3>Scope</h3><p>In: loading-cue channel content and playback. Out: onset timing (BUG-128), other cues, and loading-animation changes.</p><h3>Scenarios and edge cases</h3><p>Reported sound differs by missing channels. Current channel writes and intended arcade arrangement are unknown.</p><h3>Options and recommendation</h3><p>Compare cue data/channel writes with the arcade reference first. Reuse current sound format; do not add an audio protocol without approval.</p><h3>Acceptance criteria</h3><p>Cue uses every intended channel in the approved arcade arrangement and retains the same loading event and duration. Timing remains under BUG-128.</p><h3>Cause and uncertainty</h3><p>No cause is confirmed; source inspection and a discriminating check must be bound before approval.</p></section>
-<section><h2>Test card status</h2><p>Draft only. Compare intended channel activity, then one audible candidate playback. Capture, oracle, artifact, command, and cost are unbound. No build, runtime probe, or source change is authorized.</p></section>
-<section><h2>Assignment contract</h2><ul><li><strong>Approved objective and non-goals:</strong> not approved; see draft scope.</li><li><strong>Owned artifacts:</strong> unassigned; bind exact source, data, wiki files, and worktree before Ready.</li><li><strong>Implementation constraints:</strong> preserve current ownership and behavior outside approved scope.</li><li><strong>Required commands and scenarios:</strong> not bound; use the smallest set covering the named risk.</li><li><strong>Risk controls:</strong> do not infer cause; reassess class if evidence shows a hard limit or subsystem expansion.</li><li><strong>Evidence:</strong> retain user report, candidate identity, concise source/capture evidence, and failures.</li><li><strong>Commit:</strong> one bounded commit after approval and Ready; no push or merge authority.</li><li><strong>Completion report:</strong> results versus targets, tests, commit, capacity, rejected experiments, residual risk.</li></ul></section>
-<section><h2>Verification and completion</h2><p>Not Ready. Source revision, profile, command, fixture, deadline, and evidence path remain unassigned. Require explicit approval and a complete DOC-014 card before Ready.</p></section>
-<section><h2>Decision log</h2><ul><li>2026-11-19 - Draft created from the user report. No cause or implementation result is claimed.</li></ul></section>
-<footer class="wiki-footer"><p>Canonical Draft ticket. Update this page and the ticket index when evidence or approval changes.</p></footer>
-</main></div></body></html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-129 — Use the full sound chip for the loading cue — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work ticket · bug</p>
+      <h1>BUG-129 — Use the full sound chip for the loading cue <span class="wiki-badge">Verification</span></h1>
+      <p class="wiki-meta">Restore the dropped Cue 6 lead melody and remove the duplicate bass stream so all three distinct voices play cleanly on one GMC SN76489.</p>
+    </header>
+
+    <section id="status">
+      <h2>Ticket state</h2>
+      <ul>
+        <li><strong>Status:</strong> Verification (2026-11-22). Implementation committed as <code>a29b41ec4e256add368c01f647e17729ae0710c3</code> on <code>codex/feat013-shared-hud</code> (bass attenuation <code>2</code>). Automated gates <code>B129-01</code> and <code>B129-02</code> passed with parent QA review. Awaits user-owned manual audible check <code>B129-03</code> on ROM SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code> before Done.</li>
+        <li><strong>Created / updated:</strong> 2026-11-19 / 2026-11-22.</li>
+        <li><strong>Priority / order:</strong> P2 / independent of <a href="./feat-013-shared-hud-fields.html">FEAT-013</a> G4 timing; coordinate page-<code>$3D</code> capacity with FEAT-013's <code>$BF00</code> word-painter placement.</li>
+        <li><strong>Roadmap or source:</strong> user report; <a href="../platform/sound.html#new-life-cue-20261010">Sound platform plan</a>; <a href="./rsch-001-arcade-audio-capture-design.html">RSCH-001</a>; <a href="./feat-006-gmc-audio-event-integration.html">FEAT-006</a>; <a href="./bug-117-new-life-entry-music.html">BUG-117</a>.</li>
+        <li><strong>Owner:</strong> parent agent, implementing directly in <code>C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug</code> on branch <code>codex/feat013-shared-hud</code> from clean commit <code>0fb9f18699459b2f9edfca0c642fb6ff4ead16e2</code>.</li>
+        <li><strong>Dependencies:</strong> <a href="./bug-128-audio-cue-visual-timing.html">BUG-128</a> remains separate for onset timing. No FEAT-006 or BUG-117 closure is reopened. Final branch binding must account for FEAT-013's page-<code>$3D</code> layout.</li>
+        <li><strong>Bug risk class:</strong> <strong>Standard</strong> (reclassified from Draft <code>High-risk</code> on 2026-11-22 after source diagnosis). Cause is confirmed in checked-in audio reduction data with no runtime protocol, loader, MMU, or mixer rewrite. It fails Compact because it updates more than two files (<code>gmc-cue-policy.json</code>, <code>gmc-runtime-cues.json</code>, <code>gmc_sound_data.inc</code>, and <code>verify_audio_runtime.py</code>'s packed-byte constant) and adds <code>+28</code> bytes to page <code>$3D</code>.</li>
+      </ul>
+    </section>
+
+    <section id="approval">
+      <h2>Approval brief</h2>
+
+      <h3>Objective and motivation</h3>
+      <p>Fix the new-ladybug entry music (<strong>Cue 6</strong>, <code>level-start</code>) so the CoCo 3's single Games Master Cartridge (GMC) SN76489 sound chip plays all three distinct musical parts of the original arcade arrangement (lead melody, inner harmony, and bass) without missing the lead line or losing the bass mid-cue. The current ROM drops the lead melody and duplicates the bass across two channels, causing both missing melody and destructive phase cancellation on the second half of the cue.</p>
+
+      <h3>Evidence and baseline</h3>
+      <p>Read-only source and asset diagnosis performed on 2026-11-22 against repository <code>main</code> commit <code>d2c2a0e9</code> (audio assets identical on <code>codex/feat013-shared-hud</code> commit <code>4f5fd30f</code>):</p>
+      <ul>
+        <li><strong>Arcade Z80 source truth (<code>assets/arcade/audio/z80-sound-engine.json</code>):</strong> Cue 6 (<code>descriptor_address: 7077</code>) launches <strong>4 tone streams</strong> (0 noise streams), each exactly <strong>192 ticks</strong> (3.20 s at 60 Hz), across the arcade board's two 4 MHz SN76489 chips:
+          <ul>
+            <li><strong>Stream 0 (<code>4145</code> / <code>$1031</code>, 27 commands):</strong> Lead melody — highest and loudest voice (attenuation <code>2</code> then <code>1</code>): <code>B4–A4–B4–A4–B4–C#5–D5–C#5–(rest)–C#5–B4–C#5–D5–E5</code> (<code>raw_sha256: 482fe500...</code>).</li>
+            <li><strong>Stream 1 (<code>4200</code> / <code>$1068</code>, 27 commands):</strong> Inner harmony a third below (attenuation <code>4</code>): <code>G4–F#4–G4–F#4–G4–A4–B4–A4–(rest)–A4–G#4–A4–B4–C#5</code> (<code>raw_sha256: aec4257e...</code>).</li>
+            <li><strong>Stream 2 (<code>4255</code> / <code>$109F</code>, 20 commands):</strong> Rhythmic bass (attenuation <code>4</code>): <code>G3</code> (ticks 0–95) then <code>A3</code> (ticks 96–191) with 2-tick rests (<code>raw_sha256: d09da7db...</code>).</li>
+            <li><strong>Stream 3 (<code>4296</code> / <code>$10C8</code>, 20 commands):</strong> <strong>Byte-for-byte identical duplicate of Stream 2</strong> (same <code>raw_sha256: d09da7db8da8dc88fdb94f9146634437f1b60c10bf9b80971dcbb5442b0e5af3</code>).</li>
+          </ul>
+          All other 17 cues use 1 or 2 streams; Cue 6 is the only cue exceeding 3 source streams.
+        </li>
+        <li><strong>Confirmed data-reduction defect (<code>assets/arcade/audio/gmc-cue-policy.json</code>, <code>gmc-runtime-cues.json</code>, <code>gmc_sound_data.inc</code>):</strong> The automated reduction method (<code>drop-lowest-isolated-dual-reference-rms</code>) selected <code>selected_stream_indices: [1, 2, 3]</code> and dropped Stream 0 (<code>4145</code>, the lead melody) because its raw isolated RMS error was lowest (<code>2116.22</code> vs. <code>2842.04</code>, <code>2954.37</code>, <code>2975.18</code>). As a result, the shipped CoCo stream plays only Harmony + Bass + Duplicate Bass.</li>
+        <li><strong>Observed offline phase-cancellation reproduction (<code>repro/bug129-cue06-attenuation-test/</code>):</strong> In <code>src/audio_runtime.s</code>, <code>audio_mix_clear</code> resets muted physical channels to <code>period = 1</code> (toggling their SN76489 polarity flip-flops at 125 kHz) and <code>audio_mix_slot</code> compacts active voices into physical channels <code>0..2</code>. When Voice 0 (harmony) rests at ticks <code>106..108</code>, the two identical bass voices shift from channels <code>(1, 2)</code> to <code>(0, 1)</code> while channel <code>2</code> mutes to <code>period = 1</code>, then shift back at tick <code>108</code>. In an offline 4 MHz SN76489 divider simulation of the exact CoCo write sequence (single deterministic simulation, not live hardware capture), combined mix RMS drops from <code>~10,590</code> (ticks 0–106, both bass channels in phase) to <code>~4,880</code> across ticks <code>114–192</code> (almost identical to harmony alone at <code>4,777</code>) because the two identical bass channels cancel out of phase.</li>
+        <li><strong>Exact byte-size measurement (host-encoded, verified against existing SHA-256):</strong> Re-encoding <code>[1, 2, 3]</code> reproduces the existing 337-byte <code>gmc_cue_stream_06</code> bit-for-bit (<code>SHA-256: 7dcb9bd0e141b9b44c9a7c01c5afbe92a8c69fe97c358a067f1f0b6234db59d0</code>). Encoding <code>[0, 1, 2]</code> (at either bass attenuation <code>4</code> or <code>2</code>) produces <strong>365 bytes</strong> — an exact delta of <strong><code>+28 B</code></strong>, moving total packed sound data from <code>3,478 B</code> to <strong><code>3,506 B</code></strong>. On FEAT-013's latest passing complete-profile build (<code>9fbde1eb</code>), page <code>$3D</code> holds audio (<code>$A000–$BA0C</code>), keybinding (<code>$BA0C–$BE98</code>), and the <code>$BF00</code> word-painter helper (<code>$BF00–$BF92</code>), leaving a <code>104 B</code> gap before <code>$BF00</code> and <code>110 B</code> after <code>$BF92</code>; <code>+28 B</code> in the audio image shifts keybinding end from <code>$BE98</code> to <code>$BEB4</code> (projected, leaving <code>76 B</code> before <code>$BF00</code>), with zero overlap.</li>
+        <li><strong>Ruled-out runtime defects (by static inspection):</strong> <code>audio_mix_write</code> emits valid 10-bit SN76489 latch/data/attenuation bytes on all three tone channels, and <code>iet_final_wait</code> in <code>src/main.s</code> holds player control until <code>AUDIO_MUSIC_PUBLISHED_BUSY == 0</code>, so gameplay does not cut Cue 6 off early.</li>
+      </ul>
+
+      <h3>Scope</h3>
+      <p><strong>In scope:</strong></p>
+      <ul>
+        <li>Change Cue 6's selected source streams in <code>assets/arcade/audio/gmc-cue-policy.json</code> from <code>[1, 2, 3]</code> (dropping Stream 0) to <code>[0, 1, 2]</code> (dropping duplicate Stream 3 at address <code>4296</code>), applying the user-selected single-channel bass attenuation (<code>4</code> or <code>2</code>).</li>
+        <li>Regenerate Cue 6's entries in <code>assets/arcade/audio/gmc-runtime-cues.json</code> and <code>assets/arcade/audio/gmc_sound_data.inc</code>, updating subsequent stream binary offsets in the manifest while keeping all 17 other cue streams byte-identical.</li>
+        <li>Update <code>PACKED_SOUND_BYTES</code> in <code>scripts/verify_audio_runtime.py</code> from <code>3478</code> to <code>3506</code> and add/retain Cue 6 voice-selection validation so the existing audio verifier stays exact.</li>
+        <li>Complete-profile build, audio verifier check, capacity verification on page <code>$3D</code>, and user-owned audible verification on the rebuilt ROM.</li>
+      </ul>
+      <p><strong>Out of scope:</strong></p>
+      <ul>
+        <li>Cue-to-visual onset timing (tracked separately in <a href="./bug-128-audio-cue-visual-timing.html">BUG-128</a>).</li>
+        <li>Changes to <code>src/audio_runtime.s</code>, <code>src/adaptive_audio_service.s</code>, mixer arbitration, channel-compaction logic, or the SN76489 stream opcode format.</li>
+        <li>Changes to cues 0–5 or 7–17, new-life entry animation timing, or legacy non-complete build profiles.</li>
+        <li>Hardware/Multi-Pak Interface dual-chip expansion.</li>
+      </ul>
+
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li><strong>Normal new-life start (risk: missing melody / phase-cancelling bass):</strong> Starting a live game plays Cue 6 across all 192 ticks (3.20 s) with all three distinct voices (Lead on tone 0, Harmony on tone 1, Bass on tone 2) audible and stable from start through the final <code>E5 + C#5 + A3</code> cadence.</li>
+        <li><strong>Replacement life entry after death (risk: repeated admission / stale shadow state):</strong> Losing a life and entering with a replacement ladybug replays Cue 6 cleanly with the same three voices and completes before control release.</li>
+        <li><strong>Mid-cue rest boundaries (risk: channel-compaction phase shift):</strong> At tick <code>106..108</code> (where Lead and Harmony rest while Bass continues) and ticks <code>160..168</code> (staccato bass rests near the end), only one channel carries Bass, so no second identical-period channel can destructively cancel it.</li>
+        <li><strong>Adjacent cues regression (risk: offset shift corrupts cues 7–17):</strong> Updating Cue 6 from 337 B to 365 B shifts stream offsets for cues 7–17 in <code>gmc-runtime-cues.json</code>; every cue 0–5 and 7–17 must retain byte-identical stream payloads and pass <code>verify_audio_runtime.py</code>.</li>
+        <li><strong>Page-<code>$3D</code> &amp; GMC source capacity (risk: module overlap or overflow):</strong> Rebuilding the complete profile must confirm audio + keybinding + FEAT-013's <code>$BF00</code> word-painter fit without overlap inside page <code>$3D</code> and within the 65,536-byte GMC image.</li>
+      </ul>
+
+      <h3>Options and recommendation</h3>
+      <ul>
+        <li><strong>Option A — <code>[0, 1, 2]</code> with source bass attenuation <code>4</code> (–8 dB):</strong> Pure deduplication of Stream 3 with zero volume adjustment. Exact source command fidelity on all three retained streams; bass is ~3–6 dB quieter than the arcade's doubled bass.</li>
+        <li><strong>Option B — <code>[0, 1, 2]</code> with boosted bass attenuation <code>2</code> (–4 dB):</strong> Drops duplicate Stream 3 and raises the single remaining bass channel by +4 dB (2 SN76489 steps) to approximate the arcade's doubled two-chip bass energy without overpowering the lead melody (attenuation <code>2</code> → <code>1</code>).</li>
+        <li><strong>Offline listening comparison prepared:</strong> Four 48 kHz WAV renders at a shared fixed voice gain are retained under <code>repro/bug129-cue06-attenuation-test/</code> (<code>cue06-1-current-coco-broken-123.wav</code>, <code>cue06-2-fixed-012-bass-att4.wav</code>, <code>cue06-3-fixed-012-bass-att2.wav</code>, and <code>cue06-4-arcade-4stream-ref.wav</code>). The user listens and chooses attenuation <code>4</code> or <code>2</code> when approving this ticket.</li>
+        <li><strong>Rejected alternatives:</strong> Keeping <code>[1, 2, 3]</code> leaves the lead melody missing; rewriting <code>audio_mix_slot</code> to preserve fixed physical-channel mapping would add runtime code and still not restore the dropped lead melody; requiring a second sound chip violates the single-GMC hardware target.</li>
+      </ul>
+
+      <h3>Acceptance criteria</h3>
+      <ol>
+        <li><code>gmc-cue-policy.json</code>, <code>gmc-runtime-cues.json</code>, and <code>gmc_sound_data.inc</code> select Cue 6 streams <code>[0, 1, 2]</code> (dropping duplicate Stream 3 at address <code>4296</code>) with the user-approved bass attenuation (<code>4</code> or <code>2</code>) and exact 192-tick duration.</li>
+        <li>Cue 6 encodes to exactly <code>365</code> bytes, total packed sound bytes equal <code>3,506</code>, and all other 17 cue streams remain byte-identical to their pre-fix bytes.</li>
+        <li>The complete-profile keyboard/adaptive 6809 build passes all capacity, LZSS round-trip, page-<code>$3D</code> placement, and post-build source-documentation guards, and <code>scripts/verify_audio_runtime.py</code> exits <code>0</code>.</li>
+        <li>User-owned manual listening on the receipt-bound rebuilt ROM confirms all three musical parts of Cue 6 play cleanly from start to finish with no mid-cue or end-of-cue channel dropout.</li>
+      </ol>
+    </section>
+
+    <section id="test-cards">
+      <h2>Test cards — explicit user sign-off (DOC-014)</h2>
+      <p>Ticket approval approves cards <code>B129-01</code> through <code>B129-03</code> together. No card executes before approval and Ready binding.</p>
+
+      <h3>B129-01 — Offline Cue 6 stream-identity and byte-oracle check (recurring regression check)</h3>
+      <ul>
+        <li><strong>Purpose / distinct risk / type:</strong> Prevent future cue regeneration from dropping the lead melody or keeping duplicate streams in Cue 6, and verify cues 0–5 and 7–17 are untouched. Type: offline source/oracle verification.</li>
+        <li><strong>Setup:</strong> Pinned inputs <code>assets/arcade/audio/z80-sound-engine.json</code>, <code>gmc-cue-policy.json</code>, <code>gmc-runtime-cues.json</code>, and <code>gmc_sound_data.inc</code> at the implementation commit. No emulator or guest state.</li>
+        <li><strong>Expected result &amp; negative control:</strong> Independent decode of <code>gmc_cue_stream_06</code> matches the merged 192-tick commands of arcade streams <code>[0, 1, 2]</code> (addresses <code>4145, 4200, 4255</code>) with the approved bass attenuation, length <code>365</code> bytes, zero duplicate source stream addresses; cues 0–5 and 7–17 match their pre-fix stream hashes byte-for-byte. Negative control: the pre-fix 337-byte <code>[1, 2, 3]</code> stream (SHA-256 <code>7dcb9bd0...</code>) must fail the check.</li>
+        <li><strong>Command / cost / stop:</strong> Exact check command bound at Ready (Python script using existing <code>verify_audio_runtime.py</code> parser); whole-phase deadline <code>30 s</code> (estimated duration <code>&lt; 2 s</code>). Retain concise JSON summary and SHA-256s; stop on first failure without retry.</li>
+        <li><strong>Result classes / ownership:</strong> Report product assertion failure, setup failure, or missing coverage separately. Parent owns offline check and review.</li>
+      </ul>
+
+      <h3>B129-02 — Complete-profile build, page-<code>$3D</code> placement, and audio verifier gate (recurring build/capacity gate)</h3>
+      <ul>
+        <li><strong>Purpose / distinct risk / type:</strong> Prove the <code>+28 B</code> Cue 6 growth fits within page <code>$3D</code> (alongside keybinding and FEAT-013's <code>$BF00</code> helper) and the 65,536-byte GMC image, and that all 18 cues round-trip through LZSS packing. Type: automated build and static integration check.</li>
+        <li><strong>Setup:</strong> Complete-profile keyboard/adaptive 6809 build in the assigned source worktree (exact base revision bound at Ready). Reuse existing <code>scripts/build.sh build</code> and <code>scripts/verify_audio_runtime.py</code>; baseline qualification confirmed pre-fix <code>verify_audio_runtime.py</code> passes on the existing build.</li>
+        <li><strong>Expected result &amp; negative control:</strong> Build exits <code>0</code>, ROM is exactly <code>65,536</code> bytes, page-<code>$3D</code> modules end at or before <code>$C000</code> with zero overlap, post-build DOC-002 audit passes, and <code>verify_audio_runtime.py</code> exits <code>0</code> against <code>PACKED_SOUND_BYTES = 3506</code>. Negative control: running unmodified <code>verify_audio_runtime.py</code> (expecting <code>3478</code>) against the <code>3506</code>-byte payload fails before the constant update, confirming the byte-count guard is active.</li>
+        <li><strong>Command / cost / stop:</strong> Exact WSL build + <code>verify_audio_runtime.py</code> command bound at Ready; whole-phase caps <code>600 s</code> for build (historical single observation ~380 s) and <code>60 s</code> for static verification (historical single observation ~2 s). Stop on first failure; no retry.</li>
+        <li><strong>Result classes / ownership:</strong> Separate build/capacity failure, verifier assertion failure, and timeout. Parent owns execution and QA review.</li>
+      </ul>
+
+      <h3>B129-03 — User-owned manual audible acceptance (DOC-014 manual-session policy)</h3>
+      <ul>
+        <li><strong>Purpose / distinct risk / type:</strong> Confirm on real audio output (XRoar and/or physical CoCo 3 GMC) that the restored lead melody and deduplicated bass sound musically complete with no channel dropout. Type: user-owned manual acceptance.</li>
+        <li><strong>Setup &amp; procedure:</strong> Cold-launch the receipt-bound rebuilt complete-profile ROM from <code>B129-02</code>, start a live game (and optionally lose a life to trigger replacement entry), and listen through the full 3.20-second new-ladybug entry music.</li>
+        <li><strong>Expected observation:</strong> All three parts (lead melody, harmony, and bass) are clearly audible from tick 0 through the final cadence, matching the chosen offline comparison clip without mid-cue or end-of-cue channel dropouts.</li>
+        <li><strong>Manual-session rule:</strong> User owns session timing with no imposed deadline, agent monitoring, or duration report. Result remains <em>pending</em> until the user reports <em>pass</em> or <em>fail</em> against the identified ROM hash.</li>
+      </ul>
+    </section>
+
+    <section id="bug-evidence">
+      <h2>Type-specific evidence (Bug)</h2>
+      <ul>
+        <li><strong>Reproduction:</strong> Start a live game on the current complete-profile ROM and listen to the 3.20-second new-ladybug entry music (Cue 6), or play <code>repro/bug129-cue06-attenuation-test/cue06-1-current-coco-broken-123.wav</code>.</li>
+        <li><strong>Observed result:</strong> The high lead melody is missing throughout the cue, and in the second half/ending the bass drops out or shifts unpredictably.</li>
+        <li><strong>Expected result:</strong> All three distinct arcade musical parts (Lead <code>4145</code>, Harmony <code>4200</code>, Bass <code>4255</code>) play steadily for all 192 ticks on the GMC's 3 SN76489 tone channels.</li>
+        <li><strong>Confirmed cause:</strong> <code>assets/arcade/audio/gmc-cue-policy.json</code> selected <code>[1, 2, 3]</code> and dropped Stream 0 (<code>4145</code>, lead melody) while keeping both identical copies of the bass (<code>4255</code> and <code>4296</code>).</li>
+        <li><strong>Supporting mechanism (offline simulated, live uncaptured):</strong> Running two identical-period bass streams through <code>audio_mix_clear</code> (which resets muted channels to <code>period = 1</code>) and <code>audio_mix_slot</code> (which compacts active voices during Voice 0's tick <code>106..108</code> rest) causes the duplicate bass channels to flip out of phase and cancel across ticks <code>114..192</code> (simulated RMS drops from <code>~10,590</code> to <code>~4,880</code>).</li>
+        <li><strong>Offline listening artifacts:</strong> <code>repro/bug129-cue06-attenuation-test/render_cue06_comparison.py</code>, <code>summary.json</code>, and four 48 kHz WAV renders (current broken <code>[1,2,3]</code>, fixed <code>[0,1,2]</code> bass att=<code>4</code>, fixed <code>[0,1,2]</code> bass att=<code>2</code>, and arcade 4-stream reference).</li>
+        <li><strong>Reclassification triggers:</strong> Escalate back to <code>High-risk</code> if the <code>+28 B</code> growth causes a page-<code>$3D</code> overlap with keybinding/FEAT-013 helpers, or if live audible testing on <code>[0, 1, 2]</code> still exhibits channel dropout (which would point to a runtime mixer or adaptive-clock defect).</li>
+      </ul>
+    </section>
+
+    <section id="assignment">
+      <h2>Assignment contract</h2>
+      <ul>
+        <li><strong>Approved objective and non-goals:</strong> Pending explicit user approval and selection of bass attenuation (<code>4</code> or <code>2</code>).</li>
+        <li><strong>Owned artifacts (to bind at Ready):</strong> <code>assets/arcade/audio/gmc-cue-policy.json</code>, <code>assets/arcade/audio/gmc-runtime-cues.json</code>, <code>assets/arcade/audio/gmc_sound_data.inc</code>, <code>scripts/verify_audio_runtime.py</code>, this ticket, <code>wiki/internal/tickets/index.html</code>, and <code>wiki/internal/log.html</code>. Exact worktree/branch to be bound at Ready (coordinate with <code>codex/feat013-shared-hud</code> vs. <code>main</code>).</li>
+        <li><strong>Implementation constraints:</strong> Preserve existing SN76489 opcode format, runtime mixer, all other 17 cues, and page-<code>$3D</code> hard cap (<code>&lt;= $C000</code>).</li>
+        <li><strong>Required commands and scenarios:</strong> Cards <code>B129-01</code>, <code>B129-02</code>, and user-owned <code>B129-03</code>; exact commands frozen at Ready.</li>
+        <li><strong>Risk controls:</strong> Stop and reassess after two rejected probes, two tool timeouts, or any page-<code>$3D</code> overflow / post-fix runtime dropout.</li>
+        <li><strong>Commit:</strong> One bounded commit after approval, implementation, and parent QA; no push or merge without user authorization.</li>
+      </ul>
+    </section>
+
+    <section id="verification">
+      <h2>Verification and completion</h2>
+      <ul>
+        <li><strong>Source commit:</strong> <code>a29b41ec4e256add368c01f647e17729ae0710c3</code> on branch <code>codex/feat013-shared-hud</code> (worktree <code>C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug</code>, base <code>0fb9f18699459b2f9edfca0c642fb6ff4ead16e2</code>). Owned files only: <code>assets/arcade/audio/gmc-cue-policy.json</code>, <code>assets/arcade/audio/gmc-runtime-cues.json</code>, <code>assets/arcade/audio/gmc_sound_data.inc</code>, and <code>scripts/verify_audio_runtime.py</code>.</li>
+        <li><strong>B129-01 (offline Cue 6 oracle &amp; adjacent-stream invariance) — Passed:</strong> Pre-fix negative control exited <code>1</code> (rejected 337-byte <code>[1, 2, 3]</code> stream). Post-fix check exited <code>0</code>: Cue 6 encodes streams <code>[0, 1, 2]</code> (addresses <code>4145, 4200, 4255</code>, bass attenuation <code>2</code>) in exactly <code>365 B</code> (SHA-256 <code>26439aba8f4bd3dea5d88a263fb0e9b486a415e8484beb79353170fb7fc407d4</code>), total packed sound data is <code>3,506 B</code>, and all 15 other unique cue streams remain byte-identical.</li>
+        <li><strong>B129-02 (complete-profile build, page-<code>$3D</code> capacity &amp; audio verifier) — Passed:</strong>
+          <ul>
+            <li>Pre-build negative control rejected the stale 3,478-byte build map (<code>audio proof: packed sound bytes 3478; expected 3506</code>).</li>
+            <li>Complete-profile keyboard/adaptive 6809 build exited <code>0</code> within its 600-second cap (~350 s wall clock): ROM <code>build/ladybug.rom</code> = <code>65,536 B</code>, SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>; receipt <code>build/source-build-receipt.json</code> SHA-256 <code>724ecfced5325be7698ec3e5139aa9db5ec38167f0cc88ed7a4abb909ede7e3b</code>.</li>
+            <li>Measured single-observation capacities vs. independent caps: resident <code>8,191/8,192 B</code> (1 B free); assets <code>7,668/7,680 B</code> (12 B free); presentation <code>1,272/1,280 B</code> (8 B free); audio engine <code>681/920 B</code>; page-<code>$3D</code> layout: audio <code>$A000–$BA28</code> (<code>6,696 B</code>, SHA-256 <code>3682d2ad...</code>), keybinding <code>$BA28–$BEB4</code> (<code>1,164 B</code>, SHA-256 <code>e3277b6d...</code>, <code>76 B</code> gap before <code>$BF00</code>), HUD word helper <code>$BF00–$BF92</code> (<code>146 B</code>, SHA-256 <code>24786973...</code>, <code>110 B</code> free before <code>$C000</code>); CPU-readable GMC spare <code>6,378 B</code>.</li>
+            <li>9/9 static screens pixel-exact, sparse/GMC overflow/presentation/allocation proofs passed, post-build DOC-002 audit passed (17 modules, 332/332 routines, 6,762/6,762 labels).</li>
+            <li><code>verify_audio_runtime.py --rom build/ladybug.rom</code> exited <code>0</code>: 18 cue descriptors, <code>6,696 B</code> page-<code>$3D</code> payload, 1 loader stream reconstructs exactly, 18 isolated cues / 400 waits / <code>1,959</code> tester-equivalent PSG bytes (exact <code>+21</code> bytes for Stream 0's 27 commands vs. Stream 3's 20).</li>
+          </ul>
+        </li>
+        <li><strong>B129-03 (user-owned manual audible acceptance) — Pending:</strong> Awaiting user listening report on <code>C:\Users\19029\.codex\worktrees\feat013-shared-hud\ladybug\build\ladybug.rom</code> (SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>).</li>
+        <li><strong>QA verdict:</strong> Scope, diff hygiene (<code>git diff --check</code> clean), capacity limits, and automated gates <code>B129-01</code>/<code>B129-02</code> pass. Residual risk: live XRoar/hardware playback and `BUG-128` onset timing remain outside automated checks. Justified next state: <code>Verification</code> pending <code>B129-03</code>.</li>
+      </ul>
+    </section>
+
+    <section id="decision-log">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-19 — Draft created from the user report. No cause or implementation result claimed.</li>
+        <li>2026-11-22 — Completed read-only source/asset diagnosis and offline 4 MHz SN76489 listening test. Confirmed Cue 6 has 4 arcade tone streams where Streams 2 and 3 are byte-for-byte identical bass tracks; the existing RMS reduction dropped Stream 0 (lead melody) and kept both identical bass streams, causing missing melody and simulated out-of-phase bass cancellation after tick 106. Measured exact <code>+28 B</code> stream delta (<code>337 → 365 B</code>). Reclassified from Draft <code>High-risk</code> to Proposed <code>Standard</code>; retained four 48 kHz WAV comparison clips under <code>repro/bug129-cue06-attenuation-test/</code> so the user can compare bass attenuation <code>4</code> vs. <code>2</code> before approving.</li>
+        <li>2026-11-22 — User approved BUG-129, DOC-014 cards <code>B129-01</code>–<code>B129-03</code>, bass attenuation <code>2</code>, and branch <code>codex/feat013-shared-hud</code>. Qualified baseline <code>verify_audio_runtime.py</code> on <code>0fb9f186</code>, implemented and committed bounded fix as <code>a29b41ec4e256add368c01f647e17729ae0710c3</code>, passed <code>B129-01</code> and <code>B129-02</code> (ROM SHA-256 <code>496218b7404732850d3f3b550a35dae335e884ae832cde56b8fecb53ba5ca36b</code>), and moved BUG-129 to <code>Verification</code> pending user-owned <code>B129-03</code> audible check.</li>
+      </ul>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical Proposed bug ticket. Update this page, the ticket index, and the wiki log on approval and Ready binding.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>
