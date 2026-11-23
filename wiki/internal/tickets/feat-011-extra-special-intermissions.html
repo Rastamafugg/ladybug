@@ -17,10 +17,55 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Internal · feature · in progress</p>
-      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">In Progress</span></h1>
-      <p class="wiki-meta">Refreshed architecture (page-$24/$0300 intermission overlay + resident relocation) and lightweight verification plan (<code>F11-01</code>&ndash;<code>F11-03</code> + final compile-only <code>joystick</code>/<code>nonadaptive</code> fit check) approved 2026-11-23; Ready &rarr; In Progress on branch <code>feat/feat011-intermissions</code></p>
+      <p class="wiki-eyebrow">Internal · feature · verification</p>
+      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">Verification</span></h1>
+      <p class="wiki-meta">Implementation complete on branch <code>feat/feat011-intermissions</code>; automated gates <code>F11-01</code>, <code>F11-02</code>, and Option 2 compile-only fit checks completed (2026-11-23). Status advances <code>In Progress</code> &rarr; <code>Verification</code> awaiting user-owned <code>F11-03</code> manual XRoar RGB playtest.</p>
     </header>
+
+    <section id="feat011-verification-20261123">
+      <h2>2026-11-23 &mdash; Implementation complete; <code>F11-01</code> &amp; <code>F11-02</code> passed; awaiting user <code>F11-03</code> playtest</h2>
+      <p><strong>Execution note:</strong> After Sol 6.2 high (<code>gpt-6.2-sol</code>) completed EXTRA connector normalization (<code>b4c73e32</code>) and the 255-saturation reserve-life fix (<code>669e9ffe</code>) but declined to implement the arcade-adapted intermission scenes under model policy, the user approved direct implementation on branch <code>feat/feat011-intermissions</code>.</p>
+      <p><strong>Implemented architecture:</strong></p>
+      <ul>
+        <li><strong>EVD1 boot-expanded event bundle (pages <code>$25&ndash;$26</code>):</strong> Upgraded <code>scripts/build_event_asset_bundle.py</code> to compile Tiled-flipped <code>CoCo Event Scene</code> grids from <code>tiled/coco-special-screen.tmx</code> and <code>tiled/coco-extra-screen.tmx</code> into a 242-tile shared 4bpp atlas (<code>page $25: 7,744 / 8,192 B</code>) and EVD1 header + 24&times;24 scene maps + compiled SPECIAL/EXTRA/12-connector routes (<code>page $26: 1,254 / 8,192 B</code>; total <code>8,998 / 16,384 B</code>), validating raw GID <code>633</code> Part Vegetable markers to <code>$2A84</code> and emitting <code>ladybug_event_assets.inc</code>. Packed via <code>scripts/build_sparse_sprites.py</code> as LZSS boot streams 8 &amp; 9 of 9 before <code>audio_page_3d</code> (leaving <code>dinosaur</code> as the sole standalone ROM asset) and independently verified by <code>scripts/verify_sparse_sprites.py</code>.</li>
+        <li><strong>Intermission overlay &amp; page-<code>$24</code> handoff:</strong> Added <code>src/intermission_stage.s</code> (<code>21 / 32 B</code> at page <code>$24:$B900</code>) and <code>src/intermission_runtime.s</code> (<code>801 / 938 B</code> staged at <code>$B920</code>, copied to phase-exclusive low RAM <code>$0300</code>). Intercepts <code>PRES_INTERMISSION ($00A8)</code> in <code>src/presentation_runtime.s</code> before the <code>$02C0</code> audio hold (after <code>$51==0</code> publishes the restored player) so intermissions run live during Cue 11 (SPECIAL) / Cue 10 (EXTRA) playback without duplicating cue enqueues or touching <code>src/audio_runtime.s</code>. Draws the 24&times;24 event scene + shared FEAT-013 HUD (including Part Vegetable at marker-derived <code>$2A84</code>), steps Lady Bug at 1 px/frame with top-edge clip for EXTRA entry and per-owner underlay buffers at <code>PLAYER_BG</code> (<code>$A300</code>) / <code>PLAYER_BG_B</code> (<code>$AB00</code>), holds the new EXTRA reserve-life marker until slot arrival when <code>LIVES &le; 12</code>, enforces non-skippable input suppression through 30-frame arrival dwell + <code>AUDIO_MUSIC_BUSY ($02D4) == 0</code>, clears buffered inputs, and hands off to <code>PRES_MAIN_NEXT_STAGE</code> &rarr; <code>PRESENTATION_MAP_LEVEL_START</code>.</li>
+        <li><strong>Resident fit &amp; reward relocation:</strong> Moved <code>add_special_score</code> (+100,000 BCD, <code>PRES_INTERMISSION=2</code>) and <code>extra_complete</code> (255-saturating <code>LIVES</code>, <code>PRES_INTERMISSION=1</code>, no completion bonus points) into <code>src/adaptive_active.s</code> behind <code>ifne ADAPTIVE_RENDERING</code> / <code>else</code> guards, saving 28 bytes in resident ROM (<code>8,163 / 8,192 B</code>) while preserving the <code>joystick</code> and <code>nonadaptive</code> build switches.</li>
+        <li><strong>Non-release playtest fixture selector:</strong> Added pre-assembly <code>LADYBUG_FEAT011_FIXTURE=none|special-e|extra-e</code> validation in <code>scripts/build.sh</code> emitting exact <code>FEAT011_FIXTURE_REJECT</code> markers with exit <code>2</code> before creating build directories for unknown values or non-<code>none</code> values outside <code>complete</code>.</li>
+      </ul>
+
+      <h3>Measured capacities &amp; Option 2 fit checks (single assembled observations, 2026-11-23)</h3>
+      <p><strong>Table definitions:</strong> Each row reports one measured build artifact against its fixed hard cap (in bytes unless noted), margin (<code>cap &minus; measured</code>; positive = free headroom, negative = overflow), and pass/fail status.</p>
+      <table class="wiki-table">
+        <thead><tr><th>Target / profile</th><th>Measured</th><th>Hard cap / target</th><th>Margin</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Primary resident ROM (<code>complete / keyboard / adaptive=1 / none</code>)</td><td>8,163 B</td><td>&le; 8,192 B</td><td>+29 B</td><td>PASS</td></tr>
+          <tr><td>Primary presentation module (<code>$1900&ndash;$1DFF</code>)</td><td>1,273 B</td><td>&le; 1,280 B</td><td>+7 B</td><td>PASS</td></tr>
+          <tr><td>Primary adaptive active image (<code>$038F&ndash;$0697</code>)</td><td>735 B</td><td>&le; 777 B</td><td>+42 B</td><td>PASS</td></tr>
+          <tr><td>Primary intermission stage stub (<code>$24:$B900</code>)</td><td>21 B</td><td>&le; 32 B</td><td>+11 B</td><td>PASS</td></tr>
+          <tr><td>Primary intermission runtime (<code>$24:$B920 &rarr; $0300</code>)</td><td>801 B</td><td>&le; 938 B</td><td>+137 B</td><td>PASS</td></tr>
+          <tr><td>Primary page-<code>$24</code> auxiliary staging (<code>$A422&ndash;$C000</code>)</td><td>6,175 B (ends <code>$BC41</code>)</td><td>&le; 7,134 B</td><td>+959 B</td><td>PASS</td></tr>
+          <tr><td>Primary EVD1 expanded pages <code>$25</code> / <code>$26</code></td><td>7,744 B / 1,254 B (8,998 B total)</td><td>&le; 8,192 B each / &le; 16,384 B total</td><td>+7,386 B</td><td>PASS</td></tr>
+          <tr><td>Primary boot LZSS descriptors / GMC spare</td><td>9 / 9 streams; 5,464 B spare</td><td>&le; 9 streams; &ge; 512 B spare</td><td>0 slots / +4,952 B</td><td>PASS</td></tr>
+          <tr><td>Fixture ROMs (<code>special-e</code> &amp; <code>extra-e</code>, resident)</td><td>8,190 B each</td><td>&le; 8,192 B</td><td>+2 B</td><td>PASS</td></tr>
+          <tr><td>Option 2 compile-only: <code>complete / joystick / adaptive=1</code></td><td>8,199 B</td><td>&le; 8,192 B</td><td>&minus;7 B (improved from &minus;35 B baseline)</td><td>FAIL (compile-only report)</td></tr>
+          <tr><td>Option 2 compile-only: <code>complete / keyboard / adaptive=0</code></td><td>8,281 B</td><td>&le; 8,192 B</td><td>&minus;89 B (vs. &minus;79 B baseline)</td><td>FAIL (compile-only report)</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Automated gate results &amp; ROM artifacts</h3>
+      <ul>
+        <li><strong>F11-01 (PASS):</strong> <code>generate_feat011_extra_connectors.py --check</code> passed; <code>test_feat011_extra_connectors.py</code> passed (7/7); <code>build_event_asset_bundle.py --self-test</code> rejected 4/4 marker negative controls (missing, duplicate, transformed, wrong-GID); <code>verify_sparse_sprites.py</code> verified exact EVD1 pages <code>$25&ndash;$26</code> round-trip and <code>$2A84</code> destinations.</li>
+        <li><strong>F11-02 (PASS):</strong> Primary build passed with DOC-002 <code>PASS: 19 modules, 341/341 routines, 7,303/7,303 labels</code>; <code>verify_audio_runtime.py --rom build/ladybug.rom</code> passed (18 cues, 1,959 PSG bytes); <code>verify_presentation_flow.py</code>, <code>verify_gmc_overflow.py</code>, and <code>verify_presentation_sparse.py</code> passed; 3/3 fixture-selector rejection controls exited <code>2</code> before creating build directories (<code>reason=unknown value=invalid</code>, <code>reason=release value=special-e</code>, <code>reason=release value=extra-e</code>); static listing audit confirmed all 16 <code>PAR5</code> stores in <code>intermission_runtime</code> restore <code>$34</code> and <code>extra_complete</code> saturates <code>LIVES</code> at <code>$FF</code>.</li>
+        <li><strong>Built ROM SHA-256 hashes:</strong>
+          <ul>
+            <li>Primary (<code>LADYBUG_FEAT011_FIXTURE=none</code>): <code>build/ladybug.rom</code> &mdash; <code>1e9133cba8d54d0e7536eab25b025760dd45e641f7af3dc20dfe4d56d05a8a3b</code></li>
+            <li>SPECIAL playtest fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>be3e6a6c6194f30bcac7e6cfdab22bab714edde23bdb9cf39d1d2e9eaff8f1f0</code></li>
+            <li>EXTRA playtest fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>bbd8d06dd0faedfd2a748478d7cb539632cb3cfa6f6a4ac7dd69e99dde2e2a4e</code></li>
+          </ul>
+        </li>
+        <li><strong>F11-03 (PENDING — User-Owned):</strong> Manual XRoar RGB playtest of <code>special-e</code>, <code>extra-e</code>, and primary <code>build/ladybug.rom</code> (including the 12-starting-lives boundary check) must pass before advancing FEAT-011 to <code>Done</code>.</li>
+      </ul>
+    </section>
 
     <section id="feat011-refreshed-plan-20261123">
       <h2>2026-11-23 &mdash; Refreshed architecture &amp; lightweight verification plan (Approved &rarr; Ready &rarr; In Progress on <code>feat/feat011-intermissions</code>)</h2>

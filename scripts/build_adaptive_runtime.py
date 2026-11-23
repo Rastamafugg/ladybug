@@ -15,6 +15,9 @@ def main():
     extension=json.loads((r/'scripts/source_reference_adaptive.json').read_text())
     if a.phase=='registry':
         config=json.loads((r/'scripts/source_reference.json').read_text())
+        for mod in extension['modules']:
+            if mod.get('generated_source') and 'source' in mod:
+                mod['source']=display_path(b/Path(mod['source']).name)
         config['modules'].extend(extension['modules'])
         config['contract_profiles'].update(extension['contract_profiles'])
         config['ownership_audit']['required'].extend(['adaptive-history-a','adaptive-history-b','adaptive-state'])

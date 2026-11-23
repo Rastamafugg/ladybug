@@ -81,7 +81,52 @@ INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
 HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
+INTERMISSION_STAGE_ADDRESS = 0xB900
+INTERMISSION_STAGE_MAX_BYTES = 0x20
+INTERMISSION_RUNTIME_ADDRESS = 0xB920
+INTERMISSION_RUNTIME_MAX_BYTES = 0x3AA
+EVENT_ATLAS_PAGE = 0x25
+EVENT_DATA_PAGE = 0x26
 PHASE_TILE_PATCH_ADDRESS = 0xBF80
+
+
+def build_aux_runtime_stage(
+        aux_runtime_role: str,
+        instruction_runtime: bytes,
+        demo_runtime: bytes,
+        highscore_runtime: bytes,
+        highscore_helper: bytes,
+        intermission_stage: bytes = b"",
+        intermission_runtime: bytes = b"",
+) -> bytes:
+    """Assemble the page-$24 auxiliary staging image with non-overlapping offsets."""
+    if aux_runtime_role == "development":
+        return instruction_runtime
+    if aux_runtime_role != "complete":
+        return demo_runtime
+    highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+    helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+    prefix = instruction_runtime + demo_runtime
+    if len(prefix) > highscore_offset:
+        raise ValueError("complete demo overlaps the page-$24 high-score runtime")
+    prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
+    if len(prefix) > helper_offset:
+        raise ValueError("complete high-score runtime overlaps its helper")
+    stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
+    if intermission_stage or intermission_runtime:
+        if len(intermission_stage) > INTERMISSION_STAGE_MAX_BYTES:
+            raise ValueError("intermission stage stub exceeds its 32-byte slot")
+        if len(intermission_runtime) > INTERMISSION_RUNTIME_MAX_BYTES:
+            raise ValueError("intermission runtime exceeds $0300-$06A9 allocation")
+        stage_offset = INTERMISSION_STAGE_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        runtime_offset = INTERMISSION_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+        if len(stage) > stage_offset:
+            raise ValueError("complete high-score helper overlaps intermission stage stub")
+        stage = stage.ljust(stage_offset, b"\x00") + intermission_stage
+        if len(stage) > runtime_offset:
+            raise ValueError("intermission stage stub overlaps intermission runtime")
+        stage = stage.ljust(runtime_offset, b"\x00") + intermission_runtime
+    return stage
 
 
 def keybinding_address_for_audio(audio_bytes: int) -> int:
@@ -179,6 +224,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-runtime", type=Path, required=True)
     parser.add_argument("--highscore-runtime", type=Path, required=True)
     parser.add_argument("--highscore-helper", type=Path, required=True)
+    parser.add_argument("--intermission-stage", type=Path)
+    parser.add_argument("--intermission-runtime", type=Path)
     parser.add_argument("--adaptive-helper", type=Path)
     parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
@@ -435,6 +482,10 @@ def pack_candidate_banks(
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
         hud_word_helper: bytes = b"",
+        intermission_stage: bytes = b"",
+        intermission_runtime: bytes = b"",
+        event_page25: bytes = b"",
+        event_page26: bytes = b"",
         rom_asset_inputs: list[tuple[str, bytes, dict[str, object]]] | None = None,
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
@@ -466,20 +517,15 @@ def pack_candidate_banks(
         raise ValueError("demo runtime exceeds freed $0300-$064C loader RAM")
     if len(highscore_runtime) > 0x398:
         raise ValueError("high-score runtime exceeds phase-owned $0300-$0697 RAM")
-    if aux_runtime_role == "development":
-        aux_runtime_stage = instruction_runtime
-    elif aux_runtime_role == "complete":
-        highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
-        helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
-        prefix = instruction_runtime + demo_runtime
-        if len(prefix) > highscore_offset:
-            raise ValueError("complete demo overlaps the page-$24 high-score runtime")
-        prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
-        if len(prefix) > helper_offset:
-            raise ValueError("complete high-score runtime overlaps its helper")
-        aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
-    else:
-        aux_runtime_stage = demo_runtime
+    aux_runtime_stage = build_aux_runtime_stage(
+        aux_runtime_role,
+        instruction_runtime,
+        demo_runtime,
+        highscore_runtime,
+        highscore_helper,
+        intermission_stage,
+        intermission_runtime,
+    )
 
     sources = [
         SourceInterval(2, BANK2_PAYLOAD_START, CART_READABLE_BYTES),
@@ -563,6 +609,14 @@ def pack_candidate_banks(
         if helper_offset + len(hud_word_helper) > PAGE_BYTES:
             raise ValueError("HUD word helper exceeds page $3D")
         audio_transport = audio_transport.ljust(helper_offset, b"\x00") + hud_word_helper
+    if event_page25:
+        stream_targets.append((
+            "event_page_25", event_page25, EVENT_ATLAS_PAGE, WINDOW_BASE,
+        ))
+    if event_page26:
+        stream_targets.append((
+            "event_page_26", event_page26, EVENT_DATA_PAGE, WINDOW_BASE,
+        ))
     stream_targets.append((
         "audio_page_3d", audio_transport, AUDIO_RUNTIME_PAGE,
         AUDIO_RUNTIME_ADDRESS,
@@ -830,13 +884,22 @@ def main() -> None:
     asset_manifest = json.loads(args.asset_manifest_input.read_text(encoding="ascii"))
     asset_details = asset_manifest.get("assets", {})
     expected_asset_names = ("special_extra_event_art", "dinosaur")
-    asset_inputs = []
+    validated_assets: dict[str, tuple[bytes, dict[str, object]]] = {}
     for name, raw in zip(expected_asset_names, (event_asset, dinosaur_asset)):
         details = asset_details.get(name)
         if (not isinstance(details, dict) or details.get("raw_bytes") != len(raw) or
                 details.get("raw_sha256") != digest(raw)):
             raise SystemExit(f"sparse: {name} compiler manifest does not match payload")
-        asset_inputs.append((name, raw, details))
+        validated_assets[name] = (raw, details)
+    event_details = validated_assets["special_extra_event_art"][1]
+    event_page25_len = int(event_details["page25_bytes"])
+    event_page25 = event_asset[:event_page25_len]
+    event_page26 = event_asset[event_page25_len:]
+    if (len(event_page26) != int(event_details["page26_bytes"]) or
+            digest(event_page25) != event_details["page25_sha256"] or
+            digest(event_page26) != event_details["page26_sha256"]):
+        raise SystemExit("sparse: EVD1 page-$25/$26 partition differs from compiler manifest")
+    asset_inputs = [("dinosaur", dinosaur_asset, validated_assets["dinosaur"][1])]
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
@@ -905,6 +968,12 @@ def main() -> None:
     demo_runtime = args.demo_runtime.read_bytes()
     highscore_runtime = args.highscore_runtime.read_bytes()
     highscore_helper = args.highscore_helper.read_bytes()
+    intermission_stage = (
+        args.intermission_stage.read_bytes() if args.intermission_stage else b""
+    )
+    intermission_runtime = (
+        args.intermission_runtime.read_bytes() if args.intermission_runtime else b""
+    )
     audio_runtime = args.audio_runtime.read_bytes()
     keybinding_runtime = (
         args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b""
@@ -919,20 +988,15 @@ def main() -> None:
     tile_patches = args.tile_patches.read_bytes()
     if len(tile_patches) not in (0, 128):
         raise SystemExit("sparse: phase tile patches must be empty or exactly 128 bytes")
-    if args.aux_runtime_role == "development":
-        aux_runtime_stage = instruction_runtime
-    elif args.aux_runtime_role == "complete":
-        highscore_offset = HIGHSCORE_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
-        helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
-        prefix = instruction_runtime + demo_runtime
-        if len(prefix) > highscore_offset:
-            raise SystemExit("sparse: complete demo overlaps high-score runtime")
-        prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
-        if len(prefix) > helper_offset:
-            raise SystemExit("sparse: high-score runtime overlaps helper")
-        aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
-    else:
-        aux_runtime_stage = demo_runtime
+    aux_runtime_stage = build_aux_runtime_stage(
+        args.aux_runtime_role,
+        instruction_runtime,
+        demo_runtime,
+        highscore_runtime,
+        highscore_helper,
+        intermission_stage,
+        intermission_runtime,
+    )
     bank0, bank2, bank3, segments, packed_streams, rom_assets = pack_candidate_banks(
         enemy_payload, player_payload, gate_payload, presentation_payload,
         enemy_runtime, presentation_cold, presentation_module,
@@ -947,6 +1011,10 @@ def main() -> None:
         vegetable_payload=vegetable_payload,
         keybinding_runtime=keybinding_runtime,
         hud_word_helper=hud_word_helper,
+        intermission_stage=intermission_stage,
+        intermission_runtime=intermission_runtime,
+        event_page25=event_page25,
+        event_page26=event_page26,
         rom_asset_inputs=asset_inputs,
     )
     outputs = (
@@ -1226,6 +1294,31 @@ def main() -> None:
             "destination_end": 0x06AA,
             "sha256": digest(demo_runtime),
         }
+    if intermission_stage or intermission_runtime:
+        manifest["intermission_stage"] = {
+            "bytes": len(intermission_stage),
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
+            "stage_address": INTERMISSION_STAGE_ADDRESS,
+            "sha256": digest(intermission_stage),
+        }
+        manifest["intermission_runtime"] = {
+            "bytes": len(intermission_runtime),
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
+            "stage_address": INTERMISSION_RUNTIME_ADDRESS,
+            "destination_address": 0x0300,
+            "destination_end": 0x06AA,
+            "sha256": digest(intermission_runtime),
+        }
+    manifest["event_assets"] = {
+        "format": event_details["format"],
+        "atlas_page": EVENT_ATLAS_PAGE,
+        "data_page": EVENT_DATA_PAGE,
+        "page25_bytes": len(event_page25),
+        "page25_sha256": digest(event_page25),
+        "page26_bytes": len(event_page26),
+        "page26_sha256": digest(event_page26),
+        "details": event_details,
+    }
     if vegetable_payload:
         manifest["vegetable"] = {"frames": len(vegetable_index), "bytes": len(vegetable_payload), "index_bytes": 3 * len(vegetable_index), "page": PLAYER_PAGE_BASE, "address": 0xAFB6, "pen_map": list(LEGACY_ENEMY_PEN_MAP), "index": vegetable_index, "sha256": digest(vegetable_payload)}
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)

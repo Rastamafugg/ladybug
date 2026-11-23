@@ -83,6 +83,7 @@ PRESENTATION_HOLD_BEGIN equ $06C5
 PRESENTATION_HOLD_TICK equ $06C7
 PRESENTATION_ATTRACT_OVERLAY equ $06C9
 PRES_MAIN_HIGHSCORE_PHASE_ENTRY equ $AC40
+PRESENTATION_INTERMISSION_STAGE_ENTRY equ $B900
 INSTRUCTION_RUNTIME_TICK equ $0300
 DEMO_RUNTIME_TICK equ $0300
 AUDIO_INIT_EXEC equ $0303
@@ -136,6 +137,8 @@ MODE_PRESENTATION_UI equ 5
 MODE_LEVEL equ 6
 MODE_GAMEOVER equ 7
 MODE_NAME equ 8
+MODE_INTERMISSION equ 9
+PRES_INTERMISSION equ $00A8
 PRESENTATION_ROTATION_TICKS equ 558 ; shared Attract and high-score hold
 PRES_CONTEXT_NEXT_STAGE equ 2
 PRES_CONTEXT_DEMO_HIGH_SCORE equ 3
@@ -284,6 +287,10 @@ install_aux_runtime_byte
         rts
 
 normal_tick
+        ifne    COMPLETE_PROFILE
+        tst     <PRES_INTERMISSION
+        bne     normal_intermission
+        endc
         jsr     $02C0
         bne     normal_hold
         lda     <DEATH
@@ -310,17 +317,22 @@ normal_tick
 normal_stage
         tst     <STAGE_PENDING
         beq     normal_start
+        ifne    COMPLETE_PROFILE
+normal_intermission
+        endc
         tst     <$51            ; publish restored player before stage handoff
         bne     normal_game
-        jsr     PRES_MAIN_NEXT_STAGE
         ifne    COMPLETE_PROFILE
-        lda     #PRES_CONTEXT_NEXT_STAGE
+        lda     #$24
+        sta     PAR5
+        jmp     PRESENTATION_INTERMISSION_STAGE_ENTRY
         else
+        jsr     PRES_MAIN_NEXT_STAGE
         lda     #1
-        endc
         sta     <PRES_CONTEXT
         lda     #PRESENTATION_MAP_LEVEL_START
         bra     normal_begin_screen
+        endc
 normal_start
         tst     INITIAL_ENTRY_STATE
         bne     normal_game       ; held start cannot replace an active entrant

@@ -830,6 +830,24 @@
           "semantic_id": "routines.html#routine-resident-runtime-ad-stage-clear-exec"
         },
         {
+          "name": "AD_SPECIAL_SCORE_EXEC",
+          "profile": "state",
+          "purpose": "Fixed low-RAM entry to the active-image SPECIAL 100,000-point reward and intermission flag helper.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ad-special-score-exec"
+        },
+        {
+          "name": "AD_EXTRA_COMPLETE_EXEC",
+          "profile": "state",
+          "purpose": "Fixed low-RAM entry to the active-image EXTRA completion, 255-saturating reserve life, and intermission flag helper.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ad-extra-complete-exec"
+        },
+        {
           "name": "adaptive_install_active",
           "profile": "copy",
           "purpose": "Restore the active low-RAM driver from staged page $3D after a presentation overlay retires.",
@@ -2477,6 +2495,7 @@
         "PRES_MAIN_INSTALL_PHASE_TILES",
         "PRES_STAGE_SLICE",
         "PRES_MAIN_PAGE24_RESUME",
+        "PRESENTATION_INTERMISSION_STAGE_ENTRY",
         "HUD_P1_STAGE",
         "HUD_PLAYER_VALID"
       ],
@@ -2587,6 +2606,11 @@
           "name": "pft_dispatch",
           "routine": "presentation_flow_tick",
           "purpose": "Dispatch the current presentation mode to its handler after presentation-flow prechecks."
+        },
+        {
+          "name": "normal_intermission",
+          "routine": null,
+          "purpose": "Stage/intermission handoff target entered from normal_tick when PRES_INTERMISSION is nonzero, bypassing the $02C0 audio hold once restored player pixels publish."
         }
       ],
       "entrypoints": []
@@ -5002,6 +5026,295 @@
         "TEXT_SPECIAL",
         "TEXT_EXTRA",
         "TEXT_INSTRUCTION_MULTIPLIER_INACTIVE"
+      ]
+    },
+    {
+      "id": "intermission-stage",
+      "title": "Page-$24 intermission stage stub",
+      "source": "src/intermission_stage.s",
+      "listing": "ladybug-intermission-stage.lst",
+      "map": "ladybug-intermission-stage.map",
+      "binary": "ladybug-intermission-stage.bin",
+      "artifact_include_dirs": [
+        ""
+      ],
+      "source_include_dirs": [
+        "src"
+      ],
+      "routines": [
+        {
+          "name": "intermission_stage_entry",
+          "profile": "copy",
+          "purpose": "Copy the page-$24 intermission overlay into low RAM $0300 and jump to its stage/intermission dispatcher at $0303.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-stage-intermission-stage-entry"
+        }
+      ],
+      "relocations": [
+        {
+          "id": "intermission-stage-page24-slot",
+          "assembled": {
+            "address": "0xB900"
+          },
+          "runtime_destination": {
+            "address": "0xB900",
+            "physical_page": "0x24"
+          },
+          "length_source": "binary"
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "intermission_stage_end",
+          "kind": "boundary",
+          "reason": "End of the page-$24 intermission copy stub within its 32-byte $B900-$B91F slot."
+        }
+      ],
+      "external_symbols": [
+        "INTERMISSION_STAGE_ENTRY",
+        "INTERMISSION_RUNTIME_STAGE_ADDR",
+        "INTERMISSION_RUNTIME_BYTES"
+      ]
+    },
+    {
+      "id": "intermission-runtime",
+      "title": "FEAT-011 EXTRA and SPECIAL intermission runtime",
+      "source": "src/intermission_runtime.s",
+      "listing": "ladybug-intermission-runtime.lst",
+      "map": "ladybug-intermission-runtime.map",
+      "binary": "ladybug-intermission-runtime.bin",
+      "defines": {
+        "HIGHSCORE_TEST_PROFILE": 0,
+        "PRESENTATION_NAME_ENTRY_DATA": 0
+      },
+      "artifact_include_dirs": [
+        ""
+      ],
+      "source_include_dirs": [
+        "src"
+      ],
+      "routines": [
+        {
+          "name": "intermission_tick",
+          "profile": "presentation",
+          "purpose": "Advance the non-skippable EXTRA or SPECIAL intermission animation, wait for full route and celebration audio completion, and hand off cleanly to Level Start.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-runtime-intermission-tick"
+        },
+        {
+          "name": "intermission_stage_entry_low",
+          "profile": "presentation",
+          "purpose": "Restore PAR5 to $34 and either run the plain next-stage handoff or initialize MODE_INTERMISSION from PRES_INTERMISSION.",
+          "reasons": [
+            "exported",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-runtime-intermission-stage-entry-low"
+        },
+        {
+          "name": "im_draw_scene",
+          "profile": "render",
+          "purpose": "Render the 24x24 EVD1 event scene from physical pages $26/$25 into BACK columns 8-31 and restore PAR5 to $34.",
+          "reasons": [
+            "called",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-runtime-im-draw-scene"
+        },
+        {
+          "name": "im_draw_sprite",
+          "profile": "render",
+          "purpose": "Save owner-local underlay and draw the animated Lady Bug sparse sprite at the current route coordinate, restoring PAR5 to $34.",
+          "reasons": [
+            "called",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-runtime-im-draw-sprite"
+        },
+        {
+          "name": "im_load_segment",
+          "profile": "presentation",
+          "purpose": "Read the next (dir, steps) route segment from page $26, chaining from the EXTRA shared route into the selected reserve-slot connector, and restore PAR5 to $34.",
+          "reasons": [
+            "called",
+            "hardware-touching"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-intermission-runtime-im-load-segment"
+        }
+      ],
+      "relocations": [
+        {
+          "id": "intermission-runtime-installed",
+          "assembled": {
+            "address": "0x0300"
+          },
+          "cartridge_staged": {
+            "address": "0xB920",
+            "physical_page": "0x24"
+          },
+          "runtime_destination": {
+            "address": "0x0300",
+            "physical_page": "0x38"
+          },
+          "length_source": "binary"
+        }
+      ],
+      "label_classifications": [
+        {
+          "name": "im_kind",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_init_mask",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_final_mask",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_cur_bit",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_route_done",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_parity",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_anim_tick",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_extra_phase",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_extra_slot",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_dir",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_steps",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_row_cnt",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_col_cnt",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_valid_a",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_valid_b",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_dwell",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state byte owned by intermission-runtime."
+        },
+        {
+          "name": "im_pos_x",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_pos_y",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_seg_ptr",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_map_ptr",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_row_fb",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_fb_dst",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_old_fb_a",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "im_old_fb_b",
+          "kind": "data",
+          "reason": "Phase-exclusive low-RAM intermission state word owned by intermission-runtime."
+        },
+        {
+          "name": "intermission_runtime_end",
+          "kind": "boundary",
+          "reason": "End of the phase-exclusive intermission overlay within $0300-$06A9."
+        }
+      ],
+      "external_symbols": [
+        "PRES_MAIN_NEXT_STAGE",
+        "PRES_MAIN_HUD_CAPTURE_PLAYER",
+        "PRES_MAIN_SHARED_HUD",
+        "PRES_MAIN_FB_PREPARE",
+        "PRES_MAIN_FB_FINISH",
+        "PRES_MAIN_SAVE_PLAYER",
+        "PRES_MAIN_RESTORE_PLAYER",
+        "PRES_MODULE_START_SCREEN",
+        "PRESENTATION_MODULE_DRAW",
+        "PRESENTATION_MAP_LEVEL_START",
+        "PRESENTATION_HUD_DRAW_ALL",
+        "PRESENTATION_HUD_DRAW_LIVES",
+        "PRESENTATION_HUD_VEGETABLE_ICON_DST",
+        "EVENT_ATLAS_PAGE",
+        "EVENT_DATA_PAGE",
+        "EVENT_ATLAS_ADDR",
+        "EVENT_SPECIAL_MAP_ADDR",
+        "EVENT_EXTRA_MAP_ADDR",
+        "EVENT_SPECIAL_ROUTE_ADDR",
+        "EVENT_EXTRA_SHARED_ROUTE_ADDR",
+        "EVENT_EXTRA_CONNECTORS_ADDR",
+        "EVENT_EXTRA_CONNECTOR_STRIDE",
+        "FEAT011_SPECIAL_VEGETABLE_DST",
+        "FEAT011_EXTRA_VEGETABLE_DST"
       ]
     }
   ],

@@ -44,6 +44,13 @@ INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
 HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
+INTERMISSION_STAGE_ADDRESS = 0xB900
+INTERMISSION_STAGE_MAX_BYTES = 0x20
+INTERMISSION_RUNTIME_ADDRESS = 0xB920
+INTERMISSION_RUNTIME_MAX_BYTES = 0x3AA
+EVENT_ATLAS_PAGE = 0x25
+EVENT_DATA_PAGE = 0x26
+EXPECTED_PART_VEGETABLE_DST = 0x2A84
 LEGACY_PEN_MAP = (0x0, 0xC, 0x5, 0x2)
 PART_ONE_PEN_MAP = (0x0, 0x9, 0x5, 0x6)
 GAMEPLAY_ENEMY_PEN_MAPS = (
@@ -83,6 +90,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--demo-runtime", type=Path, default=BUILD / "ladybug-demo-runtime.bin")
     parser.add_argument("--highscore-runtime", type=Path, default=BUILD / "ladybug-highscore-runtime.bin")
     parser.add_argument("--highscore-helper", type=Path, default=BUILD / "ladybug-highscore-helper.bin")
+    parser.add_argument("--intermission-stage", type=Path)
+    parser.add_argument("--intermission-runtime", type=Path)
     parser.add_argument("--adaptive-helper", type=Path)
     parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
@@ -308,6 +317,16 @@ def main() -> None:
         raise SystemExit("sparse proof: generated ROM asset source manifest differs")
     if event_art_input != event_art or dinosaur_input != dinosaur_art:
         raise SystemExit("sparse proof: ROM asset compiler output identity differs")
+    if (event_details["special_vegetable"]["fb_dst"] != EXPECTED_PART_VEGETABLE_DST or
+            event_details["extra_vegetable"]["fb_dst"] != EXPECTED_PART_VEGETABLE_DST):
+        raise SystemExit("sparse proof: marker-derived Part Vegetable destination differs")
+    event_page25_len = int(event_details["page25_bytes"])
+    event_page25 = event_art[:event_page25_len]
+    event_page26 = event_art[event_page25_len:]
+    if (len(event_page25) > PAGE_BYTES or len(event_page26) > PAGE_BYTES or
+            len(event_page25) + len(event_page26) > 2 * PAGE_BYTES or
+            len(event_page26) != int(event_details["page26_bytes"])):
+        raise SystemExit("sparse proof: EVD1 page-$25/$26 bounds exceeded")
     enemy_frames = compile_enemy_sprites(args.sprites)
     enemy_frames.extend(compile_attract_extra_enemy_sprites(args.sprites))
     player_frames = compile_player_sprites(args.sprites)
@@ -330,6 +349,12 @@ def main() -> None:
     demo_runtime = args.demo_runtime.read_bytes()
     highscore_runtime = args.highscore_runtime.read_bytes()
     highscore_helper = args.highscore_helper.read_bytes()
+    intermission_stage = (
+        args.intermission_stage.read_bytes() if args.intermission_stage else b""
+    )
+    intermission_runtime = (
+        args.intermission_runtime.read_bytes() if args.intermission_runtime else b""
+    )
     enemy_helper = args.enemy_helper.read_bytes() if args.enemy_helper else b""
     audio_runtime = args.audio_runtime.read_bytes()
     hud_word_helper = args.hud_word_helper.read_bytes()
@@ -350,6 +375,19 @@ def main() -> None:
         if len(prefix) > helper_offset:
             raise SystemExit("sparse proof: high-score runtime overlaps helper")
         aux_runtime_stage = prefix.ljust(helper_offset, b"\x00") + highscore_helper
+        if intermission_stage or intermission_runtime:
+            if len(intermission_stage) > INTERMISSION_STAGE_MAX_BYTES:
+                raise SystemExit("sparse proof: intermission stage stub exceeds 32 bytes")
+            if len(intermission_runtime) > INTERMISSION_RUNTIME_MAX_BYTES:
+                raise SystemExit("sparse proof: intermission runtime exceeds $0300-$06A9")
+            stage_offset = INTERMISSION_STAGE_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+            runtime_offset = INTERMISSION_RUNTIME_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
+            if len(aux_runtime_stage) > stage_offset:
+                raise SystemExit("sparse proof: high-score helper overlaps intermission stage")
+            aux_runtime_stage = aux_runtime_stage.ljust(stage_offset, b"\x00") + intermission_stage
+            if len(aux_runtime_stage) > runtime_offset:
+                raise SystemExit("sparse proof: intermission stage overlaps intermission runtime")
+            aux_runtime_stage = aux_runtime_stage.ljust(runtime_offset, b"\x00") + intermission_runtime
     else:
         aux_runtime_stage = demo_runtime
     enemy_ranges = decode_payload(enemy_payload, enemy_frames, enemy_pen_maps, 0x35)
@@ -452,6 +490,19 @@ def main() -> None:
         raise SystemExit("sparse proof: high-score helper manifest hash mismatch")
     if manifest["highscore_runtime"]["sha256"] != sha256(highscore_runtime):
         raise SystemExit("sparse proof: high-score runtime manifest hash mismatch")
+    if intermission_stage or intermission_runtime:
+        istage = manifest.get("intermission_stage", {})
+        irun = manifest.get("intermission_runtime", {})
+        if (istage.get("stage_page") != AUXILIARY_RUNTIME_PAGE or
+                istage.get("stage_address") != INTERMISSION_STAGE_ADDRESS or
+                istage.get("bytes") != len(intermission_stage) or
+                istage.get("sha256") != sha256(intermission_stage)):
+            raise SystemExit("sparse proof: intermission stage manifest mismatch")
+        if (irun.get("stage_page") != AUXILIARY_RUNTIME_PAGE or
+                irun.get("stage_address") != INTERMISSION_RUNTIME_ADDRESS or
+                irun.get("bytes") != len(intermission_runtime) or
+                irun.get("sha256") != sha256(intermission_runtime)):
+            raise SystemExit("sparse proof: intermission runtime manifest mismatch")
     if args.aux_runtime_role in ("development", "complete") and manifest.get("instruction_runtime", {}).get("sha256") != sha256(instruction_runtime):
         raise SystemExit("sparse proof: instruction runtime manifest hash mismatch")
     if args.aux_runtime_role in ("release", "complete") and manifest.get("demo_runtime", {}).get("sha256") != sha256(demo_runtime):
@@ -726,7 +777,8 @@ def main() -> None:
         coverage[target][target_offset:destination_end] = b"\x01" * count
 
     expected_streams = {
-        "page39", "presentation_page_3a", "audio_page_3d"
+        "page39", "presentation_page_3a", "event_page_25", "event_page_26",
+        "audio_page_3d",
     }
     if len(presentation_cold) > PAGE_BYTES:
         expected_streams.add("presentation_page_3b")
@@ -785,6 +837,16 @@ def main() -> None:
                 raise SystemExit("sparse proof: enemy compressed page identity/coverage differs")
             reconstructed["enemy"][offset:end] = raw
             coverage["enemy"][offset:end] = b"\x01" * len(raw)
+        elif name == "event_page_25":
+            if (stream["destination_page"] != EVENT_ATLAS_PAGE or
+                    stream["destination_address"] != WINDOW_BASE or
+                    raw != event_page25 or len(raw) > PAGE_BYTES):
+                raise SystemExit("sparse proof: EVD1 page-$25 stream identity differs")
+        elif name == "event_page_26":
+            if (stream["destination_page"] != EVENT_DATA_PAGE or
+                    stream["destination_address"] != WINDOW_BASE or
+                    raw != event_page26 or len(raw) > PAGE_BYTES):
+                raise SystemExit("sparse proof: EVD1 page-$26 stream identity differs")
         elif name == "audio_page_3d":
             keys = manifest.get("keybinding_runtime", {})
             expected = audio_runtime
@@ -813,11 +875,10 @@ def main() -> None:
             coverage["audio_runtime"][:] = b"\x01" * len(audio_runtime)
 
     expected_rom_assets = {
-        "special_extra_event_art": (event_art_input, event_details),
         "dinosaur": (dinosaur_input, dinosaur_details),
     }
     rom_assets = manifest["gmc"].get("rom_assets", [])
-    if {item.get("name") for item in rom_assets} != set(expected_rom_assets) or len(rom_assets) != 2:
+    if {item.get("name") for item in rom_assets} != set(expected_rom_assets) or len(rom_assets) != 1:
         raise SystemExit("sparse proof: ROM asset inventory differs")
     for asset in rom_assets:
         name = asset["name"]

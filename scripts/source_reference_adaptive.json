@@ -253,6 +253,24 @@
           "semantic_id": "routines.html#routine-adaptive-active-check-stage-clear"
         },
         {
+          "name": "add_special_score",
+          "profile": "state",
+          "purpose": "Award the 100,000-point SPECIAL completion bonus, queue RF_HUD, and flag the SPECIAL intermission in PRES_INTERMISSION.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-adaptive-active-add-special-score"
+        },
+        {
+          "name": "extra_complete",
+          "profile": "state",
+          "purpose": "Clear EXTRA progress, saturate reserve lives at 255, queue RF_LIVES, set PRES_INTERMISSION for EXTRA, and request stage transition.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-adaptive-active-extra-complete"
+        },
+        {
           "name": "adaptive_draw_hud_intents",
           "profile": "adaptive-active",
           "purpose": "Dispatch shared HUD groups selected by gameplay render intents; a SPECIAL/EXTRA letter intent carries its changed column, while zero requests a full affected word redraw.",
@@ -314,7 +332,13 @@
         "draw_gate_entities",
         "pickup_prepare_removed",
         "pickup_prepare_nest",
-        "DOTS_LEFT"
+        "DOTS_LEFT",
+        "SCORE_BCD",
+        "LIVES",
+        "EXTRA_BITS",
+        "RENDER_LETTER_X",
+        "STAGE_PENDING",
+        "PRES_INTERMISSION"
       ],
       "relocations": [
         {

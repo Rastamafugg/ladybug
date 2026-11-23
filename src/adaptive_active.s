@@ -1,5 +1,7 @@
 ; Isolated active phase: demo prefix $0300-$038E remains intact.
 ; DOC-002 source-contract mirror contract check_stage_clear profile=state: Set STAGE_PENDING once when DOTS_LEFT and BONUS_LEFT are both zero.
+; DOC-002 source-contract mirror contract add_special_score profile=state: Award the 100,000-point SPECIAL completion bonus, queue RF_HUD, and flag the SPECIAL intermission in PRES_INTERMISSION.
+; DOC-002 source-contract mirror contract extra_complete profile=state: Clear EXTRA progress, saturate reserve lives at 255, queue RF_LIVES, set PRES_INTERMISSION for EXTRA, and request stage transition.
 ; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
 ; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
 ; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -28,6 +30,8 @@ PRES_TIMER equ $00B0
         jmp adaptive_audio_binding
         jmp adaptive_render
         jmp check_stage_clear
+        jmp add_special_score
+        jmp extra_complete
 check_stage_clear
         tst     STAGE_PENDING
         bne     csc_done
@@ -37,6 +41,32 @@ check_stage_clear
         bne     csc_done
         inc     STAGE_PENDING
 csc_done
+        rts
+add_special_score
+        lda     SCORE_BCD
+        adda    #$10            ; 1.0 SPECIAL reward: 100,000 points
+        daa
+        sta     SCORE_BCD
+        lda     RENDER_FLAGS
+        ora     #RF_HUD
+        sta     RENDER_FLAGS
+        lda     #2
+        sta     PRES_INTERMISSION
+        rts
+extra_complete
+        clr     EXTRA_BITS
+        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        lda     LIVES
+        cmpa    #$FF
+        beq     ec_pending
+        inc     LIVES
+        lda     RENDER_FLAGS
+        ora     #RF_LIVES
+        sta     RENDER_FLAGS
+ec_pending
+        lda     #1
+        sta     PRES_INTERMISSION
+        inc     STAGE_PENDING
         rts
 adaptive_work
         clra

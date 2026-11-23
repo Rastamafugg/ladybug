@@ -98,6 +98,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract can_move profile=movement: Determine whether move.
 ; DOC-002 source-contract mirror contract check_entity_pickup profile=state: Check entity pickup.
 ; DOC-002 source-contract mirror contract AD_STAGE_CLEAR_EXEC profile=state: Set stage-clear pending after all dots and bonuses are cleared.
+; DOC-002 source-contract mirror contract AD_SPECIAL_SCORE_EXEC profile=state: Fixed low-RAM entry to the active-image SPECIAL 100,000-point reward and intermission flag helper.
+; DOC-002 source-contract mirror contract AD_EXTRA_COMPLETE_EXEC profile=state: Fixed low-RAM entry to the active-image EXTRA completion, 255-saturating reserve life, and intermission flag helper.
 ; DOC-002 source-contract mirror contract clear_life_marker profile=state: Clear life marker.
 ; DOC-002 source-contract mirror contract death_tick profile=state: Advance death state for one scheduled tick.
 ; DOC-002 source-contract mirror contract draw_all_gates profile=render: Draw all gates.
@@ -202,8 +204,12 @@ PERSISTENT_FB equ 1
 ;------------------------------------------------------------------------------
         setdp   $00
         include "ladybug_audio_symbols.inc"
+        include "ladybug_feat011_fixture.inc"
         ifne COMPLETE_PROFILE
         include "ladybug_text_colours.inc"
+        endc
+        ifndef  FEAT011_FIXTURE
+FEAT011_FIXTURE equ 0
         endc
         ifndef  INPUT_JOYSTICK
 INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
@@ -251,6 +257,7 @@ SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
 PRES_SCREEN equ $00A6
+PRES_INTERMISSION equ $00A8     ; 0=none, 1=EXTRA, 2=SPECIAL (FEAT-011)
 PRES_TMP_H equ $00C2
 PRES_HIGHSCORE_BASE equ $AF84
 ; FEAT-013 shared snapshot; boot streams have retired before initialization.
@@ -1064,6 +1071,7 @@ igs_defaults
         lda     #MAZE_DOT_COUNT
         sta     DOTS_LEFT
         clr     STAGE_PENDING
+        clr     PRES_INTERMISSION
         clr     SPECIAL_BITS
         clr     EXTRA_BITS
         clr     DEATH_TIMER
@@ -1212,7 +1220,15 @@ alp_special
         ifne    COMPLETE_PROFILE
         clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         endc
-        bsr    add_special_score
+        ifne    ADAPTIVE_RENDERING
+        jsr     AD_SPECIAL_SCORE_EXEC
+        else
+        bsr     add_special_score
+        ifne    COMPLETE_PROFILE
+        lda     #2
+        sta     PRES_INTERMISSION
+        endc
+        endc
         inc     STAGE_PENDING
         ifne    COMPLETE_PROFILE
         bra     alp_special_queue
@@ -1267,9 +1283,15 @@ alp_extra
         stb     EXTRA_BITS
         cmpb    #$1F
         bne     alp_extra_draw
+        ifne    ADAPTIVE_RENDERING
+        jsr     AD_EXTRA_COMPLETE_EXEC
+        bra     alp_extra_queue
+        else
         clr     EXTRA_BITS
         ifne    COMPLETE_PROFILE
         clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        lda     #1
+        sta     PRES_INTERMISSION
         endc
         ; LIVES counts reserve lives after the active player has entered.
         ; Saturate the reserve count before it wraps to zero.
@@ -1284,6 +1306,7 @@ alp_extra_pending
         inc     STAGE_PENDING
         ifne    COMPLETE_PROFILE
         bra     alp_extra_queue
+        endc
         endc
 alp_extra_draw
         ifne COMPLETE_PROFILE
@@ -1328,6 +1351,7 @@ alp_extra_queue
 alp_done
         rts
 
+        ifeq    ADAPTIVE_RENDERING
 add_special_score
         lda     SCORE_BCD
         adda    #$10            ; 1.0 SPECIAL reward: 100,000 points
@@ -1343,6 +1367,7 @@ add_special_score
         ora     #RF_HUD
         sta     RENDER_FLAGS
         rts
+        endc
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 ; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
@@ -1935,6 +1960,13 @@ init_entities
         clr     ENTITY_CACHE_COLOR
         lda     #6
         sta     BONUS_LEFT
+        ifne    FEAT011_FIXTURE
+        ; Reserve cell (10,18) = index 442 ($01BA) for deterministic OBJECT_E.
+        lda     MAZE_STATE+442
+        anda    #$7F
+        sta     MAZE_STATE+442
+        dec     DOTS_LEFT
+        endc
         lda     STAGE
         cmpa    #2
         blo     ie_two_skulls
@@ -2001,6 +2033,31 @@ ie_spcil_pick
         lda     #ENTITY_LETTER
         bsr     place_entity
 
+        ifne    FEAT011_FIXTURE
+        ; Non-release FEAT-011 fixture: deterministic OBJECT_E at cell (10,18).
+        lda     #ENTITY_LETTER
+        sta     ENTITY_TYPE
+        lda     #OBJECT_E
+        sta     ENTITY_VARIANT
+        lda     #18
+        sta     ENTITY_Y
+        ldb     #10
+        bsr     pe_coordinates
+        ifeq    FEAT011_FIXTURE-1
+        lda     #$7B
+        sta     SPECIAL_BITS
+        clr     EXTRA_BITS
+        lda     #COLOR_RED
+        else
+        clr     SPECIAL_BITS
+        lda     #$1E
+        sta     EXTRA_BITS
+        lda     #COLOR_YELLOW
+        endc
+        sta     BONUS_COLOR
+        ldd     #$FFFF
+        std     BONUS_TIMER
+        else
         ; One letter from E/A.
         bsr     rng_next
         andb    #1
@@ -2008,6 +2065,7 @@ ie_spcil_pick
         ldb     b,x
         lda     #ENTITY_LETTER
         bsr     place_entity
+        endc
         lda     ENTITY_TOTAL
         sta     ENTITY_COUNT
         lbsr    build_gate_entity_lists
