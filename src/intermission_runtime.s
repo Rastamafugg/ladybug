@@ -423,6 +423,8 @@ ids_tile_row
 ; im_draw_sprite: save owner underlay and draw animated Lady Bug at (x, y).
 ; ------------------------------------------------------------------------------
 im_draw_sprite
+        lda     #$34
+        sta     PAR5
         lda     im_pos_y+1
         ldb     #160
         mul
@@ -436,8 +438,6 @@ im_draw_sprite
         std     im_fb_dst
         std     <PLAYER_FB
 
-        lda     #$34
-        sta     PAR5
         tst     <FB_BACK
         bne     idsp_save_b
         std     im_old_fb_a
