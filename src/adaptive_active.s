@@ -1,7 +1,7 @@
 ; Isolated active phase: demo prefix $0300-$038E remains intact.
 ; DOC-002 source-contract mirror contract check_stage_clear profile=state: Set STAGE_PENDING once when DOTS_LEFT and BONUS_LEFT are both zero.
 ; DOC-002 source-contract mirror contract add_special_score profile=state: Flag the SPECIAL intermission in PRES_INTERMISSION; the 100,000-point bonus is awarded upon coin arrival.
-; DOC-002 source-contract mirror contract extra_complete profile=state: Clear EXTRA progress, flag the EXTRA intermission in PRES_INTERMISSION, and request stage transition; reserve life is awarded upon slot arrival.
+; DOC-002 source-contract mirror contract extra_complete profile=state: Flag the EXTRA intermission in PRES_INTERMISSION and request stage transition; progress clears and Cue 10/life award occur in intermission_runtime.
 ; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
 ; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
 ; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -47,8 +47,6 @@ add_special_score
         sta     PRES_INTERMISSION
         rts
 extra_complete
-        clr     EXTRA_BITS
-        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         lda     #1
         sta     PRES_INTERMISSION
         inc     STAGE_PENDING

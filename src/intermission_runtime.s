@@ -33,6 +33,8 @@
 PAR5                    equ $FFA5
 SPARSE_PLAYER_PAGE      equ $39
 SPARSE_PLAYER_INDEX     equ $A000
+AUDIO_RUNTIME_PAGE      equ $3D
+AUDIO_ENQUEUE_EXEC      equ $A006
 PRESENTATION_MODULE_DRAW equ $0821
 
 JOY_DIR                 equ $0005
@@ -40,6 +42,8 @@ PLAYER_FB               equ $000B
 PLAYER_WANT             equ $000F
 SCORE_BCD               equ $001D
 LIVES                   equ $0023
+SPECIAL_BITS            equ $003C
+EXTRA_BITS              equ $003D
 FB_BACK                 equ $0090
 PLAYER_BG_PTR           equ $00A2
 PRES_MODE               equ $00A5
@@ -105,8 +109,20 @@ im_begin_intermission
         clr     im_valid_a
         clr     im_valid_b
         clr     im_extra_phase
+        clr     im_audio_started
         lda     #30
         sta     im_dwell
+
+        ; Clear the completed word bits now that PRES_MODE == MODE_INTERMISSION
+        ; so audio_poll_gameplay cannot fire Cue 10/11 before the animation starts.
+        lda     im_kind
+        cmpa    #1
+        beq     im_clr_extra_bits
+        clr     <SPECIAL_BITS
+        bra     im_bits_cleared
+im_clr_extra_bits
+        clr     <EXTRA_BITS
+im_bits_cleared
 
         ; Compute EXTRA reserve target slot = min(pre-award LIVES, 11).
         ; LIVES is incremented upon Lady Bug arrival at the reserve slot.
@@ -243,11 +259,32 @@ im_after_restore
         cmpa    #3
         lbne    im_draw_current
         tst     im_route_done
-        bne     im_check_final_hud
+        lbne    im_check_final_hud
         inc     im_parity
         lda     im_parity
         bita    #1
         lbeq    im_draw_current         ; 2 px every 2nd Vbord = 1 px/frame
+
+        ; Start Cue 10 (EXTRA) or Cue 11 (SPECIAL) once Lady Bug begins moving onscreen.
+        tst     im_audio_started
+        bne     im_audio_ready
+        tst     im_pos_y
+        bmi     im_audio_ready
+        lda     #1
+        sta     im_audio_started
+        lda     #AUDIO_RUNTIME_PAGE
+        sta     PAR5
+        lda     #10
+        ldb     im_kind
+        cmpb    #1
+        beq     im_enqueue_cue
+        lda     #11
+im_enqueue_cue
+        clrb
+        jsr     AUDIO_ENQUEUE_EXEC
+        lda     #$34
+        sta     PAR5
+im_audio_ready
 
         ; Advance one 2-pixel step along im_dir.
         lda     im_dir
@@ -525,6 +562,7 @@ im_col_cnt      fcb     0
 im_valid_a      fcb     0
 im_valid_b      fcb     0
 im_dwell        fcb     0
+im_audio_started fcb    0
 im_pos_x        fdb     0
 im_pos_y        fdb     0
 im_seg_ptr      fdb     0

@@ -1216,9 +1216,8 @@ alp_special
         stb     SPECIAL_BITS
         cmpb    #$7F
         bne     alp_special_draw
+        ifeq    COMPLETE_PROFILE
         clr     SPECIAL_BITS
-        ifne    COMPLETE_PROFILE
-        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         endc
         ifne    ADAPTIVE_RENDERING
         jsr     AD_SPECIAL_SCORE_EXEC
@@ -1231,16 +1230,12 @@ alp_special
         endc
         endc
         inc     STAGE_PENDING
-        ifne    COMPLETE_PROFILE
-        bra     alp_special_queue
-        endc
 alp_special_draw
         ifne COMPLETE_PROFILE
         lda     ENTITY_VARIANT
         leax    special_letter_x,pcr
         ldb     a,x
         stb     RENDER_LETTER_X
-alp_special_queue
         lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
         sta     RENDER_LETTER_Y
         lda     RENDER_FLAGS2
@@ -1286,16 +1281,13 @@ alp_extra
         bne     alp_extra_draw
         ifne    ADAPTIVE_RENDERING
         jsr     AD_EXTRA_COMPLETE_EXEC
-        bra     alp_extra_queue
         else
-        clr     EXTRA_BITS
         ifne    COMPLETE_PROFILE
-        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
         lda     #1
         sta     PRES_INTERMISSION
         inc     STAGE_PENDING
-        bra     alp_extra_queue
         else
+        clr     EXTRA_BITS
         ; LIVES counts reserve lives after the active player has entered.
         ; Saturate the reserve count before it wraps to zero.
         lda     LIVES
@@ -1315,7 +1307,6 @@ alp_extra_draw
         leax    extra_letter_x,pcr
         ldb     a,x
         stb     RENDER_LETTER_X
-alp_extra_queue
         lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
         sta     RENDER_LETTER_Y
         lda     RENDER_FLAGS2
