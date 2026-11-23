@@ -21,7 +21,7 @@ HUD_WORD_HELPER_ADDRESS = 0xBF00
 HUD_WORD_HELPER_MAX_BYTES = 0x100
 CART_BANK_BYTES = 0x4000
 ENGINE_LIMIT = 920
-PACKED_SOUND_BYTES = 3478
+PACKED_SOUND_BYTES = 3506
 KNOWN_AUDIO_DP_BYTES = 20
 MAX_REGISTER_WRITES = 11
 BOOT_DESCRIPTOR_START = 0x1800
@@ -237,6 +237,17 @@ def main() -> None:
     for left, right in ((8, 7), (17, 16)):
         if cue_rows[left]["descriptor_bytes"] != cue_rows[right]["descriptor_bytes"]:
             raise SystemExit(f"audio proof: cue alias {left} does not match cue {right}")
+    cue6_row = cue_rows[6]
+    cue6_sources = [voice.get("source_address") for voice in cue6_row["translation"]["voices"]]
+    if (
+        cue6_row.get("selected_stream_indices") != [0, 1, 2]
+        or cue6_row.get("dropped_stream_indices") != [3]
+        or cue6_sources != [4145, 4200, 4255]
+        or cue6_row.get("command_bytes_length") != 365
+    ):
+        raise SystemExit(
+            "audio proof: cue 6 must select [0, 1, 2] (lead 4145, harmony 4200, single bass 4255) at 365 bytes"
+        )
 
     include_path = args.source.parent.parent / "assets/arcade/audio/gmc_sound_data.inc"
     stream_bytes, stream_labels = parse_stream_include(include_path)
@@ -394,6 +405,10 @@ def main() -> None:
     else:
         rom_digest = "not-supplied"
     packed_sound_bytes = located["gmc_sound_data_end"] - located["gmc_cue_descriptors"]
+    if packed_sound_bytes != PACKED_SOUND_BYTES:
+        raise SystemExit(
+            f"audio proof: packed sound bytes {packed_sound_bytes}; expected {PACKED_SOUND_BYTES}"
+        )
     source_margin = layout["gmc"]["spare_bytes"] + len(runtime) - packed_sound_bytes
     if args.require_source_margin and source_margin < args.require_source_margin:
         raise SystemExit(
