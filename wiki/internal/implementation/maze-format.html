@@ -191,26 +191,22 @@
     </section>
 
     <section id="arcade-event-reference-maps-20261009">
-      <h2>Arcade SPECIAL and EXTRA event reference maps</h2>
+      <h2>CoCo SPECIAL and EXTRA event maps (and portrait reference maps)</h2>
       <p>
-        MAME 0.220 captures provide one representative frame for each distinct
-        completion scene: SPECIAL at frame 1000 (300 frames after completion)
-        and EXTRA at frame 899 (200 frames after completion). The arcade maps
-        are 24×30 Tiled maps with 8×8 cells. Both reconstruct pixel-exactly
-        from their BGRA32 source frame using the shared 315-tile
-        <a href="../../../tiled/arcade-event-tiles.tsx">event tileset</a>.
+        The deployed CoCo 3 event screens are hand-adapted <strong>40&times;24 landscape</strong> Tiled maps
+        (<a href="../../../tiled/coco-special-screen.tmx">CoCo SPECIAL map</a> and
+        <a href="../../../tiled/coco-extra-screen.tmx">CoCo EXTRA map</a>), distinct from the portrait 24&times;30
+        reference layouts (<a href="../../../tiled/arcade-special-screen.tmx">arcade SPECIAL reference</a> and
+        <a href="../../../tiled/arcade-extra-screen.tmx">arcade EXTRA reference</a>). While based on the same
+        artwork and shared <a href="../../../tiled/arcade-event-tiles.tsx">event tileset</a>, the CoCo maps are
+        adapted for the landscape 320&times;192 16-color CoCo 3 display, side HUD, and reserve-life layout rather
+        than direct arcade screen captures.
       </p>
       <ul>
-        <li><a href="../../../tiled/arcade-special-screen.tmx">Arcade SPECIAL map</a> and <a href="../../../tiled/arcade-extra-screen.tmx">Arcade EXTRA map</a> preserve the full MAME frame and place a visible <code>Ladybug Path</code> object group over it.</li>
-        <li><a href="../../../tiled/coco-special-screen.tmx">CoCo SPECIAL map</a> and <a href="../../../tiled/coco-extra-screen.tmx">CoCo EXTRA map</a> place arcade rows 2–25 in CoCo columns 8–31. They reuse the Background, Maze and Panel Background, Arcade Maze Border, and HUD Placeholder layers from <code>tiled/coco-screen.tmx</code>.</li>
-        <li>Path points are ordered from start to finish and identify the top-left pixel of the 16×16 Ladybug sprite. SPECIAL follows <code>(169,171) → (16,171) → (16,32)</code>. EXTRA follows <code>(89,25) → (89,89) → (73,89) → (73,121) → (105,121) → (105,89) → (9,89) → (9,207)</code>. CoCo map points use <code>x+64, y−16</code>.</li>
+        <li><strong>CoCo SPECIAL map (<code>tiled/coco-special-screen.tmx</code>):</strong> 40&times;24 landscape screen combining the shared CoCo side HUD (<code>CoCo Side HUD</code> / FEAT-013 layout), CoCo maze border, 24&times;24 <code>CoCo Event Scene</code>, Part Vegetable marker (GID <code>633</code> at <code>(33,3)</code> in <code>Sprite Locations</code>), and center-point <code>Ladybug Path</code> (<code>(240,176) &rarr; (88,176) &rarr; (88,24)</code>).</li>
+        <li><strong>CoCo EXTRA map (<code>tiled/coco-extra-screen.tmx</code>):</strong> 40&times;24 landscape screen with the same CoCo side HUD and Part Vegetable marker, an adapted center-point <code>EXTRA Shared Route</code> (entering at <code>(160,-8)</code> and looping the garden to <code>(240,88)</code>), and 12 generated <code>EXTRA Life Connectors</code> (<code>slot-00</code>&ndash;<code>slot-11</code>) routing into the CoCo right-HUD reserve-life slots.</li>
+        <li><strong>Portrait reference maps:</strong> <code>tiled/arcade-special-screen.tmx</code> and <code>tiled/arcade-extra-screen.tmx</code> remain 24&times;30 historical layout references (from MAME 0.220 frames 1000 and 899) and are not deployed into the CoCo ROM.</li>
       </ul>
-      <p>
-        The maps record SHA-256 values for each representative BGRA frame, its
-        path evidence, and the shared atlas. These are editable reference maps;
-        the single image frame is paired with a polyline that documents the
-        longer event animation.
-      </p>
     </section>
 
     <section>
