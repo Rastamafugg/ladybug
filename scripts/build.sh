@@ -19,6 +19,7 @@ PRESENTATION_ACTOR_UNDERLAYS="$BUILD_DIR/ladybug-attract-actor-underlays.bin"
 PRESENTATION_TILE_PATCHES="$BUILD_DIR/ladybug-presentation-tile-patches.bin"
 PRESENTATION_TIMER_RECORDS="$BUILD_DIR/ladybug_presentation_timer_records.inc"
 PRESENTATION_INC="$BUILD_DIR/ladybug_presentation.inc"
+HUD_LAYOUT_INC="$BUILD_DIR/ladybug_hud_layout.inc"
 PRESENTATION_RESIDENT_INC="$BUILD_DIR/ladybug_presentation_resident.inc"
 PRESENTATION_MANIFEST="$BUILD_DIR/ladybug-presentation.json"
 PRESENTATION_MODULE="$BUILD_DIR/ladybug-presentation-runtime.bin"
@@ -31,6 +32,10 @@ AUDIO_RUNTIME_SRC="$ROOT/src/audio_runtime.s"
 AUDIO_RUNTIME_LST="$BUILD_DIR/ladybug-audio-runtime.lst"
 AUDIO_RUNTIME_MAP="$BUILD_DIR/ladybug-audio-runtime.map"
 AUDIO_SYMBOLS="$BUILD_DIR/ladybug_audio_symbols.inc"
+HUD_WORD_HELPER="$BUILD_DIR/ladybug-hud-word-helper.bin"
+HUD_WORD_HELPER_LST="$BUILD_DIR/ladybug-hud-word-helper.lst"
+HUD_WORD_HELPER_MAP="$BUILD_DIR/ladybug-hud-word-helper.map"
+HUD_WORD_HELPER_SRC="$ROOT/src/hud_word_runtime.s"
 AUDIO_CUE_MANIFEST_SOURCE="$ROOT/assets/arcade/audio/gmc-runtime-cues.json"
 AUDIO_CUE_MANIFEST="$BUILD_DIR/audio/gmc-runtime/gmc-runtime-cues.json"
 INSTRUCTION_RUNTIME="$BUILD_DIR/ladybug-instruction-runtime.bin"
@@ -502,7 +507,7 @@ cmd_build() {
     fi
 
     printf 'SHARED_TEXT_ENABLED equ %s\nPRES_STAGE_SLICE equ $B083\nMENU_SCAN equ $B086\nMENU_TICK equ $B089\n' "$COMPLETE_PROFILE" > "$BUILD_DIR/ladybug_shared_mode.inc"
-    printf 'SHARED_COLD_PTR equ $1B96\n' > "$BUILD_DIR/ladybug_shared_link.inc"
+    printf 'SHARED_COLD_PTR equ $1B96\nPRES_MODULE_DRAW_SCORE equ $0000\nPRES_MODULE_DRAW_SCORE_SHORT equ $0000\n' > "$BUILD_DIR/ladybug_shared_link.inc"
     local shared_text_args=()
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then shared_text_args=(--shared-text); fi
 
@@ -539,6 +544,7 @@ cmd_build() {
         --demo-walk "$DEMO_WALK" \
         --output "$PRESENTATION_COLD" \
         --include-output "$PRESENTATION_INC" \
+        --hud-layout-output "$HUD_LAYOUT_INC" \
         --manifest-output "$PRESENTATION_MANIFEST" \
         --actor-record-output "$PRESENTATION_ACTOR_RECORDS" \
         --actor-underlay-output "$PRESENTATION_ACTOR_UNDERLAYS" \
@@ -615,6 +621,7 @@ if set(symbols) != {"audio_engine_start", "audio_engine_end", "audio_install_pag
     raise SystemExit("build: audio symbols missing required placement symbols")
 engine_bytes = symbols["audio_engine_end"] - symbols["audio_engine_start"]
 runtime_bytes = len(open(runtime_path, "rb").read())
+key_service_exec = max(0xBA00, 0xA000 + runtime_bytes)
 with open(output_path, "w", encoding="ascii") as handle:
     handle.write("; Generated audio runtime placement constants.\n")
     handle.write(f"AUDIO_ENGINE_BYTES equ {engine_bytes}\n")
@@ -622,6 +629,8 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write("AUDIO_RUNTIME_PAGE equ $3D\n")
     handle.write("AUDIO_RUNTIME_ADDRESS equ $A000\n")
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
+    handle.write(f"KEY_SERVICE_EXEC equ ${key_service_exec:04X}\n")
+    handle.write("HUD_WORD_EXEC equ $BF00\n")
 PY
 
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
@@ -671,20 +680,21 @@ PY
     guard_layout "$MAP" "$RUNTIME_ROM"
     pad_cart "$RUNTIME_ROM"
 
-    python3 - "$MAP" "$RUNTIME_SYMBOLS" <<'PY'
+    python3 - "$MAP" "$RUNTIME_SYMBOLS" "$COMPLETE_PROFILE" <<'PY'
 import re
 import sys
-source, output = sys.argv[1:]
+source, output, complete = sys.argv[1:]
+complete = int(complete)
 wanted = {
-    'blit_packed_sprite', 'draw_hud', 'restore_player',
-    'draw_death_frame', 'draw_entities', 'draw_lives', 'draw_maze_state_cell',
-    'draw_multiplier_hud', 'draw_perimeter_box', 'draw_player',
+    'blit_packed_sprite', 'restore_player',
+    'draw_death_frame', 'draw_entities', 'draw_maze_state_cell',
+    'draw_perimeter_box', 'draw_player',
     'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',
     'erase_entity_footprints', 'perimeter_box_coordinates', 'save_player',
     'draw_gate', 'draw_gate_diagonal', 'draw_gate_entities',
     'draw_gate_transition', 'draw_all_gates', 'framebuffer_project_gate_only',
     'mark_gate_enemy_overlap', 'repair_settled_entity_gates',
-    'draw_word_progress_hud', 'gate_redraw_neighbors',
+    'gate_redraw_neighbors',
     'gate_render_hidden', 'maze_gate_owner',
     'maze_gates', 'maze_nav',
     'restore_entity_footprint', 'sprite_attr0_pairs', 'sprite_blue_pairs', 'object_masks',
@@ -692,6 +702,8 @@ wanted = {
     'sync_entity_cache_colour', 'render_entity_colour',
     'restore_gate_diagonal_dots', 'vegetable_sprites',
 }
+if not complete:
+    wanted.update({'draw_hud', 'draw_lives', 'draw_multiplier_hud', 'draw_word_progress_hud'})
 symbols = {}
 for line in open(source, encoding='utf-8'):
     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
@@ -741,11 +753,21 @@ if int(complete):
         'presentation_dispatch': 'PRES_MAIN_STATIC_TEXT',
         'dynamic_dispatch': 'PRES_MAIN_DYNAMIC_TEXT',
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
-        'asset_draw_top_hud': 'PRES_MAIN_TOP_HUD',
+        'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
+        'hud_snapshot_capture_player': 'PRES_MAIN_HUD_CAPTURE_PLAYER',
+        'HUD_P1_STAGE': 'HUD_P1_STAGE',
+        'HUD_PLAYER_VALID': 'HUD_PLAYER_VALID',
+        'PRESENTATION_HUD_DRAW_PRIMARY': 'PRESENTATION_HUD_DRAW_PRIMARY',
+        'PRESENTATION_HUD_DRAW_LIVES': 'PRESENTATION_HUD_DRAW_LIVES',
+        'PRESENTATION_HUD_DRAW_MULTIPLIER': 'PRESENTATION_HUD_DRAW_MULTIPLIER',
+        'PRESENTATION_HUD_DRAW_SPECIAL': 'PRESENTATION_HUD_DRAW_SPECIAL',
+        'PRESENTATION_HUD_DRAW_EXTRA': 'PRESENTATION_HUD_DRAW_EXTRA',
+        'PRESENTATION_HUD_DRAW_ALL': 'PRESENTATION_HUD_DRAW_ALL',
+        'hud_snapshot_refresh_top': 'PRES_MAIN_HUD_TOP_REFRESH',
         'install_phase_tiles_for_screen': 'PRES_MAIN_INSTALL_PHASE_TILES',
         'read_stage_letter_variants': 'PRES_MAIN_READ_STAGE_LETTERS',
         'presentation_key_service': 'PRES_MAIN_KEY_SERVICE',
-        'presentation_page23_resume': 'PRES_MAIN_PAGE23_RESUME',
+        'presentation_page24_resume': 'PRES_MAIN_PAGE24_RESUME',
         'presentation_map_stream_offsets': 'PRES_MAIN_MAP_STREAM_OFFSETS',
         'presentation_screen_modes': 'PRES_MAIN_SCREEN_MODES',
         'presentation_scan_drives': 'PRES_MAIN_SCAN_DRIVES',
@@ -761,10 +783,16 @@ if missing:
     raise SystemExit('build: presentation symbols missing: ' + ', '.join(sorted(missing)))
 with open(output, 'w', encoding='ascii') as handle:
     for name in sorted(symbols):
-        handle.write(f'{name} equ ${symbols[name]}\n')
+        if name.startswith('PRESENTATION_HUD_DRAW_'):
+            handle.write(f'        ifndef {name}\n')
+            handle.write(f'{name} equ ${symbols[name]}\n')
+            handle.write('        endc\n')
+        else:
+            handle.write(f'{name} equ ${symbols[name]}\n')
 PY
 
     lwasm -9 --format=raw \
+          -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
           --output="$ENEMY_ROM" \
           --list="$ENEMY_LST" \
           --symbols \
@@ -887,6 +915,7 @@ wanted = {
     'map_back': 'PRES_MODULE_MAP_BACK',
     'draw_tile_id': 'PRES_MODULE_DRAW_TILE',
     'draw_score_value': 'PRES_MODULE_DRAW_SCORE',
+    'draw_score_value_short': 'PRES_MODULE_DRAW_SCORE_SHORT',
     'cold_ptr': 'PRES_MODULE_COLD_PTR',
     'draw_raw_tile': 'PRES_MODULE_DRAW_RAW_TILE',
     'colour_tile': 'PRES_MODULE_COLOUR_TILE',
@@ -901,6 +930,7 @@ required = {
     'PRES_MODULE_DRAW_ACTOR', 'PRES_MODULE_MAP_BACK',
     'PRES_MODULE_DRAW_TILE', 'PRES_MODULE_COLD_PTR', 'PRES_MODULE_DRAW_RAW_TILE',
     'PRES_MODULE_DRAW_SCORE',
+    'PRES_MODULE_DRAW_SCORE_SHORT',
     'PRES_MODULE_COLOUR_TILE', 'PRES_MODULE_COLOUR_SURFACE',
     'PRES_MODULE_START_SCREEN',
 }
@@ -915,7 +945,9 @@ with open(output, 'a', encoding='ascii') as handle:
         handle.write(f'{name} equ ${value}\n')
 from pathlib import Path
 Path(output).with_name('ladybug_shared_link.inc').write_text(
-    f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n")
+    f"SHARED_COLD_PTR equ ${symbols['PRES_MODULE_COLD_PTR']}\n"
+    f"PRES_MODULE_DRAW_SCORE equ ${symbols['PRES_MODULE_DRAW_SCORE']}\n"
+    f"PRES_MODULE_DRAW_SCORE_SHORT equ ${symbols['PRES_MODULE_DRAW_SCORE_SHORT']}\n")
 PY
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
@@ -1097,6 +1129,53 @@ PY
     fi
 
     if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 - "$MAP" "$RUNTIME_SYMBOLS" <<'PY'
+import re
+import sys
+
+map_path, aliases_path = sys.argv[1:]
+names = ('sprite_attr0_pairs', 'sprite_blue_pairs')
+final = {}
+for line in open(map_path, encoding='ascii'):
+    match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in names:
+        final[match.group(1)] = int(match.group(2), 16)
+aliases = {}
+for line in open(aliases_path, encoding='ascii'):
+    match = re.match(r'^([A-Za-z_][A-Za-z0-9_]*) equ \$([0-9A-Fa-f]+)$', line.rstrip())
+    if match and match.group(1) in names:
+        aliases[match.group(1)] = int(match.group(2), 16)
+missing = (set(names) - final.keys()) | (set(names) - aliases.keys())
+if missing:
+    raise SystemExit('build: final High Score palette symbols missing: ' + ', '.join(sorted(missing)))
+mismatches = [name for name in names if final[name] != aliases[name]]
+if mismatches:
+    detail = ', '.join(f'{name} alias=${aliases[name]:04X} final=${final[name]:04X}'
+                       for name in mismatches)
+    raise SystemExit('build: stale High Score helper palette address: ' + detail)
+print('build: High Score helper palette aliases match the final resident map')
+PY
+    fi
+
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        lwasm -9 --format=raw \
+              --output="$HUD_WORD_HELPER" \
+              --list="$HUD_WORD_HELPER_LST" \
+              --symbols \
+              --map="$HUD_WORD_HELPER_MAP" \
+              -I "$BUILD_DIR" -I "$ROOT/src" \
+              "$HUD_WORD_HELPER_SRC"
+        python3 - "$HUD_WORD_HELPER" <<'PY'
+import sys
+size = len(open(sys.argv[1], "rb").read())
+if not 0 < size <= 0x100:
+    raise SystemExit(f"build: HUD word helper is {size}/256 bytes at $BF00")
+PY
+    else
+        : > "$HUD_WORD_HELPER"
+    fi
+
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
         lwasm -9 --format=raw --symbols \
             --output="$BUILD_DIR/ladybug-keybinding-runtime.bin" \
             --list="$BUILD_DIR/ladybug-keybinding-runtime.lst" \
@@ -1131,6 +1210,7 @@ PY
         --highscore-runtime "$HIGHSCORE_RUNTIME" \
         --highscore-helper "$HIGHSCORE_HELPER" \
         --audio-runtime "$AUDIO_RUNTIME" \
+        --hud-word-helper "$HUD_WORD_HELPER" \
         --tile-patches "$PRESENTATION_TILE_PATCHES" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0-output "$SPARSE_BANK0" \
@@ -1162,6 +1242,7 @@ PY
         --highscore-runtime "$HIGHSCORE_RUNTIME" \
         --highscore-helper "$HIGHSCORE_HELPER" \
         --audio-runtime "$AUDIO_RUNTIME" \
+        --hud-word-helper "$HUD_WORD_HELPER" \
         --tile-patches "$PRESENTATION_TILE_PATCHES" \
         --aux-runtime-role "$LADYBUG_PROFILE" \
         --bank0 "$SPARSE_BANK0" \

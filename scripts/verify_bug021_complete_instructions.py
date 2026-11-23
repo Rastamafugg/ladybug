@@ -80,13 +80,13 @@ def main() -> None:
         if hit.get("pc") != syms["presentation_flow_tick"]:
             fail("boot", "presentation_flow_tick", repr(hit))
         saved_par5 = monitor_probe.read_byte(client, monitor_probe.PAR5)
-        monitor_probe.write_byte(client, monitor_probe.PAR5, 0x23)
+        monitor_probe.write_byte(client, monitor_probe.PAR5, 0x24)
         staged = monitor_probe.read_bytes(client, 0xA422, len(expected_stage))
         monitor_probe.write_byte(client, monitor_probe.PAR5, saved_par5)
         monitor.clear(client, ids)
         evidence["staged_sha256"] = digest(staged)
         if staged != expected_stage:
-            fail("staging", "page23-bundle", "authored/staged bytes differ")
+            fail("staging", "page24-auxiliary", "authored/staged bytes differ")
 
         ids = monitor.setup(client, [syms["attract_next"]])
         try:

@@ -80,7 +80,7 @@ def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None
                     memory[dirty] &= ~bit
                     memory[pending] = 1
                     calls.append("paint")
-            elif target == symbols["PRES_MAIN_PAGE23_RESUME"]:
+            elif target == symbols["PRES_MAIN_PAGE24_RESUME"]:
                 calls.append("logo")
             elif target == symbols["PRESENTATION_ATTRACT_OVERLAY"]:
                 calls.append("actor")
@@ -156,16 +156,17 @@ def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None
         state, calls = tick(state)
         require(state["dirty"] == 0 and state["pending"] == 1
                 and state["timer"] == before+1, "idle replay/clock incomplete")
-        require(calls == ["clock", "menu", "paint"], "queued repaint did not yield")
+        require(calls == ["clock", "actor", "menu", "paint"],
+                "queued repaint did not yield")
         state.update(back=back, pending=0)
         state, calls = tick(state)
-        require(calls == ["clock", "logo", "actor"], "clean tick lost animation")
+        require(calls == ["clock", "actor", "logo"], "clean tick lost animation")
     state, calls = tick(dict(dirty=2, back=1, pending=1))
     require(state["dirty"] == 2 and state["timer"] == 38
-            and calls == ["clock", "menu"], "queued frame overwritten or clock stalled")
+            and calls == ["clock", "actor"], "queued frame overwritten or clock stalled")
     state, calls = tick(dict(dirty=2, back=0))  # Dirty B is still FRONT.
     require(state["dirty"] == 2 and not state["pending"]
-            and calls == ["clock", "menu", "logo", "actor"],
+            and calls == ["clock", "actor", "menu", "logo"],
             "visible dirty owner blocked normal animation")
     state, calls = tick(dict(dirty=2, back=1, timer=limit+5))
     require(calls == ["clock", "expire"], "expired Attract painted outgoing screen")
@@ -208,7 +209,7 @@ def main() -> None:
         if highscore_runtime.get("destination_address") != 0x0300 or highscore_runtime.get("destination_end", 0) > 0x0698:
             raise SystemExit("presentation flow proof: high-score owner exceeds $0300-$0697")
         if not highscore_helper.get("bytes"):
-            raise SystemExit("presentation flow proof: page-$23 high-score helper is absent")
+            raise SystemExit("presentation flow proof: page-$24 high-score helper is absent")
         if aux.get("staged_bytes", 0) < sum(
                 item.get("bytes", 0) for item in
                 (instruction_runtime, demo_runtime, highscore_runtime, highscore_helper)):
@@ -280,7 +281,7 @@ def main() -> None:
         ):
             if re.search(pattern, prepare_block) or re.search(pattern, commit_block):
                 raise SystemExit(
-                    "presentation flow proof: page-$23 helper retains direct page-$34 access " + pattern
+                    "presentation flow proof: page-$24 helper retains direct page-$34 access " + pattern
                 )
 
     required_symbols = [
@@ -313,7 +314,6 @@ def main() -> None:
         "PLAYER_BG_PTR equ $00A2",
         "PLAYER_BG_VALID equ $006A",
         "install_aux_runtime",
-        "lda     #$23",
     )
     if development:
         required_source += (
@@ -337,6 +337,38 @@ def main() -> None:
         )
 
     normalized_source = " ".join(source.lower().split())
+
+    installer_routes = (
+        ("install_aux_runtime", "install_instruction_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_instruction_runtime", "install_demo_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_demo_runtime", "install_highscore_runtime",
+         ("lda #$24", "bra install_aux_runtime_copy")),
+        ("install_highscore_runtime", "install_aux_runtime_copy",
+         ("lda #$24",)),
+    )
+    installer_regions = {}
+    for entry_name, next_name, required_fragments in installer_routes:
+        entry_marker = "\n" + entry_name + "\n"
+        next_marker = "\n" + next_name + "\n"
+        try:
+            entry_start = source.index(entry_marker) + len(entry_marker)
+            entry_end = source.index(next_marker, entry_start)
+        except ValueError as error:
+            raise SystemExit(
+                "presentation flow proof: missing auxiliary installer route: " + entry_name
+            ) from error
+        entry_source = " ".join(source[entry_start:entry_end].lower().split())
+        installer_regions[entry_name] = entry_source
+        if any(fragment not in entry_source for fragment in required_fragments):
+            raise SystemExit(
+                "presentation flow proof: auxiliary installer route changed: " + entry_name
+            )
+    if not installer_regions["install_highscore_runtime"].endswith("lda #$24 endc"):
+        raise SystemExit(
+            "presentation flow proof: High Score installer no longer falls through to the shared copy"
+        )
     auxiliary_copy_contracts = (
         "install_aux_runtime_copy sta par5 ldy #$0300 "
         "install_aux_runtime_byte lda ,x+ sta ,y+ leau -1,u "
@@ -457,26 +489,69 @@ def main() -> None:
             "presentation flow proof: menu screen allowlist or local event publication changed"
         )
     runtime_source = source[source.index("\npresentation_flow_tick\n"):]
-    demo_branches = runtime_source.split("\ndemo_death_done\n")[1:]
-    if len(demo_branches) < 2 or any(
-        branch.split("\ndemo_return\n", 1)[0].count(
-            "lda     #PRESENTATION_MAP_HIGH_SCORE\n        lbsr    start_screen"
-        ) != 2
-        for branch in demo_branches[:2]
-    ):
-        raise SystemExit(
-            "presentation flow proof: demo completion does not enter high-score"
+    if complete:
+        complete_profile_demo = re.search(
+            r"\n[ \t]*ifne[ \t]+HIGHSCORE_TEST_PROFILE[ \t]*\n"
+            r"demo_tick\n.*?"
+            r"\n[ \t]*else[ \t]*\n"
+            r"[ \t]*ifne[ \t]+COMPLETE_PROFILE[ \t]*\n"
+            r"(?P<complete>demo_tick\n.*?)"
+            r"(?=\n[ \t]*else[ \t]*\n"
+            r"[ \t]*ifeq[ \t]+BUG011_DEVELOPMENT_PROFILE)",
+            runtime_source,
+            re.S,
         )
-    complete_demo_routes = demo_branches[0].split("\ndemo_return\n", 1)[0]
-    if complete and len(re.findall(
-        r"lbsr\s+install_highscore_runtime\s+"
-        r"lda\s+#PRESENTATION_MAP_HIGH_SCORE\s+"
-        r"lbsr\s+start_screen",
-        complete_demo_routes,
-    )) != 2:
-        raise SystemExit(
-            "presentation flow proof: Attract High Score routes do not install the shared painter"
+        if complete_profile_demo is None:
+            raise SystemExit(
+                "presentation flow proof: active complete-profile demo branch is missing"
+            )
+        complete_branch = complete_profile_demo.group("complete")
+        try:
+            demo_end = complete_branch.index("\ndemo_return\n")
+            complete_demo_source = complete_branch[:demo_end]
+            completion_label = complete_demo_source.index("\ndemo_death_done\n")
+        except ValueError as error:
+            raise SystemExit(
+                "presentation flow proof: complete demo source route is missing"
+            ) from error
+        death_route = complete_demo_source[:completion_label]
+        completion_route = complete_demo_source[completion_label:]
+        if re.search(
+            r"lda\s+DEATH\s+beq\s+demo_run\s+cmpa\s+#3\s+"
+            r"bne\s+demo_death_tick\s+tst\s+DEATH_T\s+"
+            r"beq\s+demo_death_done",
+            death_route,
+        ) is None:
+            raise SystemExit(
+                "presentation flow proof: first completed demo death misses the High Score route"
+            )
+        if re.search(
+            r"demo_run\s+tst\s+<STAGE_PENDING\s+bne\s+demo_death_done",
+            completion_route,
+        ) is None:
+            raise SystemExit(
+                "presentation flow proof: cleared demo level misses the High Score route"
+            )
+        highscore_handoff = re.compile(
+            r"lbsr\s+install_highscore_runtime\s+"
+            r"lda\s+#PRESENTATION_MAP_HIGH_SCORE\s+"
+            r"lbsr\s+start_screen"
         )
+        if len(highscore_handoff.findall(completion_route)) != 1:
+            raise SystemExit(
+                "presentation flow proof: demo completion misses the High Score helper or screen handoff"
+            )
+    else:
+        demo_branches = runtime_source.split("\ndemo_death_done\n")[1:]
+        if len(demo_branches) < 2 or any(
+            branch.split("\ndemo_return\n", 1)[0].count(
+                "lda     #PRESENTATION_MAP_HIGH_SCORE\n        lbsr    start_screen"
+            ) != 2
+            for branch in demo_branches[:2]
+        ):
+            raise SystemExit(
+                "presentation flow proof: demo completion does not enter high-score"
+            )
     normal_routes = source[
         source.index("\nnormal_tick\n"):source.index("\nnormal_stage\n")
     ]

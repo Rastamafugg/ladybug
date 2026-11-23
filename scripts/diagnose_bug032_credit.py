@@ -40,7 +40,7 @@ def capture(label):
                                   'different_bytes': len(differences), 'first_differences': differences[:20]}
     for name, symbol in [('highscore', 'PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS')]:
         authored = (ROOT / ('build/ladybug-'+name+'-runtime.bin')).read_bytes()
-        staged = phys(0x23*8192+sy[symbol]-0xa000, len(authored))
+        staged = phys(0x24*8192+sy[symbol]-0xa000, len(authored))
         snap[name+'_staged_matches'] = authored == staged
     snap['cpu_low_matches_physical'] = p.read_bytes(c, 0, 8192) == low
     pc = regs['pc']

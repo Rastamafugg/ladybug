@@ -10,7 +10,7 @@ def values(text,label,end):
     return bytes(int(v.strip()[1:],16) if v.strip().startswith('$') else int(v) for line in section.splitlines() if 'fcb' in line for v in line.split('fcb',1)[1].split(';')[0].strip().split(','))
 
 def verify_score_field(placement, generated, cells, expected_colour):
-    """Authored digit count and runtime storage capacity are separate contracts."""
+    """Blank map fields are valid; populated placeholders must match boot data."""
     x, y = placement['score_cell']
     width = placement['score_cell_width']
     maximum = placement['score_max_digits']
@@ -22,15 +22,20 @@ def verify_score_field(placement, generated, cells, expected_colour):
     assert generated['score_destination'] == 0x2000 + y * 1280 + draw_x * 4
     columns = [column for column in range(x, x + width)
                if ('high-score', column, y) in cells]
-    assert columns and len(columns) <= maximum, ('authored score length/capacity', columns, maximum)
+    assert len(columns) <= maximum, ('authored score length/capacity', columns, maximum)
     assert columns == list(range(x + width - len(columns), x + width)), ('score alignment/gap', columns)
     authored = [[column, y] for column in columns]
     assert placement['authored_score_cells'] == authored
     assert generated['authored_score_cells'] == authored
+    if not columns:
+        return
+    digits = []
     for column in columns:
         record = cells['high-score', column, y]
         assert 0 <= record['code'] <= 9, ('non-digit score text', column, y)
         assert record['colour'] == expected_colour, ('score colour', column, y, record['colour'], expected_colour)
+        digits.append(record['code'])
+    assert digits == [1, 0, 0, 0, 0], ('authored boot score must be 10000', placement, digits)
 
 
 def read_logo_layout(root, screen):
@@ -206,22 +211,83 @@ def main():
     if not cold_path.exists():cold_path=folder/'cold.bin'
     cold=cold_path.read_bytes();data=(folder/'ladybug_shared_text.inc').read_text()
     highscore_logo=verify_highscore_logo(root,manifest,cold,p.load_chars(root/'assets/arcade/chars.json'))
-    font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','no_end')
+    font=values(data,'font','colour_lut');descriptors=values(data,'dynamic_descriptors','hud_life_marker_positions')
     masks=[font[i:i+8] for i in range(0,len(font),8)]
     assert len(masks)==shared['font_count'] and len(set(masks))==len(masks)
     assert shared['graphics']<=224 and len(cold)<=16384 and len(descriptors)==2*shared['descriptor_count']
+    instruction_fields=shared['colour_configuration']['fields']
+    colour_config=p.load_text_colours(root/'assets/arcade/text-colours.json')
+    hud_fields=manifest['shared_hud_layout']['fields']
+    expected_inactive_cells=set();expected_inactive_digits=set()
+    for name in ('MULTIPLIER_X2','MULTIPLIER_X3','MULTIPLIER_X5'):
+        field=hud_fields[name]
+        field_x,field_y=(int(value) for value in field['cell'])
+        field_width,field_height=(int(value) for value in field['size'])
+        expected_inactive_cells.update((x,y)
+                                       for y in range(field_y,field_y+field_height)
+                                       for x in range(field_x,field_x+field_width))
+        expected_inactive_digits.update((field_x+field_width-1,y)
+                                        for y in range(field_y,field_y+field_height))
+    inactive=[r for r in shared['coverage']
+              if r['screen']=='instructions' and (r['x'],r['y']) in expected_inactive_digits]
+    assert {(r['x'],r['y']) for r in inactive}==expected_inactive_digits and all(
+        r['colour']==instruction_fields['instruction_multiplier_inactive'] for r in inactive),(
+        'instruction multipliers must start inactive gray',inactive)
+    for x,y in expected_inactive_cells:
+        palette=p.presentation_pen_map(
+            'instructions',x,y,source_layer='Instructions Overlay',
+            colour_config=colour_config,hud_layout=hud_fields)
+        assert palette==(p.BLACK,instruction_fields['instruction_multiplier_inactive'],
+                         instruction_fields['instruction_multiplier_inactive'],
+                         instruction_fields['instruction_multiplier_inactive']),(
+            'both cells of each instruction multiplier must start inactive gray',x,y,palette)
+    p2_cells=set()
+    for field_name in ('P2_LABEL','P2_SCORE'):
+        field=hud_fields[field_name]
+        x,y=(int(value) for value in field['cell'])
+        width,height=(int(value) for value in field['size'])
+        p2_cells.update((field_x,field_y)
+                        for field_y in range(y,y+height)
+                        for field_x in range(x,x+width))
+    p2_records=[r for r in shared['coverage']
+                if r['screen'] in manifest['shared_hud_layout']['screens']
+                and (r['x'],r['y']) in p2_cells]
+    required_p2_screens={'gameplay','instructions','level-start','game-over','enter-high-score'}
+    assert required_p2_screens <= {r['screen'] for r in p2_records},(
+        'P2 field coverage missing from a shared HUD screen',p2_records)
+    assert all(r['colour']==0 for r in p2_records),(
+        'one-player P2 label and score must be hidden on shared HUD screens',p2_records)
+    for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values():
+        ident=ids[1]
+        assert descriptors[2*ident+1]==instruction_fields['instruction_multiplier'],(
+            'earned multiplier digits stay blue',ident,descriptors[2*ident+1])
     # Approved colours are checked independently of presentation_pen_map.
     approved=[]
+    hud_colour_fields={
+        'PART_LABEL':'part','PART_VALUE':'part','P1_SCORE':'score',
+        'TOP_SCORE':'high_score','VEGETABLE_EQUALS':'bonus',
+        'VEGETABLE_VALUE':'bonus',
+    }
+    shared_screens=set(manifest['shared_hud_layout']['screens'])
     for r in shared['coverage']:
         name,x,y=r['screen'],r['x'],r['y'];colour=None
+        if name in shared_screens:
+            for field_name,colour_name in hud_colour_fields.items():
+                field=hud_fields[field_name]
+                field_x,field_y=(int(value) for value in field['cell'])
+                field_width,field_height=(int(value) for value in field['size'])
+                if field_x<=x<field_x+field_width and field_y<=y<field_y+field_height:
+                    colour=shared['colour_configuration']['fields'][colour_name]
+                    break
         if name=='gameplay' and (x,y)==bonus_cell:
             assert (r['code'],r['mask'])==(42,'00007f00007f0000')
             assert masks[r['glyph']]==bytes.fromhex(r['mask'])
             colour=shared['colour_configuration']['fields']['bonus']
-        elif name=='attract' and y==15:colour=9
-        elif name=='attract' and y==18:colour=2 if r['code']==1 else 6
-        elif name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
-        elif name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
+        elif colour is None and name=='attract' and y==15:colour=9
+        elif colour is None and name=='attract' and y==18:colour=2 if r['code']==1 else 6
+        elif colour is None and name=='instructions' and (x,y) in expected_inactive_digits:colour=instruction_fields['instruction_multiplier_inactive']
+        elif colour is None and name=='instructions' and (y==5 and 15<=x<=25 or y==17 and 17<=x<=25 or y==20 and 16<=x<=25):colour=6
+        elif colour is None and name=='level-start' and 8<=x<32:colour={4:3,7:5,9:2,20:1}.get(y)
         if colour is not None:
             overridden=any(run['screen']==name and run['y']==y and run['x']<=x<run['x']+run['width'] for run in shared['colour_configuration']['runs'])
             if not overridden:assert r['colour']==colour,('approved text colour',r,colour)
@@ -230,7 +296,6 @@ def main():
     equals=[r for r in shared['coverage'] if r['screen']=='gameplay' and (r['x'],r['y'])==bonus_cell]
     assert len(equals)==1 and equals[0]['colour']==shared['colour_configuration']['fields']['bonus']
     chars=s.load_chars(root/'assets/arcade/chars.json');cases=[]
-    colour_config=p.load_text_colours(root/'assets/arcade/text-colours.json')
     high_score_layout=p.parse_high_score_layout(
         root/'tiled/coco-high-score-screen.tmx',colour_config)
     high_score_cells={(r['screen'],r['x'],r['y']):r for r in shared['coverage']}
@@ -240,17 +305,28 @@ def main():
     for placement,generated in zip(high_score_layout,generated_layout):
         expected_colour=1 if placement['record_index']==0 else 7
         name_x,name_y=placement['name_cell']
-        for column in range(name_x,name_x+placement['name_cell_width']):
-            record=high_score_cells.get(('high-score',column,name_y))
-            assert record is not None,(
-                'high-score authored text coverage',placement,'name_cell',column,name_y)
-            assert record['colour']==expected_colour,(
-                'high-score rank colour',placement,'name_cell',column,name_y,
-                record['colour'],expected_colour)
+        assert generated['name_cell']==placement['name_cell']
+        assert generated['name_destination']==placement['name_destination']
+        name_records=[high_score_cells.get(('high-score',column,name_y))
+                      for column in range(name_x,name_x+placement['name_cell_width'])]
+        assert all(record is None for record in name_records) or all(
+            record is not None for record in name_records),(
+                'authored High Score name must be blank or complete',placement)
+        if name_records[0] is not None:
+            name_codes=[record['code'] for record in name_records]
+            assert name_codes==list(p.ENTER_HIGH_SCORE_DEFAULT_CODES),(
+                'authored boot name must be LADYBUG',placement,name_codes)
+            assert all(record['colour']==expected_colour for record in name_records),(
+                'high-score rank name colour',placement,expected_colour)
         verify_score_field(placement,generated,high_score_cells,expected_colour)
     for name,start in zip(p.MAP_NAMES,manifest['map_stream_offsets']):
-        tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True,colour_config)
+        tiles=[];ids={};mapping,_=p.compile_map(root/'tiled'/p.MAP_FILES[name],chars,tiles,ids,False,True,colour_config,hud_fields)
         expected=bytearray(p.title_framebuffer(mapping,tiles))
+        if name in manifest['shared_hud_layout']['screens']:
+            for x,y in p2_cells:
+                at=y*1280+x*4
+                for row in range(8):
+                    expected[at+row*160:at+row*160+4]=bytes(4)
         seed=bytearray((i*37+11)&255 for i in range(30720)) if name=='game-over' else bytearray(30720)
         actual=seed.copy()
         for run in shared['colour_configuration']['runs']:

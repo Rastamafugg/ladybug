@@ -4,9 +4,12 @@
 from __future__ import annotations
 
 import argparse
+import os
 import re
 import shutil
+import signal
 import subprocess
+import time
 from pathlib import Path
 
 from patch_snapshot_state import patch_snapshot
@@ -19,6 +22,10 @@ ROM = BUILD / "ladybug.rom"
 ENEMY_TABLE = BUILD / "four-enemy-delta-enemy-table.bin"
 NEST_CACHE_PHYS = (0x34 << 13) + 0x0D80
 NEST_OFFSET = 0x57EC - 0x2000
+# Leave five seconds inside the approved 60-second outer phase for cleanup and
+# result reporting.
+CAPTURE_PHASE_SECONDS = 55.0
+PHASE_DEADLINE: float | None = None
 
 
 def parse_args() -> argparse.Namespace:
@@ -36,13 +43,16 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
-def symbol(path: Path, name: str) -> int:
+def map_symbol(path: Path, name: str) -> int:
     pattern = re.compile(rf"^Symbol: {re.escape(name)} .* = ([0-9A-Fa-f]+)$")
-    for line in path.read_text(encoding="utf-8").splitlines():
-        match = pattern.match(line)
-        if match:
-            return int(match.group(1), 16)
-    raise ValueError(f"{path}: missing symbol {name}")
+    matches = [
+        int(match.group(1), 16)
+        for line in path.read_text(encoding="utf-8").splitlines()
+        if (match := pattern.match(line))
+    ]
+    if len(matches) != 1:
+        raise ValueError(f"{path}: expected one active symbol {name}, found {len(matches)}")
+    return matches[0]
 
 
 def xroar_base() -> list[str]:
@@ -54,6 +64,7 @@ def xroar_base() -> list[str]:
         "-ui", "null",
         "-ao", "null",
         "-machine", "coco3",
+        "-machine-cpu", "6809",
         "-ram", "512",
         "-cart-type", "gmc",
         "-cart-rom", str(ROM),
@@ -61,39 +72,85 @@ def xroar_base() -> list[str]:
     ]
 
 
+def remaining_phase_seconds() -> float:
+    if PHASE_DEADLINE is None:
+        raise RuntimeError("capture baseline: phase deadline was not initialized")
+    remaining = PHASE_DEADLINE - time.monotonic()
+    if remaining <= 0:
+        raise SystemExit(
+            f"capture baseline: {CAPTURE_PHASE_SECONDS:g}-second "
+            "capture-phase deadline expired"
+        )
+    return remaining
+
+
+def stop_xroar(process: subprocess.Popen[bytes]) -> None:
+    if process.poll() is not None:
+        return
+    if os.name == "nt":
+        process.kill()
+    else:
+        try:
+            os.killpg(process.pid, signal.SIGKILL)
+        except ProcessLookupError:
+            pass
+    if process.poll() is None:
+        process.wait()
+
+
 def run_xroar(arguments: list[str], output: Path) -> None:
+    command = xroar_base() + arguments
     with output.open("w", encoding="ascii") as stream:
-        result = subprocess.run(
-            xroar_base() + arguments,
+        process = subprocess.Popen(
+            command,
             cwd=ROOT,
             stdout=stream,
             stderr=subprocess.STDOUT,
-            check=False,
+            start_new_session=(os.name != "nt"),
         )
-    if result.returncode:
+        try:
+            returncode = process.wait(timeout=remaining_phase_seconds())
+        except subprocess.TimeoutExpired:
+            raise SystemExit(
+                "capture baseline: capture-phase deadline expired while "
+                f"running XRoar; see {output}"
+            )
+        finally:
+            if process.poll() is None:
+                stop_xroar(process)
+    if returncode:
         raise SystemExit(
-            f"capture baseline: XRoar returned {result.returncode}; see {output}"
+            f"capture baseline: XRoar returned {returncode}; see {output}"
         )
 
 
-def capture_snapshot(output: Path, frame_pc: int, count: int, source: Path | None = None) -> None:
+def capture_snapshot(
+    output: Path,
+    snapshot_pc: int,
+    count: int,
+    source: Path | None = None,
+) -> None:
+    output.unlink(missing_ok=True)
     arguments = []
     if source is None:
         arguments += ["-ram-init", "0", "-cart-autorun"]
     else:
         arguments += ["-load", str(source)]
     arguments += [
-        "-trap", f"pc=0x{frame_pc:04x}",
+        "-trap", f"pc=0x{snapshot_pc:04x}",
         "-trap-range", str(count),
         "-trap-snap", str(output),
         "-trap-timeout", "1",
     ]
     run_xroar(arguments, BUILD / f"{output.stem}.log")
+    if not output.is_file():
+        raise SystemExit(f"capture baseline: XRoar did not create {output}")
+    find_ram(output.read_bytes())
 
 
 def capture_trace(snapshot: Path, output: Path, stop_pc: int, intervals: int) -> None:
-    # A snapshot is taken at frame_render_impl, after main_render's call site.
-    # The Nth following main_render therefore closes N complete active intervals.
+    # The caller may stop at the shared helper entry so the preceding resident
+    # dispatch JSR is emitted before trace output is disabled.
     run_xroar(
         [
             "-load", str(snapshot),
@@ -162,15 +219,20 @@ def swap_framebuffer_owners(source: Path, target: Path, patches: list[str]) -> N
 
 
 def main() -> None:
+    global PHASE_DEADLINE
     args = parse_args()
     if not args.skip_build:
         subprocess.run([str(ROOT / "scripts" / "build.sh"), "build"], cwd=ROOT, check=True)
 
-    frame_pc = symbol(BUILD / "ladybug-enemy-runtime.map", "frame_render_impl")
-    stop_pc = symbol(BUILD / "ladybug.map", "main_render")
+    PHASE_DEADLINE = time.monotonic() + CAPTURE_PHASE_SECONDS
+    # Use the emitted adaptive entry. The listing also names excluded branches,
+    # whose addresses may alias unrelated emitted code.
+    stop_pc = map_symbol(BUILD / "ladybug.map", "ad_dispatch_work")
+    active_entry_pc = map_symbol(BUILD / "ladybug.map", "AD_WORK_EXEC")
+    snapshot_pc = stop_pc
 
     baseline = BUILD / "perf-baseline.sna"
-    capture_snapshot(baseline, frame_pc, 20)
+    capture_snapshot(baseline, snapshot_pc, 20)
 
     static = BUILD / "perf-four-static.sna"
     patch_snapshot(
@@ -182,7 +244,7 @@ def main() -> None:
         [f"A470={ENEMY_TABLE}"],
     )
     hydrated = BUILD / "perf-four-hydrated.sna"
-    capture_snapshot(hydrated, frame_pc, 5, static)
+    capture_snapshot(hydrated, snapshot_pc, 5, static)
 
     if args.gate_only:
         gate = BUILD / "perf-gate.sna"
@@ -195,8 +257,10 @@ def main() -> None:
                 "008D=00", "008E=00", "A240=01",
             ],
         )
-        capture_snapshot(BUILD / "perf-gate-final.sna", frame_pc, 1, gate)
-        capture_trace(gate, BUILD / "perf-gate.raw.trace", stop_pc, 3)
+        capture_snapshot(BUILD / "perf-gate-final.sna", snapshot_pc, 1, gate)
+        # Stop on the third helper entry, after the third dispatch JSR has
+        # emitted its trace row. Stopping at stop_pc suppresses that row.
+        capture_trace(gate, BUILD / "perf-gate.raw.trace", active_entry_pc, 3)
         reversed_gate = BUILD / "perf-gate-reversed.sna"
         swap_framebuffer_owners(
             hydrated,
@@ -208,7 +272,12 @@ def main() -> None:
                 "008F=00", "0090=01",
             ],
         )
-        capture_trace(reversed_gate, BUILD / "perf-gate-reversed.raw.trace", stop_pc, 3)
+        capture_trace(
+            reversed_gate,
+            BUILD / "perf-gate-reversed.raw.trace",
+            active_entry_pc,
+            3,
+        )
         print("performance capture: current-revision gate scenario written to build/")
         return
 
@@ -253,7 +322,7 @@ def main() -> None:
         )
         capture_snapshot(
             BUILD / f"perf-animation-{owner}-fast.sna",
-            frame_pc,
+            snapshot_pc,
             2,
             animation,
         )
@@ -270,7 +339,7 @@ def main() -> None:
         )
         capture_snapshot(
             BUILD / f"perf-animation-{owner}-full.sna",
-            frame_pc,
+            snapshot_pc,
             2,
             full_animation,
         )

@@ -15,9 +15,13 @@ ROOT = Path(__file__).resolve().parents[1]
 BUILD = ROOT / "build"
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
+HUD_WORD_HELPER_ADDRESS = 0xBF00
+HUD_WORD_HELPER_MAX_BYTES = 0x100
 CART_BANK_BYTES = 0x4000
 ENGINE_LIMIT = 920
-PACKED_SOUND_BYTES = 3478
+PACKED_SOUND_BYTES = 3506
 KNOWN_AUDIO_DP_BYTES = 20
 MAX_REGISTER_WRITES = 11
 BOOT_DESCRIPTOR_START = 0x1800
@@ -128,6 +132,7 @@ def parse_args() -> argparse.Namespace:
                         help="main ROM map; retained for the FEAT-006 command contract")
     parser.add_argument("--audio-map", type=Path, default=BUILD / "ladybug-audio-runtime.map")
     parser.add_argument("--manifest", type=Path, default=BUILD / "ladybug-sparse-layout.json")
+    parser.add_argument("--hud-word-helper", type=Path, default=BUILD / "ladybug-hud-word-helper.bin")
     parser.add_argument("--bank0", type=Path, default=BUILD / "ladybug-gmc-bank0-overflow.bin")
     parser.add_argument("--bank2", type=Path, default=BUILD / "ladybug-sparse-bank2.bin")
     parser.add_argument("--bank3", type=Path, default=BUILD / "ladybug-sparse-bank3.bin")
@@ -154,7 +159,7 @@ def symbols(path: Path) -> dict[str, int]:
     found: dict[str, int] = {}
     pattern = re.compile(
         r"^Symbol: (audio_engine_start|audio_engine_end|audio_install_page|audio_mix_write|"
-        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end) .* = ([0-9A-Fa-f]+)$"
+        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end|key_service) .* = ([0-9A-Fa-f]+)$"
     )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
@@ -180,6 +185,7 @@ def main() -> None:
         raise SystemExit("audio proof: source labels missing: " + ", ".join(missing_source))
 
     runtime = args.runtime.read_bytes()
+    hud_word_helper = args.hud_word_helper.read_bytes() if args.hud_word_helper.is_file() else b""
     audio_map = args.audio_map
     if args.map is not None and "audio_engine_start" in args.map.read_text(encoding="ascii"):
         audio_map = args.map
@@ -231,6 +237,17 @@ def main() -> None:
     for left, right in ((8, 7), (17, 16)):
         if cue_rows[left]["descriptor_bytes"] != cue_rows[right]["descriptor_bytes"]:
             raise SystemExit(f"audio proof: cue alias {left} does not match cue {right}")
+    cue6_row = cue_rows[6]
+    cue6_sources = [voice.get("source_address") for voice in cue6_row["translation"]["voices"]]
+    if (
+        cue6_row.get("selected_stream_indices") != [0, 1, 2]
+        or cue6_row.get("dropped_stream_indices") != [3]
+        or cue6_sources != [4145, 4200, 4255]
+        or cue6_row.get("command_bytes_length") != 365
+    ):
+        raise SystemExit(
+            "audio proof: cue 6 must select [0, 1, 2] (lead 4145, harmony 4200, single bass 4255) at 365 bytes"
+        )
 
     include_path = args.source.parent.parent / "assets/arcade/audio/gmc_sound_data.inc"
     stream_bytes, stream_labels = parse_stream_include(include_path)
@@ -279,6 +296,33 @@ def main() -> None:
         raise SystemExit("audio proof: high-score END must use approved cue 8")
 
     layout = json.loads(args.manifest.read_text(encoding="ascii"))
+    helper = layout.get("hud_word_helper", {})
+    if (
+        helper.get("bytes") != len(hud_word_helper) or
+        helper.get("page") != 0x3D or
+        helper.get("address") != HUD_WORD_HELPER_ADDRESS or
+        helper.get("sha256") != (digest(hud_word_helper) if hud_word_helper else None) or
+        len(hud_word_helper) > HUD_WORD_HELPER_MAX_BYTES
+    ):
+        raise SystemExit("audio proof: HUD word helper manifest identity/placement differs")
+    if hud_word_helper:
+        helper_map = args.hud_word_helper.with_suffix(".map")
+        if not helper_map.is_file():
+            raise SystemExit("audio proof: HUD word helper map is missing")
+        helper_symbols = {
+            name: int(value, 16)
+            for name, value in re.findall(
+                r"^Symbol: (hud_word_paint|hud_word_paint_end|draw_recolored_map_tile) .* = ([0-9A-Fa-f]+)$",
+                helper_map.read_text(encoding="ascii"),
+                re.MULTILINE,
+            )
+        }
+        if (
+            helper_symbols.get("hud_word_paint") != 0 or
+            helper_symbols.get("hud_word_paint_end") != len(hud_word_helper) or
+            helper_symbols.get("draw_recolored_map_tile") != 0xFBA5
+        ):
+            raise SystemExit("audio proof: HUD word helper entry, size, or resident painter target differs")
     audio_meta = layout.get("audio_runtime")
     if not audio_meta or audio_meta["page"] != 0x3D or audio_meta["address"] != WINDOW_BASE:
         raise SystemExit("audio proof: sparse manifest does not place audio at page $3D/$A000")
@@ -328,7 +372,27 @@ def main() -> None:
             payload = (args.runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
             if len(payload) != keys["bytes"] or digest(payload) != keys["sha256"]:
                 raise SystemExit("audio proof: adjacent keybinding module identity differs")
-            expected = runtime.ljust(0x1A00, b"\x00") + payload
+            keybinding_offset = max(
+                KEYBINDING_BASE_ADDRESS - WINDOW_BASE,
+                len(runtime),
+            )
+            expected_address = WINDOW_BASE + keybinding_offset
+            if (keys.get("page") != 0x3D or keys.get("address") != expected_address or
+                    len(payload) > KEYBINDING_MAX_BYTES or
+                    keybinding_offset + len(payload) > PAGE_BYTES):
+                raise SystemExit("audio proof: keybinding placement or page-$3D fit differs")
+            keybinding_map = args.runtime.parent / "ladybug-keybinding-runtime.map"
+            if not keybinding_map.is_file():
+                raise SystemExit("audio proof: keybinding runtime map is missing")
+            keybinding_symbols = symbols(keybinding_map)
+            if keybinding_symbols.get("key_service") != expected_address:
+                raise SystemExit("audio proof: key_service map address differs from generated placement")
+            expected = runtime.ljust(keybinding_offset, b"\x00") + payload
+        if hud_word_helper:
+            helper_offset = HUD_WORD_HELPER_ADDRESS - WINDOW_BASE
+            if len(expected) + WINDOW_BASE > HUD_WORD_HELPER_ADDRESS:
+                raise SystemExit("audio proof: audio/keybinding overlaps HUD word helper")
+            expected = expected.ljust(helper_offset, b"\x00") + hud_word_helper
         if expanded != expected:
             raise SystemExit("audio proof: combined page transport differs")
         rebuilt[:] = expanded[:len(runtime)]
@@ -341,6 +405,10 @@ def main() -> None:
     else:
         rom_digest = "not-supplied"
     packed_sound_bytes = located["gmc_sound_data_end"] - located["gmc_cue_descriptors"]
+    if packed_sound_bytes != PACKED_SOUND_BYTES:
+        raise SystemExit(
+            f"audio proof: packed sound bytes {packed_sound_bytes}; expected {PACKED_SOUND_BYTES}"
+        )
     source_margin = layout["gmc"]["spare_bytes"] + len(runtime) - packed_sound_bytes
     if args.require_source_margin and source_margin < args.require_source_margin:
         raise SystemExit(

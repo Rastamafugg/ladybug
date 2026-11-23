@@ -145,7 +145,7 @@ try:
         # Force only the qualifying terminal condition after the natural gameplay path.
         hs=p.symbols(variant/'ladybug-highscore-runtime.map')
         payload=(variant/'ladybug-highscore-runtime.bin').read_bytes()
-        saved=p.read_byte(c,0xffa5); p.write_byte(c,0xffa5,0x23)
+        saved=p.read_byte(c,0xffa5); p.write_byte(c,0xffa5,0x24)
         assert p.read_bytes(c,ps['PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS'],len(payload))==payload
         p.write_byte(c,0xffa5,saved)
         c.call('write_memory',{'addr':0x1d,'data':'999999'})

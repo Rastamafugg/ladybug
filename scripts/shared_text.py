@@ -31,11 +31,40 @@ def apply_fixed_colour_runs(cells, runs):
 class SharedText:
     def __init__(self, args, p):
         self.args, self.p = args, p
+        self.hud_layout = args.hud_layout
+        self.p2_hud_cells = set()
+        self.hidden_p2_record_indices = set()
+        for field_name in ('P2_LABEL', 'P2_SCORE'):
+            field = self.hud_layout[field_name]
+            x, y = (int(value) for value in field['cell'])
+            width, height = (int(value) for value in field['size'])
+            self.p2_hud_cells.update(
+                (field_x, field_y)
+                for field_y in range(y, y + height)
+                for field_x in range(x, x + width)
+            )
         config_path=getattr(args,'text_colours',None) or Path(__file__).resolve().parents[1]/'assets/arcade/text-colours.json'
         self.colours=json.loads(config_path.read_text())
-        required={'score','high_score','part','bonus','special','extra','multiplier','instruction_points','instruction_special','instruction_extra','instruction_multiplier','stage_part','stage_bonus','stage_name','stage_good_luck','ranking','name','game_over_score'}
+        required={'score','high_score','part','bonus','special','extra','multiplier','instruction_points','instruction_special','instruction_extra','instruction_multiplier','instruction_multiplier_inactive','stage_part','stage_bonus','stage_name','stage_good_luck','ranking','name','game_over_score'}
         if set(self.colours['fields'])!=required:raise ValueError('text colour fields must match the documented contract')
         if any(type(v) is not int or not 1<=v<=15 for v in self.colours['fields'].values()):raise ValueError('dynamic text colours must be palette indices 1..15')
+        gameplay_field_colours={
+            'PART_LABEL':'part', 'PART_VALUE':'part',
+            'P1_LABEL':'score',
+            'P1_SCORE':'score',
+            'P2_LABEL':None, 'P2_SCORE':None,
+            'TOP_LABEL':'high_score',
+            'TOP_SCORE':'high_score',
+            'VEGETABLE_EQUALS':'bonus', 'VEGETABLE_VALUE':'bonus',
+        }
+        self.gameplay_hud_colours={}
+        for field_name,colour_name in gameplay_field_colours.items():
+            field=self.hud_layout[field_name]
+            x,y=field['cell'];width,height=field['size']
+            colour=0 if colour_name is None else self.colours['fields'][colour_name]
+            for field_y in range(y,y+height):
+                for field_x in range(x,x+width):
+                    self.gameplay_hud_colours[(field_x,field_y)]=colour
         chars=s.load_chars(args.chars)
         self.font=[];self.records=[]
         def mask(rows):return bytes(sum(bool(v)<<(7-x) for x,v in enumerate(row)) for row in rows)
@@ -64,15 +93,21 @@ class SharedText:
                 if value not in self.font:self.font.append(value)
                 if name=='gameplay':
                     if x<8 and y<9:colour=(1,2,3)[y//3] if y%3!=1 or x==0 else 7
+                    elif (x,y) in self.gameplay_hud_colours:colour=self.gameplay_hud_colours[(x,y)]
                     elif code==42:colour=self.colours['fields']['bonus']
                     elif x>=32:colour={1:8,2:8,4:1,5:1,7:6,8:6,10:3,11:3,12:5}.get(y,0)
                     else:raise ValueError(('unexpected gameplay text',x,y))
                 else:
-                    pens=p.presentation_pen_map(name,x,y,sources[i],code,False)
+                    pens=p.presentation_pen_map(name,x,y,sources[i],code,False,self.colours,self.hud_layout)
                     colours={pens[v] for row in rows for v in row if v}
                     if len(colours)!=1:raise ValueError(('text is not monochrome',name,x,y))
                     colour=colours.pop()
+                    if sources[i]=='CoCo Side HUD' and (x,y) in self.p2_hud_cells:
+                        colour=0
                 self.records.append(dict(screen=name,x=x,y=y,code=code,glyph=self.font.index(value),colour=colour,mask=value.hex()))
+                if ((name == 'gameplay' or sources[i] == 'CoCo Side HUD')
+                        and (x,y) in self.p2_hud_cells):
+                    self.hidden_p2_record_indices.add(len(self.records) - 1)
         # Compile the registered native heart raster through the existing
         # monochrome descriptor path so name field roles apply to its pixels.
         # Raw code41 text translation remains blank. Keep blank last: the
@@ -80,6 +115,12 @@ class SharedText:
         heart_mask=mask(s.rotate_ccw(chars[41]))
         if heart_mask not in self.font:self.font.append(heart_mask)
         if bytes(8) not in self.font:self.font.append(bytes(8))
+        self.blank_glyph=self.font.index(bytes(8))
+        for record_index in self.hidden_p2_record_indices:
+            record=self.records[record_index]
+            record['glyph']=self.blank_glyph
+            record['colour']=0
+            record['mask']=bytes(8).hex()
         if len(self.font)>82:raise ValueError('shared font exceeds one-byte static encoding')
         self.cells={(r['screen'],r['y']*40+r['x']):r for r in self.records}
         self.overridden=apply_fixed_colour_runs(self.cells,self.colours['runs'])
@@ -145,6 +186,30 @@ class SharedText:
 
     def finish(self,manifest,tiles,cold,instruction_source):
         graphics=sorted({self.visual_tiles[t] for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps) for i,t in enumerate(mapping) if (name,i) not in self.cells})
+        multiplier_x_ids = {
+            ids[0] for ids in manifest['instruction_choreography']['multiplier_tile_ids'].values()
+        }
+        multiplier_x_tiles = {tiles[ident] for ident in multiplier_x_ids}
+        if len(multiplier_x_tiles) != 1:
+            raise ValueError('instruction multiplier x must share one source graphic')
+        multiplier_x_tile = next(iter(multiplier_x_tiles))
+        multiplier_colour = self.colours['fields']['instruction_multiplier']
+        source_colours = {
+            value for byte in multiplier_x_tile for value in (byte >> 4, byte & 15)
+        } - {0}
+        if source_colours != {multiplier_colour}:
+            raise ValueError('instruction multiplier x must use the configured active colour')
+        inactive_colour = self.colours['fields']['instruction_multiplier_inactive']
+        inactive_multiplier_x_tile = bytes(
+            ((inactive_colour if byte >> 4 else 0) << 4) |
+            (inactive_colour if byte & 15 else 0)
+            for byte in multiplier_x_tile
+        )
+        if inactive_multiplier_x_tile in graphics:
+            inactive_x_graphic = graphics.index(inactive_multiplier_x_tile)
+        else:
+            inactive_x_graphic = len(graphics)
+            graphics.append(inactive_multiplier_x_tile)
         static_count=len(graphics)
         if static_count>174:raise ValueError('static graphics exceed text threshold174')
         descriptors=[]
@@ -173,6 +238,8 @@ class SharedText:
         x_graphic=next(iter(x_descriptors))[0]
         if not 0<=x_graphic<min(len(graphics),174):
             raise ValueError('instruction multiplier x exceeds native dispatch range')
+        if not 0<=inactive_x_graphic<min(len(graphics),174):
+            raise ValueError('inactive instruction multiplier x exceeds native dispatch range')
         if len(graphics)>224 or len(descriptors)>256:raise ValueError('shared graphic/descriptor capacity exceeded')
         streams=[]
         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
@@ -229,8 +296,12 @@ class SharedText:
         self.args.timer_record_output.write_text(emit('',payload[timer_start:timer_start+names['timer_box_count']*4]))
         asset_data,gameplay_count=self.gameplay()
         asset_data+=emit('dynamic_descriptors',bytes(v for d in descriptors for v in d))
-# @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC"]}
+        life_positions=bytes(value for index in range(1,13)
+                             for value in self.hud_layout[f'LIFE_{index:02d}']['cell'])
+        asset_data+=emit('hud_life_marker_positions',life_positions)
+# @audit-producer {"id": "text-graphic", "function": "finish", "class": "SharedText", "symbols": ["PRESENTATION_MULTIPLIER_X_GRAPHIC", "PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC"]}
         asset_data+=f'PRESENTATION_MULTIPLIER_X_GRAPHIC equ {x_graphic}\n'
+        asset_data+=f'PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC equ {inactive_x_graphic}\n'
         (self.args.output.parent/'ladybug_shared_text.inc').write_text(asset_data)
         chars=s.load_chars(self.args.chars)
         translation=[]

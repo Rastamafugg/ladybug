@@ -244,6 +244,24 @@
           "semantic_id": "routines.html#routine-adaptive-active-adaptive-key-binding"
         },
         {
+          "name": "check_stage_clear",
+          "profile": "state",
+          "purpose": "Set STAGE_PENDING once when DOTS_LEFT and BONUS_LEFT are both zero.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-check-stage-clear"
+        },
+        {
+          "name": "adaptive_draw_hud_intents",
+          "profile": "adaptive-active",
+          "purpose": "Dispatch shared HUD groups selected by gameplay render intents; a SPECIAL/EXTRA letter intent carries its changed column, while zero requests a full affected word redraw.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "routines.html#routine-adaptive-active-adaptive-draw-hud-intents"
+        },
+        {
           "name": "pickup_key_prepare",
           "profile": "adaptive-active",
           "purpose": "Repair removed keyed entity footprint, intersecting settled gate unions and structural nest intent.",
@@ -279,10 +297,24 @@
         "death_tick",
         "roam_mark_underlay",
         "frame_render_background",
+        "draw_shared_hud",
+        "hud_snapshot_capture_player",
+        "PRESENTATION_HUD_DRAW_PRIMARY",
+        "PRESENTATION_HUD_DRAW_LIVES",
+        "PRESENTATION_HUD_DRAW_MULTIPLIER",
+        "PRESENTATION_HUD_DRAW_SPECIAL",
+        "PRESENTATION_HUD_DRAW_EXTRA",
+        "PRESENTATION_HUD_SPECIAL_PROGRESS_Y",
+        "PRESENTATION_HUD_EXTRA_PROGRESS_Y",
+        "RF_HUD",
+        "RF_LIVES",
+        "RF2_MULTIPLIER",
+        "RF2_LETTER",
         "draw_gate",
         "draw_gate_entities",
         "pickup_prepare_removed",
-        "pickup_prepare_nest"
+        "pickup_prepare_nest",
+        "DOTS_LEFT"
       ],
       "relocations": [
         {

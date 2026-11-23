@@ -1,5 +1,6 @@
 ; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.
 ; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+; DOC-002 source-contract mirror contract KEY_SERVICE_EXEC profile=input: Generated page-$3D entry address for key_service, placed after the audio runtime with $BA00 as the minimum.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
 ; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
@@ -11,12 +12,19 @@
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
-; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Asset draw top hud.
+; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the shared player score on every screen except demo, where its authored zero remains visible, then draw the committed TOP name and score.
+; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
+; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
+; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
+; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for one column.
+; DOC-002 source-contract mirror contract HUD_WORD_EXEC profile=render: Generated page-$3D address of the shared word painter at $BF00.
+; DOC-002 source-contract mirror contract dynamic_dispatch profile=render: Resolve one generated tile descriptor to its native graphic or shared glyph painter.
 ; DOC-002 source-contract mirror contract gameplay_dispatch profile=state: Gameplay dispatch.
 ; DOC-002 source-contract mirror contract initial_entry_tick profile=movement: Initial entry tick.
 ; DOC-002 source-contract mirror contract keyboard_read_axis profile=input: Keyboard read axis.
 ; DOC-002 source-contract mirror contract nlt_delta profile=state: Resolve a late-turn direction displacement.
 ; DOC-002 source-contract mirror contract presentation_dispatch profile=state: Presentation dispatch.
+; DOC-002 source-contract mirror contract presentation_page24_resume profile=root: Restore PAR5 to physical page $24, then resume the saved page-$24 presentation continuation after a resident borrow.
 ; DOC-002 source-contract mirror contract primary_cache_mask profile=render: Rebind cached primary/accent palette bits.
 ; DOC-002 source-contract mirror contract rebind_cache_value profile=render: Rebind cached primary/accent palette bits.
 ; DOC-002 source-contract mirror contract replay_entity_overlay_common profile=render: Replay entity overlay common.
@@ -78,7 +86,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract add_bonus_score profile=state: Add bonus score.
 ; DOC-002 source-contract mirror contract add_dot_score profile=state: Add dot score.
 ; DOC-002 source-contract mirror contract add_special_score profile=state: Add special score.
-; DOC-002 source-contract mirror contract apply_letter_pickup profile=state: Apply letter pickup.
+; DOC-002 source-contract mirror contract apply_letter_pickup profile=state: Update SPECIAL/EXTRA state; complete-profile letter fields are painted by the queued shared HUD refresh.
 ; DOC-002 source-contract mirror contract begin_score_popup profile=state: Begin score popup.
 ; DOC-002 source-contract mirror contract blit_packed_sprite profile=render: Blit packed sprite.
 ; DOC-002 source-contract mirror contract blit_tile profile=render: Blit tile.
@@ -89,7 +97,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract cache_entity_overlay profile=copy: Cache entity overlay.
 ; DOC-002 source-contract mirror contract can_move profile=movement: Determine whether move.
 ; DOC-002 source-contract mirror contract check_entity_pickup profile=state: Check entity pickup.
-; DOC-002 source-contract mirror contract check_stage_clear profile=state: Check stage clear.
+; DOC-002 source-contract mirror contract AD_STAGE_CLEAR_EXEC profile=state: Set stage-clear pending after all dots and bonuses are cleared.
 ; DOC-002 source-contract mirror contract clear_life_marker profile=state: Clear life marker.
 ; DOC-002 source-contract mirror contract death_tick profile=state: Advance death state for one scheduled tick.
 ; DOC-002 source-contract mirror contract draw_all_gates profile=render: Draw all gates.
@@ -105,13 +113,13 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_gate_entities profile=render: Draw gate entities.
 ; DOC-002 source-contract mirror contract draw_gate_overlay profile=render: Draw gate overlay.
 ; DOC-002 source-contract mirror contract draw_gate_transition profile=render: Draw gate transition.
-; DOC-002 source-contract mirror contract draw_hud profile=render: Draw hud.
+; DOC-002 source-contract mirror contract draw_hud profile=render: Draw A-selected common HUD groups from the owner snapshot; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for a column, and PAR5 is preserved.
 ; DOC-002 source-contract mirror contract draw_hud_digit profile=render: Draw hud digit.
 ; DOC-002 source-contract mirror contract draw_hud_tile profile=render: Draw hud tile.
 ; DOC-002 source-contract mirror contract draw_life_marker profile=render: Draw life marker.
 ; DOC-002 source-contract mirror contract draw_lives profile=render: Draw lives.
 ; DOC-002 source-contract mirror contract draw_maze_state_cell profile=render: Draw maze state cell.
-; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Draw multiplier hud.
+; DOC-002 source-contract mirror contract draw_multiplier_hud profile=render: Repaint all three generated multiplier fields, showing the owner multiplier in blue and the other values gray; Instructions forces all three inactive.
 ; DOC-002 source-contract mirror contract draw_perimeter_box profile=render: Draw perimeter box.
 ; DOC-002 source-contract mirror contract draw_player profile=render: Draw player.
 ; DOC-002 source-contract mirror contract draw_popup_multiplier profile=render: Draw popup multiplier.
@@ -119,7 +127,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
-; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Draw word progress hud.
+; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Save PAR5, map page $3D, call generated HUD_WORD_EXEC with A/B selection, and restore the exact caller mapping.
+; DOC-002 source-contract mirror contract dwph_word profile=render: Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.
 ; DOC-002 source-contract mirror contract eat_dot profile=state: Consume the current maze dot, update score and remaining-dot state, and queue the required HUD or stage work.
 ; DOC-002 source-contract mirror contract enemy_collect profile=state: Dispatch vegetable collection to the installed enemy runtime.
 ; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.
@@ -132,18 +141,18 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract gate_render_hidden profile=render: Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.
 ; DOC-002 source-contract mirror contract init_enemy profile=state: Initialize enemy.
 ; DOC-002 source-contract mirror contract init_entities profile=state: Initialize entities.
-; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for a new game.
+; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.
 ; DOC-002 source-contract mirror contract init_gate_state profile=state: Initialize gate state.
 ; DOC-002 source-contract mirror contract init_joystick profile=state: Initialize joystick.
 ; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
 ; DOC-002 source-contract mirror contract init_player profile=state: Initialize player.
 ; DOC-002 source-contract mirror contract install_phase_tiles_for_screen profile=state: Run the ordered fresh-game initializers after the level-start preparation wrapper restores gameplay mappings.
-; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch.
+; DOC-002 source-contract mirror contract read_stage_letter_variants profile=copy: Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch and return U=$C2, B=3.
 ; DOC-002 source-contract mirror contract irq_handler profile=framebuffer: Service Vbord by delegating the sole framebuffer publication point, then return from interrupt.
 ; DOC-002 source-contract mirror contract joy_read_axis profile=input: Sample and normalize one joystick axis through the PIA comparator.
 ; DOC-002 source-contract mirror contract mark_gate_enemy_overlap profile=state: Mark roaming enemy captures whose destinations intersect the current gate mutation.
 ; DOC-002 source-contract mirror contract merge_sprite_byte profile=state: Merge sprite byte.
-; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state.
+; DOC-002 source-contract mirror contract next_stage profile=state: Advance the stage and reinitialize maze, gate, entity, player, enemy, bonus, and render state; reset only the multiplier and retain SPECIAL/EXTRA progress.
 ; DOC-002 source-contract mirror contract perimeter_box_coordinates profile=copy: Convert the active perimeter box index into its semantic screen coordinates.
 ; DOC-002 source-contract mirror contract perimeter_timer_tick profile=state: Advance perimeter timer state for one scheduled tick.
 ; DOC-002 source-contract mirror contract pickup_tick profile=state: Advance pickup state for one scheduled tick.
@@ -153,7 +162,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract player_cell_offset profile=movement: Convert the player's semantic cell coordinates into a row-major maze offset.
 ; DOC-002 source-contract mirror contract player_tick profile=movement: Advance player state for one scheduled tick.
 ; DOC-002 source-contract mirror contract queue_gate_render profile=state: Record the current gate as pending framebuffer work.
-; DOC-002 source-contract mirror contract read_joystick profile=input: Read joystick.
+; DOC-002 source-contract mirror contract read_joystick profile=input: Sample joystick direction, suppressing player movement writes during wake-only samples.
 ; DOC-002 source-contract mirror contract refresh_enemy_zone_dot profile=state: Refresh enemy zone dot.
 ; DOC-002 source-contract mirror contract reload_box_timer profile=state: Reload box timer.
 ; DOC-002 source-contract mirror contract reload_enemy_box_timer profile=state: Reload enemy box timer.
@@ -241,7 +250,27 @@ BLIT_WIDTH    equ $001C         ; transparent-blit bytes per row
 SCORE_BCD     equ $001D         ; packed BCD score, six digits
 HIGH_BCD      equ $0020         ; packed BCD session high score
 PRES_HS_READY equ $00E7
+PRES_SCREEN equ $00A6
+PRES_TMP_H equ $00C2
 PRES_HIGHSCORE_BASE equ $AF84
+; FEAT-013 shared snapshot; boot streams have retired before initialization.
+; @audit {"id":"hud-shared-snapshot","kind":"scratch","symbol":"HUD_SHARED_BASE","width":32,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident HUD provider","lifetime":"Gameplay values are refreshed before their selected BACK draw; TOP persists from boot seed through committed ranking changes.","initialization":"hud_snapshot_init after boot-stream retirement; hud_snapshot_capture_player sets HUD_PLAYER_VALID after all player-one bytes are copied","clobbers":"The provider exclusively owns $02A0-$02BF; player two is reserved and zero while one-player mode is active."}
+HUD_SHARED_BASE equ $02A0
+HUD_P1_SCORE equ HUD_SHARED_BASE
+HUD_P1_STAGE equ HUD_SHARED_BASE+3
+HUD_P1_LIVES equ HUD_SHARED_BASE+4
+HUD_P1_MULTIPLIER equ HUD_SHARED_BASE+5
+HUD_P1_SPECIAL_BITS equ HUD_SHARED_BASE+6
+HUD_P1_EXTRA_BITS equ HUD_SHARED_BASE+7
+HUD_P2_SCORE equ HUD_SHARED_BASE+8
+HUD_P2_STAGE equ HUD_SHARED_BASE+11
+HUD_P2_LIVES equ HUD_SHARED_BASE+12
+HUD_P2_MULTIPLIER equ HUD_SHARED_BASE+13
+HUD_P2_SPECIAL_BITS equ HUD_SHARED_BASE+14
+HUD_P2_EXTRA_BITS equ HUD_SHARED_BASE+15
+HUD_TOP_SCORE equ HUD_SHARED_BASE+16
+HUD_TOP_NAME equ HUD_SHARED_BASE+19
+HUD_PLAYER_VALID equ HUD_SHARED_BASE+26
 LIVES         equ $0023         ; reserve lives after the active player enters
 MAX_RESERVE_LIVES equ 12        ; active life is additional to these HUD markers
 STAGE         equ $0024         ; current stage, 1..255
@@ -327,7 +356,7 @@ RENDER_FLAGS   equ $007F       ; primary per-Vbord render intents
 RENDER_FLAGS2  equ $0080       ; secondary per-Vbord render intents
 RENDER_BOX_INDEX equ $0081     ; perimeter box snapshot
 RENDER_BOX_COLOR equ $0082     ; perimeter colour snapshot
-RENDER_LETTER_X equ $0083      ; recoloured HUD-letter snapshot
+RENDER_LETTER_X equ $0083      ; zero=full selected word, nonzero=changed one-based column
 RENDER_LETTER_Y equ $0084
 RENDER_LETTER_COLOR equ $0085
 ENEMY_OLD_VALID equ $0086      ; saved-background ownership before enemy mutation
@@ -641,18 +670,23 @@ startup_seed_ready
         sta     $EB
         clr     $DF
         ldx     #PRES_HIGHSCORE_BASE
-        lda     #9
+        ldy     #PRESENTATION_HIGHSCORE_COUNT
+startup_score_row
+        lda     #1
         sta     ,x+
-        clr     ,x
-        clr     1,x
-        leax    2,x
-        leay    asset_top_default_name,pcr
-        ldb     #7
+        clr     ,x+
+        clr     ,x+
+        leau    asset_top_default_name,pcr
+        ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
 startup_top_name
-        lda     ,y+
+        lda     ,u+
         sta     ,x+
         decb
         bne     startup_top_name
+        leay    -1,y
+        bne     startup_score_row
+        inc     PRES_HS_READY
+        jsr     hud_snapshot_init
         endc
         clr     PLAYER_BG_VALID
         ldd     #$0000
@@ -844,7 +878,7 @@ phase4_before_tick
         lda     PRES_MODE
         cmpa    #MODE_DEMO
         bne     main_render
-        lbsr    next_stage
+        ; The presentation dispatcher consumes a demo level completion.
 main_render
         lbsr    render_frame
         lda     PRES_MODE
@@ -1000,6 +1034,9 @@ iet_done
 ; Phase 5 score, HUD, and no-enemy stage state.
 ;==============================================================================
 init_game_state
+        ifne COMPLETE_PROFILE
+        clr     HUD_PLAYER_VALID
+        endc
         clr     FB_INIT_STATE
         clr     RENDER_FLAGS
         clr     RENDER_FLAGS2
@@ -1055,6 +1092,9 @@ reset_bonus_colour
         rts
 
 next_stage
+        ifne COMPLETE_PROFILE
+        clr     HUD_PLAYER_VALID
+        endc
         clr     STAGE_PENDING
         inc     STAGE
         bne     ns_stage_valid
@@ -1169,14 +1209,37 @@ alp_special
         cmpb    #$7F
         bne     alp_special_draw
         clr     SPECIAL_BITS
+        ifne    COMPLETE_PROFILE
+        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        endc
         bsr    add_special_score
         inc     STAGE_PENDING
+        ifne    COMPLETE_PROFILE
+        bra     alp_special_queue
+        endc
 alp_special_draw
+        ifne COMPLETE_PROFILE
+        lda     ENTITY_VARIANT
+        leax    special_letter_x,pcr
+        ldb     a,x
+        stb     RENDER_LETTER_X
+alp_special_queue
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        sta     RENDER_LETTER_Y
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
+        rts                     ; shared refresh redraws earned SPECIAL progress
+        else
         lda     ENTITY_VARIANT
         leax    special_letter_x,pcr
         ldb     a,x
         stb     HUD_X
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        else
         lda     #1
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_SPECIAL
@@ -1194,6 +1257,7 @@ alp_special_draw
         ora     #RF2_LETTER
         sta     RENDER_FLAGS2
         rts
+        endc
 alp_extra
         lda     ENTITY_VARIANT
         leax    extra_letter_bits,pcr
@@ -1204,20 +1268,46 @@ alp_extra
         cmpb    #$1F
         bne     alp_extra_draw
         clr     EXTRA_BITS
+        ifne    COMPLETE_PROFILE
+        clr     RENDER_LETTER_X ; zero requests a whole-word reset redraw
+        endc
         ; LIVES counts reserve lives after the active player has entered.
         ; Keep twelve reserve markers; the active life is additional.
         lda     LIVES
         cmpa    #MAX_RESERVE_LIVES
         bhs     alp_extra_pending
         inc     LIVES
+        lda     RENDER_FLAGS
+        ora     #RF_LIVES
+        sta     RENDER_FLAGS
 alp_extra_pending
         inc     STAGE_PENDING
+        ifne    COMPLETE_PROFILE
+        bra     alp_extra_queue
+        endc
 alp_extra_draw
+        ifne COMPLETE_PROFILE
+        lda     ENTITY_VARIANT
+        leax    extra_letter_x,pcr
+        ldb     a,x
+        stb     RENDER_LETTER_X
+alp_extra_queue
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        sta     RENDER_LETTER_Y
+        lda     RENDER_FLAGS2
+        ora     #RF2_LETTER
+        sta     RENDER_FLAGS2
+        rts                     ; shared refresh redraws earned EXTRA progress
+        else
         lda     ENTITY_VARIANT
         leax    extra_letter_x,pcr
         ldb     a,x
         stb     HUD_X
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        else
         lda     #4
+        endc
         sta     HUD_Y
         ifne COMPLETE_PROFILE
         lda     #TEXT_EXTRA
@@ -1234,6 +1324,7 @@ alp_extra_draw
         lda     RENDER_FLAGS2
         ora     #RF2_LETTER
         sta     RENDER_FLAGS2
+        endc
 alp_done
         rts
 
@@ -1254,40 +1345,73 @@ add_special_score
         rts
 
 ; @audit {"id":"multiplier-x","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
+; @audit {"id":"multiplier-x-inactive","kind":"index","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC","producer":"text-graphic","domain":"Final shared text/native graphic descriptor index","encoding":"8-bit graphic ID; generated after packing; never a stable numeric literal","bounds":[0,255]}
 draw_multiplier_hud
+        ifne COMPLETE_PROFILE
+        lda     GIME_PAR5
+        pshs    a
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        beq     dmh_instructions
+        lda     HUD_P1_MULTIPLIER
+        bra     dmh_value_ready
+dmh_instructions
+        lda     #1
+dmh_value_ready
+        sta     HUD_BCD_BYTE
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X2_X*256+PRESENTATION_HUD_MULTIPLIER_X2_Y)
+        std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X2_DST
+        lda     #2
+        bsr     draw_multiplier_slot
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X3_X*256+PRESENTATION_HUD_MULTIPLIER_X3_Y)
+        std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X3_DST
+        lda     #3
+        bsr     draw_multiplier_slot
+        ldd     #(PRESENTATION_HUD_MULTIPLIER_X5_X*256+PRESENTATION_HUD_MULTIPLIER_X5_Y)
+        std     HUD_X
+        ldy     #PRESENTATION_HUD_MULTIPLIER_X5_DST
+        lda     #5
+        bsr     draw_multiplier_slot
+        puls    a
+        sta     GIME_PAR5
+        rts
+draw_multiplier_slot
+        sta     HUD_BCD_COUNT
+        lda     #TEXT_INSTRUCTION_MULTIPLIER_INACTIVE
+        sta     HUD_COLOR
+        ldb     HUD_BCD_BYTE
+        cmpb    HUD_BCD_COUNT
+        blo     dms_draw_inactive
+        lda     #TEXT_MULTIPLIER
+        sta     HUD_COLOR
+; @audit-use {"id":"multiplier-x","symbol":"PRESENTATION_MULTIPLIER_X_GRAPHIC"}
+        ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
+        bra     dms_draw
+dms_draw_inactive
+; @audit-use {"id":"multiplier-x-inactive","symbol":"PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC"}
+        ldb     #PRESENTATION_MULTIPLIER_X_INACTIVE_GRAPHIC
+dms_draw
+        pshs    y
+; DOC-002 source-contract mirror contract draw_multiplier_slot profile=render: Draw one generated multiplier field with gray X and value before it is earned and blue X and value once the player's multiplier reaches it.
+        jsr     presentation_dispatch
+        puls    y
+        inc     HUD_X
+        jmp     draw_recolored_map_tile
+        else
         lda     MULTIPLIER
         cmpa    #2
-        bne     dmh_draw
+        bne     dmh_legacy_draw
         deca
-dmh_draw
+dmh_legacy_draw
         sta     HUD_X
-        ifne COMPLETE_PROFILE
-        lsla
-        lsla
-        ldy     #FB_VIRT+(7*1280)
-        leay    a,y
-        endc
         lda     #7
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_MULTIPLIER
-        else
         lda     #COLOR_BLUE
-        endc
         sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-; @audit-use {"id": "multiplier-x", "symbol": "PRESENTATION_MULTIPLIER_X_GRAPHIC"}
-        ldb     #PRESENTATION_MULTIPLIER_X_GRAPHIC
-        jsr     presentation_dispatch
-        lda     #$34            ; restore game-state PAR5 after cold graphic read
-        sta     GIME_PAR5
-        else
         lbsr    draw_recolored_map_tile
-        endc
         inc     HUD_X
-        ifne COMPLETE_PROFILE
-        jmp    draw_recolored_map_tile
-        else
         lbsr    draw_recolored_map_tile
         rts
         endc
@@ -1302,6 +1426,7 @@ extra_letter_bits
 extra_letter_x
         fcb     0,0,5,0,1,0,0,0,4,0,3,2
 
+        ifeq ADAPTIVE_RENDERING
 check_stage_clear
         tst     STAGE_PENDING
         bne     csc_done
@@ -1312,15 +1437,30 @@ check_stage_clear
         inc     STAGE_PENDING
 csc_done
         rts
+        endc
 
 ;==============================================================================
 ; draw_word_progress_hud
 ;
-; Inputs: SPECIAL_BITS, EXTRA_BITS
+; Inputs: A selects SPECIAL/EXTRA; B is zero for a full redraw or the changed column
 ; Returns: A, B, X, Y, U, CC undefined
-; Side effects: redraws every collected SPECIAL/EXTRA letter in the HUD
+; Side effects: maps page $3D for the shared word painter, then restores PAR5
 ;==============================================================================
 draw_word_progress_hud
+        ifne COMPLETE_PROFILE
+        pshs    a,b
+        lda     GIME_PAR5
+        pshs    a
+        lda     #$3D
+        sta     GIME_PAR5
+        lda     1,s
+        ldb     2,s
+        jsr     HUD_WORD_EXEC
+        puls    a
+        sta     GIME_PAR5
+        leas    2,s
+        rts
+        else
         lda     SPECIAL_BITS
         sta     HUD_BCD_BYTE
         lda     #1
@@ -1328,25 +1468,16 @@ draw_word_progress_hud
 dwph_special
         lsr     HUD_BCD_BYTE
         bcc     dwph_special_next
+        lda     #COLOR_RED
+        sta     HUD_COLOR
         lda     #1
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_SPECIAL
-        else
-        lda     #COLOR_RED
-        endc
-        sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
-        else
         lbsr    draw_recolored_map_tile
-        endc
 dwph_special_next
         inc     HUD_X
         lda     HUD_X
         cmpa    #8
         blo     dwph_special
-
         lda     EXTRA_BITS
         sta     HUD_BCD_BYTE
         lda     #1
@@ -1354,82 +1485,131 @@ dwph_special_next
 dwph_extra
         lsr     HUD_BCD_BYTE
         bcc     dwph_extra_next
+        lda     #COLOR_YELLOW
+        sta     HUD_COLOR
         lda     #4
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_EXTRA
-        else
-        lda     #COLOR_YELLOW
-        endc
-        sta     HUD_COLOR
-        ifne COMPLETE_PROFILE
-        jsr    draw_recolored_map_tile
-        else
         lbsr    draw_recolored_map_tile
-        endc
 dwph_extra_next
         inc     HUD_X
         lda     HUD_X
         cmpa    #6
         blo     dwph_extra
         rts
+        endc
 
 draw_hud
+        ifne COMPLETE_PROFILE
+; A selects HUD groups. On Instructions, nonzero B selects its generated
+; event descriptor in X. Other callers redraw each selected group fully.
+; Callers capture owner data before dispatch; this routine never edits it.
+        pshs    a
+        pshs    b
+        lda     GIME_PAR5
+        pshs    a
+        lda     PRES_SCREEN
+        cmpa    #PRESENTATION_MAP_INSTRUCTIONS
+        bne     dhu_group_fields
+        tst     1,s
+        bne     dhu_event_tiles
+dhu_group_fields
+draw_shared_hud equ draw_hud
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_PRIMARY
+        beq     dhu_no_primary
+        jsr     asset_draw_top_hud
+        lda     #PRESENTATION_HUD_PART_VALUE_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_PART_VALUE_Y
+        sta     HUD_Y
+        lda     #TEXT_PART
+        sta     HUD_COLOR
+        lda     HUD_P1_STAGE
+        jsr     asset_draw_part_value
+        bsr     draw_vegetable_hud
+dhu_no_primary
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
+        beq     dhu_no_words
+        anda    #PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA
+        ldb     1,s
+        jsr     draw_word_progress_hud
+dhu_no_words
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_LIVES
+        beq     dhu_no_lives
+        jsr     draw_lives
+dhu_no_lives
+        lda     2,s
+        bita    #PRESENTATION_HUD_DRAW_MULTIPLIER
+        beq     dhu_shared_done
+        jsr     draw_multiplier_hud
+dhu_shared_done
+        puls    a
+        sta     GIME_PAR5
+        puls    b
+        puls    a
+        rts
+dhu_event_tiles
+; X points to one generated instruction event. Read its typed descriptors
+; before the dynamic tile dispatcher maps PAR5 to graphic data.
+        ldy     8,x
+        beq     dhu_shared_done
+        ldb     10,x
+        beq     dhu_event_single
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     dynamic_dispatch
+        puls    b,y
+        jsr     dynamic_dispatch
+        bra     dhu_shared_done
+dhu_event_single
+        ldb     11,x
+        jsr     dynamic_dispatch
+        bra     dhu_shared_done
+        else
         lda     #6
         sta     HUD_Y
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_SCORE
-        else
         lda     #COLOR_LIGHT_GREEN
-        endc
         sta     HUD_COLOR
+        lda     #33
+        sta     HUD_X
         ldu     #SCORE_BCD
         lbsr    draw_bcd_line
-        ifne COMPLETE_PROFILE
-        jsr     asset_draw_top_hud
-        else
         lda     #13
         sta     HUD_Y
         lda     #COLOR_RED
         sta     HUD_COLOR
+        lda     #33
+        sta     HUD_X
         ldu     #HIGH_BCD
         lbsr    draw_bcd_line
-        endc
-        ifne COMPLETE_PROFILE
-        ldd     #$2501
-        else
         ldd     #$2701
-        endc
         std     HUD_X
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_PART
-        else
         lda     #COLOR_BLUE
-        endc
         sta     HUD_COLOR
         lda     STAGE
-        ifne COMPLETE_PROFILE
-        jsr     asset_draw_part_value
-        else
 dhu_mod10
         cmpa    #10
         blo     dhu_stage_digit
         suba    #10
         bra     dhu_mod10
 dhu_stage_digit
-        ifne COMPLETE_PROFILE
-        jsr    draw_hud_digit
-        else
         lbsr    draw_hud_digit
         endc
-        endc
         ; Fall through: the vegetable renderer returns to draw_hud's caller.
+        endc
 
 ; Display the stage vegetable at the destination generated from its authored
 ; marker (cell (33,3), sprite root (33,2)), followed by
 ; its four-digit 1000..9500 value at columns 36-39 on row 3.
 draw_vegetable_hud
+        ifne COMPLETE_PROFILE
+        lda     HUD_P1_STAGE
+        else
         lda     STAGE
+        endc
         cmpa    #18
         bls     dvh_stage_ok
         lda     #18
@@ -1440,34 +1620,41 @@ dvh_stage_ok
         mul
         leay    vegetable_sprites,pcr
         leay    d,y
-        ldx     #PRESENTATION_PART_VEGETABLE_DST
+        ldx     #PRESENTATION_HUD_VEGETABLE_ICON_DST
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
 
+        ifne COMPLETE_PROFILE
+        lda     ENTITY_WORK
+        lsla
+        leax    vegetable_values,pcr
+        leax    a,x
+        ldy     #PRESENTATION_HUD_VEGETABLE_VALUE_DST
+        ldb     #TEXT_BONUS
+        jmp     PRES_MODULE_DRAW_SCORE_SHORT
+        else
         lda     ENTITY_WORK
         lsla
         leau    vegetable_values,pcr
         leau    a,u
-        ldd     #$2403
-        std     HUD_X
-        ifne COMPLETE_PROFILE
-        lda     #TEXT_BONUS
-        else
+        lda     #PRESENTATION_HUD_VEGETABLE_VALUE_X
+        sta     HUD_X
+        lda     #PRESENTATION_HUD_VEGETABLE_VALUE_Y
+        sta     HUD_Y
         lda     #COLOR_GREEN
-        endc
         sta     HUD_COLOR
         lda     #2
         sta     HUD_BCD_COUNT
         bra     dbl_byte
+        endc
 
 vegetable_values
         fdb     $1000,$1500,$2000,$2500,$3000,$3500
         fdb     $4000,$4500,$5000,$5500,$6000,$6500
         fdb     $7000,$7500,$8000,$8500,$9000,$9500
 
+        ifeq COMPLETE_PROFILE
 draw_bcd_line
-        lda     #33
-        sta     HUD_X
         lda     #3
         sta     HUD_BCD_COUNT
 dbl_byte
@@ -1494,6 +1681,7 @@ dbl_byte
         dec     HUD_BCD_COUNT
         bne     dbl_byte
         rts
+        endc
 
 ; A=digit 0..9. HUD_X/HUD_Y/HUD_COLOR select destination and colour.
         ifne COMPLETE_PROFILE
@@ -1598,7 +1786,7 @@ dl_marker
         lda     ENTITY_WORK
         jsr     life_marker_position
         lda     ENTITY_WORK
-        cmpa    LIVES
+        cmpa    HUD_P1_LIVES
         bhs     dl_erase
         bsr     draw_life_marker
         bra     dl_next
@@ -1695,6 +1883,7 @@ draw_life_marker
         endc
         rts
 
+        ifeq COMPLETE_PROFILE
 draw_authored_hud_tile
         lda     HUD_Y
         ldb     #40
@@ -1703,6 +1892,7 @@ draw_authored_hud_tile
         adca    #0
         leay    screen_map,pcr
         ldb     d,y
+        endc
 draw_hud_tile
         stb     DRAW_TILE
         bsr     hud_fb_address
@@ -2725,6 +2915,17 @@ rj_vertical
 rj_north
         lda     #DIR_NORTH
 rj_request
+        ifne    COMPLETE_PROFILE
+        ; A wake-only sample reports direction without controlling the player.
+        pshs    a
+        lda     $028D
+        bita    #$40
+        puls    a
+        beq     rj_gameplay_request
+        sta     JOY_DIR
+        bra     rj_done
+rj_gameplay_request
+        endc
         ; Transfer owns facing and manual state; axes still sample normally.
         tst     INITIAL_ENTRY_STATE
         bne     rj_done
@@ -3995,7 +4196,11 @@ cep_letter
         lbsr    apply_letter_pickup
 cep_check_clear
         bsr    begin_score_popup
+        ifne ADAPTIVE_RENDERING
+        jsr     AD_STAGE_CLEAR_EXEC
+        else
         lbsr    check_stage_clear
+        endc
         rts
 cep_skull
         ldx     #ENTITY_TABLE
@@ -4405,7 +4610,11 @@ eat_dot
         bsr    refresh_enemy_zone_dot
         lbsr    add_dot_score
         dec     DOTS_LEFT
+        ifne ADAPTIVE_RENDERING
+        jsr     AD_STAGE_CLEAR_EXEC
+        else
         lbsr    check_stage_clear
+        endc
 ed_done
         rts
 
@@ -4835,13 +5044,15 @@ read_stage_letter_variants
         std     <$C2
         lda     8,x
         sta     <$C4
+        ldu     #PRES_TMP_H
+        ldb     #3
         rts
 
-; Return bridge for code executing from page $23 through a routine that
-; temporarily changes PAR5.  The caller stores its page-$23 continuation in
-; PRES_NAME_PTR before placing this address on the hardware stack.
-presentation_page23_resume
-        lda     #$23
+; Return bridge for code executing from the page-$24 auxiliary through a
+; resident routine that temporarily changes PAR5. The caller stores its
+; continuation in PRES_NAME_PTR before placing this address on the stack.
+presentation_page24_resume
+        lda     #$24
         sta     PAR_EXEC+5
         jmp     [PRES_NAME_PTR]
 
@@ -4852,7 +5063,7 @@ presentation_key_service
         pshs    a
         lda     #$3D
         sta     PAR_EXEC+5
-        jsr     $BA00
+        jsr     KEY_SERVICE_EXEC
         puls    a
         sta     PAR_EXEC+5
         rts
@@ -4916,6 +5127,52 @@ nlt_delta
         rts
 nlt_deltas
         fdb     -320,1,320,-1
+        endc
+
+        ifne COMPLETE_PROFILE
+; Clear the shared snapshot after boot descriptors are retired. The boot path
+; has already seeded table row one and passes its mapped ten-byte record.
+hud_snapshot_init
+        ldx     #HUD_SHARED_BASE
+        ldb     #32
+hsi_clear
+        clr     ,x+
+        decb
+        bne     hsi_clear
+        inc     HUD_P1_STAGE
+        ldu     #PRES_HIGHSCORE_BASE
+
+; U points to an accessible committed ten-byte row-one record.
+hud_snapshot_refresh_top
+        ldx     #HUD_TOP_SCORE
+        ldb     #10
+hst_copy
+        lda     ,u+
+        sta     ,x+
+        decb
+        bne     hst_copy
+        rts
+
+; Capture the current player-owned values before any gameplay HUD painter runs.
+hud_snapshot_capture_player
+        ldx     #HUD_P1_SCORE
+        ldd     <SCORE_BCD
+        std     ,x++
+        lda     <SCORE_BCD+2
+        sta     ,x+
+        lda     STAGE
+        sta     ,x+
+        lda     LIVES
+        sta     ,x+
+        lda     MULTIPLIER
+        sta     ,x+
+        lda     SPECIAL_BITS
+        sta     ,x+
+        lda     EXTRA_BITS
+        sta     ,x
+        lda     #1
+        sta     HUD_PLAYER_VALID
+        rts
         endc
 
 ; PERF-008 helper contract mirrors for keyed pickup background repair.

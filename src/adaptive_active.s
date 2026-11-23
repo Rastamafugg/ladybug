@@ -1,4 +1,12 @@
 ; Isolated active phase: demo prefix $0300-$038E remains intact.
+; DOC-002 source-contract mirror contract check_stage_clear profile=state: Set STAGE_PENDING once when DOTS_LEFT and BONUS_LEFT are both zero.
+; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
+; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
+; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+; DOC-002 source-contract mirror profile state Reads: Owned direct-page and page-$34 state needed for the operation
+; DOC-002 source-contract mirror profile state Writes: Only the owned state fields and render intents required by the operation
+; DOC-002 source-contract mirror profile state Side effects: May enqueue rendering work but does not publish FRONT
+; DOC-002 source-contract mirror profile state Invariants: Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned
         pragma 6809
         include "adaptive_interface.inc"
         include "adaptive_reference.inc"
@@ -19,6 +27,17 @@ PRES_TIMER equ $00B0
         jmp adaptive_key_binding
         jmp adaptive_audio_binding
         jmp adaptive_render
+        jmp check_stage_clear
+check_stage_clear
+        tst     STAGE_PENDING
+        bne     csc_done
+        lda     DOTS_LEFT
+        bne     csc_done
+        lda     BONUS_LEFT
+        bne     csc_done
+        inc     STAGE_PENDING
+csc_done
+        rts
 adaptive_work
         clra
         jsr adaptive_audio_binding
@@ -92,6 +111,7 @@ adaptive_render
         jsr colour_prepare_nest
         jsr actor_closure_restore
         clr AD_END_TIME
+        jsr hud_snapshot_capture_player
         lda FB_BACK_ID
         jsr AD_REDUCE_EXEC
         bcs ar_bad
@@ -222,6 +242,7 @@ agb_not_stage
         jsr frame_render_background
         puls b
         stb ENEMY_RENDER_FLAGS
+        jsr adaptive_draw_hud_intents
         puls d
         std RENDER_FLAGS
         puls a,pc
@@ -235,6 +256,13 @@ adaptive_key_binding
         ; Record will be reloaded before the next key and complete caller
         ; intents restored by adaptive_reduce. Copy secondary gate into the
         ; primary lane before suppressing the secondary compositor call.
+        tfr a,b
+        pshs b
+        lda RENDER_FLAGS
+        pshs a
+        lda RENDER_FLAGS2
+        pshs a
+        lda 2,s
         tfr a,b
         cmpa #4
         bne akb_primary
@@ -261,7 +289,59 @@ akb_gate
         bne akb_finish
         bsr pickup_key_prepare
 akb_finish
-        jmp frame_render_background
+        jsr frame_render_background
+        jsr adaptive_draw_hud_intents
+        puls a
+        sta RENDER_FLAGS2
+        puls a
+        sta RENDER_FLAGS
+        puls b
+        rts
+
+; Repaint only shared HUD groups named by restored gameplay render intents.
+; The player snapshot was captured once before AD_REDUCE_EXEC.
+; A letter intent carries its changed one-based column in RENDER_LETTER_X;
+; zero selects the full affected word after a completion/reset.
+adaptive_draw_hud_intents
+        lda RENDER_FLAGS
+        anda #RF_HUD|RF_LIVES
+        lsra
+        pshs a
+        lda RENDER_FLAGS2
+        bita #RF2_MULTIPLIER
+        beq adhi_letter
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_MULTIPLIER
+        sta ,s
+adhi_letter
+        lda RENDER_FLAGS2
+        bita #RF2_LETTER
+        beq adhi_dispatch
+        lda RENDER_LETTER_Y
+        cmpa #PRESENTATION_HUD_SPECIAL_PROGRESS_Y
+        beq adhi_special
+        cmpa #PRESENTATION_HUD_EXTRA_PROGRESS_Y
+        bne adhi_dispatch
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_EXTRA
+        sta ,s
+        bra adhi_dispatch
+adhi_special
+        lda ,s
+        ora #PRESENTATION_HUD_DRAW_SPECIAL
+        sta ,s
+adhi_dispatch
+        clrb
+        lda RENDER_FLAGS2
+        bita #RF2_LETTER
+        beq adhi_column_ready
+        ldb RENDER_LETTER_X
+adhi_column_ready
+        lda ,s+
+        beq adhi_done
+        jsr draw_shared_hud
+adhi_done
+        rts
 akb_masks
         fcb $20,0,$10,0,0,$04,0,0
 

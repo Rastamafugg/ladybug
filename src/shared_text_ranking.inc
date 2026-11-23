@@ -61,7 +61,7 @@ PRES_SCORE_L equ $00C1
 PRES_TIMER equ $00B0
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
-; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; The page-$24 helper executes through PAR5, so page-$34 score state uses a
 ; temporary PAR4 alias instead of dereferencing the helper's own window.
 PRES_HIGHSCORE_ALIAS equ $8F84
 PRES_PENDING_NAME_ALIAS equ $8FDE
@@ -101,7 +101,7 @@ PLAYER_ANIM_TIMER equ $0050
 
 ; Page-$23 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
-; presentation_page23_resume in resident code.
+; presentation_page24_resume in resident code.
 SND_DATA equ $FF51
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
@@ -140,7 +140,7 @@ highscore_timer_prepare
         sta     PRES_TMP_H
         ldd     #highscore_after_prepare
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_MAIN_FB_PREPARE
 
@@ -155,7 +155,7 @@ highscore_timer_draw
         tfr     d,y
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     2,x
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -214,7 +214,7 @@ highscore_commit_done
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -234,7 +234,7 @@ highscore_gameover_tick
         lbeq    highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_ENTER_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -405,7 +405,7 @@ highscore_default_name_data
         include "ladybug_runtime_symbols.inc"
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
-; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+; Uses the existing page-$24 helper and resident vegetable sprite/blitter.
 stage_panel_draw
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_LEVEL_START
@@ -420,8 +420,6 @@ stage_panel_selected
         lda     #3
         sta     $29
         ldx     #$3458          ; PART number, column 22 row 4
-        lbsr    stage_panel_number
-        ldx     #$4D84          ; side HUD part number, column 33 row 9
         lbsr    stage_panel_number
         lda     PRES_TMP_H
         bne     stage_panel_nonzero
@@ -682,12 +680,12 @@ init_scores
         tst     PRES_HS_READY
         bne     init_scores_done
         ldu     #PRES_HIGHSCORE_BASE
-        lda     #9
+        ldb     #9
 init_scores_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 init_scores_name
@@ -695,8 +693,7 @@ init_scores_name
         sta     ,u+
         leay    -1,y
         bne     init_scores_name
-        puls    a
-        deca
+        decb
         bne     init_scores_row
         inc     PRES_HS_READY
 init_scores_done
@@ -710,7 +707,7 @@ highscore_name_tick
         bne     highscore_name_hold
         clr     PRES_HOLD_STATE
 highscore_name_ready
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
         pshs    a
@@ -727,9 +724,9 @@ highscore_name_hold
         lda     #1
         rts
 
-; Enter from the page-$23 timer helper.  The code which selects page $34
+; Enter from the page-$24 timer helper.  The code which selects page $34
 ; must execute in low RAM; the helper's stacked resident return bridge
-; restores page $23 before fetching its continuation.
+; restores page $24 before fetching its continuation.
 highscore_prepare_back
         lda     #$34
         sta     PAR5
@@ -1105,6 +1102,14 @@ render_name_screen
         lbsr    prepare_name
         endc
         jsr     PRES_MODULE_MAP_BACK
+        ifeq    COMPLETE_PHASE_AUX
+        ifne    COMPLETE_PROFILE
+        jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
+        endc
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jsr     PRES_MAIN_SHARED_HUD
+        endc
         bsr     draw_name_fields
         bsr     draw_entry_scores
         lbsr    capture_initial
@@ -1121,13 +1126,11 @@ draw_name_fields
         bsr     draw_record_name
         lda #1
         sta PRES_NAME_TIMER_PHASE
+        ifeq COMPLETE_PHASE_AUX
         ldx     #PRES_HIGHSCORE_BASE+3
-        tst PRES_INSERT
-        bne name_top_authority_ready
-        ldx #PRES_PENDING_NAME
-name_top_authority_ready
         ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
         bsr     draw_record_name
+        endc
         ldx #PRES_PENDING_NAME
         ldy #$7F04             ; left pending name, authored x1,row19
         bsr draw_record_name
@@ -1140,27 +1143,16 @@ render_high_score
 draw_entry_scores
         lda PRES_NAME_TIMER_PHASE
         pshs a
-        lda #8
-        sta PRES_NAME_TIMER_PHASE
-        ldx     #PRES_SCORE_H
-        ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
-        bsr     draw_score
         lda #1
         sta PRES_NAME_TIMER_PHASE
-        ldx     #PRES_HIGHSCORE_BASE
-        tst PRES_INSERT
-        bne score_top_authority_ready
-        ldx #PRES_SCORE_H
-score_top_authority_ready
-        ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
-        bsr     draw_score
-        ldx #PRES_SCORE_H
-        ldy #$8404             ; left pending score, authored x1,row20
+        ldx     #PRES_SCORE_H
+        ldb #TEXT_HIGH_SCORE
+        ldy #$8408             ; pending score, right-justified to authored x7 zero
         bsr draw_score
         bra draw_name_done
 
 ; Draw one initialized record field at the selected destination. Before ranking
-; state is ready, keep the Tiled-authored High Score defaults untouched.
+; state is ready, leave the blank High Score map fields untouched.
 ranking_slice
         pshs b,x,y
         lda #$34
@@ -1182,6 +1174,7 @@ ranking_slice_authored_defaults
         puls b,x,y
         rts
 ranking_score
+        tfr a,b
         bra draw_score
 
 draw_record_name
@@ -1236,6 +1229,7 @@ update_name_frame
         jsr     PRES_MODULE_MAP_BACK
         bsr     restore_cursor
         lbsr    draw_name_fields
+        lbsr    draw_entry_scores
         bsr     capture_owner
         bsr     draw_cursor
 highscore_finish_back

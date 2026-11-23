@@ -16,18 +16,13 @@ asset_part_write
 ; DOC-002 source-contract mirror contract life_marker_position profile=render: Map reserve slots 0-11 to authored HUD tile roots; write HUD_X and HUD_Y only.
 ; A = slot0..11; writes only HUD_X/HUD_Y; no live-state mutation.
 life_marker_position
-        ldb     #21
-dl_position_row
-        cmpa    #3
-        blo     dl_position_column
-        suba    #3
-        subb    #2
-        bra     dl_position_row
-dl_position_column
         lsla
-        adda    #33
+        leax    hud_life_marker_positions,pcr
+        leax    a,x
+        lda     ,x+
         sta     HUD_X
-        stb     HUD_Y
+        lda     ,x
+        sta     HUD_Y
         rts
 asset_draw_two_digits
         clrb
@@ -234,20 +229,23 @@ dynamic_graphic
         tfr y,u
         jmp presentation_fast_blit
 
-; Draw the committed first score and name on the gameplay/demo HUD.
-; PAR4 is borrowed for record reads; the framebuffer BACK remains in PAR1-PAR3.
+; Draw the shared player score except during demo mode, where the authored
+; zero remains visible. Then draw the committed TOP name and score.
 asset_draw_top_hud
-        lda $FFA4
-        pshs a
-        lda #$34
-        sta $FFA4
-        lda #13
-        sta HUD_Y
-        lda #TEXT_HIGH_SCORE
-        sta HUD_COLOR
-        ldu #PRES_HIGHSCORE_BASE-$2000
-        jsr draw_bcd_line
-        ldx #FB_VIRT+(12*1280)+(33*4) ; authored TOP name at (33,12), $5C84
+        lda PRES_MODE
+        cmpa #MODE_DEMO
+        beq asset_top_score_done
+        ldx #HUD_P1_SCORE
+        ldy #FB_VIRT+(PRESENTATION_HUD_P1_SCORE_Y*1280)+(PRESENTATION_HUD_P1_SCORE_X*4)
+        ldb #TEXT_SCORE
+        jsr >PRES_MODULE_DRAW_SCORE
+asset_top_score_done
+        ldx #HUD_TOP_SCORE
+        ldy #FB_VIRT+(PRESENTATION_HUD_TOP_SCORE_Y*1280)+(PRESENTATION_HUD_TOP_SCORE_X*4)
+        ldb #TEXT_HIGH_SCORE
+        jsr >PRES_MODULE_DRAW_SCORE
+        ldx #FB_VIRT+(PRESENTATION_HUD_TOP_NAME_Y*1280)+(PRESENTATION_HUD_TOP_NAME_X*4)
+        ldu #HUD_TOP_NAME
         ldb #7
 asset_top_name
         lda ,u+
@@ -274,8 +272,6 @@ asset_top_glyph
         decb
         bne asset_top_name
 asset_top_done
-        puls a
-        sta $FFA4
         rts
 asset_top_default_name
         fcb PRESENTATION_HIGHSCORE_DEFAULT_NAME_0

@@ -2,7 +2,7 @@
         include "ladybug_shared_mode.inc"
         ifne SHARED_TEXT_ENABLED
 ; BUG-011 development instruction choreography.  The GMC loader stages this
-; image behind the attract bundle in physical page $23; presentation startup
+; image behind the attract bundle in physical page $24; presentation startup
 ; copies it into boot-only RAM.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -34,6 +34,7 @@
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route one generated instruction event, its selected HUD group/item, and descriptor in X through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -128,7 +129,7 @@ irt_event
         cmpd    ,x
         blo     irt_draw_player
         cmpd    2,x
-        bhs     consume_event
+        lbhs    consume_event
         ldb     PRES_TIMER+1
         bitb    #1
         beq     irt_draw_player
@@ -188,31 +189,51 @@ event_ptr_a
         addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
         jmp     PRES_MODULE_COLD_PTR
 
+; X points to one generated instruction event. The complete profile routes
+; these animated screen-local glyphs through the common HUD renderer.
+draw_hud_event_tiles
+        lda     PRES_WORK
+        cmpa    #5
+        blo     dhe_extra
+        cmpa    #12
+        blo     dhe_special
+        beq     dhe_multiplier_two
+        cmpa    #13
+        beq     dhe_multiplier_three
+        ldb     #5
+        bra     dhe_multiplier
+dhe_multiplier_two
+        ldb     #2
+        bra     dhe_multiplier
+dhe_multiplier_three
+        ldb     #3
+dhe_multiplier
+        lda     #PRESENTATION_HUD_DRAW_MULTIPLIER
+        jmp     PRES_MAIN_SHARED_HUD
+dhe_special
+        suba    #4
+        tfr     a,b
+        lda     #PRESENTATION_HUD_DRAW_SPECIAL
+        jmp     PRES_MAIN_SHARED_HUD
+dhe_extra
+        inca
+        tfr     a,b
+        lda     #PRESENTATION_HUD_DRAW_EXTRA
+        jmp     PRES_MAIN_SHARED_HUD
+
 consume_event
         inc     IRT_TRACE_CONSUMES
         lbsr    restore_actor
         lda     PRES_PHASE
+        sta     PRES_WORK
         lbsr    event_ptr_a
         ldd     6,x
         std     PRES_DST
         lbsr    clear_target
 
-        lda     PRES_PHASE
+        lda     PRES_WORK
         lbsr    event_ptr_a
-        ldy     8,x
-        beq     consume_reward
-        ldb     10,x
-        beq     consume_hud_primary
-        lda     11,x
-        pshs    a,y
-        leay    4,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        bra     consume_hud_draw
-consume_hud_primary
-        ldb     11,x
-consume_hud_draw
-        jsr     PRES_MODULE_DRAW_TILE
+        lbsr    draw_hud_event_tiles
 
 consume_reward
         lda     PRES_PHASE
@@ -234,7 +255,6 @@ consume_heart
         blo     consume_advance
         cmpa    #15
         bhs     consume_advance
-        sta     PRES_WORK
         lbsr    draw_multipliers
 consume_advance
         inc     PRES_PHASE
@@ -328,20 +348,7 @@ aps_event
         lbsr    clear_target
         lda     PRES_WORK
         lbsr    event_ptr_a
-        ldy     8,x
-        beq     aps_next
-        ldb     10,x
-        beq     aps_hud_primary
-        lda     11,x
-        pshs    a,y
-        leay    4,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        bra     aps_hud_draw
-aps_hud_primary
-        ldb     11,x
-aps_hud_draw
-        jsr     PRES_MODULE_DRAW_TILE
+        lbsr    draw_hud_event_tiles
         bra     aps_next
 aps_unconsumed
         lda     ,s
@@ -591,7 +598,7 @@ instruction_runtime_end
 
         else
 ; BUG-011 development instruction choreography.  The GMC loader stages this
-; image behind the attract bundle in physical page $23; presentation startup
+; image behind the attract bundle in physical page $24; presentation startup
 ; copies it into boot-only RAM.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
 ; wiki/internal/implementation/routine-catalog.html
@@ -623,6 +630,7 @@ instruction_runtime_end
 ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
 ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
 ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
+; DOC-002 source-contract mirror contract draw_hud_event_tiles profile=render: Route one generated instruction event, its selected HUD group/item, and descriptor in X through the common renderer in the complete profile; draw locally in legacy profiles.
 ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
 ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
 ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
@@ -775,6 +783,25 @@ event_ptr_a
         addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
         jmp     PRES_MODULE_COLD_PTR
 
+; Legacy instruction profile retains its local tile-id draw adapter.
+draw_hud_event_tiles
+        ldy     8,x
+        beq     dhet_legacy_done
+        ldb     10,x
+        beq     dhet_legacy_primary
+        lda     11,x
+        pshs    a,y
+        leay    4,y
+        jsr     PRES_MODULE_DRAW_TILE
+        puls    b,y
+        bra     dhet_legacy_draw
+dhet_legacy_primary
+        ldb     11,x
+dhet_legacy_draw
+        jsr     PRES_MODULE_DRAW_TILE
+dhet_legacy_done
+        rts
+
 consume_event
         inc     IRT_TRACE_CONSUMES
         lbsr    restore_actor
@@ -786,20 +813,7 @@ consume_event
 
         lda     PRES_PHASE
         lbsr    event_ptr_a
-        ldy     8,x
-        beq     consume_reward
-        ldb     10,x
-        beq     consume_hud_primary
-        lda     11,x
-        pshs    a,y
-        leay    4,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        bra     consume_hud_draw
-consume_hud_primary
-        ldb     11,x
-consume_hud_draw
-        jsr     PRES_MODULE_DRAW_TILE
+        lbsr    draw_hud_event_tiles
 
 consume_reward
         lda     PRES_PHASE
@@ -918,20 +932,7 @@ aps_event
         lbsr    clear_target
         lda     PRES_WORK
         lbsr    event_ptr_a
-        ldy     8,x
-        beq     aps_next
-        ldb     10,x
-        beq     aps_hud_primary
-        lda     11,x
-        pshs    a,y
-        leay    4,y
-        jsr     PRES_MODULE_DRAW_TILE
-        puls    b,y
-        bra     aps_hud_draw
-aps_hud_primary
-        ldb     11,x
-aps_hud_draw
-        jsr     PRES_MODULE_DRAW_TILE
+        lbsr    draw_hud_event_tiles
         bra     aps_next
 aps_unconsumed
         lda     ,s

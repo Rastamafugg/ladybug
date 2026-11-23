@@ -25,6 +25,10 @@ BUILD = ROOT / "build"
 ENEMY_PAGE_BASE = 0x35
 PAGE_BYTES = 0x2000
 WINDOW_BASE = 0xA000
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
+HUD_WORD_HELPER_ADDRESS = 0xBF00
+HUD_WORD_HELPER_MAX_BYTES = 0x100
 CART_BANK_BYTES = 0x4000
 CART_READABLE_BYTES = 0x3E00
 BOOT_OVERFLOW_START = 0x0800
@@ -33,7 +37,9 @@ LOW_RAM_DESTINATION_PAGE = 0xFF
 BOOT_OVERFLOW_PROOF_ADDRESS = 0x06B0
 BOOT_OVERFLOW_PROOF = bytes((0xB0, 0x0F))
 SPARSE_COPY_TABLE_RAM = 0x0200
-INSTRUCTION_RUNTIME_PAGE = 0x23
+AUXILIARY_RUNTIME_PAGE = 0x24
+PHASE_TILE_PATCH_PAGE = 0x23
+SPARSE_COPY_LATE_SELECTOR = 0xFE
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
@@ -81,6 +87,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--rate-helper", type=Path)
     parser.add_argument("--enemy-helper", type=Path)
     parser.add_argument("--audio-runtime", type=Path, default=BUILD / "ladybug-audio-runtime.bin")
+    parser.add_argument("--hud-word-helper", type=Path, default=BUILD / "ladybug-hud-word-helper.bin")
     parser.add_argument("--tile-patches", type=Path, default=BUILD / "ladybug-presentation-tile-patches.bin")
     parser.add_argument(
         "--aux-runtime-role",
@@ -325,6 +332,7 @@ def main() -> None:
     highscore_helper = args.highscore_helper.read_bytes()
     enemy_helper = args.enemy_helper.read_bytes() if args.enemy_helper else b""
     audio_runtime = args.audio_runtime.read_bytes()
+    hud_word_helper = args.hud_word_helper.read_bytes()
     tile_patches = args.tile_patches.read_bytes()
     if enemy_helper and (len(enemy_helper) != 87 or 0xA8A0 + len(enemy_helper) > 0xA8FD):
         raise SystemExit("sparse proof: page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
@@ -415,10 +423,31 @@ def main() -> None:
         manifest["audio_runtime"]["address"] != WINDOW_BASE
     ):
         raise SystemExit("sparse proof: audio runtime is not placed at page $3D")
+    helper = manifest.get("hud_word_helper", {})
+    if (
+        helper.get("bytes") != len(hud_word_helper) or
+        helper.get("page") != 0x3D or
+        helper.get("address") != HUD_WORD_HELPER_ADDRESS or
+        helper.get("sha256") != (sha256(hud_word_helper) if hud_word_helper else None) or
+        len(hud_word_helper) > HUD_WORD_HELPER_MAX_BYTES
+    ):
+        raise SystemExit("sparse proof: HUD word helper manifest placement/hash/size differs")
+    if hud_word_helper and len(audio_runtime) + WINDOW_BASE > HUD_WORD_HELPER_ADDRESS:
+        raise SystemExit("sparse proof: HUD word helper overlaps audio runtime")
     if manifest["aux_runtime"]["role"] != args.aux_runtime_role:
         raise SystemExit("sparse proof: auxiliary runtime profile mismatch")
-    if manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage):
-        raise SystemExit("sparse proof: auxiliary runtime staged hash mismatch")
+    if (
+        manifest["aux_runtime"].get("copy_phase") != "after_staged_audio" or
+        manifest["aux_runtime"].get("stage_page") != AUXILIARY_RUNTIME_PAGE or
+        manifest["aux_runtime"].get("stage_address") != INSTRUCTION_RUNTIME_ADDRESS or
+        manifest["aux_runtime"].get("stage_end") != (
+            INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage)
+        ) or
+        INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xC000 or
+        manifest["aux_runtime"].get("staged_bytes") != len(aux_runtime_stage) or
+        manifest["aux_runtime"]["staged_sha256"] != sha256(aux_runtime_stage)
+    ):
+        raise SystemExit("sparse proof: page-$24 auxiliary stage layout/hash mismatch")
     if manifest["highscore_helper"]["sha256"] != sha256(highscore_helper):
         raise SystemExit("sparse proof: high-score helper manifest hash mismatch")
     if manifest["highscore_runtime"]["sha256"] != sha256(highscore_runtime):
@@ -466,6 +495,54 @@ def main() -> None:
                 )
     if len(loader) != len(manifest_segments):
         raise SystemExit("sparse proof: loader and manifest segment counts differ")
+    early_segments = [
+        s for s in manifest_segments if s["target"] != "presentation_auxiliary"
+    ]
+    late_segments = [
+        s for s in manifest_segments if s["target"] == "presentation_auxiliary"
+    ]
+    if (
+        not late_segments or
+        manifest["aux_runtime"].get("copy_phase") != "after_staged_audio"
+    ):
+        raise SystemExit("sparse proof: delayed auxiliary segment group is missing")
+    if any(s["destination_page"] != AUXILIARY_RUNTIME_PAGE for s in late_segments):
+        raise SystemExit("sparse proof: delayed auxiliary target is not physical page $24")
+    if (
+        any(
+            s["target"] == "presentation_auxiliary"
+            for s in manifest_segments[:len(early_segments)]
+        ) or
+        any(
+            s["target"] != "presentation_auxiliary"
+            for s in manifest_segments[len(early_segments):]
+        )
+    ):
+        raise SystemExit("sparse proof: late auxiliary descriptors are not grouped after early descriptors")
+    if (
+        manifest["gmc"].get("sparse_copy_early_segment_count") != len(early_segments) or
+        manifest["gmc"].get("sparse_copy_late_segment_count") != len(late_segments) or
+        manifest["gmc"].get("sparse_copy_late_selector") != SPARSE_COPY_LATE_SELECTOR
+    ):
+        raise SystemExit("sparse proof: sparse copy phase counts/selector differ")
+    loader_text = args.loader.read_text(encoding="ascii")
+    include_values = {
+        "SPARSE_COPY_EARLY_SEGMENT_COUNT": len(early_segments),
+        "SPARSE_COPY_LATE_SEGMENT_COUNT": len(late_segments),
+        "SPARSE_COPY_LATE_SELECTOR": SPARSE_COPY_LATE_SELECTOR,
+    }
+    for symbol, expected in include_values.items():
+        match = re.search(
+            rf"^{symbol} equ (\$[0-9A-F]+|[0-9]+)$",
+            loader_text,
+            re.MULTILINE,
+        )
+        if not match:
+            raise SystemExit(f"sparse proof: generated {symbol} is missing")
+        value = match.group(1)
+        actual = int(value[1:], 16) if value.startswith("$") else int(value, 10)
+        if actual != expected:
+            raise SystemExit(f"sparse proof: generated {symbol} differs")
     adaptive_helper = args.adaptive_helper.read_bytes() if args.adaptive_helper else b""
     reconstructed = {
         "enemy": bytearray(len(enemy_payload)),
@@ -515,6 +592,8 @@ def main() -> None:
                 "destination_address", "count",
             )
         }
+        if segment["target"] == "presentation_auxiliary":
+            expected_record["destination_page"] = SPARSE_COPY_LATE_SELECTOR
         if loader_record != expected_record:
             raise SystemExit("sparse proof: loader record differs from manifest")
         source_offset = segment["source_offset"]
@@ -622,10 +701,10 @@ def main() -> None:
             target_page_base = 0x3B
             target_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
         elif target == "presentation_auxiliary":
-            target_page_base = 0x23
+            target_page_base = AUXILIARY_RUNTIME_PAGE
             target_address = INSTRUCTION_RUNTIME_ADDRESS
         elif target == "phase_tile_patches":
-            target_page_base = 0x23
+            target_page_base = PHASE_TILE_PATCH_PAGE
             target_address = 0xBF80
         else:
             raise SystemExit(f"sparse proof: unknown loader target {target}")
@@ -713,7 +792,21 @@ def main() -> None:
                 payload = (args.audio_runtime.parent / "ladybug-keybinding-runtime.bin").read_bytes()
                 if len(payload) != keys["bytes"] or sha256(payload) != keys["sha256"]:
                     raise SystemExit("sparse proof: keybinding module identity differs")
-                expected = audio_runtime.ljust(0x1A00, b"\x00") + payload
+                keybinding_offset = max(
+                    KEYBINDING_BASE_ADDRESS - WINDOW_BASE,
+                    len(audio_runtime),
+                )
+                expected_address = WINDOW_BASE + keybinding_offset
+                if (keys.get("page") != 0x3D or keys.get("address") != expected_address or
+                        len(payload) > KEYBINDING_MAX_BYTES or
+                        keybinding_offset + len(payload) > PAGE_BYTES):
+                    raise SystemExit("sparse proof: keybinding placement or page-$3D fit differs")
+                expected = audio_runtime.ljust(keybinding_offset, b"\x00") + payload
+            if hud_word_helper:
+                helper_offset = HUD_WORD_HELPER_ADDRESS - WINDOW_BASE
+                if len(expected) + WINDOW_BASE > HUD_WORD_HELPER_ADDRESS:
+                    raise SystemExit("sparse proof: keybinding/audio overlaps HUD word helper")
+                expected = expected.ljust(helper_offset, b"\x00") + hud_word_helper
             if raw != expected or len(raw) > PAGE_BYTES:
                 raise SystemExit("sparse proof: combined audio/keybinding page differs")
             reconstructed["audio_runtime"][:] = raw[:len(audio_runtime)]

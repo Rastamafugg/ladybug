@@ -1,6 +1,6 @@
 ; DOC-002 source-contract mirror contract MENU_TICK profile=presentation: Dispatch fresh Attract and menu input during selected-screen loading and Attract runtime.
-; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$23 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
-; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked menu and start scanner.
+; DOC-002 source-contract mirror contract menu_runtime_dispatch profile=presentation: Call the page-$24 menu updater for fresh input or pending Attract repaint work, restore PAR5 to $34, and return to the caller.
+; DOC-002 source-contract mirror contract MENU_SCAN profile=input: Call the banked scanner, which may route a safe automatic-loop wake.
         ifndef ADAPTIVE_RENDERING
 ADAPTIVE_RENDERING equ 0
         endc
@@ -49,15 +49,16 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_cell profile=render: Draw cell.
 ; DOC-002 source-contract mirror contract draw_tile_id profile=render: Draw tile id.
 ; DOC-002 source-contract mirror contract PRES_MAIN_DYNAMIC_TEXT profile=render: Render one dynamic glyph or graphic descriptor at the supplied destination, routing glyphs to the shared mask-font renderer and graphics to the presentation blitter.
-; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span, blanking leading zeroes, preserving internal zeroes, and showing an all-zero value as one zero.
-; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
+; DOC-002 source-contract mirror contract draw_score_value profile=presentation: Render packed-BCD scores right-aligned within the caller-provided digit span using B as the HUD color, blanking leading zeroes, preserving internal zeroes, showing an all-zero value as one zero, and restoring the caller's PAR5 mapping before return.
+; DOC-002 source-contract mirror contract draw_score_value_short profile=presentation: Render two packed-BCD bytes through the shared score painter using B as the HUD color, blanking leading zeroes and restoring the caller's PAR5 mapping before return.
+; DOC-002 source-contract mirror contract draw_score_value_digit profile=presentation: Render one score digit in HUD_COLOR or a blank leading cell, set the significance flag when the first nonzero digit is encountered, and advance Y by one tile.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract gameplay_reentry profile=presentation: Restore gameplay mappings and state after presentation releases the interval.
-; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare the first level before its preview and skip the already initialized next-stage context.
+; DOC-002 source-contract mirror contract init_gameplay profile=presentation: Prepare Attract preview and fresh-game Level Start before display; skip next-stage context so SPECIAL/EXTRA progress persists while its multiplier resets.
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
-; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
+; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
@@ -71,6 +72,8 @@ PAR2    equ $FFA2
 PAR3    equ $FFA3
 PAR4    equ $FFA4
 PAR5    equ $FFA5
+HUD_COLOR equ $0029
+HUD_P1_SCORE equ $02A0
 PIA_DA  equ $FF00
 PIA_CRA equ $FF01
 PIA_DB  equ $FF02
@@ -135,6 +138,7 @@ MODE_GAMEOVER equ 7
 MODE_NAME equ 8
 PRESENTATION_ROTATION_TICKS equ 558 ; shared Attract and high-score hold
 PRES_CONTEXT_NEXT_STAGE equ 2
+PRES_CONTEXT_DEMO_HIGH_SCORE equ 3
 
         ifne    COMPLETE_PROFILE
 ATTRACT_OVERLAY_ENABLED equ 1
@@ -244,7 +248,7 @@ install_aux_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
         endc
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
         endc
 
@@ -252,19 +256,19 @@ install_aux_runtime
 install_instruction_runtime
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_demo_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_highscore_runtime
         ldx     #PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS
         ldu     #PRESENTATION_HIGHSCORE_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         endc
 install_aux_runtime_copy
         sta     PAR5
@@ -343,6 +347,7 @@ start_screen
         clr     $E1             ; retire menu replay before another phase
         ldb     #$3F
         stb     $DF
+        clr     HUD_PLAYER_VALID
 menu_screen_retained
         endc
         sta     <PRES_SCREEN
@@ -356,7 +361,18 @@ start_screen_context_ready
         ifne    COMPLETE_PROFILE
         jsr     init_gameplay
         cmpa    #PRESENTATION_MAP_INSTRUCTIONS
-        beq     start_screen_instruction_install
+        bne     start_screen_instruction_check_done
+        ldx     #HUD_P1_SCORE
+        ldb     #8
+start_screen_clear_player_hud
+        clr     ,x+
+        decb
+        bne     start_screen_clear_player_hud
+        lda     #1
+        sta     HUD_P1_STAGE
+        sta     HUD_PLAYER_VALID
+        clra
+start_screen_instruction_check_done
         tsta
         bne     start_screen_no_instruction_install
 start_screen_instruction_install
@@ -406,7 +422,7 @@ menu_load_event
         tst     <$D0
         beq     menu_load_continue
 menu_runtime_dispatch
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     MENU_TICK
         lda     #$34
@@ -460,7 +476,7 @@ load_next
         ifne    COMPLETE_PROFILE
         lda     $29
         pshs    a
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     PRES_STAGE_SLICE
         lda     #$34
@@ -472,10 +488,13 @@ load_next
         rts
 load_done
         ifne    COMPLETE_PROFILE
-        lda     #$23
+        lda     #$24
         sta     PAR5
-        jsr     $B080           ; existing page-$23 helper: stage panel
+        jsr     $B080           ; existing page-$24 helper: stage panel
+        lda     #$34            ; restore game-state page before later helpers
+        sta     PAR5
         endc
+        ifeq    COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
         bne     load_done_no_cucumber
@@ -485,6 +504,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -504,6 +524,9 @@ load_done_dynamic_ready
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
         blo     load_done_dynamic_ready
+        cmpb    #PRESENTATION_MAP_ENTER_HIGH_SCORE
+        bhi     load_done_dynamic_ready
+load_done_dynamic_owner
         jsr     DEMO_RUNTIME_TICK
 load_done_dynamic_ready
         endc
@@ -677,12 +700,20 @@ attract_tick_prepare
         lbra    menu_runtime_dispatch
         endc
 attract_tick_ready
-        bsr     timer
+        lbsr    timer
         ifne    ATTRACT_OVERLAY_ENABLED
         subd    <PRES_IDLE_ORIGIN
         endc
         cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
+        ifne    ATTRACT_OVERLAY_ENABLED
+        ; Refresh pending actor pixels before menu or logo work can publish BACK.
+        lda     #$34
+        sta     PAR5
+        jsr     PRESENTATION_ATTRACT_OVERLAY
+        tst     PENDING
+        bne     hold
+        endc
         ifne    COMPLETE_PROFILE
         ; A fresh edge services only one BACK. Replay the other owner on idle
         ; ticks after advancing the clock; never paint over a queued frame.
@@ -696,10 +727,7 @@ attract_tick_animation
         ifne    ATTRACT_OVERLAY_ENABLED
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
         std     PRES_NAME_PTR
-        jsr     PRES_MAIN_PAGE23_RESUME
-        lda     #$34
-        sta     PAR5
-        jsr     PRESENTATION_ATTRACT_OVERLAY
+        jsr     PRES_MAIN_PAGE24_RESUME
         endc
         bra     hold
 attract_next
@@ -746,7 +774,7 @@ presentation_ui_tick
         endc
         jmp     DEMO_RUNTIME_TICK
 level_tick
-        bsr     timer
+        lbsr    timer
         cmpd    #180
         lblo    hold
         ifne    COMPLETE_PROFILE
@@ -924,24 +952,21 @@ demo_death_tick
         lbra hold
         endc
 demo_death_done
+        clr     <STAGE_PENDING
+        lda     #PRES_CONTEXT_DEMO_HIGH_SCORE
+        sta     <PRES_CONTEXT
         lbsr    install_highscore_runtime
         lda     #PRESENTATION_MAP_HIGH_SCORE
         lbsr    start_screen
         lda     #1
         rts
 demo_run
+        tst     <STAGE_PENDING
+        bne     demo_death_done
         ifeq ADAPTIVE_RENDERING
         lbsr timer
         jsr DEMO_RUNTIME_TICK
         endc
-        ldd     PRES_TIMER
-        cmpd    #3600
-        blo     demo_return
-        lbsr    install_highscore_runtime
-        lda     #PRESENTATION_MAP_HIGH_SCORE
-        lbsr    start_screen
-        lda     #1
-        rts
 demo_return
         clra
         rts
@@ -1240,6 +1265,7 @@ draw_name_done
         rts
 
 draw_entry_scores
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score_value
@@ -1247,6 +1273,7 @@ draw_entry_scores
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+        ldb     #TEXT_HIGH_SCORE
         lbsr    draw_score_value
         rts
 
@@ -1261,7 +1288,9 @@ draw_high_score_screen
         leay    PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST-PRESENTATION_HIGHSCORE_TOP_SCORE_DST-24,y
         ldb     #PRESENTATION_HIGHSCORE_COUNT-1
 draw_high_score_rows
+        pshs    b
         lbsr    draw_high_score_entry
+        puls    b
         leau    1280,u
         leay    1256,y
         decb
@@ -1277,6 +1306,7 @@ draw_high_score_entry
         lbsr    draw_name_record
         puls    y
         ldx     PRES_NAME_PTR
+        ldb     #TEXT_HIGH_SCORE
         lbsr    draw_score_value
         leax    7,x
         rts
@@ -1469,7 +1499,7 @@ module_commit_done
 
 scan_keys
         ifne COMPLETE_PROFILE
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     MENU_SCAN
         lda     #$34
@@ -1725,10 +1755,17 @@ PRES_NAME_END equ $FD
 
 ; Shared by the Attract ranking refresh and post-game name-entry painters.
 draw_score_value
+        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
+        bra     draw_score_value_init
+draw_score_value_short
+        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES-1
+draw_score_value_init
+        stb     HUD_COLOR
+        sta     PRES_TMP_H
+        lda     PAR5
+        pshs    a
         pshs    u
         clr     PRES_TMP_M
-        lda     #PRESENTATION_HIGHSCORE_SCORE_BYTES
-        sta     PRES_TMP_H
 draw_score_value_byte
         lda     #$34
         sta     PAR5
@@ -1753,6 +1790,8 @@ draw_score_value_byte
         bsr     draw_score_value_digit
 draw_score_value_done
         puls    u
+        puls    a
+        sta     PAR5
         rts
 draw_score_value_digit
         tst     PRES_TMP_M
@@ -1760,25 +1799,22 @@ draw_score_value_digit
         tsta
         bne     draw_score_value_start
         ldb     #PRESENTATION_NAME_ENTRY_BLACK_TILE
-        bra     draw_score_value_draw
+        bra     draw_score_value_blank
 draw_score_value_start
         inc     PRES_TMP_M
 draw_score_value_numeric
-        tfr     a,b
-        ldu     #score_value_glyphs
-        ldb     b,u
-draw_score_value_draw
+        pshs    x,y
+        tfr     y,x
+        jsr     PRES_MAIN_SHARED_MASK ; A is the numeric glyph; HUD_COLOR sets its field color.
+        puls    x,y
+        leay    4,y
+        rts
+draw_score_value_blank
         pshs    b,x,y
-        jsr     PRES_MAIN_DYNAMIC_TEXT ; B is a dynamic glyph/blank descriptor ID.
+        jsr     PRES_MAIN_DYNAMIC_TEXT ; B is the black leading-cell descriptor ID.
         puls    b,x,y
         leay    4,y
         rts
-score_value_glyphs
-        fcb     PRESENTATION_GLYPH_0,PRESENTATION_GLYPH_1
-        fcb     PRESENTATION_GLYPH_2,PRESENTATION_GLYPH_3
-        fcb     PRESENTATION_GLYPH_4,PRESENTATION_GLYPH_5
-        fcb     PRESENTATION_GLYPH_6,PRESENTATION_GLYPH_7
-        fcb     PRESENTATION_GLYPH_8,PRESENTATION_GLYPH_9
 
 presentation_module_end
 
@@ -1826,8 +1862,8 @@ presentation_module_end
 ; DOC-002 source-contract mirror contract install_aux_runtime profile=presentation: Install aux runtime.
 ; DOC-002 source-contract mirror contract map_back profile=copy: Map back.
 ; DOC-002 source-contract mirror contract presentation_flow_tick profile=presentation: Dispatch the current presentation interval and return retain or release status.
-; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys.
-; DOC-002 source-contract mirror contract start_screen profile=presentation: Initialize and draw the requested presentation screen.
+; DOC-002 source-contract mirror contract scan_keys profile=input: Scan keys and, in complete profile, route an eligible automatic-loop wake.
+; DOC-002 source-contract mirror contract start_screen profile=presentation: Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.
 ; DOC-002 source-contract mirror contract timer profile=presentation: Advance and return the current presentation interval timer.
 ; DOC-002 source-contract mirror ends.
         pragma  nodollarlocal,6809
@@ -2002,7 +2038,7 @@ install_aux_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
         endc
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
         endc
 
@@ -2010,19 +2046,19 @@ install_aux_runtime
 install_instruction_runtime
         ldx     #PRESENTATION_INSTRUCTION_RUNTIME_ADDRESS
         ldu     #PRESENTATION_INSTRUCTION_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_demo_runtime
         ldx     #PRESENTATION_DEMO_RUNTIME_ADDRESS
         ldu     #PRESENTATION_DEMO_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         bra     install_aux_runtime_copy
 
 install_highscore_runtime
         ldx     #PRESENTATION_HIGHSCORE_RUNTIME_ADDRESS
         ldu     #PRESENTATION_HIGHSCORE_RUNTIME_BYTES
-        lda     #$23
+        lda     #$24
         endc
 install_aux_runtime_copy
         sta     PAR5
@@ -2185,6 +2221,7 @@ load_next
         lda     #1
         rts
 load_done
+        ifeq COMPLETE_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_INSTRUCTIONS
         bne     load_done_no_cucumber
@@ -2194,6 +2231,7 @@ load_done
         ldx     #PRESENTATION_INSTRUCTION_CUCUMBER_DST
         jsr     PRESENTATION_MODULE_DRAW
 load_done_no_cucumber
+        endc
         ifne    HIGHSCORE_TEST_PROFILE
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_HIGH_SCORE
@@ -2942,9 +2980,13 @@ draw_name_done
         rts
 
 draw_entry_scores
+        lda     #TEXT_SCORE
+        sta     HUD_COLOR
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score_value
+        lda     #TEXT_HIGH_SCORE
+        sta     HUD_COLOR
         lda     #$34
         sta     PAR5
         ldx     #PRESENTATION_HIGHSCORE_BASE
@@ -2955,6 +2997,8 @@ draw_entry_scores
 draw_high_score_screen
         lda     #$34
         sta     PAR5
+        lda     #TEXT_HIGH_SCORE
+        sta     HUD_COLOR
         ldx     #PRESENTATION_HIGHSCORE_BASE
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST

@@ -124,6 +124,7 @@ ADAPTIVE_RENDERING equ 0
 
         pragma  nodollarlocal,6809
         include "ladybug_runtime_symbols.inc"
+        include "ladybug_presentation_symbols.inc"
         include "ladybug_shared_mode.inc"
         org     $0800
 
@@ -961,6 +962,7 @@ fri_dot
         jsr     draw_maze_state_cell
 fri_hud
         lbsr    enemy_render_impl
+        ifeq COMPLETE_PROFILE
         lda     RENDER_FLAGS
         bita    #RF_HUD
         beq     fri_lives
@@ -970,6 +972,7 @@ fri_lives
         bita    #RF_LIVES
         beq     fri_box
         jsr     draw_lives
+        endc
 fri_box
         lda     RENDER_FLAGS
         bita    #RF_BOX
@@ -987,18 +990,14 @@ fri_box
 fri_secondary
         lda     RENDER_FLAGS2
         bita    #RF2_PERIM_RESET
-        beq     fri_multiplier
+        beq     fri_letter
         ifeq    PERSISTENT_FB
         lbsr    render_perimeter_reset
         else
         bsr     render_perimeter_reset
         endc
-fri_multiplier
-        lda     RENDER_FLAGS2
-        bita    #RF2_MULTIPLIER
-        beq     fri_letter
-        jsr     draw_multiplier_hud
 fri_letter
+        ifeq COMPLETE_PROFILE
         lda     RENDER_FLAGS2
         bita    #RF2_LETTER
         beq     fri_gate
@@ -1009,6 +1008,7 @@ fri_letter
         lda     RENDER_LETTER_COLOR
         sta     HUD_COLOR
         jsr     draw_recolored_map_tile
+        endc
 fri_gate
         lda     RENDER_GATE_ID
         beq     fri_background_done
@@ -1100,9 +1100,15 @@ fri_stage_background
         ; is drawn. ERF_INIT is consumed by enemy_render_impl below.
         lbsr    capture_zone_bg
         jsr     draw_entities
+        ifne COMPLETE_PROFILE
+        lda     #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jsr     PRES_MAIN_SHARED_HUD
+        else
         jsr     draw_hud
         jsr     draw_word_progress_hud
         jsr     draw_lives
+        endc
         lbsr    enemy_render_impl
         ifeq    PERSISTENT_FB
         jsr     draw_player

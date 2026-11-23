@@ -3,13 +3,12 @@
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
 ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
-; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan physical input and publish menu/start edges; presentation_flow_tick routes them to the active presentation owner.
+; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan input and route safe automatic-loop wake while preserving local menu edges.
 ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
-; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Commit the accepted name and score into the ranking table, then refresh TOP from row one.
 ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
-; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
 ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
-; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.
+; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch only the final High Score logo slice; shared HUD fields are painted after the complete map load and unrelated slices remain unchanged.
 ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
 ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
 ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.
@@ -22,7 +21,7 @@
 ; DOC-002 source-contract mirror contract draw_name_fields profile=presentation: Draw name fields.
 ; DOC-002 source-contract mirror contract draw_record_name profile=presentation: Draw record name.
 ; DOC-002 source-contract mirror contract draw_score profile=presentation: Tail-call the shared presentation score painter for record and name-entry score fields.
-; DOC-002 source-contract mirror contract init_scores profile=presentation: Init scores.
+; DOC-002 source-contract mirror contract init_scores profile=presentation: Initialize all nine ranking rows to 10,000 with the default name, once per runtime session.
 ; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
 ; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
 ; DOC-002 source-contract mirror contract name_cell_arrival profile=presentation: Name cell arrival.
@@ -108,7 +107,7 @@ PRES_SCORE_L equ $00C1
 PRES_TIMER equ $00B0
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
-; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; The page-$24 helper executes through PAR5, so page-$34 score state uses a
 ; temporary PAR4 alias instead of dereferencing the helper's own window.
 PRES_HIGHSCORE_ALIAS equ $8F84
 PRES_PENDING_NAME_ALIAS equ $8FDE
@@ -146,9 +145,9 @@ PLAYER_ANIM_TIMER equ $0050
 
         ifne    HIGHSCORE_PHASE_HELPER
 
-; Page-$23 high-score helper.  It remains mapped only while the low-RAM
+; Page-$24 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
-; presentation_page23_resume in resident code.
+; presentation_page24_resume in resident code.
 SND_DATA equ $FF51
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
@@ -187,7 +186,7 @@ highscore_timer_prepare
         sta     PRES_TMP_H
         ldd     #highscore_after_prepare
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_MAIN_FB_PREPARE
 
@@ -203,7 +202,7 @@ highscore_timer_draw
         ldb     3,x
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_MODULE_DRAW_TILE
 
@@ -261,7 +260,7 @@ highscore_commit_done
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -278,7 +277,7 @@ highscore_gameover_tick
         lbsr    highscore_prepare_name
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_ENTER_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -296,12 +295,12 @@ highscore_prepare_name
         tst     PRES_HS_READY
         bne     highscore_prepare_ready
         ldu     #PRES_HIGHSCORE_ALIAS
-        lda     #9
+        ldb     #9
 highscore_prepare_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 highscore_prepare_default
@@ -309,8 +308,7 @@ highscore_prepare_default
         sta     ,u+
         leay    -1,y
         bne     highscore_prepare_default
-        puls    a
-        deca
+        decb
         bne     highscore_prepare_row
         inc     PRES_HS_READY
 highscore_prepare_ready
@@ -565,7 +563,7 @@ highscore_name_tick
         bne     highscore_name_hold
         clr     PRES_HOLD_STATE
 highscore_name_ready
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
         pshs    a
@@ -918,23 +916,28 @@ draw_name_done
         rts
 
 draw_entry_scores
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
         lbsr    draw_score
         lda     PRES_INSERT
         bne     entry_top_old
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         bra     entry_top_right
 entry_top_old
+        ldb     #TEXT_HIGH_SCORE
         ldx     #PRES_HIGHSCORE_BASE
 entry_top_right
         ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
         bsr     draw_score
         lda     PRES_INSERT
         bne     entry_top_left_old
+        ldb     #TEXT_SCORE
         ldx     #PRES_SCORE_H
         bra     entry_top_left
 entry_top_left_old
+        ldb     #TEXT_HIGH_SCORE
         ldx     #PRES_HIGHSCORE_BASE
 entry_top_left
         ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
@@ -951,9 +954,11 @@ draw_high_score_screen
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST
         bsr     draw_high_score_entry
-        ldx     #PRES_HIGHSCORE_BASE
-        ldu     #PRESENTATION_HIGHSCORE_ENTRY_NAME_DST
-        ldy     #PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST
+        ; The first call paints row 1. Continue with record 2 at its authored
+        ; destination; subsequent rows are one tile row apart.
+        ldx     #PRES_HIGHSCORE_BASE+PRESENTATION_HIGHSCORE_RECORD_BYTES
+        ldu     #PRESENTATION_HIGHSCORE_RANK_02_NAME_DST
+        ldy     #PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST
         ldb     #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
 draw_high_score_rows
         pshs    b
@@ -983,6 +988,7 @@ draw_high_score_entry
         tfr     u,y
         leay    PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA,y
         ldx     PRES_NAME_PTR
+        ldb     #TEXT_HIGH_SCORE
         bsr     draw_score
         puls    u,y
         leax    7,x

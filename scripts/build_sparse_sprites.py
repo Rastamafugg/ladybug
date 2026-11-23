@@ -69,12 +69,24 @@ PERIMETER_RESET_HELPER_ADDRESS = 0x06B2
 PERIMETER_RESET_HELPER_LIMIT = 0x0800
 AUDIO_RUNTIME_PAGE = 0x3D
 AUDIO_RUNTIME_ADDRESS = WINDOW_BASE
-INSTRUCTION_RUNTIME_PAGE = 0x23
+KEYBINDING_BASE_ADDRESS = 0xBA00
+KEYBINDING_MAX_BYTES = 0x600
+HUD_WORD_HELPER_ADDRESS = 0xBF00
+HUD_WORD_HELPER_MAX_BYTES = 0x100
+AUXILIARY_RUNTIME_PAGE = 0x24
+PHASE_TILE_PATCH_PAGE = 0x23
+SPARSE_COPY_LATE_SELECTOR = 0xFE
+DOLLAR = chr(36)
 INSTRUCTION_RUNTIME_ADDRESS = 0xA422
 INSTRUCTION_RUNTIME_BYTES = 0x3AA
 HIGHSCORE_RUNTIME_ADDRESS = 0xA880
 HIGHSCORE_PHASE_HELPER_ADDRESS = 0xAC40
 PHASE_TILE_PATCH_ADDRESS = 0xBF80
+
+
+def keybinding_address_for_audio(audio_bytes: int) -> int:
+    """Keep keybinding at $BA00 unless the audio runtime extends farther."""
+    return max(KEYBINDING_BASE_ADDRESS, AUDIO_RUNTIME_ADDRESS + audio_bytes)
 
 
 @dataclass(frozen=True)
@@ -144,6 +156,7 @@ class RomAsset:
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--keybinding-runtime", type=Path)
+    parser.add_argument("--hud-word-helper", type=Path)
     parser.add_argument("--event-art-input", type=Path, required=True)
     parser.add_argument("--dinosaur-input", type=Path, required=True)
     parser.add_argument("--asset-manifest-input", type=Path, required=True)
@@ -421,6 +434,7 @@ def pack_candidate_banks(
         enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
+        hud_word_helper: bytes = b"",
         rom_asset_inputs: list[tuple[str, bytes, dict[str, object]]] | None = None,
 ) -> tuple:
     """Place target bytes in CPU-readable GMC intervals and build copy records."""
@@ -459,7 +473,7 @@ def pack_candidate_banks(
         helper_offset = HIGHSCORE_PHASE_HELPER_ADDRESS - INSTRUCTION_RUNTIME_ADDRESS
         prefix = instruction_runtime + demo_runtime
         if len(prefix) > highscore_offset:
-            raise ValueError("complete demo overlaps the page-$23 high-score runtime")
+            raise ValueError("complete demo overlaps the page-$24 high-score runtime")
         prefix = prefix.ljust(highscore_offset, b"\x00") + highscore_runtime
         if len(prefix) > helper_offset:
             raise ValueError("complete high-score runtime overlaps its helper")
@@ -479,8 +493,8 @@ def pack_candidate_banks(
         SourceInterval(0, helper_source_end,
                        CART_READABLE_BYTES),
     ]
-    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB880:
-        raise ValueError("presentation auxiliary overlaps compressed title at $B880")
+    if INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xC000:
+        raise ValueError("page-$24 presentation auxiliary exceeds $C000")
     actor_bundle_address = WINDOW_BASE + max(0, len(presentation_cold) - PAGE_BYTES)
     if actor_bundle_address + len(actor_underlays) + len(actor_records) > 0xC000:
         raise ValueError("compressed title exceeds remaining page-$3B cold allocation")
@@ -489,7 +503,7 @@ def pack_candidate_banks(
         target_chunks("attract_actor_bundle", actor_underlays + actor_records,
                       0x3B, actor_bundle_address) +
         target_chunks("presentation_auxiliary", aux_runtime_stage,
-                      0x23, INSTRUCTION_RUNTIME_ADDRESS) +
+                      AUXILIARY_RUNTIME_PAGE, INSTRUCTION_RUNTIME_ADDRESS) +
         target_chunks("phase_tile_patches", tile_patches, 0x23,
                       PHASE_TILE_PATCH_ADDRESS) +
         target_chunks("presentation_module", presentation_module, 0xFF,
@@ -529,10 +543,26 @@ def pack_candidate_banks(
                                    enemy_payload[offset:offset + PAGE_BYTES],
                                    page, WINDOW_BASE))
     audio_transport = audio_runtime
+    keybinding_address = KEYBINDING_BASE_ADDRESS
+    keybinding_end = AUDIO_RUNTIME_ADDRESS + len(audio_runtime)
     if keybinding_runtime:
-        if len(audio_runtime) > 0x1A00 or len(keybinding_runtime) > 0x600:
-            raise ValueError("keybinding runtime overlaps audio or exceeds $BA00-$BFFF")
-        audio_transport = audio_runtime.ljust(0x1A00, b"\x00") + keybinding_runtime
+        keybinding_address = keybinding_address_for_audio(len(audio_runtime))
+        keybinding_offset = keybinding_address - AUDIO_RUNTIME_ADDRESS
+        if len(keybinding_runtime) > KEYBINDING_MAX_BYTES:
+            raise ValueError("keybinding runtime exceeds its 1,536-byte cap")
+        if keybinding_offset + len(keybinding_runtime) > PAGE_BYTES:
+            raise ValueError("keybinding runtime does not fit after audio in page $3D")
+        keybinding_end = keybinding_address + len(keybinding_runtime)
+        audio_transport = audio_runtime.ljust(keybinding_offset, b"\x00") + keybinding_runtime
+    if hud_word_helper:
+        helper_offset = HUD_WORD_HELPER_ADDRESS - AUDIO_RUNTIME_ADDRESS
+        if len(hud_word_helper) > HUD_WORD_HELPER_MAX_BYTES:
+            raise ValueError("HUD word helper exceeds its 256-byte page-$3D slot")
+        if keybinding_end > HUD_WORD_HELPER_ADDRESS:
+            raise ValueError("page-$3D keybinding runtime overlaps HUD word helper")
+        if helper_offset + len(hud_word_helper) > PAGE_BYTES:
+            raise ValueError("HUD word helper exceeds page $3D")
+        audio_transport = audio_transport.ljust(helper_offset, b"\x00") + hud_word_helper
     stream_targets.append((
         "audio_page_3d", audio_transport, AUDIO_RUNTIME_PAGE,
         AUDIO_RUNTIME_ADDRESS,
@@ -677,6 +707,13 @@ def pack_candidate_banks(
         ):
             raise ValueError("loader segment overlaps a bank signature")
 
+    # The boot table is consumed in two passes: ordinary destinations first,
+    # then the audio-dependent auxiliary records. Keep manifest order identical.
+    segments = [segment for segment in segments
+                if segment.target != "presentation_auxiliary"] + [
+        segment for segment in segments
+        if segment.target == "presentation_auxiliary"
+    ]
     result = (
         bytes(banks[0]), bytes(banks[2]), bytes(banks[3]), segments,
     )
@@ -710,18 +747,26 @@ def write_loader_include(
         f"SPARSE_COPY_TABLE_RAM equ ${SPARSE_COPY_TABLE_RAM:04X}",
         f"SPARSE_COPY_TABLE_BYTES equ {len(segments) * 8}",
         f"SPARSE_COPY_SEGMENT_COUNT equ {len(segments)}",
+        f"SPARSE_COPY_EARLY_SEGMENT_COUNT equ {sum(s.target != 'presentation_auxiliary' for s in segments)}",
+        f"SPARSE_COPY_LATE_SEGMENT_COUNT equ {sum(s.target == 'presentation_auxiliary' for s in segments)}",
+        f"SPARSE_COPY_LATE_SELECTOR equ {DOLLAR}{SPARSE_COPY_LATE_SELECTOR:02X}",
         "GMC_LZSS_DESCRIPTOR_BYTES equ 14",
         f"GMC_LZSS_STREAM_COUNT equ {len(streams)}",
         f"GMC_LZSS_AUDIO_INDEX equ {audio_indexes[0]}",
         f"GMC_LZSS_AUDIO_OFFSET equ {audio_indexes[0] * 14}",
         "",
-        "; bank, destination page, source CPU address, destination window, count",
+        "; bank, destination selector (FF low RAM, FE late page-$24), source, destination, count",
         "sparse_copy_table",
     ]
     for segment in segments:
+        descriptor_page = (
+            SPARSE_COPY_LATE_SELECTOR
+            if segment.target == "presentation_auxiliary"
+            else segment.destination_page
+        )
         lines.extend((
-            f"        ; {segment.target}+${segment.target_offset:04X}",
-            f"        fcb     ${segment.bank:02X},${segment.destination_page:02X}",
+            f"        ; {segment.target}+{DOLLAR}{segment.target_offset:04X}",
+            f"        fcb     {DOLLAR}{segment.bank:02X},{DOLLAR}{descriptor_page:02X}",
             f"        fdb     ${segment.source_address:04X},"
             f"${segment.destination_address:04X},${segment.count:04X}",
         ))
@@ -861,6 +906,16 @@ def main() -> None:
     highscore_runtime = args.highscore_runtime.read_bytes()
     highscore_helper = args.highscore_helper.read_bytes()
     audio_runtime = args.audio_runtime.read_bytes()
+    keybinding_runtime = (
+        args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b""
+    )
+    hud_word_helper = (
+        args.hud_word_helper.read_bytes() if args.hud_word_helper else b""
+    )
+    keybinding_address = (
+        keybinding_address_for_audio(len(audio_runtime))
+        if keybinding_runtime else KEYBINDING_BASE_ADDRESS
+    )
     tile_patches = args.tile_patches.read_bytes()
     if len(tile_patches) not in (0, 128):
         raise SystemExit("sparse: phase tile patches must be empty or exactly 128 bytes")
@@ -890,7 +945,8 @@ def main() -> None:
         rate_helper=args.rate_helper.read_bytes() if args.rate_helper else b"",
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
-        keybinding_runtime=args.keybinding_runtime.read_bytes() if args.keybinding_runtime else b"",
+        keybinding_runtime=keybinding_runtime,
+        hud_word_helper=hud_word_helper,
         rom_asset_inputs=asset_inputs,
     )
     outputs = (
@@ -1041,13 +1097,21 @@ def main() -> None:
         "keybinding_runtime": {
             "bytes": args.keybinding_runtime.stat().st_size if args.keybinding_runtime else 0,
             "page": 0x3D,
-            "address": 0xBA00,
+            "address": keybinding_address,
             "sha256": digest(args.keybinding_runtime.read_bytes()) if args.keybinding_runtime else None,
+        },
+        "hud_word_helper": {
+            "bytes": len(hud_word_helper),
+            "page": AUDIO_RUNTIME_PAGE,
+            "address": HUD_WORD_HELPER_ADDRESS,
+            "sha256": digest(hud_word_helper) if hud_word_helper else None,
         },
         "aux_runtime": {
             "role": args.aux_runtime_role,
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "copy_phase": "after_staged_audio",
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
+            "stage_end": INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage),
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
             "staged_bytes": len(aux_runtime_stage),
@@ -1055,7 +1119,7 @@ def main() -> None:
         },
         "phase_tile_patches": {
             "bytes": len(tile_patches),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": PHASE_TILE_PATCH_PAGE,
             "stage_address": PHASE_TILE_PATCH_ADDRESS,
             "instruction_bytes": len(tile_patches) // 2,
             "highscore_bytes": len(tile_patches) // 2,
@@ -1063,13 +1127,13 @@ def main() -> None:
         },
         "highscore_helper": {
             "bytes": len(highscore_helper),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": HIGHSCORE_PHASE_HELPER_ADDRESS,
             "sha256": digest(highscore_helper),
         },
         "highscore_runtime": {
             "bytes": len(highscore_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": HIGHSCORE_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x0698,
@@ -1083,6 +1147,9 @@ def main() -> None:
             "boot_overflow_proof_bytes": proof_bytes,
             "sparse_copy_table_ram": SPARSE_COPY_TABLE_RAM,
             "sparse_copy_table_bytes": len(segments) * 8,
+            "sparse_copy_early_segment_count": sum(s.target != "presentation_auxiliary" for s in segments),
+            "sparse_copy_late_segment_count": sum(s.target == "presentation_auxiliary" for s in segments),
+            "sparse_copy_late_selector": SPARSE_COPY_LATE_SELECTOR,
             "boot_overflow_used_bytes": bank0_used_bytes,
             "boot_overflow_spare_bytes": (
                 CART_READABLE_BYTES - BOOT_OVERFLOW_START - bank0_used_bytes
@@ -1140,7 +1207,7 @@ def main() -> None:
         manifest["instruction_runtime"] = {
             "role": "instructions",
             "bytes": len(instruction_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": INSTRUCTION_RUNTIME_ADDRESS,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,
@@ -1153,7 +1220,7 @@ def main() -> None:
         manifest["demo_runtime"] = {
             "role": "demo-route",
             "bytes": len(demo_runtime),
-            "stage_page": INSTRUCTION_RUNTIME_PAGE,
+            "stage_page": AUXILIARY_RUNTIME_PAGE,
             "stage_address": demo_stage_address,
             "destination_address": 0x0300,
             "destination_end": 0x06AA,

@@ -17,6 +17,9 @@
         setdp   $00
         include "ladybug_presentation.inc"
         include "ladybug_presentation_symbols.inc"
+        ifndef INPUT_JOYSTICK
+INPUT_JOYSTICK equ 0
+        endc
 
 ; Existing always-mapped perimeter return tail: restore game PAR5, then CC/PC.
 PRES_GAME_PAGE_RETURN equ $06BE
@@ -67,7 +70,7 @@ PRES_TIMER equ $00B0
 PRES_IDLE_ORIGIN equ $00CC
 PRES_HIGHSCORE_BASE equ $AF84
 PRES_PENDING_NAME equ $AFDE
-; The page-$23 helper executes through PAR5, so page-$34 score state uses a
+; The page-$24 helper executes through PAR5, so page-$34 score state uses a
 ; temporary PAR4 alias instead of dereferencing the helper's own window.
 PRES_HIGHSCORE_ALIAS equ $8F84
 PRES_PENDING_NAME_ALIAS equ $8FDE
@@ -112,7 +115,7 @@ PLAYER_ANIM_TIMER equ $0050
 
 ; Page-$23 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
-; presentation_page23_resume in resident code.
+; presentation_page24_resume in resident code.
 SND_DATA equ $FF51
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
@@ -160,7 +163,7 @@ highscore_timer_prepare
         sta     PRES_TMP_H
         ldd     #highscore_after_prepare
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         jmp     PRES_HIGHSCORE_FB_PREPARE
 
@@ -175,7 +178,7 @@ highscore_timer_draw
         tfr     d,y
         ldd     #highscore_after_tile
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     2,x
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -296,7 +299,7 @@ highscore_audio_done
         lbsr    highscore_commit_name
         ldd     #highscore_after_highscore_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -316,7 +319,7 @@ highscore_gameover_tick
         beq     highscore_commit_done
         ldd     #highscore_after_name_start
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         lda     #MAP_ENTER_HIGH_SCORE
         jmp     PRES_MODULE_START_SCREEN
@@ -334,12 +337,12 @@ highscore_prepare_name
         tst     PRES_HS_READY
         bne     highscore_prepare_ready
         ldu     #PRES_HIGHSCORE_ALIAS
-        lda     #9
+        ldb     #9
 highscore_prepare_row
+        lda     #1
         sta     ,u+
         clr     ,u+
         clr     ,u+
-        pshs    a
         ldx     #highscore_default_name_data
         ldy     #7
 highscore_prepare_default
@@ -347,8 +350,7 @@ highscore_prepare_default
         sta     ,u+
         leay    -1,y
         bne     highscore_prepare_default
-        puls    a
-        deca
+        decb
         bne     highscore_prepare_row
         inc     PRES_HS_READY
 highscore_prepare_ready
@@ -375,7 +377,7 @@ highscore_qualify_loop
         blo     highscore_qualify_next
         lda     PRES_SCORE_L
         cmpa    2,x
-        bhi     highscore_qualify_found
+        bhs     highscore_qualify_found
 highscore_qualify_next
         leax    10,x
         incb
@@ -465,6 +467,8 @@ highscore_commit_name_loop
         sta     ,x+
         decb
         bne     highscore_commit_name_loop
+        ldu     #PRES_HIGHSCORE_ALIAS
+        jsr     PRES_MAIN_HUD_TOP_REFRESH
         puls    a
         sta     PAR4
         puls    cc
@@ -541,7 +545,7 @@ name_rank_data
         fcb 8,29,17
         fcb 9,29,17
 
-; The 25-byte alias wrapper and five setup bytes occupy the $B062-$B080 helper gap.
+; The resident reader returns U/B, leaving only the PAR4 alias wrapper here.
 stage_panel_read_letters
         pshs cc
         orcc #$10
@@ -553,12 +557,10 @@ stage_panel_read_letters
         puls a
         sta PAR4
         puls cc
-        ldu #PRES_TMP_H
-        ldb #3
         rts
         rmb     $B080-*
 ; BUG-035: called during hidden level-start hydration, before publication.
-; Uses the existing page-$23 helper and resident vegetable sprite/blitter.
+; Uses the existing page-$24 helper and resident vegetable sprite/blitter.
 stage_panel_draw
         jmp menu_load_finish
 stage_panel_slice_entry
@@ -589,11 +591,6 @@ stage_panel_regular_slice
         bne  stage_slice_return
         lbra stage_name_dispatch
 stage_name_schedule_ready
-        ldd $AA
-        cmpd #128
-        bne stage_score_row_done
-        lbsr stage_player_score
-stage_score_row_done
         ldd $AA
         leay stage_schedule,pcr
 stage_schedule_find
@@ -653,11 +650,25 @@ stage_slice_return
 stage_panel_finish
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq stage_name_sprite_selected
+        beq stage_name_pending_score
         cmpa #PRESENTATION_MAP_LEVEL_START
-        bne stage_slice_return
-        lbsr stage_select
+        beq stage_name_sprite_selected
+        cmpa #PRESENTATION_MAP_INSTRUCTIONS
+        beq stage_finish_instructions
+        cmpa #PRESENTATION_MAP_GAME_OVER
+        beq stage_finish_game_over
+        rts
+stage_finish_instructions
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
+stage_finish_game_over
+        jsr PRES_MAIN_HUD_CAPTURE_PLAYER
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
 stage_name_sprite_selected
+        lbsr stage_select
         lda PRES_TMP_H
         bne stage_finish_nonzero
         inca
@@ -672,20 +683,13 @@ stage_finish_index
         addd #vegetable_sprites
         tfr d,y
         pshs y
-        lda PRES_SCREEN
-        cmpa #PRESENTATION_MAP_ENTER_HIGH_SCORE
-        beq stage_name_sprite_hud
         ldu #sprite_attr0_pairs
         ldx #$3E40
         jsr blit_packed_sprite
-stage_name_sprite_hud
         puls y
-        ldu #sprite_attr0_pairs
-        ldx #PRESENTATION_PART_VEGETABLE_DST
-        jsr blit_packed_sprite
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_LEVEL_START
-        bne stage_slice_return
+        bne stage_name_pending_score
         jsr stage_panel_read_letters
         ldx #$6644
 stage_panel_letter_loop
@@ -701,10 +705,29 @@ stage_panel_letter_loop
         leax -2552,x
         decb
         bne stage_panel_letter_loop
-        jmp draw_word_progress_hud
+        jsr PRES_MAIN_HUD_CAPTURE_PLAYER
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
+stage_name_pending_score
+        lda PRES_NAME_TIMER_PHASE
+        pshs a
+        lda #1
+        sta PRES_NAME_TIMER_PHASE
+        ldx #PRES_SCORE_H
+        ldb #TEXT_HIGH_SCORE
+        ldy #$8408               ; local lower-left score span ends at the authored zero, row20
+        jsr PRES_MODULE_DRAW_SCORE
+        puls a
+        sta PRES_NAME_TIMER_PHASE
+stage_name_common_hud
+        jsr     PRES_MAIN_HUD_CAPTURE_PLAYER
+        lda #PRESENTATION_HUD_DRAW_ALL
+        clrb
+        jmp PRES_MAIN_SHARED_HUD
 stage_schedule
         fdb 288
-        fdb $3450
+        fdb $3458
         fcb 1,0,3,TEXT_STAGE_PART
         fdb 320
         fdb $434C
@@ -721,9 +744,6 @@ stage_schedule
         fdb 544
         fdb $4D60
         fcb 2,12,4,TEXT_STAGE_NAME
-        fdb 576
-        fdb $5794
-        fcb 1,0,3,TEXT_STAGE_PART
         fdb 608
         fdb $618C
         fcb 3,0,4,TEXT_STAGE_BONUS
@@ -784,35 +804,6 @@ stage_panel_text
         bne     stage_panel_text
         rts
 
-; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
-stage_player_score
-        lda #8
-        sta $29
-        ldx #$2A84
-        ldy #$001D
-        ldb #3
-stage_player_score_pair
-        lda ,y+
-        pshs a
-        lda $A7
-        cmpa #2
-        puls a
-        beq stage_player_score_actual
-        clra
-stage_player_score_actual
-        pshs a
-        lsra
-        lsra
-        lsra
-        lsra
-        bsr  stage_panel_char
-        puls a
-        anda #15
-        bsr  stage_panel_char
-        decb
-        bne stage_player_score_pair
-        rts
-
 ; A=0..44 authored glyph, X=destination, $29=colour; advance X.
 stage_panel_char
         pshs a,b,x,y,u
@@ -860,41 +851,42 @@ ranking_schedule_destination_ready
         ldb 3,u
         jmp PRES_RANKING_SLICE
 ranking_schedule_data
-        fdb 128
-        fcb 0,1
-        fdb 160
-        fcb 0,0
+        ; Events run after the map loader has painted each field's destination cells.
         fdb 192
-        fcb 1,1
+        fcb 0,1
         fdb 224
-        fcb 1,0
-        fdb 256
-        fcb 2,1
+        fcb 0,0
         fdb 288
-        fcb 2,0
+        fcb 1,1
         fdb 320
-        fcb 3,1
+        fcb 1,0
         fdb 352
-        fcb 3,0
+        fcb 2,1
         fdb 384
-        fcb 4,1
+        fcb 2,0
         fdb 416
-        fcb 4,0
+        fcb 3,1
         fdb 448
-        fcb 5,1
+        fcb 3,0
         fdb 480
-        fcb 5,0
+        fcb 4,1
         fdb 512
-        fcb 6,1
+        fcb 4,0
         fdb 544
-        fcb 6,0
+        fcb 5,1
         fdb 576
-        fcb 7,1
+        fcb 5,0
         fdb 608
-        fcb 7,0
+        fcb 6,1
+        fdb 640
+        fcb 6,0
+        fdb 672
+        fcb 7,1
         fdb 704
-        fcb 8,1
+        fcb 7,0
         fdb 736
+        fcb 8,1
+        fdb 768
         fcb 8,0
 ranking_schedule_end
 highscore_row_destinations
@@ -944,7 +936,7 @@ highscore_logo_cache_ready
         stb     ,x
         ldd     #highscore_logo_prepared
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ; Attract owns the instruction overlay, so its high-score low-RAM
         ; callback addresses are invalid. Reuse the existing bank-return tail
@@ -955,7 +947,7 @@ highscore_logo_cache_ready
         jmp     PRES_GAME_PAGE_RETURN
 highscore_logo_prepared
         ; Cache the Tiled root once when the active screen changes. The raw
-        ; tile renderer clobbers registers, so the root lives in this page-$23
+        ; tile renderer clobbers registers, so the root lives in this page-$24
         ; helper rather than across the draw callback in a CPU register.
         lda     PRES_SCREEN
         cmpa    highscore_logo_root_screen
@@ -992,7 +984,7 @@ highscore_logo_source
         tfr     d,u
         ldd     #highscore_logo_drawn
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         tfr     u,d
         jmp     PRES_MODULE_DRAW_RAW_TILE
@@ -1006,7 +998,7 @@ highscore_logo_drawn
         beq     highscore_logo_loaded
         ldd     #highscore_logo_hold
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ; Attract owns the instruction overlay, so its high-score low-RAM
         ; callback addresses are invalid. Reuse the existing bank-return tail
@@ -1025,8 +1017,6 @@ highscore_logo_records
 ; Keep the high-score logo and TOP record updates without cabinet-credit UI.
 presentation_panel_slice
         ldd     $AA
-        cmpd    #832
-        beq     presentation_panel_top
         cmpd    #960
         bne     presentation_panel_done
         lda     PRES_SCREEN
@@ -1035,37 +1025,114 @@ presentation_panel_slice
         clr     PRES_NAME_TIMER_PHASE
         clr     PRES_NAME_TIMER_BOX
         lbra    highscore_logo_prepared
-presentation_panel_top
-        lbra    top_panel_draw
 presentation_panel_done
         rts
 
-; Publish record zero at TOP on instruction and level-start surfaces.
-top_panel_draw
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_GAME_OVER
-        beq     top_panel_publish
-        deca
-        cmpa    #1
-        bhi     top_panel_done
-top_panel_publish
-        jmp     PRES_MAIN_TOP_HUD
-top_panel_done
-        rts
-
-; FEAT-005: existing page-$23 owner handles menus. State is direct-page;
+; FEAT-005: existing page-$24 owner handles menus. State is direct-page;
 ; drawing uses the established resident font without remapping PAR5.
 MENU_LIVES equ $EA
 MENU_LEVEL equ $EB
 MENU_SELECT equ $E0
 MENU_PREV equ $DF
 MENU_EVENT equ $D0
+PRES_MAGIC equ $00A4
+PRES_CONTEXT equ $00A7
+PRES_CONTEXT_DEMO_HIGH_SCORE equ 3
+KB_WAKE equ $028D
 ; Menu HOLD only: owner A/B dirty bits. Name entry owns this as repeat state.
 MENU_DIRTY equ $E1
 
 menu_scan
         ldb #0
-        jmp PRES_MAIN_KEY_SERVICE
+        jsr PRES_MAIN_KEY_SERVICE
+        lda PRES_MAGIC
+        cmpa #$A5
+        lbne menu_wake_clear
+        lda PRES_MODE
+        lbeq menu_wake_clear
+        cmpa #MODE_GAMEOVER
+        lbhs menu_wake_clear
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_OPTIONS
+        lbhs menu_wake_clear
+        ifne INPUT_JOYSTICK
+        ; Sample without modifying the autonomous demo direction or player.
+        lda KB_WAKE
+        ora #$40
+        sta KB_WAKE
+        lda JOY_DIR
+        pshs a
+        jsr PRES_MAIN_READ_JOY
+        lda JOY_DIR
+        cmpa #$FF
+        bne menu_wake_joy_code
+        lda #4
+menu_wake_joy_code
+        lsla
+        pshs a
+        ldb KB_WAKE
+        andb #$0E
+        cmpb ,s
+        beq menu_wake_joy_same
+        lda KB_WAKE
+        anda #$F1
+        ora ,s
+        sta KB_WAKE
+        lda ,s
+        cmpa #8
+        beq menu_wake_joy_same
+        lda KB_WAKE
+        ora #1
+        sta KB_WAKE
+menu_wake_joy_same
+        leas 1,s
+        puls a
+        sta JOY_DIR
+        lda KB_WAKE
+        anda #$BF
+        sta KB_WAKE
+        endc
+        lda PRES_SCREEN
+        cmpa #PRESENTATION_MAP_ATTRACT
+        beq menu_wake_clear
+        cmpa #PRESENTATION_MAP_HIGH_SCORE
+        beq menu_wake_demo_high_score
+        lda PRES_CONTEXT
+        beq menu_wake_auto
+        bra menu_wake_clear
+menu_wake_demo_high_score
+        lda PRES_CONTEXT
+        cmpa #PRES_CONTEXT_DEMO_HIGH_SCORE
+        bne menu_wake_clear
+menu_wake_auto
+        lda KB_WAKE
+        bita #1
+        beq menu_wake_done
+        lda PRES_MODE
+        cmpa #MODE_LOAD
+        beq menu_wake_done
+        tst FB_PENDING
+        bne menu_wake_done
+        tst FB_RENDER_ACTIVE
+        bne menu_wake_done
+        lda PRES_HOLD_STATE
+        beq menu_wake_ready
+        cmpa #PRES_HOLD_FINAL
+        bne menu_wake_done
+        clr PRES_HOLD_STATE
+menu_wake_ready
+        lda KB_WAKE
+        anda #$FE
+        sta KB_WAKE
+        clr MENU_EVENT
+        lda #PRESENTATION_MAP_ATTRACT
+        lbra menu_change
+menu_wake_clear
+        lda KB_WAKE
+        anda #$FE
+        sta KB_WAKE
+menu_wake_done
+        rts
 
 menu_tick
         lda     PRES_SCREEN
@@ -1234,7 +1301,7 @@ menu_start
         ldd     #menu_hold
         std     PRES_NAME_PTR
         puls    a
-        ldx     #PRES_MAIN_PAGE23_RESUME
+        ldx     #PRES_MAIN_PAGE24_RESUME
         pshs    x
         jmp     PRES_MODULE_START_SCREEN
 menu_idle
@@ -1255,7 +1322,7 @@ menu_idle_active
         beq     menu_hold
         ldd     #menu_updated
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     #PRES_MAIN_FB_PREPARE
         pshs    cc,d
@@ -1270,7 +1337,7 @@ menu_updated
         sta     MENU_DIRTY
         ldd     #menu_hold
         std     PRES_NAME_PTR
-        ldd     #PRES_MAIN_PAGE23_RESUME
+        ldd     #PRES_MAIN_PAGE24_RESUME
         pshs    d
         ldd     #PRES_MAIN_FB_FINISH
         pshs    cc,d
@@ -1517,7 +1584,7 @@ highscore_name_tick
         bne     highscore_name_hold
         clr     PRES_HOLD_STATE
 highscore_name_ready
-        lda     #$23
+        lda     #$24
         sta     PAR5
         jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
         pshs    a
@@ -1973,7 +2040,7 @@ draw_high_score_screen
         ldx     #PRES_HIGHSCORE_BASE
         ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
         bsr     draw_high_score_entry
-        leau    PRESENTATION_HIGHSCORE_ENTRY_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
+        leau    PRESENTATION_HIGHSCORE_RANK_02_NAME_DST-PRESENTATION_HIGHSCORE_TOP_NAME_DST,u
         ldb     #PRESENTATION_HIGHSCORE_COUNT-1
 draw_high_score_rows
         pshs    b

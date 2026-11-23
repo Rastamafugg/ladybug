@@ -315,7 +315,7 @@ class MenuCapture:
         if self.read(pc, 8) != ctx["input_bytes" if is_input else "post_bytes"]:
             raise HarnessError("marker_code_mismatch")
         pages = self.read(0xffa0, 6)
-        if pages[0] & 63 != 0x38 or (is_input and pages[5] & 63 != 0x23):
+        if pages[0] & 63 != 0x38 or (is_input and pages[5] & 63 != 0x24):
             raise HarnessError("marker_page_mismatch")
         frames = int.from_bytes(self.read(2, 2), "big")
         fb = self.read(0x8f, 5)
