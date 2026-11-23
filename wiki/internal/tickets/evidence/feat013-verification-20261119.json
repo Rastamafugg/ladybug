@@ -1,0 +1,281 @@
+{
+  "schema": 1,
+  "ticket": "FEAT-013",
+  "date": "2026-11-19",
+  "source": {
+    "branch": "codex/feat013-shared-hud",
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat013-shared-hud\\ladybug",
+    "baseline_revision": "3f1277de302e18ad319ba9986a4aa62c9c4caffe",
+    "implementation_revision": "e3c9bdf346102cd8431a3ea7d71165912ab7558a",
+    "implementation_commits": [
+      "19f8012e27c3f56c3512e1833e03ecaf7a184fd1",
+      "3348f031f53328fddddf71606823c55b00831c80",
+      "e3c9bdf346102cd8431a3ea7d71165912ab7558a"
+    ],
+    "worktree_clean_at_candidate_revision": true,
+    "repository_operations": "Windows PowerShell/Git; WSL used to execute the project shell build and static-flow command."
+  },
+  "candidate": {
+    "profile": "complete",
+    "input": "keyboard",
+    "adaptive": true,
+    "cpu": "6809",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "size_bytes": 65536,
+      "sha256": "8d92c3927516da5e0bcc7e3600525e7fc5ee2e64591d97c9c03bccf9376b3d3f"
+    },
+    "receipt": {
+      "path": "build/source-build-receipt.json",
+      "sha256": "ed344497950ed5bb891352ca2f329424448731e5fdac9cd5356ade2bee8a8c77",
+      "revision": "e3c9bdf346102cd8431a3ea7d71165912ab7558a",
+      "profile": "complete",
+      "state": "complete"
+    },
+    "artifacts": {
+      "main_listing_sha256": "42b3b21bcc693addff161729b02a76dfc2e04455f3098f062999e15c3bf83d4a",
+      "highscore_helper_listing_sha256": "8bc9a32d416d4d1d360a193054d562a2e2fe0752dc29b1c5ecd07ae61c637c59",
+      "presentation_manifest_sha256": "90f16c9b29e578cde8a0daceec3f54b8c448fd1a88731c57198d1579fd760e4ed"
+    }
+  },
+  "results": {
+    "G1": {
+      "result": "pass",
+      "type": "one-time object-layer migration evidence",
+      "summary": "The normal builder consumed the template HUD object layer and generated seven synchronized layouts: gameplay, instructions, level-start, game-over, enter-high-score, extra, and special. The named field manifest includes the P1/P2/TOP score rectangles, PART, vegetable, progress, multiplier, life, and Instructions values. EXTRA and SPECIAL placeholder alignment is included. No malformed-input matrix or new test harness was added.",
+      "generated_layout_count": 7,
+      "manifest_sha256": "90f16c9b29e578cde8a0daceec3f54b8c448fd1a88731c57198d1579fd760e4ed",
+      "p1_score": {
+        "cell": [
+          34,
+          6
+        ],
+        "size": [
+          6,
+          1
+        ],
+        "destination": "$3E88"
+      },
+      "p2_score": {
+        "cell": [
+          34,
+          9
+        ],
+        "size": [
+          6,
+          1
+        ]
+      },
+      "top_score": {
+        "cell": [
+          34,
+          13
+        ],
+        "size": [
+          6,
+          1
+        ]
+      }
+    },
+    "G2": {
+      "result": "pass",
+      "command": "wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && scripts/build.sh build'",
+      "profile": "complete / keyboard / adaptive / 6809",
+      "summary": "The clean final build and existing source-reference, DOC-002, module-capacity, loader, packer, and ROM-boundary guards passed. Every listed used count is emitted bytes; free bytes are cap minus used.",
+      "capacity_bytes": {
+        "resident": {
+          "used": 8177,
+          "limit": 8192,
+          "free": 15
+        },
+        "shared_assets": {
+          "used": 7677,
+          "limit": 7680,
+          "free": 3
+        },
+        "presentation_runtime": {
+          "used": 1260,
+          "limit": 1280,
+          "free": 20
+        },
+        "presentation_helper": {
+          "used": 331,
+          "limit": 334,
+          "free": 3
+        },
+        "enemy_runtime": {
+          "used": 4091,
+          "limit": 4096,
+          "free": 5
+        },
+        "instructions_runtime": {
+          "used": 935,
+          "limit": 938,
+          "free": 3
+        },
+        "high_score_runtime": {
+          "used": 865,
+          "limit": 938,
+          "free": 73
+        },
+        "demo_runtime": {
+          "used": 143,
+          "limit": 938,
+          "free": 795
+        },
+        "page_34_helper": {
+          "used": 87,
+          "limit": 93,
+          "free": 6
+        },
+        "audio_runtime": {
+          "used": 681,
+          "limit": 920,
+          "free": 239
+        },
+        "page_3d_payload": {
+          "used": 6550,
+          "limit": 8192,
+          "free": 1642
+        },
+        "adaptive_mapped": {
+          "used": 198,
+          "limit": 220,
+          "free": 22
+        },
+        "adaptive_banked": {
+          "used": 696,
+          "limit": 698,
+          "free": 2
+        },
+        "adaptive_active": {
+          "used": 568,
+          "limit": 777,
+          "free": 209
+        },
+        "page_24_auxiliary": {
+          "used": 5276,
+          "limit": 7134,
+          "free": 1858,
+          "range": "$A422-$B8BD",
+          "exclusive_end": "$C000"
+        },
+        "high_score_helper_slice": {
+          "used": 3198,
+          "range": "$AC40-$B8BD"
+        },
+        "presentation_cold": {
+          "used": 14112,
+          "limit": 16384,
+          "free": 2272
+        },
+        "presentation_combined": {
+          "used": 15372,
+          "limit": 17664,
+          "free": 2292
+        },
+        "gmc_source_image": {
+          "used": 34886,
+          "limit": 41438,
+          "free": 6552,
+          "required_reserve": 512
+        }
+      },
+      "tightest_independent_margins": "2 B adaptive banked core; 3 B shared assets, presentation helper, and Instructions runtime."
+    },
+    "G3": {
+      "result": "pass",
+      "command": "python3 scripts/verify_presentation_flow.py",
+      "whole_phase_cap_seconds": 60,
+      "summary": "Existing static-flow proof passed; targeted current-listing review confirmed snapshot initialization/capture, hidden Level Start score staging at the generated P1 destination, the existing live HUD painter, and one shared runtime ranking painter path after the runtime table is ready. The cold Tiled High Score fallback remains before readiness.",
+      "listing_anchors": {
+        "boot_snapshot_init": {
+          "caller": "$C0C7",
+          "target": "$DFB0",
+          "caller_PAR": "PAR0=$38",
+          "target_PAR": "PAR6=$3E"
+        },
+        "gameplay_draw_hud": {
+          "entry": "$C482",
+          "snapshot_capture_target": "$DFBF",
+          "shared_hud_painter_target": "$FCC0",
+          "target_pages": "PAR6=$3E; PAR7=$3F"
+        },
+        "level_start_staging": {
+          "caller": "$B0C1",
+          "target": "$B225",
+          "mapping": "PAR5=$24",
+          "generated_p1_score_destination": "$3E88"
+        },
+        "ranking": "One active ranking_slice; render_high_score calls init_scores and draw_high_score_screen."
+      },
+      "reported_proof": "complete flow; eight title actor surfaces; authored coordinates; direct selected-screen streaming; bounded loading; Attract free-start; instruction choreography; atomic surface copy; module 1260/1280 B; helper 331/334 B; cold 14112/16384 B; combined 15372/17664 B; post-audio source spare 6552 B against 512 B minimum."
+    },
+    "M1": {
+      "result": "pending",
+      "owner": "user",
+      "artifact": "build/ladybug.rom",
+      "rom_sha256": "8d92c3927516da5e0bcc7e3600525e7fc5ee2e64591d97c9c03bccf9376b3d3f",
+      "summary": "The receipt-bound XRoar session was launched and the user confirmed the game is visible. M1 manual observations are not yet reported; acceptance remains pending. The agent sent no game input. Windows screen capture failed twice with a Direct3D device-suspended error; the user-visible confirmation is the readiness evidence.",
+      "launch": {
+        "command": "wsl bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh run'",
+        "xroar_process": "XRoar (Ubuntu), WSL process 1097",
+        "rom_sha256": "8d92c3927516da5e0bcc7e3600525e7fc5ee2e64591d97c9c03bccf9376b3d3f",
+        "user_visible_confirmation": true,
+        "agent_sent_input": false,
+        "gdb_or_breakpoints": false,
+        "startup_warnings": [
+          "GTK menu XML warning",
+          "OSS audio device unavailable"
+        ],
+        "capture_observer": "Two Windows screen-capture attempts failed with Direct3D device-suspended error; user confirmed the game is visible."
+      },
+      "static_review_finding": {
+        "result": "open; no runtime observation",
+        "shared_vegetable_path": "The Instructions route sends a cucumber graphic stream through PRESENTATION_MODULE_DRAW. Level Start stage_panel_finish and gameplay draw_vegetable_hud independently select a sprite and call blit_packed_sprite. Those two routes share the generic packed-sprite blitter, but all three do not call one vegetable-specific function.",
+        "name_entry_score_destination": "$2A84",
+        "destination_meaning": "The generated framebuffer formula maps this to cell x=33, y=2, the VEGETABLE_ICON origin.",
+        "score_route": "ENTER_HIGH_SCORE_SCORE_DESTINATIONS hard-codes x=33, y=2; draw_entry_scores passes PRESENTATION_NAME_ENTRY_SCORE_DST to draw_score.",
+        "consequence": "The Enter High Score score field targets the vegetable icon location. User states the score does not belong there. The correct screen-local destination has not been bound; do not treat the current placement as accepted.",
+        "evidence": [
+          "scripts/build_presentation.py:154-155, 1077-1079",
+          "src/presentation_runtime.s:483-489",
+          "src/shared_text_stage.inc:655-687",
+          "src/main.s:1513-1531",
+          "build/ladybug.lst generated PRESENTATION_*_DST values"
+        ]
+      },
+      "scope_review": {
+        "result": "proposed; awaits explicit approval",
+        "user_clarification": "One common implementation must render all left/right HUD fields shared across Instructions, Level Start, gameplay, demo, Game Over, and Enter High Score. Only the Enter High Score bottom-left HI SCORE HUD block is screen-unique.",
+        "current_candidate_disposition": "The e3c9bdf implementation centralizes layout/value state but retains screen-specific render paths. Existing G1-G3 evidence applies to that prior scope; M1 must be rebound after an approved revised implementation.",
+        "proposed_common_destinations": {
+          "enter_high_score_player_score": "P1_SCORE",
+          "enter_high_score_top_score": "TOP_SCORE",
+          "screen_local_hud": "bottom-left HI SCORE block"
+        },
+        "out_of_scope": [
+          "FEAT-011 EXTRA/SPECIAL intermission routes",
+          "Options/Credits",
+          "G4 performance setup and timing, deferred by user"
+        ]
+      }
+    },
+    "G4": {
+      "result": "deferred by user",
+      "summary": "Performance setup qualification and timing were not run. The 27,000-cycle maximum remains required before Done."
+    }
+  },
+  "intermediate_build_stops": [
+    {
+      "result": "stale receipt after line-ending normalization",
+      "detail": "A receipt check made after post-build line-ending normalization no longer matched its source snapshot. The standard build was rerun from the final commit; its completed receipt now matches the source revision and candidate ROM."
+    }
+  ],
+  "runtime": {
+    "game_launched": false,
+    "manual_checks_run": false,
+    "performance_qualification_run": false,
+    "performance_timing_run": false
+  }
+}

@@ -1,0 +1,63 @@
+{
+  "status": "pass",
+  "kind": "one-time non-gating diagnostic",
+  "source_commit": "424fb050bad6bdbcfb8796db3f3b53730a9b2e52",
+  "build_source_state": "The source bytes were later committed at source_commit, but the files were uncommitted during the build; this does not qualify the clean-package precondition.",
+  "artifact": {
+    "relative_path": "ladybug.rom",
+    "bytes": 65536,
+    "sha256": "71140f66117e859bd4a51c8d9becc3a4f81d67ec560ac0145171f4a57822b7ae"
+  },
+  "profile": {
+    "name": "complete",
+    "input": "keyboard",
+    "adaptive": true,
+    "cpu": "6809"
+  },
+  "xroar": {
+    "version": "1.10",
+    "ui": "null",
+    "audio": "null",
+    "no_ratelimit": true,
+    "phase_deadline_seconds": 35,
+    "elapsed_seconds": 1.17,
+    "input": "none"
+  },
+  "phase": "cold boot through natural Attract timer interval to next screen call",
+  "initial": {
+    "pc": "$C117 (not interpreted)",
+    "PAR": "38 2c 2d 2e 2f 34 3e 3f",
+    "DP_state": "a5 02 00 00",
+    "FRAMES": "$0085",
+    "PRES_TIMER": "$001D",
+    "FB_PENDING": "$00"
+  },
+  "marker": {
+    "pc": "$1C13",
+    "next_instruction": "lbsr start_screen",
+    "live_code_bytes": "17 fd b2",
+    "staged_code_bytes": "17 fd b2",
+    "PAR0": "$38",
+    "A": "$01 (Instructions map)",
+    "DP_state": "Attract mode and screen before the call",
+    "FRAMES": "$0296",
+    "PRES_TIMER": "$022E",
+    "FB_PENDING": "$00"
+  },
+  "delta": {
+    "frames": 529,
+    "timer_ticks": 529
+  },
+  "result": "Pass: exact ROM reached the next Attract screen call and the timer advanced in a headless no-input run.",
+  "limits": [
+    "The breakpoint is before start_screen executes; visible Instructions publication was not observed.",
+    "Does not test keyboard input, visible GUI refresh, XRoar reset handling, wake/demo behavior, or manual acceptance.",
+    "A timeout would mean this marker was not observed within 35 seconds; it would not prove that the game is slow."
+  ],
+  "visible_session_report": "User reports that the visible Attract screen ignores game keys and the XRoar reset shortcut. The visible process was launched before the repaired ROM was written to disk, so its reset would restart its loaded old image and would not reload the repaired file.",
+  "gui_startup_log": {
+    "file": "xroar-gui-startup.log",
+    "observed": "GTK menu parsing failed and audio device initialization failed, including when launched with a clean configuration.",
+    "meaning": "Emulator setup candidates only; not a confirmed cause of missing game input or reset response."
+  }
+}

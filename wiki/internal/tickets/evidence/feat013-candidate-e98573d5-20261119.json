@@ -1,0 +1,85 @@
+{
+  "schema": 1,
+  "ticket": "FEAT-013",
+  "date": "2026-11-19",
+  "source": {
+    "branch": "codex/feat013-shared-hud",
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat013-shared-hud\\ladybug",
+    "implementation_revision": "e98573d50d88016e6beba45cae6c67fd6f9ea623",
+    "worktree_clean_at_build": true,
+    "repository_operations": "Windows PowerShell/Git; WSL used for the approved build and static-flow command."
+  },
+  "candidate": {
+    "profile": "complete",
+    "input": "keyboard",
+    "adaptive": true,
+    "cpu": "6809",
+    "rom": {
+      "path": "build/ladybug.rom",
+      "size_bytes": 65536,
+      "sha256": "551000160241803375812e9688e895ac7806de1d7ee564cfc460744f9b2ac579"
+    },
+    "receipt": {
+      "path": "build/source-build-receipt.json",
+      "sha256": "037304e5533209cc586bdc7b20f67eeed21ee11cd164b48e97a8cc5908c50514",
+      "revision": "e98573d50d88016e6beba45cae6c67fd6f9ea623",
+      "profile": "complete",
+      "state": "complete"
+    },
+    "artifacts": {
+      "main_listing_sha256": "048be8aa4c611ad6e7742365ba0b6c471fac916a5703f9200d5c09f5d5da6fb2",
+      "presentation_runtime_listing_sha256": "a0862de3a0da6d2ae69068637759b4ac1fd46b902dc7d3cadfffa4c7a43f4415",
+      "highscore_helper_listing_sha256": "e17676f39fa7f36a3948ee180e99ae4702e41a8b6e56dff193f6220a1e18d424",
+      "highscore_runtime_listing_sha256": "d4a0f5032b01915de5b6da858238aa88655c98310d9b8a8c1d190ac67d224c71",
+      "presentation_manifest_sha256": "90f16c9b29e578cde8a0daceec3f54b8c448fd1a88731c57198d1579fd760e4ed"
+    }
+  },
+  "results": {
+    "G1": {
+      "result": "pass",
+      "type": "one-time object-layer migration check",
+      "summary": "The existing approved migration evidence remains applicable: the complete builder reads the template HUD object layer and generated seven synchronized layouts. This correction changed assembly and its source contract only; the template, Tiled maps, and presentation builder are unchanged. Current manifest hash matches the retained migration result. No malformed-input test matrix was added."
+    },
+    "G2": {
+      "result": "pass",
+      "command": "wsl -e bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && scripts/build.sh build'",
+      "summary": "The complete keyboard/adaptive 6809 build, packer/loader/ROM-boundary guards, source-reference coverage, and DOC-002 audit passed.",
+      "capacity_bytes": {
+        "resident": {"used": 8191, "limit": 8192, "free": 1},
+        "assets": {"used": 7677, "limit": 7680, "free": 3},
+        "presentation_runtime": {"used": 1270, "limit": 1280, "free": 10},
+        "presentation_helper": {"used": 331, "limit": 334, "free": 3},
+        "enemy_runtime": {"used": 4091, "limit": 4096, "free": 5},
+        "instructions_runtime": {"used": 917, "limit": 938, "free": 21},
+        "highscore_runtime": {"used": 823, "limit": 938, "free": 115},
+        "demo_runtime": {"used": 143, "limit": 938, "free": 795},
+        "page_34_helper": {"used": 87, "limit": 93, "free": 6},
+        "audio_runtime": {"used": 681, "limit": 920, "free": 239},
+        "page_3d_payload": {"used": 6550, "limit": 8192, "free": 1642},
+        "adaptive_mapped": {"used": 198, "limit": 220, "free": 22},
+        "adaptive_banked": {"used": 696, "limit": 698, "free": 2},
+        "adaptive_active": {"used": 568, "limit": 777, "free": 209},
+        "presentation_cold": {"used": 14112, "limit": 16384, "free": 2272},
+        "combined_cold_and_page24_auxiliary": {"used": 15382, "limit": 17664, "free": 2282},
+        "post_audio_source_spare": {"bytes": 6574, "minimum": 512, "margin": 6062}
+      }
+    },
+    "G3": {
+      "result": "pass",
+      "command": "wsl -e bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && python3 scripts/verify_presentation_flow.py'",
+      "summary": "Complete selected-screen flow, eight title actor surfaces, authored TMX coordinates, bounded loading, Attract menu, instruction choreography, and atomic surface copy passed. The static pixel comparison was exact on all 9 screens. Sol review confirmed the Enter High Score pending-score write to $8404, PAR5 restore before returning to $B189, one shared HUD call at $C481, and execution before publication at $1B31. No duplicate common renderer was found.",
+      "capacity_report": "presentation 1270/1280 B; helper 331/334 B; cold 14112/16384 B; combined 15382/17664 B; post-audio spare 6574 B against 512 B minimum"
+    },
+    "M1": {
+      "result": "pending",
+      "owner": "user",
+      "rom_sha256": "551000160241803375812e9688e895ac7806de1d7ee564cfc460744f9b2ac579",
+      "game_launched": false,
+      "summary": "Candidate is ready for the approved natural-play Game Over and Enter High Score visible check. No deadline or monitoring is imposed."
+    },
+    "G4": {
+      "result": "deferred by user",
+      "summary": "Performance setup qualification and timing were not run. The 27,000-cycle maximum remains required before Done."
+    }
+  }
+}

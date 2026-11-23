@@ -1,0 +1,42 @@
+FEAT-013 G3 baseline qualification - 2026-11-22
+
+Result
+PASS for the approved 98b4 negative-control baseline. The complete-profile build produced the exact ROM SHA-256 already recorded for this source revision. The existing presentation-flow verifier passed. The generated listing confirms that the 98b4 shared word painter redraws both SPECIAL and EXTRA words when either is selected, which is the expected negative control for the later selective painter.
+
+Purpose and risk
+Qualify the existing G3 presentation-flow check against the approved baseline and prove that the old shared word painter is a meaningful negative control. This does not accept the candidate implementation or verify live game behavior.
+
+Exact baseline identity
+Source commit: 98b4bad9558b1574323df703981e7034228fff26 (detached, isolated baseline worktree).
+Profile: complete; keyboard input; adaptive rendering enabled; CPU 6809.
+ROM SHA-256: a885e05515e6c8330ed390d54bd27ecb5cd0f69ead37215792bb0fc99a23fd29. This matches the historical ROM hash already recorded for 98b4.
+New receipt SHA-256: 80924801022047521a5427f5686edab9fc948cd69079916a9354dc7bd32d9e5b; receipt state is complete and revision/profile match above. The earlier ticket recorded receipt SHA-256 bb042aac8c0e549ee7a942d391561ebcdbf171433c66bbcb6707636477c60d4c. The receipt hashes differ; the old receipt file was not available for a field-by-field comparison. The matching ROM hash and new complete receipt bind this regenerated baseline. Do not treat the receipt hashes as interchangeable.
+Main listing SHA-256: 0f59da2d9e601931dc2edb7740dcbfca60a94bfc193c06786d6c25b1017ebdc6.
+Presentation runtime listing SHA-256: 6eb09e755d1dbcb05c595ab2e81c985a893b0a8de96b4e190e61472bf1bce302.
+
+Build command and result
+The approved profile switches and 600-second build cap were used. Windows Git confirmed the worktree .git pointer targeted E:/projects/ladybug/.git/worktrees/ladybug9. WSL Git resolved that Windows pointer incorrectly, so the equivalent mapped variables were set explicitly:
+
+wsl.exe -d Ubuntu -- bash -lc 'export GIT_DIR=/mnt/e/projects/ladybug/.git/worktrees/ladybug9 GIT_WORK_TREE=/mnt/c/Users/19029/.codex/worktrees/feat013-g3-baseline/ladybug; cd /mnt/c/Users/19029/.codex/worktrees/feat013-g3-baseline/ladybug && timeout 600s env LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh build'
+
+The receipt reached state complete, the source-documentation audit reported PASS (16 modules, 330/330 routines, 6,652/6,652 labels), and the ROM hash matches the recorded baseline. The command-session wrapper did not retain a terminal exit code. The output and receipt show completion; no claim is made about a separately observed shell exit code. The build's 600-second cap is the approved cap; exact elapsed time was not retained.
+
+Capacity measured in this build
+Resident: 8,191/8,192 B, 1 B free.
+Active image: 678/777 B, 99 B free.
+Presentation module: 1,258/1,280 B, 22 B free.
+Assets: 7,668/7,680 B, 12 B free.
+Page $3D audio: 6,660 B; keybinding: 1,164 B; combined: 7,824/8,192 B, 368 B free (calculated from the generated sparse layout).
+
+G3 verifier
+Command: timeout 900s python3 scripts/verify_presentation_flow.py in this exact 98b4 worktree, with GIT_DIR/GIT_WORK_TREE mapped as above.
+Result: exit 0. Output reported complete flow; eight title actor surfaces; authored TMX coordinates; direct selected-screen streaming; bounded loading; Attract free-start menu; instruction choreography; atomic surface copy; presentation module 1,258/1,280 B; helper 331/334 B; cold data 14,112/16,384 B; combined 15,370/17,664 B; and post-audio source spare 6,497 B against 512 B minimum.
+
+Negative-control listing review
+In build/ladybug.lst, draw_word_progress_hud starts at $C41D. It calls dwph_word at $C438 (BSR opcode 8D1E) and again at $C455 (BSR opcode 8D01), the SPECIAL and EXTRA passes. At $C49E the shared caller tests PRESENTATION_HUD_DRAW_SPECIAL|PRESENTATION_HUD_DRAW_EXTRA, and at $C4A2 it calls draw_word_progress_hud. Therefore either selected group enters the old routine that redraws both words. This matches the approved negative-control expectation. The retained 660d46 candidate excerpts show the later page-$3D helper supports a full selected-word redraw for B=0 and a single changed letter for B=1..7.
+
+Separate screen-5 control
+The already retained d6104007827ef87391d96352d1b58ad3bf196c3a complete-profile build has a complete receipt, ROM SHA-256 62eee93bb81c0b4f12dc5f98f52e54fdd1cc59f5c47b77e9c188d4b5e563f34a, and presentation runtime listing SHA-256 0cacd60ade6ab5491024f33c1e0c10ac95bb042455de865b1672142171d5004a. Its active complete-profile load listing compares PRES_SCREEN to map IDs 3 and 4, then skips to load_done_dynamic_ready for other IDs; map 5 is not dispatched. The proposed 960b22a5 source draft extends that range through map 5. This is the expected pre-change negative control, not candidate proof.
+
+Limits
+The 98b4 G3 baseline and d610 screen-5 negative controls are qualified. The screen-5 draft at commit 960b22a5bd08b204033d19f832e626a9586ddba0 remains unbuilt. Candidate G2/G3 checks and user-owned M1 remain pending. No game launch or manual input occurred.

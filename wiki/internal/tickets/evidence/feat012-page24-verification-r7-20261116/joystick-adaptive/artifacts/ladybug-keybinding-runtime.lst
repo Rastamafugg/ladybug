@@ -1,0 +1,1300 @@
+                      (binding_runtime.s):00001         ; DOC-002 source-contract mirror contract key_service profile=keybindings: Dispatch physical input, authored menu painting, capture navigation or default initialization.
+                      (binding_runtime.s):00002         ; DOC-002 source-contract mirror contract key_init profile=keybindings: Restore five gameplay defaults and initialize physical-input history and wake state.
+                      (binding_runtime.s):00003         ; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns, latch fresh wake edges, and produce held actions and menu edges.
+                      (binding_runtime.s):00004         ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
+                      (binding_runtime.s):00005         ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
+                      (binding_runtime.s):00006         ; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
+                      (binding_runtime.s):00007         ; DOC-002 source-contract mirror contract key_paint profile=keybindings: Repaint all hydrated rows or only the previous and current selected rows for the prepared owner.
+                      (binding_runtime.s):00008         ; DOC-002 source-contract mirror contract key_waiting profile=keybindings: Report whether the current row owns active capture parentheses.
+                      (binding_runtime.s):00009         ; DOC-002 source-contract mirror contract key_name profile=keybindings: Resolve a physical switch to its single glyph or descriptive key name.
+                      (binding_runtime.s):00010         ; DOC-002 source-contract mirror contract key_text profile=keybindings: Paint an authored length-delimited glyph run.
+                      (binding_runtime.s):00011         ; DOC-002 source-contract mirror contract key_char profile=keybindings: Paint one source glyph through the resident shared mask renderer.
+                      (binding_runtime.s):00012         ; DOC-002 source-contract mirror profile keybindings Inputs: Physical CoCo switch columns, session bindings, capture state and prepared menu BACK; B selects scan, paint, menu tick or reset.
+                      (binding_runtime.s):00013         ; DOC-002 source-contract mirror profile keybindings Outputs: Five held gameplay actions, fresh fixed menu edges, retained bindings or selected menu pixels; menu tick returns B=$FF to retain or B=6 to return.
+                      (binding_runtime.s):00014         ; DOC-002 source-contract mirror profile keybindings Clobbers: A, B, D, X, Y, U and condition codes except source-preserved registers; every stack return is balanced.
+                      (binding_runtime.s):00015         ; DOC-002 source-contract mirror profile keybindings Reads: PIA keyboard rows, current screen ID from the generated presentation map, retired-boot-area bindings/capture state, immutable font masks and authored key-name/menu records.
+                      (binding_runtime.s):00016         ; DOC-002 source-contract mirror profile keybindings Writes: Unbanked low RAM $0287-$029A and menu-owned edge/selection/dirty bytes; prepared BACK pixels and module-local owner selection cache.
+                      (binding_runtime.s):00017         ; DOC-002 source-contract mirror profile keybindings Side effects: Capture suppresses global and local consumers through accepted-key release; painting calls the resident mask renderer without changing PAR5.
+                      (binding_runtime.s):00018         ; DOC-002 source-contract mirror profile keybindings Invariants: The existing page-$3D stream owns code/data at $BA00; caller gateway restores its PAR5; bindings reset at startup and never persist to storage.
+                      (binding_runtime.s):00019         ; @audit {"id":"session-key-state","kind":"scratch","symbol":"KB_BIND","width":20,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"session keybinding input/capture","initialization":"five editable bytes at $0287-$028B; fixed-menu held state uses reserved $028C; $028D holds foreground wake latch, scan-prime, joystick sample and previous joystick direction bits; key_init clears keyboard history before startup input","lifetime":"Boot descriptors retire before initialization. Bindings and previous physical samples retain between scans; page-$24 menu scan consumes the wake latch; joystick sample bit is transient","clobbers":"Key service owns $0287-$029A; page-$24 menu scan also updates $028D and main.s reads its wake-only bit; main.s consumes only the first four movement bits; ACTION is reserved with no normal effect; $028C tracks fixed arrows, Enter and Back across phases; $DF is updated only during menu screens so name-entry row state remains owned by the name renderer; "}
+                      (binding_runtime.s):00020         ; RSCH-014 C3 prototype extension: menu edges track physical state in all phases.
+                      (binding_runtime.s):00021         ; Source edit is isolated research, not the approved repair implementation.
+                      (binding_runtime.s):00022         ; Loaded after the unchanged audio prefix in the existing page-$3D stream.
+                      (binding_runtime.s):00023                 pragma 6809
+     00               (binding_runtime.s):00024                 setdp $00
+                      (binding_runtime.s):00025                 ifndef INPUT_JOYSTICK
+0000                  (binding_runtime.s):00026         INPUT_JOYSTICK equ 0
+                      (binding_runtime.s):00027                 endc
+                      (binding_runtime.s):00028                 include "ladybug_runtime_symbols.inc"
+     D51D             (ntime_symbols.inc):00001         blit_packed_sprite equ $D51D
+     CE79             (ntime_symbols.inc):00002         draw_all_gates equ $CE79
+     D3F4             (ntime_symbols.inc):00003         draw_death_frame equ $D3F4
+     C69C             (ntime_symbols.inc):00004         draw_entities equ $C69C
+     CE63             (ntime_symbols.inc):00005         draw_gate equ $CE63
+     CF3E             (ntime_symbols.inc):00006         draw_gate_diagonal equ $CF3E
+     D139             (ntime_symbols.inc):00007         draw_gate_entities equ $D139
+     CF3F             (ntime_symbols.inc):00008         draw_gate_transition equ $CF3F
+     C460             (ntime_symbols.inc):00009         draw_hud equ $C460
+     C509             (ntime_symbols.inc):00010         draw_lives equ $C509
+     D42E             (ntime_symbols.inc):00011         draw_maze_state_cell equ $D42E
+     C3BA             (ntime_symbols.inc):00012         draw_multiplier_hud equ $C3BA
+     CA2E             (ntime_symbols.inc):00013         draw_perimeter_box equ $CA2E
+     D4DD             (ntime_symbols.inc):00014         draw_player equ $D4DD
+     FB94             (ntime_symbols.inc):00015         draw_recolored_map_tile equ $FB94
+     D2AD             (ntime_symbols.inc):00016         draw_score_popup equ $D2AD
+     D5A6             (ntime_symbols.inc):00017         draw_screen equ $D5A6
+     C421             (ntime_symbols.inc):00018         draw_word_progress_hud equ $C421
+     C7D7             (ntime_symbols.inc):00019         erase_entity_footprints equ $C7D7
+     CFB3             (ntime_symbols.inc):00020         framebuffer_project_gate_only equ $CFB3
+     EBA6             (ntime_symbols.inc):00021         gate_redraw_neighbors equ $EBA6
+     D01A             (ntime_symbols.inc):00022         gate_render_hidden equ $D01A
+     D16A             (ntime_symbols.inc):00023         mark_gate_enemy_overlap equ $D16A
+     F33A             (ntime_symbols.inc):00024         maze_gate_owner equ $F33A
+     F57A             (ntime_symbols.inc):00025         maze_gates equ $F57A
+     F0FA             (ntime_symbols.inc):00026         maze_nav equ $F0FA
+     EBBA             (ntime_symbols.inc):00027         object_masks equ $EBBA
+     C9ED             (ntime_symbols.inc):00028         perimeter_box_coordinates equ $C9ED
+     D668             (ntime_symbols.inc):00029         reload_enemy_box_timer equ $D668
+     C7CC             (ntime_symbols.inc):00030         render_entity_colour equ $C7CC
+     CE8B             (ntime_symbols.inc):00031         repair_settled_entity_gates equ $CE8B
+     D625             (ntime_symbols.inc):00032         reset_enemy_state equ $D625
+     D413             (ntime_symbols.inc):00033         restore_entity_footprint equ $D413
+     D01B             (ntime_symbols.inc):00034         restore_gate_diagonal_dots equ $D01B
+     D585             (ntime_symbols.inc):00035         restore_player equ $D585
+     D55C             (ntime_symbols.inc):00036         save_player equ $D55C
+     FD02             (ntime_symbols.inc):00037         sprite_attr0_pairs equ $FD02
+     FD32             (ntime_symbols.inc):00038         sprite_blue_pairs equ $FD32
+     C72A             (ntime_symbols.inc):00039         sync_entity_cache_colour equ $C72A
+     DA8D             (ntime_symbols.inc):00040         vegetable_sprites equ $DA8D
+                      (binding_runtime.s):00029                 include "ladybug_presentation_symbols.inc"
+     D5CB             (ation_symbols.inc):00001         PRES_MAIN_BLIT_TILE equ $D5CB
+     CD32             (ation_symbols.inc):00002         PRES_MAIN_CAN_MOVE equ $CD32
+     D305             (ation_symbols.inc):00003         PRES_MAIN_DEATH equ $D305
+     FC7E             (ation_symbols.inc):00004         PRES_MAIN_DYNAMIC_TEXT equ $FC7E
+     D503             (ation_symbols.inc):00005         PRES_MAIN_ENEMY equ $D503
+     D506             (ation_symbols.inc):00006         PRES_MAIN_ENEMY_TICK equ $D506
+     C5AA             (ation_symbols.inc):00007         PRES_MAIN_ENTITIES equ $C5AA
+     CA86             (ation_symbols.inc):00008         PRES_MAIN_GATES equ $CA86
+     C23C             (ation_symbols.inc):00009         PRES_MAIN_INIT equ $C23C
+     DF0D             (ation_symbols.inc):00010         PRES_MAIN_INSTALL_PHASE_TILES equ $DF0D
+     DF42             (ation_symbols.inc):00011         PRES_MAIN_KEY_SERVICE equ $DF42
+     F5C8             (ation_symbols.inc):00012         PRES_MAIN_MAP_STREAM_OFFSETS equ $F5C8
+     C597             (ation_symbols.inc):00013         PRES_MAIN_MAZE equ $C597
+     DF55             (ation_symbols.inc):00014         PRES_MAIN_NAME_LATE_TURN equ $DF55
+     C296             (ation_symbols.inc):00015         PRES_MAIN_NEXT_STAGE equ $C296
+     DF39             (ation_symbols.inc):00016         PRES_MAIN_PAGE24_RESUME equ $DF39
+     CAC6             (ation_symbols.inc):00017         PRES_MAIN_PLAYER equ $CAC6
+     CB89             (ation_symbols.inc):00018         PRES_MAIN_PLAYER_TICK equ $CB89
+     CAE3             (ation_symbols.inc):00019         PRES_MAIN_READ_JOY equ $CAE3
+     DF26             (ation_symbols.inc):00020         PRES_MAIN_READ_STAGE_LETTERS equ $DF26
+     D4D9             (ation_symbols.inc):00021         PRES_MAIN_RENDER equ $D4D9
+     D585             (ation_symbols.inc):00022         PRES_MAIN_RESTORE_PLAYER equ $D585
+     D55C             (ation_symbols.inc):00023         PRES_MAIN_SAVE_PLAYER equ $D55C
+     F5E6             (ation_symbols.inc):00024         PRES_MAIN_SCAN_BITS equ $F5E6
+     F5E3             (ation_symbols.inc):00025         PRES_MAIN_SCAN_DRIVES equ $F5E3
+     F5DA             (ation_symbols.inc):00026         PRES_MAIN_SCREEN_MODES equ $F5DA
+     FBBC             (ation_symbols.inc):00027         PRES_MAIN_SHARED_MASK equ $FBBC
+     FBA3             (ation_symbols.inc):00028         PRES_MAIN_STATIC_TEXT equ $FBA3
+     FCAF             (ation_symbols.inc):00029         PRES_MAIN_TOP_HUD equ $FCAF
+     0E5A             (ation_symbols.inc):00030         PRES_MAIN_FB_CAPTURE equ $0E5A
+     0E49             (ation_symbols.inc):00031         PRES_MAIN_FB_FINISH equ $0E49
+     0DDF             (ation_symbols.inc):00032         PRES_MAIN_FB_PREPARE equ $0DDF
+     0E4F             (ation_symbols.inc):00033         PRES_MAIN_FB_PUBLISH equ $0E4F
+     1B7E             (ation_symbols.inc):00034         PRES_MODULE_COLD_PTR equ $1B7E
+     1D4A             (ation_symbols.inc):00035         PRES_MODULE_COLOUR_SURFACE equ $1D4A
+     1D24             (ation_symbols.inc):00036         PRES_MODULE_COLOUR_TILE equ $1D24
+     1D07             (ation_symbols.inc):00037         PRES_MODULE_DRAW_ACTOR equ $1D07
+     1B77             (ation_symbols.inc):00038         PRES_MODULE_DRAW_RAW_TILE equ $1B77
+     1D8A             (ation_symbols.inc):00039         PRES_MODULE_DRAW_SCORE equ $1D8A
+     FC7E             (ation_symbols.inc):00040         PRES_MODULE_DRAW_TILE equ $FC7E
+     1BA3             (ation_symbols.inc):00041         PRES_MODULE_MAP_BACK equ $1BA3
+     19C8             (ation_symbols.inc):00042         PRES_MODULE_START_SCREEN equ $19C8
+     0561             (ation_symbols.inc):00043         PRES_RANKING_SLICE equ $0561
+     037C             (ation_symbols.inc):00044         PRES_HIGHSCORE_FB_PREPARE equ $037C
+     05E5             (ation_symbols.inc):00045         PRES_HIGHSCORE_FB_FINISH equ $05E5
+                      (binding_runtime.s):00030                 ifndef PRESENTATION_NAME_ENTRY_DATA
+     0000             (binding_runtime.s):00031         PRESENTATION_NAME_ENTRY_DATA equ 0
+                      (binding_runtime.s):00032                 endc
+                      (binding_runtime.s):00033                 include "ladybug_presentation.inc"
+                      (_presentation.inc):00001         ; Generated by scripts/build_presentation.py; do not edit.
+     0009             (_presentation.inc):00002         PRESENTATION_MAP_COUNT equ 9
+     03C0             (_presentation.inc):00003         PRESENTATION_MAP_BYTES equ 960
+     0001             (_presentation.inc):00004         PRESENTATION_STAGE_PANEL_ENABLED equ 1
+     0020             (_presentation.inc):00005         PRESENTATION_TILE_BYTES equ 32
+     00AD             (_presentation.inc):00006         PRESENTATION_TILE_COUNT equ 173
+     003A             (_presentation.inc):00007         PRESENTATION_COLD_PAGE equ $3A
+     0004             (_presentation.inc):00008         PRESENTATION_COLD_PAGE_COUNT equ 4
+     3720             (_presentation.inc):00009         PRESENTATION_COLD_SIZE equ 14112
+     0000             (_presentation.inc):00010         PRESENTATION_TILE_ATLAS_OFFSET equ 0
+     0000             (_presentation.inc):00011         PRESENTATION_TILE_OFFSET equ 0
+     0000             (_presentation.inc):00012         PRESENTATION_TILE_ATLAS_SOURCE_OFFSET equ 0
+     1120             (_presentation.inc):00013         PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES equ 4384
+     1120             (_presentation.inc):00014         PRESENTATION_TILE_ATLAS_EXPANDED_BYTES equ 4384
+     0089             (_presentation.inc):00015         PRESENTATION_COLD_ONLY_TILE_COUNT equ 137
+     0089             (_presentation.inc):00016         PRESENTATION_GAMEPLAY_TILE_BASE equ 137
+     1120             (_presentation.inc):00017         PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ 4384
+     0024             (_presentation.inc):00018         PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ 36
+     0001             (_presentation.inc):00019         PRESENTATION_PHASE_TILE_OVERLAY_ENABLED equ 1
+     002B             (_presentation.inc):00020         PRESENTATION_PHASE_TILE_SLOT_0 equ 43
+     002F             (_presentation.inc):00021         PRESENTATION_PHASE_TILE_SLOT_1 equ 47
+     003C             (_presentation.inc):00022         PRESENTATION_ATTRACT_SURFACE_PAGE equ $3C
+     A000             (_presentation.inc):00023         PRESENTATION_ATTRACT_SURFACE_ADDRESS equ $A000
+     1E00             (_presentation.inc):00024         PRESENTATION_ATTRACT_SURFACE_BYTES equ 7680
+     BE00             (_presentation.inc):00025         PRESENTATION_ATTRACT_DESTINATION_ADDRESS equ $BE00
+     BE28             (_presentation.inc):00026         PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS equ $BE28
+     4000             (_presentation.inc):00027         PRESENTATION_MAP_OUTPUT_OFFSET equ $4000
+                      (_presentation.inc):00028         
+     0000             (_presentation.inc):00029         PRESENTATION_MAP_ATTRACT equ 0
+     0001             (_presentation.inc):00030         PRESENTATION_MAP_INSTRUCTIONS equ 1
+     0002             (_presentation.inc):00031         PRESENTATION_MAP_LEVEL_START equ 2
+     0003             (_presentation.inc):00032         PRESENTATION_MAP_HIGH_SCORE equ 3
+     0004             (_presentation.inc):00033         PRESENTATION_MAP_GAME_OVER equ 4
+     0005             (_presentation.inc):00034         PRESENTATION_MAP_ENTER_HIGH_SCORE equ 5
+     0006             (_presentation.inc):00035         PRESENTATION_MAP_OPTIONS equ 6
+     0007             (_presentation.inc):00036         PRESENTATION_MAP_CREDITS equ 7
+     0008             (_presentation.inc):00037         PRESENTATION_MAP_KEYBIND_OPTIONS equ 8
+                      (_presentation.inc):00038         
+                      (_presentation.inc):00039         ; Compressed map stream offsets and lengths in the cold payload.
+     0F20             (_presentation.inc):00040         PRESENTATION_MAP_STREAM_0 equ $0F20
+     00F9             (_presentation.inc):00041         PRESENTATION_MAP_STREAM_0_BYTES equ 249
+     1019             (_presentation.inc):00042         PRESENTATION_MAP_STREAM_1 equ $1019
+     029D             (_presentation.inc):00043         PRESENTATION_MAP_STREAM_1_BYTES equ 669
+     12B6             (_presentation.inc):00044         PRESENTATION_MAP_STREAM_2 equ $12B6
+     01E6             (_presentation.inc):00045         PRESENTATION_MAP_STREAM_2_BYTES equ 486
+     149C             (_presentation.inc):00046         PRESENTATION_MAP_STREAM_3 equ $149C
+     0254             (_presentation.inc):00047         PRESENTATION_MAP_STREAM_3_BYTES equ 596
+     16F0             (_presentation.inc):00048         PRESENTATION_MAP_STREAM_4 equ $16F0
+     00B9             (_presentation.inc):00049         PRESENTATION_MAP_STREAM_4_BYTES equ 185
+     17A9             (_presentation.inc):00050         PRESENTATION_MAP_STREAM_5 equ $17A9
+     03A4             (_presentation.inc):00051         PRESENTATION_MAP_STREAM_5_BYTES equ 932
+     1B4D             (_presentation.inc):00052         PRESENTATION_MAP_STREAM_6 equ $1B4D
+     0096             (_presentation.inc):00053         PRESENTATION_MAP_STREAM_6_BYTES equ 150
+     1BE3             (_presentation.inc):00054         PRESENTATION_MAP_STREAM_7 equ $1BE3
+     0128             (_presentation.inc):00055         PRESENTATION_MAP_STREAM_7_BYTES equ 296
+     1D0B             (_presentation.inc):00056         PRESENTATION_MAP_STREAM_8 equ $1D0B
+     010E             (_presentation.inc):00057         PRESENTATION_MAP_STREAM_8_BYTES equ 270
+                      (_presentation.inc):00058         
+                      (_presentation.inc):00059         ; BUG-012 arcade-derived demo direction stream.
+     2A1A             (_presentation.inc):00060         PRESENTATION_DEMO_ROUTE_OFFSET equ $2A1A
+     008F             (_presentation.inc):00061         PRESENTATION_DEMO_ROUTE_ACTIONS equ 143
+                      (_presentation.inc):00062         
+                      (_presentation.inc):00063         ; BUG-011 semantic instruction choreography.
+     2000             (_presentation.inc):00064         PRESENTATION_INSTRUCTION_EVENT_OFFSET equ $2000
+     000C             (_presentation.inc):00065         PRESENTATION_INSTRUCTION_EVENT_BYTES equ 12
+     0010             (_presentation.inc):00066         PRESENTATION_INSTRUCTION_EVENT_COUNT equ 16
+     20C0             (_presentation.inc):00067         PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ $20C0
+     24EE             (_presentation.inc):00068         PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ $24EE
+     2A84             (_presentation.inc):00069         PRESENTATION_INSTRUCTION_CUCUMBER_DST equ $2A84
+     2A84             (_presentation.inc):00070         PRESENTATION_PART_VEGETABLE_DST equ $2A84
+     253F             (_presentation.inc):00071         PRESENTATION_INSTRUCTION_DEATH_POINTERS equ $253F
+     000F             (_presentation.inc):00072         PRESENTATION_INSTRUCTION_DEATH_COUNT equ 15
+     0608             (_presentation.inc):00073         PRESENTATION_INSTRUCTION_DEATH_TICK equ 1544
+     0667             (_presentation.inc):00074         PRESENTATION_INSTRUCTION_ANGEL_TICK equ 1639
+     6170             (_presentation.inc):00075         PRESENTATION_INSTRUCTION_ANGEL_DST equ $6170
+     6170             (_presentation.inc):00076         PRESENTATION_INSTRUCTION_SKULL_DST equ $6170
+     06A8             (_presentation.inc):00077         PRESENTATION_INSTRUCTION_NEXT_TICK equ 1704
+     0020             (_presentation.inc):00078         PRESENTATION_INSTRUCTION_COLOUR_DWELL equ 32
+     0089             (_presentation.inc):00079         PRESENTATION_INSTRUCTION_BLACK_TILE equ 137
+     8440             (_presentation.inc):00080         PRESENTATION_INSTRUCTION_VALUE_DST equ $8440
+     4370             (_presentation.inc):00081         PRESENTATION_INSTRUCTION_LIFE_DST equ $4370
+     5270             (_presentation.inc):00082         PRESENTATION_INSTRUCTION_COIN_DST equ $5270
+     756C             (_presentation.inc):00083         PRESENTATION_INSTRUCTION_MULTIPLIER_0 equ $756C
+     846C             (_presentation.inc):00084         PRESENTATION_INSTRUCTION_MULTIPLIER_1 equ $846C
+     4334             (_presentation.inc):00085         PRESENTATION_INSTRUCTION_EXTRA_SPAN equ $4334
+     5234             (_presentation.inc):00086         PRESENTATION_INSTRUCTION_SPECIAL_SPAN equ $5234
+     6134             (_presentation.inc):00087         PRESENTATION_INSTRUCTION_HEART_SPAN equ $6134
+     7F34             (_presentation.inc):00088         PRESENTATION_INSTRUCTION_ICON_SPAN equ $7F34
+     4328             (_presentation.inc):00089         PRESENTATION_INSTRUCTION_ANCHOR_0 equ $4328
+     5228             (_presentation.inc):00090         PRESENTATION_INSTRUCTION_ANCHOR_1 equ $5228
+     6128             (_presentation.inc):00091         PRESENTATION_INSTRUCTION_ANCHOR_2 equ $6128
+     0060             (_presentation.inc):00092         PRESENTATION_INSTRUCTION_VALUE_RED_0 equ 96
+     002A             (_presentation.inc):00093         PRESENTATION_INSTRUCTION_VALUE_RED_1 equ 42
+     002A             (_presentation.inc):00094         PRESENTATION_INSTRUCTION_VALUE_RED_2 equ 42
+     0061             (_presentation.inc):00095         PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 equ 97
+     002A             (_presentation.inc):00096         PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 equ 42
+     002A             (_presentation.inc):00097         PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 equ 42
+     0052             (_presentation.inc):00098         PRESENTATION_INSTRUCTION_VALUE_BLUE_0 equ 82
+     002A             (_presentation.inc):00099         PRESENTATION_INSTRUCTION_VALUE_BLUE_1 equ 42
+     002A             (_presentation.inc):00100         PRESENTATION_INSTRUCTION_VALUE_BLUE_2 equ 42
+     00A9             (_presentation.inc):00101         PRESENTATION_INSTRUCTION_LIFE_0 equ 169
+     00AA             (_presentation.inc):00102         PRESENTATION_INSTRUCTION_LIFE_1 equ 170
+     00AB             (_presentation.inc):00103         PRESENTATION_INSTRUCTION_LIFE_2 equ 171
+     00AC             (_presentation.inc):00104         PRESENTATION_INSTRUCTION_LIFE_3 equ 172
+     007E             (_presentation.inc):00105         PRESENTATION_INSTRUCTION_COIN_0 equ 126
+     007F             (_presentation.inc):00106         PRESENTATION_INSTRUCTION_COIN_1 equ 127
+     0080             (_presentation.inc):00107         PRESENTATION_INSTRUCTION_COIN_2 equ 128
+     0081             (_presentation.inc):00108         PRESENTATION_INSTRUCTION_COIN_3 equ 129
+     002B             (_presentation.inc):00109         PRESENTATION_INSTRUCTION_X2_0 equ 43
+     002C             (_presentation.inc):00110         PRESENTATION_INSTRUCTION_X2_1 equ 44
+     002B             (_presentation.inc):00111         PRESENTATION_INSTRUCTION_X3_0 equ 43
+     002D             (_presentation.inc):00112         PRESENTATION_INSTRUCTION_X3_1 equ 45
+     002B             (_presentation.inc):00113         PRESENTATION_INSTRUCTION_X5_0 equ 43
+     002E             (_presentation.inc):00114         PRESENTATION_INSTRUCTION_X5_1 equ 46
+                      (_presentation.inc):00115         
+                      (_presentation.inc):00116         ; FEAT-003 authored high-score name-entry contract.
+     2999             (_presentation.inc):00117         PRESENTATION_NAME_ENTRY_CURSOR_OFFSET equ $2999
+     0081             (_presentation.inc):00118         PRESENTATION_NAME_ENTRY_CURSOR_BYTES equ 129
+     894C             (_presentation.inc):00119         PRESENTATION_NAME_ENTRY_CURSOR_DST equ $894C
+     0005             (_presentation.inc):00120         PRESENTATION_NAME_ENTRY_CURSOR_CODE equ 5
+     0026             (_presentation.inc):00121         PRESENTATION_NAME_ENTRY_GRID_COUNT equ 38
+     0003             (_presentation.inc):00122         PRESENTATION_NAME_ENTRY_CL_COUNT equ 3
+     0001             (_presentation.inc):00123         PRESENTATION_NAME_ENTRY_END_COUNT equ 1
+     7F04             (_presentation.inc):00124         PRESENTATION_NAME_ENTRY_NAME_DST equ $7F04
+     5C84             (_presentation.inc):00125         PRESENTATION_NAME_ENTRY_TOP_NAME_DST equ $5C84
+     2A84             (_presentation.inc):00126         PRESENTATION_NAME_ENTRY_SCORE_DST equ $2A84
+     6104             (_presentation.inc):00127         PRESENTATION_NAME_ENTRY_TOP_DST equ $6104
+     3E84             (_presentation.inc):00128         PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ $3E84
+     0089             (_presentation.inc):00129         PRESENTATION_NAME_ENTRY_BLACK_TILE equ 137
+     2BAA             (_presentation.inc):00130         PRESENTATION_NAME_ENTRY_TIMER_TABLE equ $2BAA
+     0004             (_presentation.inc):00131         PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES equ 4
+     003C             (_presentation.inc):00132         PRESENTATION_NAME_ENTRY_TIMER_FRAMES equ 60
+     005C             (_presentation.inc):00133         PRESENTATION_NAME_ENTRY_TIMER_COUNT equ 92
+     2D1A             (_presentation.inc):00134         PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ $2D1A
+     002D             (_presentation.inc):00135         PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ 45
+     2D47             (_presentation.inc):00136         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE equ $2D47
+     0240             (_presentation.inc):00137         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES equ 576
+     2F87             (_presentation.inc):00138         PRESENTATION_NAME_ENTRY_ACTION_TABLE equ $2F87
+     0087             (_presentation.inc):00139         PRESENTATION_NAME_ENTRY_ACTION_BYTES equ 135
+0000                  (_presentation.inc):00140         PRESENTATION_NAME_ENTRY_GRID_TILES
+0000                  (_presentation.inc):00141         PRESENTATION_NAME_ENTRY_GRID_CELLS
+0000                  (_presentation.inc):00142         PRESENTATION_NAME_ENTRY_NODE_TILES
+                      (_presentation.inc):00143                 ifne    PRESENTATION_NAME_ENTRY_DATA
+                      (_presentation.inc):00144                 fcb     $FE,$58,$5D,$29,$FE,$A4,$5B,$6D,$5E,$5A,$24,$6E,$6F,$5C,$70,$9D,$2A,$53,$71,$27,$25,$26,$28,$72,$73,$74,$59,$75,$52,$A3,$61,$63,$65,$64,$62,$60,$5F,$76,$77,$78,$FE,$79,$89,$7A,$FD
+0000                  (_presentation.inc):00145         PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS
+                      (_presentation.inc):00146                 endc
+     005C             (_presentation.inc):00147         PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 equ $5C
+     0058             (_presentation.inc):00148         PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 equ $58
+     00A4             (_presentation.inc):00149         PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 equ $A4
+     0059             (_presentation.inc):00150         PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 equ $59
+     005D             (_presentation.inc):00151         PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 equ $5D
+     0028             (_presentation.inc):00152         PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 equ $28
+     005E             (_presentation.inc):00153         PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 equ $5E
+     002A             (_presentation.inc):00154         PRESENTATION_GLYPH_0 equ 42
+     0052             (_presentation.inc):00155         PRESENTATION_GLYPH_1 equ 82
+     00A3             (_presentation.inc):00156         PRESENTATION_GLYPH_2 equ 163
+     0061             (_presentation.inc):00157         PRESENTATION_GLYPH_3 equ 97
+     0063             (_presentation.inc):00158         PRESENTATION_GLYPH_4 equ 99
+     0065             (_presentation.inc):00159         PRESENTATION_GLYPH_5 equ 101
+     0064             (_presentation.inc):00160         PRESENTATION_GLYPH_6 equ 100
+     0062             (_presentation.inc):00161         PRESENTATION_GLYPH_7 equ 98
+     0060             (_presentation.inc):00162         PRESENTATION_GLYPH_8 equ 96
+     005F             (_presentation.inc):00163         PRESENTATION_GLYPH_9 equ 95
+     0058             (_presentation.inc):00164         PRESENTATION_GLYPH_10 equ 88
+     005D             (_presentation.inc):00165         PRESENTATION_GLYPH_11 equ 93
+     0029             (_presentation.inc):00166         PRESENTATION_GLYPH_12 equ 41
+     00A4             (_presentation.inc):00167         PRESENTATION_GLYPH_13 equ 164
+     005B             (_presentation.inc):00168         PRESENTATION_GLYPH_14 equ 91
+     006D             (_presentation.inc):00169         PRESENTATION_GLYPH_15 equ 109
+     005E             (_presentation.inc):00170         PRESENTATION_GLYPH_16 equ 94
+     005A             (_presentation.inc):00171         PRESENTATION_GLYPH_17 equ 90
+     0024             (_presentation.inc):00172         PRESENTATION_GLYPH_18 equ 36
+     006E             (_presentation.inc):00173         PRESENTATION_GLYPH_19 equ 110
+     006F             (_presentation.inc):00174         PRESENTATION_GLYPH_20 equ 111
+     005C             (_presentation.inc):00175         PRESENTATION_GLYPH_21 equ 92
+     0070             (_presentation.inc):00176         PRESENTATION_GLYPH_22 equ 112
+     009D             (_presentation.inc):00177         PRESENTATION_GLYPH_23 equ 157
+     002A             (_presentation.inc):00178         PRESENTATION_GLYPH_24 equ 42
+     0053             (_presentation.inc):00179         PRESENTATION_GLYPH_25 equ 83
+     0071             (_presentation.inc):00180         PRESENTATION_GLYPH_26 equ 113
+     0027             (_presentation.inc):00181         PRESENTATION_GLYPH_27 equ 39
+     0025             (_presentation.inc):00182         PRESENTATION_GLYPH_28 equ 37
+     0026             (_presentation.inc):00183         PRESENTATION_GLYPH_29 equ 38
+     0028             (_presentation.inc):00184         PRESENTATION_GLYPH_30 equ 40
+     0072             (_presentation.inc):00185         PRESENTATION_GLYPH_31 equ 114
+     0073             (_presentation.inc):00186         PRESENTATION_GLYPH_32 equ 115
+     0074             (_presentation.inc):00187         PRESENTATION_GLYPH_33 equ 116
+     0059             (_presentation.inc):00188         PRESENTATION_GLYPH_34 equ 89
+     0075             (_presentation.inc):00189         PRESENTATION_GLYPH_35 equ 117
+     0078             (_presentation.inc):00190         PRESENTATION_GLYPH_36 equ 120
+                      (_presentation.inc):00191         
+                      (_presentation.inc):00192         ; Nine fixed seven-character session records live in PAR5 page $34.
+     AF84             (_presentation.inc):00193         PRESENTATION_HIGHSCORE_BASE equ $AF84
+     000A             (_presentation.inc):00194         PRESENTATION_HIGHSCORE_RECORD_BYTES equ 10
+     0003             (_presentation.inc):00195         PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3
+     0007             (_presentation.inc):00196         PRESENTATION_HIGHSCORE_NAME_BYTES equ 7
+     0009             (_presentation.inc):00197         PRESENTATION_HIGHSCORE_COUNT equ 9
+     0009             (_presentation.inc):00198         PRESENTATION_HIGHSCORE_DISPLAY_ROWS equ 9
+     0500             (_presentation.inc):00199         PRESENTATION_HIGHSCORE_ROW_STRIDE equ 1280
+     343C             (_presentation.inc):00200         PRESENTATION_HIGHSCORE_RANK_01_NAME_DST equ $343C
+     3460             (_presentation.inc):00201         PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST equ $3460
+     3E3C             (_presentation.inc):00202         PRESENTATION_HIGHSCORE_RANK_02_NAME_DST equ $3E3C
+     3E60             (_presentation.inc):00203         PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST equ $3E60
+     433C             (_presentation.inc):00204         PRESENTATION_HIGHSCORE_RANK_03_NAME_DST equ $433C
+     4360             (_presentation.inc):00205         PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST equ $4360
+     483C             (_presentation.inc):00206         PRESENTATION_HIGHSCORE_RANK_04_NAME_DST equ $483C
+     4860             (_presentation.inc):00207         PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST equ $4860
+     4D3C             (_presentation.inc):00208         PRESENTATION_HIGHSCORE_RANK_05_NAME_DST equ $4D3C
+     4D60             (_presentation.inc):00209         PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST equ $4D60
+     523C             (_presentation.inc):00210         PRESENTATION_HIGHSCORE_RANK_06_NAME_DST equ $523C
+     5260             (_presentation.inc):00211         PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST equ $5260
+     573C             (_presentation.inc):00212         PRESENTATION_HIGHSCORE_RANK_07_NAME_DST equ $573C
+     5760             (_presentation.inc):00213         PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST equ $5760
+     5C3C             (_presentation.inc):00214         PRESENTATION_HIGHSCORE_RANK_08_NAME_DST equ $5C3C
+     5C60             (_presentation.inc):00215         PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST equ $5C60
+     613C             (_presentation.inc):00216         PRESENTATION_HIGHSCORE_RANK_09_NAME_DST equ $613C
+     6160             (_presentation.inc):00217         PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST equ $6160
+     0024             (_presentation.inc):00218         PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA equ 36
+     343C             (_presentation.inc):00219         PRESENTATION_HIGHSCORE_TOP_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00220         PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+     343C             (_presentation.inc):00221         PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00222         PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+                      (_presentation.inc):00223         
+     00AE             (_presentation.inc):00224         SHARED_TEXT_BASE equ 174
+                      (_presentation.inc):00225         
+     003B             (_presentation.inc):00226         PRESENTATION_ATTRACT_BUNDLE_PAGE equ $3B
+     B720             (_presentation.inc):00227         PRESENTATION_ATTRACT_BUNDLE_ADDRESS equ $B720
+     0287             (binding_runtime.s):00034         KB_BIND equ $0287
+                      (binding_runtime.s):00035         ; Bit 7: scan history primed; bit 6: wake-only joystick sample;
+                      (binding_runtime.s):00036         ; bits 1-3: previous joystick direction (4 is neutral); bit 0: wake edge.
+     028D             (binding_runtime.s):00037         KB_WAKE equ $028D
+     028E             (binding_runtime.s):00038         KB_ROWS equ $028E
+     0005             (binding_runtime.s):00039         KB_ACTION_COUNT equ 5
+     0005             (binding_runtime.s):00040         KB_MENU_LAST equ 5
+     028C             (binding_runtime.s):00041         KB_MENU_PREV equ $028C
+     0006             (binding_runtime.s):00042         KB_FIXED_ENTER equ 6
+     0296             (binding_runtime.s):00043         KB_DOWN equ $0296
+     0297             (binding_runtime.s):00044         KB_PREV equ $0297
+     0298             (binding_runtime.s):00045         KB_STATE equ $0298
+     0299             (binding_runtime.s):00046         KB_CAND equ $0299
+     029A             (binding_runtime.s):00047         KB_WORK equ $029A
+                      (binding_runtime.s):00048                 org $BA00
+BA00                  (binding_runtime.s):00049         key_service
+BA00 5D               (binding_runtime.s):00050                 tstb
+BA01 10270048         (binding_runtime.s):00051                 lbeq key_scan
+BA05 C101             (binding_runtime.s):00052                 cmpb #1
+BA07 1027023E         (binding_runtime.s):00053                 lbeq key_paint
+BA0B C102             (binding_runtime.s):00054                 cmpb #2
+BA0D 102701EE         (binding_runtime.s):00055                 lbeq key_tick
+BA11                  (binding_runtime.s):00056         key_init
+BA11 8E0287           (binding_runtime.s):00057                 ldx #KB_BIND
+BA14 318D0030         (binding_runtime.s):00058                 leay key_defaults,pcr
+BA18 C605             (binding_runtime.s):00059                 ldb #KB_ACTION_COUNT
+BA1A                  (binding_runtime.s):00060         ki_copy
+BA1A A6A0             (binding_runtime.s):00061                 lda ,y+
+BA1C A780             (binding_runtime.s):00062                 sta ,x+
+BA1E 5A               (binding_runtime.s):00063                 decb
+BA1F 26F9             (binding_runtime.s):00064                 bne ki_copy
+BA21 7F0296           (binding_runtime.s):00065                 clr KB_DOWN
+BA24 7F0297           (binding_runtime.s):00066                 clr KB_PREV
+BA27 7F028C           (binding_runtime.s):00067                 clr KB_MENU_PREV
+BA2A 7F0298           (binding_runtime.s):00068                 clr KB_STATE
+BA2D 8608             (binding_runtime.s):00069                 lda #8
+BA2F B7028D           (binding_runtime.s):00070                 sta KB_WAKE
+BA32 8E028E           (binding_runtime.s):00071                 ldx #KB_ROWS
+BA35 C608             (binding_runtime.s):00072                 ldb #8
+BA37                  (binding_runtime.s):00073         ki_wake_rows
+BA37 6F80             (binding_runtime.s):00074                 clr ,x+
+BA39 5A               (binding_runtime.s):00075                 decb
+BA3A 26FB             (binding_runtime.s):00076                 bne ki_wake_rows
+BA3C 86FF             (binding_runtime.s):00077                 lda #$FF
+BA3E B7BE8D           (binding_runtime.s):00078                 sta key_painted_select
+BA41 B7BE8E           (binding_runtime.s):00079                 sta key_painted_select+1
+BA44 B7BE8F           (binding_runtime.s):00080                 sta key_painted_select+2
+BA47 39               (binding_runtime.s):00081                 rts
+BA48                  (binding_runtime.s):00082         key_defaults
+BA48 1B232B3306       (binding_runtime.s):00083                 fcb 27,35,43,51,KB_FIXED_ENTER
+BA4D                  (binding_runtime.s):00084         key_scan
+                      (binding_runtime.s):00085                 ; $D0 belongs to the instruction colour clock off menu screens.
+                      (binding_runtime.s):00086                 ; ks_local publishes every menu edge, including zero; capture clears locally.
+BA4D 8E028E           (binding_runtime.s):00087                 ldx #KB_ROWS
+BA50 86FE             (binding_runtime.s):00088                 lda #$FE
+BA52                  (binding_runtime.s):00089         ks_column
+BA52 B7FF02           (binding_runtime.s):00090                 sta $FF02
+BA55 3402             (binding_runtime.s):00091                 pshs a
+BA57 B6FF00           (binding_runtime.s):00092                 lda $FF00
+BA5A 43               (binding_runtime.s):00093                 coma
+BA5B 847F             (binding_runtime.s):00094                 anda #$7F
+BA5D 3402             (binding_runtime.s):00095                 pshs a
+BA5F A684             (binding_runtime.s):00096                 lda ,x
+BA61 43               (binding_runtime.s):00097                 coma
+BA62 A4E4             (binding_runtime.s):00098                 anda ,s
+BA64 270C             (binding_runtime.s):00099                 beq ks_wake_next
+BA66 B6028D           (binding_runtime.s):00100                 lda KB_WAKE
+BA69 8580             (binding_runtime.s):00101                 bita #$80
+BA6B 2705             (binding_runtime.s):00102                 beq ks_wake_next
+BA6D 8A01             (binding_runtime.s):00103                 ora #1
+BA6F B7028D           (binding_runtime.s):00104                 sta KB_WAKE
+BA72                  (binding_runtime.s):00105         ks_wake_next
+BA72 3502             (binding_runtime.s):00106                 puls a
+BA74 A780             (binding_runtime.s):00107                 sta ,x+
+BA76 3502             (binding_runtime.s):00108                 puls a
+BA78 48               (binding_runtime.s):00109                 lsla
+BA79 8A01             (binding_runtime.s):00110                 ora #1
+BA7B 8C0296           (binding_runtime.s):00111                 cmpx #KB_ROWS+8
+BA7E 25D2             (binding_runtime.s):00112                 blo ks_column
+BA80 B6028D           (binding_runtime.s):00113                 lda KB_WAKE
+BA83 8A80             (binding_runtime.s):00114                 ora #$80
+BA85 B7028D           (binding_runtime.s):00115                 sta KB_WAKE
+BA88 86FF             (binding_runtime.s):00116                 lda #$FF
+BA8A B7FF02           (binding_runtime.s):00117                 sta $FF02
+                      (binding_runtime.s):00118                 ifne INPUT_JOYSTICK
+BA8D 8634             (binding_runtime.s):00119                 lda #$34
+BA8F B7FF01           (binding_runtime.s):00120                 sta $FF01
+                      (binding_runtime.s):00121                 endc
+BA92 7F029A           (binding_runtime.s):00122                 clr KB_WORK
+BA95 B60291           (binding_runtime.s):00123                 lda KB_ROWS+3
+BA98 8508             (binding_runtime.s):00124                 bita #8
+BA9A 2703             (binding_runtime.s):00125                 beq ks_menu_down
+BA9C 7C029A           (binding_runtime.s):00126                 inc KB_WORK
+BA9F                  (binding_runtime.s):00127         ks_menu_down
+BA9F B60292           (binding_runtime.s):00128                 lda KB_ROWS+4
+BAA2 8508             (binding_runtime.s):00129                 bita #8
+BAA4 2708             (binding_runtime.s):00130                 beq ks_menu_left
+BAA6 B6029A           (binding_runtime.s):00131                 lda KB_WORK
+BAA9 8A02             (binding_runtime.s):00132                 ora #2
+BAAB B7029A           (binding_runtime.s):00133                 sta KB_WORK
+BAAE                  (binding_runtime.s):00134         ks_menu_left
+BAAE B60293           (binding_runtime.s):00135                 lda KB_ROWS+5
+BAB1 8508             (binding_runtime.s):00136                 bita #8
+BAB3 2708             (binding_runtime.s):00137                 beq ks_menu_right
+BAB5 B6029A           (binding_runtime.s):00138                 lda KB_WORK
+BAB8 8A04             (binding_runtime.s):00139                 ora #4
+BABA B7029A           (binding_runtime.s):00140                 sta KB_WORK
+BABD                  (binding_runtime.s):00141         ks_menu_right
+BABD B60294           (binding_runtime.s):00142                 lda KB_ROWS+6
+BAC0 8508             (binding_runtime.s):00143                 bita #8
+BAC2 2708             (binding_runtime.s):00144                 beq ks_menu_enter
+BAC4 B6029A           (binding_runtime.s):00145                 lda KB_WORK
+BAC7 8A08             (binding_runtime.s):00146                 ora #8
+BAC9 B7029A           (binding_runtime.s):00147                 sta KB_WORK
+BACC                  (binding_runtime.s):00148         ks_menu_enter
+BACC 8606             (binding_runtime.s):00149                 lda #KB_FIXED_ENTER
+BACE 17008E           (binding_runtime.s):00150                 lbsr key_down
+BAD1 2708             (binding_runtime.s):00151                 beq ks_menu_back
+BAD3 B6029A           (binding_runtime.s):00152                 lda KB_WORK
+BAD6 8A10             (binding_runtime.s):00153                 ora #16
+BAD8 B7029A           (binding_runtime.s):00154                 sta KB_WORK
+BADB                  (binding_runtime.s):00155         ks_menu_back
+BADB 8616             (binding_runtime.s):00156                 lda #22
+BADD 17007F           (binding_runtime.s):00157                 lbsr key_down
+BAE0 2708             (binding_runtime.s):00158                 beq ks_menu_sampled
+BAE2 B6029A           (binding_runtime.s):00159                 lda KB_WORK
+BAE5 8A20             (binding_runtime.s):00160                 ora #32
+BAE7 B7029A           (binding_runtime.s):00161                 sta KB_WORK
+BAEA                  (binding_runtime.s):00162         ks_menu_sampled
+BAEA 7F0296           (binding_runtime.s):00163                 clr KB_DOWN
+BAED 8E0287           (binding_runtime.s):00164                 ldx #KB_BIND
+BAF0 318D0063         (binding_runtime.s):00165                 leay key_bits,pcr
+BAF4 5F               (binding_runtime.s):00166                 clrb
+BAF5                  (binding_runtime.s):00167         ks_action
+BAF5 A685             (binding_runtime.s):00168                 lda b,x
+BAF7 170065           (binding_runtime.s):00169                 lbsr key_down
+BAFA 2708             (binding_runtime.s):00170                 beq ks_next
+BAFC B60296           (binding_runtime.s):00171                 lda KB_DOWN
+BAFF AAA5             (binding_runtime.s):00172                 ora b,y
+BB01 B70296           (binding_runtime.s):00173                 sta KB_DOWN
+BB04                  (binding_runtime.s):00174         ks_next
+BB04 5C               (binding_runtime.s):00175                 incb
+BB05 C105             (binding_runtime.s):00176                 cmpb #KB_ACTION_COUNT
+BB07 25EC             (binding_runtime.s):00177                 blo ks_action
+BB09                  (binding_runtime.s):00178         ks_edges
+BB09 B60297           (binding_runtime.s):00179                 lda KB_PREV
+BB0C 43               (binding_runtime.s):00180                 coma
+BB0D B40296           (binding_runtime.s):00181                 anda KB_DOWN
+BB10 3402             (binding_runtime.s):00182                 pshs a
+BB12 B60296           (binding_runtime.s):00183                 lda KB_DOWN
+BB15 B70297           (binding_runtime.s):00184                 sta KB_PREV
+BB18 0FA9             (binding_runtime.s):00185                 clr $A9
+BB1A 7D0298           (binding_runtime.s):00186                 tst KB_STATE
+BB1D 270D             (binding_runtime.s):00187                 beq ks_global
+BB1F 3502             (binding_runtime.s):00188                 puls a
+BB21 0FD0             (binding_runtime.s):00189                 clr $D0
+BB23 B6029A           (binding_runtime.s):00190                 lda KB_WORK
+BB26 B7028C           (binding_runtime.s):00191                 sta KB_MENU_PREV
+BB29 16004C           (binding_runtime.s):00192                 lbra key_capture
+BB2C                  (binding_runtime.s):00193         ks_global
+BB2C 3502             (binding_runtime.s):00194                 puls a
+BB2E 1F89             (binding_runtime.s):00195                 tfr a,b                  ; preserve fresh key edges while publishing events
+BB30                  (binding_runtime.s):00196         ks_menu
+BB30 96A6             (binding_runtime.s):00197                 lda $A6
+BB32 8100             (binding_runtime.s):00198                 cmpa #PRESENTATION_MAP_ATTRACT
+BB34 2708             (binding_runtime.s):00199                 beq ks_local
+BB36 8103             (binding_runtime.s):00200                 cmpa #PRESENTATION_MAP_HIGH_SCORE
+BB38 2704             (binding_runtime.s):00201                 beq ks_local
+BB3A 8106             (binding_runtime.s):00202                 cmpa #PRESENTATION_MAP_OPTIONS
+BB3C 2512             (binding_runtime.s):00203                 blo ks_done
+BB3E                  (binding_runtime.s):00204         ks_local
+BB3E B6028C           (binding_runtime.s):00205                 lda KB_MENU_PREV
+BB41 43               (binding_runtime.s):00206                 coma
+BB42 B4029A           (binding_runtime.s):00207                 anda KB_WORK
+BB45 97D0             (binding_runtime.s):00208                 sta $D0
+BB47 B6029A           (binding_runtime.s):00209                 lda KB_WORK
+BB4A B7028C           (binding_runtime.s):00210                 sta KB_MENU_PREV
+BB4D 97DF             (binding_runtime.s):00211                 sta $DF                   ; local menu held state; screen 5 owns $DF otherwise
+BB4F 39               (binding_runtime.s):00212                 rts
+BB50                  (binding_runtime.s):00213         ks_done
+BB50 B6029A           (binding_runtime.s):00214                 lda KB_WORK
+BB53 B7028C           (binding_runtime.s):00215                 sta KB_MENU_PREV          ; track inherited holds without clobbering name-entry row
+BB56 39               (binding_runtime.s):00216                 rts
+BB57                  (binding_runtime.s):00217         key_bits
+BB57 0102040810204080 (binding_runtime.s):00218                 fcb 1,2,4,8,16,32,64,128
+                      (binding_runtime.s):00219         ; Physical switch identity is column*8 + row. Z means released.
+BB5F                  (binding_runtime.s):00220         key_down
+BB5F 3414             (binding_runtime.s):00221                 pshs b,x
+BB61 1F89             (binding_runtime.s):00222                 tfr a,b
+BB63 8407             (binding_runtime.s):00223                 anda #7
+BB65 308CEF           (binding_runtime.s):00224                 leax key_bits,pcr
+BB68 A686             (binding_runtime.s):00225                 lda a,x
+BB6A 3402             (binding_runtime.s):00226                 pshs a
+BB6C 54               (binding_runtime.s):00227                 lsrb
+BB6D 54               (binding_runtime.s):00228                 lsrb
+BB6E 54               (binding_runtime.s):00229                 lsrb
+BB6F 8E028E           (binding_runtime.s):00230                 ldx #KB_ROWS
+BB72 A685             (binding_runtime.s):00231                 lda b,x
+BB74 A4E0             (binding_runtime.s):00232                 anda ,s+
+BB76 3594             (binding_runtime.s):00233                 puls b,x,pc
+BB78                  (binding_runtime.s):00234         key_capture
+BB78 F60298           (binding_runtime.s):00235                 ldb KB_STATE
+BB7B C103             (binding_runtime.s):00236                 cmpb #3
+BB7D 2709             (binding_runtime.s):00237                 beq kc_release
+BB7F 8616             (binding_runtime.s):00238                 lda #22
+BB81 17FFDB           (binding_runtime.s):00239                 lbsr key_down
+BB84 1026006F         (binding_runtime.s):00240                 lbne kc_cancel
+BB88                  (binding_runtime.s):00241         kc_release
+BB88 8E028E           (binding_runtime.s):00242                 ldx #KB_ROWS
+BB8B 4F               (binding_runtime.s):00243                 clra
+BB8C                  (binding_runtime.s):00244         kc_held
+BB8C AA80             (binding_runtime.s):00245                 ora ,x+
+BB8E 8C0296           (binding_runtime.s):00246                 cmpx #KB_ROWS+8
+BB91 25F9             (binding_runtime.s):00247                 blo kc_held
+BB93 F60298           (binding_runtime.s):00248                 ldb KB_STATE
+BB96 C102             (binding_runtime.s):00249                 cmpb #2
+BB98 2713             (binding_runtime.s):00250                 beq kc_candidate
+BB9A 4D               (binding_runtime.s):00251                 tsta
+BB9B 260F             (binding_runtime.s):00252                 bne kc_done
+BB9D 4F               (binding_runtime.s):00253                 clra
+BB9E C101             (binding_runtime.s):00254                 cmpb #1
+BBA0 2602             (binding_runtime.s):00255                 bne kc_state
+BBA2 8602             (binding_runtime.s):00256                 lda #2
+BBA4                  (binding_runtime.s):00257         kc_state
+BBA4 B70298           (binding_runtime.s):00258                 sta KB_STATE
+BBA7 4D               (binding_runtime.s):00259                 tsta
+BBA8 2602             (binding_runtime.s):00260                 bne kc_done
+BBAA 0FDF             (binding_runtime.s):00261                 clr $DF
+BBAC                  (binding_runtime.s):00262         kc_done
+BBAC 39               (binding_runtime.s):00263                 rts
+BBAD                  (binding_runtime.s):00264         kc_candidate
+BBAD 86FF             (binding_runtime.s):00265                 lda #$FF
+BBAF B70299           (binding_runtime.s):00266                 sta KB_CAND
+BBB2 5F               (binding_runtime.s):00267                 clrb
+BBB3                  (binding_runtime.s):00268         kc_find
+BBB3 1F98             (binding_runtime.s):00269                 tfr b,a
+BBB5 17FFA7           (binding_runtime.s):00270                 lbsr key_down
+BBB8 270A             (binding_runtime.s):00271                 beq kc_find_next
+BBBA B60299           (binding_runtime.s):00272                 lda KB_CAND
+BBBD 81FF             (binding_runtime.s):00273                 cmpa #$FF
+BBBF 2630             (binding_runtime.s):00274                 bne kc_reject
+BBC1 F70299           (binding_runtime.s):00275                 stb KB_CAND
+BBC4                  (binding_runtime.s):00276         kc_find_next
+BBC4 5C               (binding_runtime.s):00277                 incb
+BBC5 C140             (binding_runtime.s):00278                 cmpb #64
+BBC7 25EA             (binding_runtime.s):00279                 blo kc_find
+BBC9 B60299           (binding_runtime.s):00280                 lda KB_CAND
+BBCC 81FF             (binding_runtime.s):00281                 cmpa #$FF
+BBCE 27DC             (binding_runtime.s):00282                 beq kc_done
+BBD0                  (binding_runtime.s):00283         kc_unique
+BBD0 8E0287           (binding_runtime.s):00284                 ldx #KB_BIND
+BBD3 5F               (binding_runtime.s):00285                 clrb
+BBD4                  (binding_runtime.s):00286         kc_duplicate
+BBD4 D1E0             (binding_runtime.s):00287                 cmpb $E0
+BBD6 2707             (binding_runtime.s):00288                 beq kc_unique_next
+BBD8 A685             (binding_runtime.s):00289                 lda b,x
+BBDA B10299           (binding_runtime.s):00290                 cmpa KB_CAND
+BBDD 2712             (binding_runtime.s):00291                 beq kc_reject
+BBDF                  (binding_runtime.s):00292         kc_unique_next
+BBDF 5C               (binding_runtime.s):00293                 incb
+BBE0 C105             (binding_runtime.s):00294                 cmpb #KB_ACTION_COUNT
+BBE2 25F0             (binding_runtime.s):00295                 blo kc_duplicate
+BBE4 D6E0             (binding_runtime.s):00296                 ldb $E0
+BBE6 C105             (binding_runtime.s):00297                 cmpb #KB_ACTION_COUNT
+BBE8 2407             (binding_runtime.s):00298                 bhs kc_reject
+BBEA B60299           (binding_runtime.s):00299                 lda KB_CAND
+BBED A785             (binding_runtime.s):00300                 sta b,x
+BBEF 2006             (binding_runtime.s):00301                 bra kc_cancel
+BBF1                  (binding_runtime.s):00302         kc_reject
+BBF1 8601             (binding_runtime.s):00303                 lda #1
+BBF3 B70298           (binding_runtime.s):00304                 sta KB_STATE
+BBF6 39               (binding_runtime.s):00305                 rts
+BBF7                  (binding_runtime.s):00306         kc_cancel
+BBF7 8603             (binding_runtime.s):00307                 lda #3
+BBF9 B70298           (binding_runtime.s):00308                 sta KB_STATE
+BBFC 97E1             (binding_runtime.s):00309                 sta $E1
+BBFE 39               (binding_runtime.s):00310                 rts
+BBFF                  (binding_runtime.s):00311         key_tick
+BBFF C6FF             (binding_runtime.s):00312                 ldb #$FF
+BC01 7D0298           (binding_runtime.s):00313                 tst KB_STATE
+BC04 263F             (binding_runtime.s):00314                 bne kt_done
+BC06 96D0             (binding_runtime.s):00315                 lda $D0
+BC08 8520             (binding_runtime.s):00316                 bita #32
+BC0A 263A             (binding_runtime.s):00317                 bne kt_back
+BC0C 8510             (binding_runtime.s):00318                 bita #16
+BC0E 270D             (binding_runtime.s):00319                 beq kt_arrow
+BC10 96E0             (binding_runtime.s):00320                 lda $E0
+BC12 8105             (binding_runtime.s):00321                 cmpa #KB_MENU_LAST
+BC14 2730             (binding_runtime.s):00322                 beq kt_back
+BC16 8601             (binding_runtime.s):00323                 lda #1
+BC18 B70298           (binding_runtime.s):00324                 sta KB_STATE
+BC1B 2024             (binding_runtime.s):00325                 bra kt_redraw
+BC1D                  (binding_runtime.s):00326         kt_arrow
+BC1D 3402             (binding_runtime.s):00327                 pshs a
+BC1F 96DF             (binding_runtime.s):00328                 lda $DF
+BC21 8403             (binding_runtime.s):00329                 anda #3
+BC23 8103             (binding_runtime.s):00330                 cmpa #3
+BC25 3502             (binding_runtime.s):00331                 puls a
+BC27 271C             (binding_runtime.s):00332                 beq kt_done
+BC29 8501             (binding_runtime.s):00333                 bita #1
+BC2B 2708             (binding_runtime.s):00334                 beq kt_down
+BC2D 0DE0             (binding_runtime.s):00335                 tst $E0
+BC2F 2714             (binding_runtime.s):00336                 beq kt_done
+BC31 0AE0             (binding_runtime.s):00337                 dec $E0
+BC33 200C             (binding_runtime.s):00338                 bra kt_redraw
+BC35                  (binding_runtime.s):00339         kt_down
+BC35 8502             (binding_runtime.s):00340                 bita #2
+BC37 270C             (binding_runtime.s):00341                 beq kt_done
+BC39 96E0             (binding_runtime.s):00342                 lda $E0
+BC3B 8105             (binding_runtime.s):00343                 cmpa #KB_MENU_LAST
+BC3D 2406             (binding_runtime.s):00344                 bhs kt_done
+BC3F 0CE0             (binding_runtime.s):00345                 inc $E0
+BC41                  (binding_runtime.s):00346         kt_redraw
+BC41 8603             (binding_runtime.s):00347                 lda #3
+BC43 97E1             (binding_runtime.s):00348                 sta $E1
+BC45                  (binding_runtime.s):00349         kt_done
+BC45 39               (binding_runtime.s):00350                 rts
+BC46                  (binding_runtime.s):00351         kt_back
+BC46 C606             (binding_runtime.s):00352                 ldb #6
+BC48 39               (binding_runtime.s):00353                 rts
+BC49                  (binding_runtime.s):00354         key_paint
+BC49 D690             (binding_runtime.s):00355                 ldb $90
+BC4B 308D023E         (binding_runtime.s):00356                 leax key_painted_select,pcr
+BC4F A685             (binding_runtime.s):00357                 lda b,x
+BC51 D6A5             (binding_runtime.s):00358                 ldb $A5
+BC53 C105             (binding_runtime.s):00359                 cmpb #5
+BC55 2702             (binding_runtime.s):00360                 beq kp_cached
+BC57 86FF             (binding_runtime.s):00361                 lda #$FF
+BC59                  (binding_runtime.s):00362         kp_cached
+BC59 B7029A           (binding_runtime.s):00363                 sta KB_WORK
+BC5C 0FD1             (binding_runtime.s):00364                 clr $D1
+BC5E 318D0107         (binding_runtime.s):00365                 leay key_label_records,pcr
+BC62                  (binding_runtime.s):00366         kp_label
+BC62 AEA1             (binding_runtime.s):00367                 ldx ,y++
+BC64 E6A0             (binding_runtime.s):00368                 ldb ,y+
+BC66 8607             (binding_runtime.s):00369                 lda #7
+BC68 3402             (binding_runtime.s):00370                 pshs a
+BC6A 96D1             (binding_runtime.s):00371                 lda $D1
+BC6C 91E0             (binding_runtime.s):00372                 cmpa $E0
+BC6E 2604             (binding_runtime.s):00373                 bne kp_unselected
+BC70 860A             (binding_runtime.s):00374                 lda #10
+BC72 A7E4             (binding_runtime.s):00375                 sta ,s
+BC74                  (binding_runtime.s):00376         kp_unselected
+BC74 3502             (binding_runtime.s):00377                 puls a
+BC76 9729             (binding_runtime.s):00378                 sta $29
+BC78 B6029A           (binding_runtime.s):00379                 lda KB_WORK
+BC7B 81FF             (binding_runtime.s):00380                 cmpa #$FF
+BC7D 270F             (binding_runtime.s):00381                 beq kp_draw
+BC7F 96D1             (binding_runtime.s):00382                 lda $D1
+BC81 91E0             (binding_runtime.s):00383                 cmpa $E0
+BC83 2709             (binding_runtime.s):00384                 beq kp_draw
+BC85 B1029A           (binding_runtime.s):00385                 cmpa KB_WORK
+BC88 2704             (binding_runtime.s):00386                 beq kp_draw
+BC8A 31A5             (binding_runtime.s):00387                 leay b,y
+BC8C 204B             (binding_runtime.s):00388                 bra kp_next
+BC8E                  (binding_runtime.s):00389         kp_draw
+BC8E 170092           (binding_runtime.s):00390                 lbsr key_text
+BC91 96D1             (binding_runtime.s):00391                 lda $D1
+BC93 8105             (binding_runtime.s):00392                 cmpa #KB_MENU_LAST
+BC95 2742             (binding_runtime.s):00393                 beq kp_next
+BC97 3420             (binding_runtime.s):00394                 pshs y
+BC99 48               (binding_runtime.s):00395                 lsla
+BC9A 318D00F6         (binding_runtime.s):00396                 leay key_value_destinations,pcr
+BC9E AEA6             (binding_runtime.s):00397                 ldx a,y
+BCA0 8624             (binding_runtime.s):00398                 lda #36
+BCA2 C60E             (binding_runtime.s):00399                 ldb #14
+BCA4                  (binding_runtime.s):00400         kp_clear
+BCA4 170085           (binding_runtime.s):00401                 lbsr key_char
+BCA7 5A               (binding_runtime.s):00402                 decb
+BCA8 26FA             (binding_runtime.s):00403                 bne kp_clear
+BCAA 301C             (binding_runtime.s):00404                 leax -4,x
+BCAC D6D1             (binding_runtime.s):00405                 ldb $D1
+BCAE 108E0287         (binding_runtime.s):00406                 ldy #KB_BIND
+BCB2 A6A5             (binding_runtime.s):00407                 lda b,y
+BCB4 17004B           (binding_runtime.s):00408                 lbsr key_name
+BCB7 1F98             (binding_runtime.s):00409                 tfr b,a
+BCB9 48               (binding_runtime.s):00410                 lsla
+BCBA 48               (binding_runtime.s):00411                 lsla
+BCBB 40               (binding_runtime.s):00412                 nega
+BCBC 3086             (binding_runtime.s):00413                 leax a,x
+BCBE 17002D           (binding_runtime.s):00414                 lbsr key_waiting
+BCC1 2607             (binding_runtime.s):00415                 bne kp_name
+BCC3 301C             (binding_runtime.s):00416                 leax -4,x
+BCC5 862B             (binding_runtime.s):00417                 lda #43
+BCC7 170062           (binding_runtime.s):00418                 lbsr key_char
+BCCA                  (binding_runtime.s):00419         kp_name
+BCCA 170056           (binding_runtime.s):00420                 lbsr key_text
+BCCD 17001E           (binding_runtime.s):00421                 lbsr key_waiting
+BCD0 2605             (binding_runtime.s):00422                 bne kp_value_done
+BCD2 862C             (binding_runtime.s):00423                 lda #44
+BCD4 170055           (binding_runtime.s):00424                 lbsr key_char
+BCD7                  (binding_runtime.s):00425         kp_value_done
+BCD7 3520             (binding_runtime.s):00426                 puls y
+BCD9                  (binding_runtime.s):00427         kp_next
+BCD9 0CD1             (binding_runtime.s):00428                 inc $D1
+BCDB 96D1             (binding_runtime.s):00429                 lda $D1
+BCDD 8106             (binding_runtime.s):00430                 cmpa #KB_MENU_LAST+1
+BCDF 1025FF7F         (binding_runtime.s):00431                 lblo kp_label
+BCE3 D690             (binding_runtime.s):00432                 ldb $90
+BCE5 308D01A4         (binding_runtime.s):00433                 leax key_painted_select,pcr
+BCE9 96E0             (binding_runtime.s):00434                 lda $E0
+BCEB A785             (binding_runtime.s):00435                 sta b,x
+BCED 39               (binding_runtime.s):00436                 rts
+BCEE                  (binding_runtime.s):00437         key_waiting
+BCEE 96D1             (binding_runtime.s):00438                 lda $D1
+BCF0 91E0             (binding_runtime.s):00439                 cmpa $E0
+BCF2 260D             (binding_runtime.s):00440                 bne kw_done
+BCF4 B60298           (binding_runtime.s):00441                 lda KB_STATE
+BCF7 2704             (binding_runtime.s):00442                 beq kw_no
+BCF9 8103             (binding_runtime.s):00443                 cmpa #3
+BCFB 2603             (binding_runtime.s):00444                 bne kw_yes
+BCFD                  (binding_runtime.s):00445         kw_no
+BCFD 8601             (binding_runtime.s):00446                 lda #1
+BCFF 39               (binding_runtime.s):00447                 rts
+BD00                  (binding_runtime.s):00448         kw_yes
+BD00 4F               (binding_runtime.s):00449                 clra
+BD01                  (binding_runtime.s):00450         kw_done
+BD01 39               (binding_runtime.s):00451                 rts
+BD02                  (binding_runtime.s):00452         key_name
+BD02 318D0147         (binding_runtime.s):00453                 leay key_name_codes,pcr
+BD06 A6A6             (binding_runtime.s):00454                 lda a,y
+BD08 8124             (binding_runtime.s):00455                 cmpa #36
+BD0A 240A             (binding_runtime.s):00456                 bhs kn_named
+BD0C B7BE90           (binding_runtime.s):00457                 sta key_single
+BD0F 318D017D         (binding_runtime.s):00458                 leay key_single,pcr
+BD13 C601             (binding_runtime.s):00459                 ldb #1
+BD15 39               (binding_runtime.s):00460                 rts
+BD16                  (binding_runtime.s):00461         kn_named
+BD16 8024             (binding_runtime.s):00462                 suba #36
+BD18 48               (binding_runtime.s):00463                 lsla
+BD19 318D0081         (binding_runtime.s):00464                 leay key_names,pcr
+BD1D 10AEA6           (binding_runtime.s):00465                 ldy a,y
+BD20 E6A0             (binding_runtime.s):00466                 ldb ,y+
+BD22 39               (binding_runtime.s):00467                 rts
+BD23                  (binding_runtime.s):00468         key_text
+BD23 A6A0             (binding_runtime.s):00469                 lda ,y+
+BD25 170004           (binding_runtime.s):00470                 lbsr key_char
+BD28 5A               (binding_runtime.s):00471                 decb
+BD29 26F8             (binding_runtime.s):00472                 bne key_text
+BD2B 39               (binding_runtime.s):00473                 rts
+BD2C                  (binding_runtime.s):00474         key_char
+BD2C 3476             (binding_runtime.s):00475                 pshs a,b,x,y,u
+BD2E 318D000A         (binding_runtime.s):00476                 leay stage_source_glyphs,pcr
+BD32 A6A6             (binding_runtime.s):00477                 lda a,y
+BD34 BDFBBC           (binding_runtime.s):00478                 jsr PRES_MAIN_SHARED_MASK
+BD37 3576             (binding_runtime.s):00479                 puls a,b,x,y,u
+BD39 3004             (binding_runtime.s):00480                 leax 4,x
+BD3B 39               (binding_runtime.s):00481                 rts
+                      (binding_runtime.s):00482                 include "ladybug_stage_glyphs.inc"
+                      (_stage_glyphs.inc):00001         
+BD3C                  (_stage_glyphs.inc):00002         stage_source_glyphs
+BD3C 0001020304050607 (_stage_glyphs.inc):00003                 fcb 0,1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,0,24,25,26,27,28,29,30
+     08090A0B0C0D0E0F
+     1011121314151617
+     0018191A1B1C1D1E
+BD5C 1F2021222C2C2C2C (_stage_glyphs.inc):00004                 fcb 31,32,33,34,44,44,44,44,44,44,44,35,36
+     2C2C2C2324
+                      (binding_runtime.s):00483                 include "ladybug_keybinding_records.inc"
+BD69                  (nding_records.inc):00001         key_label_records
+BD69 3E20             (nding_records.inc):00002                 fdb $3E20
+BD6B 021E19           (nding_records.inc):00003                 fcb 2,30,25
+BD6E 4820             (nding_records.inc):00004                 fdb $4820
+BD70 040D182017       (nding_records.inc):00005                 fcb 4,13,24,32,23
+BD75 5220             (nding_records.inc):00006                 fdb $5220
+BD77 04150E0F1D       (nding_records.inc):00007                 fcb 4,21,14,15,29
+BD7C 5C20             (nding_records.inc):00008                 fdb $5C20
+BD7E 051B1210111D     (nding_records.inc):00009                 fcb 5,27,18,16,17,29
+BD84 6620             (nding_records.inc):00010                 fdb $6620
+BD86 060A0C1D121817   (nding_records.inc):00011                 fcb 6,10,12,29,18,24,23
+BD8D 8448             (nding_records.inc):00012                 fdb $8448
+BD8F 040B0A0C14       (nding_records.inc):00013                 fcb 4,11,10,12,20
+BD94                  (nding_records.inc):00014         key_value_destinations
+BD94 3E4C             (nding_records.inc):00015                 fdb $3E4C
+BD96 484C             (nding_records.inc):00016                 fdb $484C
+BD98 524C             (nding_records.inc):00017                 fdb $524C
+BD9A 5C4C             (nding_records.inc):00018                 fdb $5C4C
+BD9C 664C             (nding_records.inc):00019                 fdb $664C
+BD9E                  (nding_records.inc):00020         key_names
+BD9E BDC6             (nding_records.inc):00021                 fdb key_name_0
+BDA0 BDC9             (nding_records.inc):00022                 fdb key_name_1
+BDA2 BDD2             (nding_records.inc):00023                 fdb key_name_2
+BDA4 BDDD             (nding_records.inc):00024                 fdb key_name_3
+BDA6 BDE8             (nding_records.inc):00025                 fdb key_name_4
+BDA8 BDF4             (nding_records.inc):00026                 fdb key_name_5
+BDAA BDFA             (nding_records.inc):00027                 fdb key_name_6
+BDAC BE00             (nding_records.inc):00028                 fdb key_name_7
+BDAE BE0A             (nding_records.inc):00029                 fdb key_name_8
+BDB0 BE10             (nding_records.inc):00030                 fdb key_name_9
+BDB2 BE16             (nding_records.inc):00031                 fdb key_name_10
+BDB4 BE1D             (nding_records.inc):00032                 fdb key_name_11
+BDB6 BE23             (nding_records.inc):00033                 fdb key_name_12
+BDB8 BE29             (nding_records.inc):00034                 fdb key_name_13
+BDBA BE2F             (nding_records.inc):00035                 fdb key_name_14
+BDBC BE35             (nding_records.inc):00036                 fdb key_name_15
+BDBE BE39             (nding_records.inc):00037                 fdb key_name_16
+BDC0 BE41             (nding_records.inc):00038                 fdb key_name_17
+BDC2 BE44             (nding_records.inc):00039                 fdb key_name_18
+BDC4 BE47             (nding_records.inc):00040                 fdb key_name_19
+BDC6                  (nding_records.inc):00041         key_name_0
+BDC6 020A1D           (nding_records.inc):00042                 fcb 2,10,29
+BDC9                  (nding_records.inc):00043         key_name_1
+BDC9 081E19240A1B1B18 (nding_records.inc):00044                 fcb 8,30,25,36,10,27,27,24,32
+     20
+BDD2                  (nding_records.inc):00045         key_name_2
+BDD2 0A0D182017240A1B (nding_records.inc):00046                 fcb 10,13,24,32,23,36,10,27,27,24,32
+     1B1820
+BDDD                  (nding_records.inc):00047         key_name_3
+BDDD 0A150E0F1D240A1B (nding_records.inc):00048                 fcb 10,21,14,15,29,36,10,27,27,24,32
+     1B1820
+BDE8                  (nding_records.inc):00049         key_name_4
+BDE8 0B1B1210111D240A (nding_records.inc):00050                 fcb 11,27,18,16,17,29,36,10,27,27,24,32
+     1B1B1820
+BDF4                  (nding_records.inc):00051         key_name_5
+BDF4 051C190A0C0E     (nding_records.inc):00052                 fcb 5,28,25,10,12,14
+BDFA                  (nding_records.inc):00053         key_name_6
+BDFA 050C18151817     (nding_records.inc):00054                 fcb 5,12,24,21,24,23
+BE00                  (nding_records.inc):00055         key_name_7
+BE00 091C0E16120C1815 (nding_records.inc):00056                 fcb 9,28,14,22,18,12,24,21,24,23
+     1817
+BE0A                  (nding_records.inc):00057         key_name_8
+BE0A 050C1816160A     (nding_records.inc):00058                 fcb 5,12,24,22,22,10
+BE10                  (nding_records.inc):00059         key_name_9
+BE10 051612171E1C     (nding_records.inc):00060                 fcb 5,22,18,23,30,28
+BE16                  (nding_records.inc):00061         key_name_10
+BE16 06190E1B12180D   (nding_records.inc):00062                 fcb 6,25,14,27,18,24,13
+BE1D                  (nding_records.inc):00063         key_name_11
+BE1D 051C150A1C11     (nding_records.inc):00064                 fcb 5,28,21,10,28,17
+BE23                  (nding_records.inc):00065         key_name_12
+BE23 050E171D0E1B     (nding_records.inc):00066                 fcb 5,14,23,29,14,27
+BE29                  (nding_records.inc):00067         key_name_13
+BE29 050C150E0A1B     (nding_records.inc):00068                 fcb 5,12,21,14,10,27
+BE2F                  (nding_records.inc):00069         key_name_14
+BE2F 050B1B0E0A14     (nding_records.inc):00070                 fcb 5,11,27,14,10,20
+BE35                  (nding_records.inc):00071         key_name_15
+BE35 030A151D         (nding_records.inc):00072                 fcb 3,10,21,29
+BE39                  (nding_records.inc):00073         key_name_16
+BE39 070C18171D1B1815 (nding_records.inc):00074                 fcb 7,12,24,23,29,27,24,21
+BE41                  (nding_records.inc):00075         key_name_17
+BE41 020F01           (nding_records.inc):00076                 fcb 2,15,1
+BE44                  (nding_records.inc):00077         key_name_18
+BE44 020F02           (nding_records.inc):00078                 fcb 2,15,2
+BE47                  (nding_records.inc):00079         key_name_19
+BE47 051C11120F1D     (nding_records.inc):00080                 fcb 5,28,17,18,15,29
+BE4D                  (nding_records.inc):00081         key_name_codes
+BE4D 24111921000830FF (nding_records.inc):00082                 fcb 36,17,25,33,0,8,48,255,10,18,26,34,1,9,49,255,11,19,27,35,2,42,50,255,12,20,28,37,3,43,51,255,13,21,29,38,4,44,52,255,14,22,30,39,5,45,53,255,15,23,31,40,6,46,54,255,16,24,32,41,7,47,55,255
+     0A121A22010931FF
+     0B131B23022A32FF
+     0C141C25032B33FF
+     0D151D26042C34FF
+     0E161E27052D35FF
+     0F171F28062E36FF
+     10182029072F37FF
+BE8D                  (binding_runtime.s):00484         key_painted_select
+BE8D FFFFFF           (binding_runtime.s):00485                 fcb $FF,$FF,$FF
+BE90                  (binding_runtime.s):00486         key_single
+BE90 00               (binding_runtime.s):00487                 fcb 0
+BE91                  (binding_runtime.s):00488         key_runtime_end
+
+Symbol Table:
+[SG] ADAPTIVE_RENDERING               0001
+[ G] blit_packed_sprite               D51D
+[ G] draw_all_gates                   CE79
+[ G] draw_death_frame                 D3F4
+[ G] draw_entities                    C69C
+[ G] draw_gate                        CE63
+[ G] draw_gate_diagonal               CF3E
+[ G] draw_gate_entities               D139
+[ G] draw_gate_transition             CF3F
+[ G] draw_hud                         C460
+[ G] draw_lives                       C509
+[ G] draw_maze_state_cell             D42E
+[ G] draw_multiplier_hud              C3BA
+[ G] draw_perimeter_box               CA2E
+[ G] draw_player                      D4DD
+[ G] draw_recolored_map_tile          FB94
+[ G] draw_score_popup                 D2AD
+[ G] draw_screen                      D5A6
+[ G] draw_word_progress_hud           C421
+[ G] erase_entity_footprints          C7D7
+[ G] framebuffer_project_gate_only    CFB3
+[ G] gate_redraw_neighbors            EBA6
+[ G] gate_render_hidden               D01A
+[SG] INPUT_JOYSTICK                   0001
+[ G] KB_ACTION_COUNT                  0005
+[ G] KB_BIND                          0287
+[ G] KB_CAND                          0299
+[ G] KB_DOWN                          0296
+[ G] KB_FIXED_ENTER                   0006
+[ G] KB_MENU_LAST                     0005
+[ G] KB_MENU_PREV                     028C
+[ G] KB_PREV                          0297
+[ G] KB_ROWS                          028E
+[ G] KB_STATE                         0298
+[ G] KB_WAKE                          028D
+[ G] KB_WORK                          029A
+[ G] kc_cancel                        BBF7
+[ G] kc_candidate                     BBAD
+[ G] kc_done                          BBAC
+[ G] kc_duplicate                     BBD4
+[ G] kc_find                          BBB3
+[ G] kc_find_next                     BBC4
+[ G] kc_held                          BB8C
+[ G] kc_reject                        BBF1
+[ G] kc_release                       BB88
+[ G] kc_state                         BBA4
+[ G] kc_unique                        BBD0
+[ G] kc_unique_next                   BBDF
+[ G] key_bits                         BB57
+[ G] key_capture                      BB78
+[ G] key_char                         BD2C
+[ G] key_defaults                     BA48
+[ G] key_down                         BB5F
+[ G] key_init                         BA11
+[ G] key_label_records                BD69
+[ G] key_name                         BD02
+[ G] key_name_0                       BDC6
+[ G] key_name_1                       BDC9
+[ G] key_name_10                      BE16
+[ G] key_name_11                      BE1D
+[ G] key_name_12                      BE23
+[ G] key_name_13                      BE29
+[ G] key_name_14                      BE2F
+[ G] key_name_15                      BE35
+[ G] key_name_16                      BE39
+[ G] key_name_17                      BE41
+[ G] key_name_18                      BE44
+[ G] key_name_19                      BE47
+[ G] key_name_2                       BDD2
+[ G] key_name_3                       BDDD
+[ G] key_name_4                       BDE8
+[ G] key_name_5                       BDF4
+[ G] key_name_6                       BDFA
+[ G] key_name_7                       BE00
+[ G] key_name_8                       BE0A
+[ G] key_name_9                       BE10
+[ G] key_name_codes                   BE4D
+[ G] key_names                        BD9E
+[ G] key_paint                        BC49
+[ G] key_painted_select               BE8D
+[ G] key_runtime_end                  BE91
+[ G] key_scan                         BA4D
+[ G] key_service                      BA00
+[ G] key_single                       BE90
+[ G] key_text                         BD23
+[ G] key_tick                         BBFF
+[ G] key_value_destinations           BD94
+[ G] key_waiting                      BCEE
+[ G] ki_copy                          BA1A
+[ G] ki_wake_rows                     BA37
+[ G] kn_named                         BD16
+[ G] kp_cached                        BC59
+[ G] kp_clear                         BCA4
+[ G] kp_draw                          BC8E
+[ G] kp_label                         BC62
+[ G] kp_name                          BCCA
+[ G] kp_next                          BCD9
+[ G] kp_unselected                    BC74
+[ G] kp_value_done                    BCD7
+[ G] ks_action                        BAF5
+[ G] ks_column                        BA52
+[ G] ks_done                          BB50
+[ G] ks_edges                         BB09
+[ G] ks_global                        BB2C
+[ G] ks_local                         BB3E
+[ G] ks_menu                          BB30
+[ G] ks_menu_back                     BADB
+[ G] ks_menu_down                     BA9F
+[ G] ks_menu_enter                    BACC
+[ G] ks_menu_left                     BAAE
+[ G] ks_menu_right                    BABD
+[ G] ks_menu_sampled                  BAEA
+[ G] ks_next                          BB04
+[ G] ks_wake_next                     BA72
+[ G] kt_arrow                         BC1D
+[ G] kt_back                          BC46
+[ G] kt_done                          BC45
+[ G] kt_down                          BC35
+[ G] kt_redraw                        BC41
+[ G] kw_done                          BD01
+[ G] kw_no                            BCFD
+[ G] kw_yes                           BD00
+[ G] mark_gate_enemy_overlap          D16A
+[ G] maze_gate_owner                  F33A
+[ G] maze_gates                       F57A
+[ G] maze_nav                         F0FA
+[ G] object_masks                     EBBA
+[ G] perimeter_box_coordinates        C9ED
+[ G] PRES_HIGHSCORE_FB_FINISH         05E5
+[ G] PRES_HIGHSCORE_FB_PREPARE        037C
+[ G] PRES_MAIN_BLIT_TILE              D5CB
+[ G] PRES_MAIN_CAN_MOVE               CD32
+[ G] PRES_MAIN_DEATH                  D305
+[ G] PRES_MAIN_DYNAMIC_TEXT           FC7E
+[ G] PRES_MAIN_ENEMY                  D503
+[ G] PRES_MAIN_ENEMY_TICK             D506
+[ G] PRES_MAIN_ENTITIES               C5AA
+[ G] PRES_MAIN_FB_CAPTURE             0E5A
+[ G] PRES_MAIN_FB_FINISH              0E49
+[ G] PRES_MAIN_FB_PREPARE             0DDF
+[ G] PRES_MAIN_FB_PUBLISH             0E4F
+[ G] PRES_MAIN_GATES                  CA86
+[ G] PRES_MAIN_INIT                   C23C
+[ G] PRES_MAIN_INSTALL_PHASE_TILES    DF0D
+[ G] PRES_MAIN_KEY_SERVICE            DF42
+[ G] PRES_MAIN_MAP_STREAM_OFFSETS     F5C8
+[ G] PRES_MAIN_MAZE                   C597
+[ G] PRES_MAIN_NAME_LATE_TURN         DF55
+[ G] PRES_MAIN_NEXT_STAGE             C296
+[ G] PRES_MAIN_PAGE24_RESUME          DF39
+[ G] PRES_MAIN_PLAYER                 CAC6
+[ G] PRES_MAIN_PLAYER_TICK            CB89
+[ G] PRES_MAIN_READ_JOY               CAE3
+[ G] PRES_MAIN_READ_STAGE_LETTERS     DF26
+[ G] PRES_MAIN_RENDER                 D4D9
+[ G] PRES_MAIN_RESTORE_PLAYER         D585
+[ G] PRES_MAIN_SAVE_PLAYER            D55C
+[ G] PRES_MAIN_SCAN_BITS              F5E6
+[ G] PRES_MAIN_SCAN_DRIVES            F5E3
+[ G] PRES_MAIN_SCREEN_MODES           F5DA
+[ G] PRES_MAIN_SHARED_MASK            FBBC
+[ G] PRES_MAIN_STATIC_TEXT            FBA3
+[ G] PRES_MAIN_TOP_HUD                FCAF
+[ G] PRES_MODULE_COLD_PTR             1B7E
+[ G] PRES_MODULE_COLOUR_SURFACE       1D4A
+[ G] PRES_MODULE_COLOUR_TILE          1D24
+[ G] PRES_MODULE_DRAW_ACTOR           1D07
+[ G] PRES_MODULE_DRAW_RAW_TILE        1B77
+[ G] PRES_MODULE_DRAW_SCORE           1D8A
+[ G] PRES_MODULE_DRAW_TILE            FC7E
+[ G] PRES_MODULE_MAP_BACK             1BA3
+[ G] PRES_MODULE_START_SCREEN         19C8
+[ G] PRES_RANKING_SLICE               0561
+[ G] PRESENTATION_ATTRACT_BUNDLE_ADDRESS B720
+[ G] PRESENTATION_ATTRACT_BUNDLE_PAGE 003B
+[ G] PRESENTATION_ATTRACT_DESTINATION_ADDRESS BE00
+[ G] PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS BE28
+[ G] PRESENTATION_ATTRACT_SURFACE_ADDRESS A000
+[ G] PRESENTATION_ATTRACT_SURFACE_BYTES 1E00
+[ G] PRESENTATION_ATTRACT_SURFACE_PAGE 003C
+[ G] PRESENTATION_COLD_ONLY_TILE_COUNT 0089
+[ G] PRESENTATION_COLD_PAGE           003A
+[ G] PRESENTATION_COLD_PAGE_COUNT     0004
+[ G] PRESENTATION_COLD_SIZE           3720
+[ G] PRESENTATION_DEMO_ROUTE_ACTIONS  008F
+[ G] PRESENTATION_DEMO_ROUTE_OFFSET   2A1A
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_BYTES 0024
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_OFFSET 1120
+[ G] PRESENTATION_GAMEPLAY_TILE_BASE  0089
+[ G] PRESENTATION_GLYPH_0             002A
+[ G] PRESENTATION_GLYPH_1             0052
+[ G] PRESENTATION_GLYPH_10            0058
+[ G] PRESENTATION_GLYPH_11            005D
+[ G] PRESENTATION_GLYPH_12            0029
+[ G] PRESENTATION_GLYPH_13            00A4
+[ G] PRESENTATION_GLYPH_14            005B
+[ G] PRESENTATION_GLYPH_15            006D
+[ G] PRESENTATION_GLYPH_16            005E
+[ G] PRESENTATION_GLYPH_17            005A
+[ G] PRESENTATION_GLYPH_18            0024
+[ G] PRESENTATION_GLYPH_19            006E
+[ G] PRESENTATION_GLYPH_2             00A3
+[ G] PRESENTATION_GLYPH_20            006F
+[ G] PRESENTATION_GLYPH_21            005C
+[ G] PRESENTATION_GLYPH_22            0070
+[ G] PRESENTATION_GLYPH_23            009D
+[ G] PRESENTATION_GLYPH_24            002A
+[ G] PRESENTATION_GLYPH_25            0053
+[ G] PRESENTATION_GLYPH_26            0071
+[ G] PRESENTATION_GLYPH_27            0027
+[ G] PRESENTATION_GLYPH_28            0025
+[ G] PRESENTATION_GLYPH_29            0026
+[ G] PRESENTATION_GLYPH_3             0061
+[ G] PRESENTATION_GLYPH_30            0028
+[ G] PRESENTATION_GLYPH_31            0072
+[ G] PRESENTATION_GLYPH_32            0073
+[ G] PRESENTATION_GLYPH_33            0074
+[ G] PRESENTATION_GLYPH_34            0059
+[ G] PRESENTATION_GLYPH_35            0075
+[ G] PRESENTATION_GLYPH_36            0078
+[ G] PRESENTATION_GLYPH_4             0063
+[ G] PRESENTATION_GLYPH_5             0065
+[ G] PRESENTATION_GLYPH_6             0064
+[ G] PRESENTATION_GLYPH_7             0062
+[ G] PRESENTATION_GLYPH_8             0060
+[ G] PRESENTATION_GLYPH_9             005F
+[ G] PRESENTATION_HIGHSCORE_BASE      AF84
+[ G] PRESENTATION_HIGHSCORE_COUNT     0009
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 005C
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 0058
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 00A4
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 0059
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 005D
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 0028
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 005E
+[ G] PRESENTATION_HIGHSCORE_DISPLAY_ROWS 0009
+[ G] PRESENTATION_HIGHSCORE_ENTRY_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_NAME_BYTES 0007
+[ G] PRESENTATION_HIGHSCORE_RANK_01_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_RANK_02_NAME_DST 3E3C
+[ G] PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST 3E60
+[ G] PRESENTATION_HIGHSCORE_RANK_03_NAME_DST 433C
+[ G] PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST 4360
+[ G] PRESENTATION_HIGHSCORE_RANK_04_NAME_DST 483C
+[ G] PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST 4860
+[ G] PRESENTATION_HIGHSCORE_RANK_05_NAME_DST 4D3C
+[ G] PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST 4D60
+[ G] PRESENTATION_HIGHSCORE_RANK_06_NAME_DST 523C
+[ G] PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST 5260
+[ G] PRESENTATION_HIGHSCORE_RANK_07_NAME_DST 573C
+[ G] PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST 5760
+[ G] PRESENTATION_HIGHSCORE_RANK_08_NAME_DST 5C3C
+[ G] PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST 5C60
+[ G] PRESENTATION_HIGHSCORE_RANK_09_NAME_DST 613C
+[ G] PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST 6160
+[ G] PRESENTATION_HIGHSCORE_RECORD_BYTES 000A
+[ G] PRESENTATION_HIGHSCORE_ROW_STRIDE 0500
+[ G] PRESENTATION_HIGHSCORE_SCORE_BYTES 0003
+[ G] PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA 0024
+[ G] PRESENTATION_HIGHSCORE_TOP_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_TOP_SCORE_DST 3460
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_0 4328
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_1 5228
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_2 6128
+[ G] PRESENTATION_INSTRUCTION_ANGEL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_ANGEL_TICK 0667
+[ G] PRESENTATION_INSTRUCTION_BLACK_TILE 0089
+[ G] PRESENTATION_INSTRUCTION_COIN_0  007E
+[ G] PRESENTATION_INSTRUCTION_COIN_1  007F
+[ G] PRESENTATION_INSTRUCTION_COIN_2  0080
+[ G] PRESENTATION_INSTRUCTION_COIN_3  0081
+[ G] PRESENTATION_INSTRUCTION_COIN_DST 5270
+[ G] PRESENTATION_INSTRUCTION_COLOUR_DWELL 0020
+[ G] PRESENTATION_INSTRUCTION_COLOUR_POINTERS 20C0
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_DST 2A84
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_STREAM 24EE
+[ G] PRESENTATION_INSTRUCTION_DEATH_COUNT 000F
+[ G] PRESENTATION_INSTRUCTION_DEATH_POINTERS 253F
+[ G] PRESENTATION_INSTRUCTION_DEATH_TICK 0608
+[ G] PRESENTATION_INSTRUCTION_EVENT_BYTES 000C
+[ G] PRESENTATION_INSTRUCTION_EVENT_COUNT 0010
+[ G] PRESENTATION_INSTRUCTION_EVENT_OFFSET 2000
+[ G] PRESENTATION_INSTRUCTION_EXTRA_SPAN 4334
+[ G] PRESENTATION_INSTRUCTION_HEART_SPAN 6134
+[ G] PRESENTATION_INSTRUCTION_ICON_SPAN 7F34
+[ G] PRESENTATION_INSTRUCTION_LIFE_0  00A9
+[ G] PRESENTATION_INSTRUCTION_LIFE_1  00AA
+[ G] PRESENTATION_INSTRUCTION_LIFE_2  00AB
+[ G] PRESENTATION_INSTRUCTION_LIFE_3  00AC
+[ G] PRESENTATION_INSTRUCTION_LIFE_DST 4370
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_0 756C
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_1 846C
+[ G] PRESENTATION_INSTRUCTION_NEXT_TICK 06A8
+[ G] PRESENTATION_INSTRUCTION_SKULL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_SPECIAL_SPAN 5234
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_0 0052
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_DST 8440
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_0 0060
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 0061
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 002A
+[ G] PRESENTATION_INSTRUCTION_X2_0    002B
+[ G] PRESENTATION_INSTRUCTION_X2_1    002C
+[ G] PRESENTATION_INSTRUCTION_X3_0    002B
+[ G] PRESENTATION_INSTRUCTION_X3_1    002D
+[ G] PRESENTATION_INSTRUCTION_X5_0    002B
+[ G] PRESENTATION_INSTRUCTION_X5_1    002E
+[ G] PRESENTATION_MAP_ATTRACT         0000
+[ G] PRESENTATION_MAP_BYTES           03C0
+[ G] PRESENTATION_MAP_COUNT           0009
+[ G] PRESENTATION_MAP_CREDITS         0007
+[ G] PRESENTATION_MAP_ENTER_HIGH_SCORE 0005
+[ G] PRESENTATION_MAP_GAME_OVER       0004
+[ G] PRESENTATION_MAP_HIGH_SCORE      0003
+[ G] PRESENTATION_MAP_INSTRUCTIONS    0001
+[ G] PRESENTATION_MAP_KEYBIND_OPTIONS 0008
+[ G] PRESENTATION_MAP_LEVEL_START     0002
+[ G] PRESENTATION_MAP_OPTIONS         0006
+[ G] PRESENTATION_MAP_OUTPUT_OFFSET   4000
+[ G] PRESENTATION_MAP_STREAM_0        0F20
+[ G] PRESENTATION_MAP_STREAM_0_BYTES  00F9
+[ G] PRESENTATION_MAP_STREAM_1        1019
+[ G] PRESENTATION_MAP_STREAM_1_BYTES  029D
+[ G] PRESENTATION_MAP_STREAM_2        12B6
+[ G] PRESENTATION_MAP_STREAM_2_BYTES  01E6
+[ G] PRESENTATION_MAP_STREAM_3        149C
+[ G] PRESENTATION_MAP_STREAM_3_BYTES  0254
+[ G] PRESENTATION_MAP_STREAM_4        16F0
+[ G] PRESENTATION_MAP_STREAM_4_BYTES  00B9
+[ G] PRESENTATION_MAP_STREAM_5        17A9
+[ G] PRESENTATION_MAP_STREAM_5_BYTES  03A4
+[ G] PRESENTATION_MAP_STREAM_6        1B4D
+[ G] PRESENTATION_MAP_STREAM_6_BYTES  0096
+[ G] PRESENTATION_MAP_STREAM_7        1BE3
+[ G] PRESENTATION_MAP_STREAM_7_BYTES  0128
+[ G] PRESENTATION_MAP_STREAM_8        1D0B
+[ G] PRESENTATION_MAP_STREAM_8_BYTES  010E
+[ G] PRESENTATION_NAME_ENTRY_ACTION_BYTES 0087
+[ G] PRESENTATION_NAME_ENTRY_ACTION_TABLE 2F87
+[ G] PRESENTATION_NAME_ENTRY_BLACK_TILE 0089
+[ G] PRESENTATION_NAME_ENTRY_CL_COUNT 0003
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_BYTES 0081
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_CODE 0005
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_DST 894C
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_OFFSET 2999
+[ G] PRESENTATION_NAME_ENTRY_DATA     0000
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES 002D
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE 2D1A
+[ G] PRESENTATION_NAME_ENTRY_END_COUNT 0001
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES 0240
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE 2D47
+[ G] PRESENTATION_NAME_ENTRY_GRID_CELLS 0000
+[ G] PRESENTATION_NAME_ENTRY_GRID_COUNT 0026
+[ G] PRESENTATION_NAME_ENTRY_GRID_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_NAME_DST 7F04
+[ G] PRESENTATION_NAME_ENTRY_NODE_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_SCORE_DST 2A84
+[ G] PRESENTATION_NAME_ENTRY_TIMER_COUNT 005C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_FRAMES 003C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES 0004
+[ G] PRESENTATION_NAME_ENTRY_TIMER_TABLE 2BAA
+[ G] PRESENTATION_NAME_ENTRY_TOP_DST  6104
+[ G] PRESENTATION_NAME_ENTRY_TOP_NAME_DST 5C84
+[ G] PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST 3E84
+[ G] PRESENTATION_PART_VEGETABLE_DST  2A84
+[ G] PRESENTATION_PHASE_TILE_OVERLAY_ENABLED 0001
+[ G] PRESENTATION_PHASE_TILE_SLOT_0   002B
+[ G] PRESENTATION_PHASE_TILE_SLOT_1   002F
+[ G] PRESENTATION_STAGE_PANEL_ENABLED 0001
+[ G] PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_EXPANDED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_OFFSET   0000
+[ G] PRESENTATION_TILE_ATLAS_SOURCE_OFFSET 0000
+[ G] PRESENTATION_TILE_BYTES          0020
+[ G] PRESENTATION_TILE_COUNT          00AD
+[ G] PRESENTATION_TILE_OFFSET         0000
+[ G] reload_enemy_box_timer           D668
+[ G] render_entity_colour             C7CC
+[ G] repair_settled_entity_gates      CE8B
+[ G] reset_enemy_state                D625
+[ G] restore_entity_footprint         D413
+[ G] restore_gate_diagonal_dots       D01B
+[ G] restore_player                   D585
+[ G] save_player                      D55C
+[ G] SHARED_TEXT_BASE                 00AE
+[ G] sprite_attr0_pairs               FD02
+[ G] sprite_blue_pairs                FD32
+[ G] stage_source_glyphs              BD3C
+[ G] sync_entity_cache_colour         C72A
+[ G] vegetable_sprites                DA8D

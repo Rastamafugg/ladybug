@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RSCH-019 — Controlled TOP overtake test setup — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="../backlog/index.html">Backlog</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Ticket · research</p>
+      <h1>RSCH-019 — Controlled TOP overtake test setup <span class="wiki-badge">internal</span></h1>
+      <p class="wiki-meta">Deferred backlog item · find a practical way to check that live score does not replace the table leader shown as TOP.</p>
+    </header>
+
+    <section id="metadata">
+      <h2>Status and relationships</h2>
+      <ul>
+        <li><strong>Status:</strong> Deferred; no research execution, build, test, or game session is authorized by this intake.</li>
+        <li><strong>Created / updated:</strong> 2026-11-17 / 2026-11-17.</li>
+        <li><strong>Priority / order:</strong> unassigned; schedule only when a future TOP verification needs this case.</li>
+        <li><strong>Source and related work:</strong> <a href="./bug-044-top-score-authority.html">BUG-044</a> defines TOP as the first ranked table record; <a href="./feat-012-feat010-acceptance-closeout.html">FEAT-012</a> and <a href="./feat-013-shared-hud-fields.html">FEAT-013</a> reference the HUD check.</li>
+        <li><strong>Owner:</strong> unassigned.</li>
+        <li><strong>Dependencies:</strong> none for backlog placement. A future test card needs a pinned profile/artifact, a controlled and legal setup, an independent expected result, and DOC-014 approval before execution.</li>
+      </ul>
+    </section>
+
+    <section id="research-brief">
+      <h2>Research brief</h2>
+      <h3>Objective and motivation</h3>
+      <p>Design a repeatable, source-legal setup that reaches a live gameplay score above the current first-ranked high-score record while leaving the table itself unchanged. The check should show TOP still comes from that first record. The user reports that naturally scoring past the current leader would require roughly 100,000 points and is too time-consuming for the current stage. This missing test setup must not block the FEAT-012 baseline.</p>
+      <h3>Evidence and baseline</h3>
+      <p>BUG-044 is Done and states that TOP remains the highest-ranked committed table record until an eligible name-entry result is committed. Its accepted ROM is historical; the current complete-profile baseline is source commit <code>3f1277de302e18ad319ba9986a4aa62c9c4caffe</code>, repaired keyboard/adaptive ROM SHA-256 <code>9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d</code>. No overtake observation is claimed on that ROM. The 100,000-point figure is the user's estimate of the natural-play burden, not a measured target.</p>
+      <h3>Scope</h3>
+      <p><strong>In:</strong> read-only review of existing score/table initialization, legal play progression, and any existing supported fixture path; recommend the smallest controlled way to set up the live-score-above-TOP case and its expected visible result.</p>
+      <p><strong>Out:</strong> changing score awards, ranking rules, TOP ownership, or game balance; extending the Options level selector to 255; guest-memory or PAR writes, GDB mutation, injected input, build, emulator launch, or runtime experiment; implementing the proposed setup; changing the current FEAT-012 acceptance target.</p>
+      <h3>Scenarios and edge cases</h3>
+      <ul>
+        <li>Live score below and above table row one: TOP name and score remain the values in row one while current score changes independently.</li>
+        <li>Table state changes only through the existing accepted record/name-entry path; this task does not redefine the separate row-one, lower-ranked, and no-commit outcomes in FEAT-013.</li>
+        <li>If no safe, repeatable setup exists without changing production behavior or writing guest state, document that result and leave the test deferred.</li>
+      </ul>
+      <h3>Options and recommendation</h3>
+      <p>Ordinary play preserves a natural route but is too costly for the current manual stage. The recommended research is to inspect existing source-legal fixtures or initialization seams and propose one bounded setup with a clear row-one oracle. Do not use arbitrary memory writes or random play to force the rare score.</p>
+      <h3>Acceptance criteria</h3>
+      <ul>
+        <li>Identify a controlled setup tied to a named source revision, profile, and artifact or fixture.</li>
+        <li>State how expected TOP is independently read from committed table row one, and give a negative control where the live score is below or equal to TOP.</li>
+        <li>Keep the shipped scoring and ranking behavior unchanged; if no compliant setup is found, report that and leave the scenario deferred.</li>
+      </ul>
+    </section>
+
+    <section id="assignment-contract">
+      <h2>Assignment and verification boundary</h2>
+      <p>This ticket remains Deferred and is not Ready. No executor, worktree, commands, game run, build, source edit, or test card is assigned. When activated, prepare a bounded read-only assignment and an approved DOC-014 card before any gate runs. Any future forced setup must name all controlled state and preserve natural gameplay evidence as separate coverage; a fixed seed alone is insufficient.</p>
+      <p>Verification for this intake is documentation review only: confirm the ticket is linked from the backlog index, existing BUG-044 remains the owner of the approved TOP rule, and FEAT-012 does not depend on this deferred setup. No product assertion or runtime result is claimed.</p>
+    </section>
+
+    <section id="decision-log">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-17 — User directed that the live-score-over-TOP check not block the current HUD work and be tracked as a backlog task. The user also clarified that PART 100 is the level display check, PART 255 is outside the current stage, and the Options selector caps at 99. The deferred task covers test setup only; no game behavior or score rules change.</li>
+      </ul>
+    </section>
+
+    <section id="completion-evidence">
+      <h2>Completion evidence</h2>
+      <p>Intake recorded as Deferred. No research run, build, test, emulator launch, or implementation has occurred.</p>
+    </section>
+
+    <footer class="wiki-footer">
+      <p>Canonical deferred research item. See <a href="./bug-044-top-score-authority.html">BUG-044</a> for the existing TOP ownership decision.</p>
+    </footer>
+  </main>
+</div>
+</body>
+</html>

@@ -1,0 +1,1814 @@
+                      (ruction_runtime.s):00001         ; DOC-002 source-contract mirror contract recolour_x profile=presentation: Recolour x.
+                      (ruction_runtime.s):00002                 include "ladybug_shared_mode.inc"
+     0001             (g_shared_mode.inc):00001         SHARED_TEXT_ENABLED equ 1
+     B083             (g_shared_mode.inc):00002         PRES_STAGE_SLICE equ $B083
+     B086             (g_shared_mode.inc):00003         MENU_SCAN equ $B086
+     B089             (g_shared_mode.inc):00004         MENU_TICK equ $B089
+                      (ruction_runtime.s):00003                 ifne SHARED_TEXT_ENABLED
+                      (ruction_runtime.s):00004         ; BUG-011 development instruction choreography.  The GMC loader stages this
+                      (ruction_runtime.s):00005         ; image behind the attract bundle in physical page $24; presentation startup
+                      (ruction_runtime.s):00006         ; copies it into boot-only RAM.
+                      (ruction_runtime.s):00007         ; DOC-002 source-contract mirror begins. Canonical definitions:
+                      (ruction_runtime.s):00008         ; wiki/internal/implementation/routine-catalog.html
+                      (ruction_runtime.s):00009         ; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+                      (ruction_runtime.s):00010         ; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+                      (ruction_runtime.s):00011         ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00012         ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+                      (ruction_runtime.s):00013         ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+                      (ruction_runtime.s):00014         ; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+                      (ruction_runtime.s):00015         ; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
+                      (ruction_runtime.s):00016         ; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+                      (ruction_runtime.s):00017         ; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+                      (ruction_runtime.s):00018         ; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00019         ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+                      (ruction_runtime.s):00020         ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+                      (ruction_runtime.s):00021         ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+                      (ruction_runtime.s):00022         ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
+                      (ruction_runtime.s):00023         ; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+                      (ruction_runtime.s):00024         ; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+                      (ruction_runtime.s):00025         ; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00026         ; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+                      (ruction_runtime.s):00027         ; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+                      (ruction_runtime.s):00028         ; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+                      (ruction_runtime.s):00029         ; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+                      (ruction_runtime.s):00030         ; DOC-002 source-contract mirror contract apply_persistent_state profile=presentation: Apply persistent state.
+                      (ruction_runtime.s):00031         ; DOC-002 source-contract mirror contract clear_target profile=render: Clear target.
+                      (ruction_runtime.s):00032         ; DOC-002 source-contract mirror contract clear_target_x profile=render: Clear target x.
+                      (ruction_runtime.s):00033         ; DOC-002 source-contract mirror contract draw_coin_reward profile=render: Draw coin reward.
+                      (ruction_runtime.s):00034         ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
+                      (ruction_runtime.s):00035         ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
+                      (ruction_runtime.s):00036         ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
+                      (ruction_runtime.s):00037         ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
+                      (ruction_runtime.s):00038         ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
+                      (ruction_runtime.s):00039         ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
+                      (ruction_runtime.s):00040         ; DOC-002 source-contract mirror contract present_death profile=presentation: Apply the development instruction death-presentation event.
+                      (ruction_runtime.s):00041         ; DOC-002 source-contract mirror contract present_player profile=presentation: Apply the development instruction player-presentation event.
+                      (ruction_runtime.s):00042         ; DOC-002 source-contract mirror contract recolour_collectibles profile=render: Recolour collectibles.
+                      (ruction_runtime.s):00043         ; DOC-002 source-contract mirror contract recolour_target profile=render: Recolour target.
+                      (ruction_runtime.s):00044         ; DOC-002 source-contract mirror contract restore_actor profile=render: Restore actor.
+                      (ruction_runtime.s):00045         ; DOC-002 source-contract mirror contract store_owner_state profile=presentation: Store owner state.
+                      (ruction_runtime.s):00046         ; DOC-002 source-contract mirror contract sync_persistent_state profile=presentation: Synchronize persistent state.
+                      (ruction_runtime.s):00047         ; DOC-002 source-contract mirror ends.
+                      (ruction_runtime.s):00048                 pragma  nodollarlocal,6809
+     00               (ruction_runtime.s):00049                 setdp   $00
+                      (ruction_runtime.s):00050                 include "ladybug_presentation.inc"
+                      (_presentation.inc):00001         ; Generated by scripts/build_presentation.py; do not edit.
+     0009             (_presentation.inc):00002         PRESENTATION_MAP_COUNT equ 9
+     03C0             (_presentation.inc):00003         PRESENTATION_MAP_BYTES equ 960
+     0001             (_presentation.inc):00004         PRESENTATION_STAGE_PANEL_ENABLED equ 1
+     0020             (_presentation.inc):00005         PRESENTATION_TILE_BYTES equ 32
+     00AD             (_presentation.inc):00006         PRESENTATION_TILE_COUNT equ 173
+     003A             (_presentation.inc):00007         PRESENTATION_COLD_PAGE equ $3A
+     0004             (_presentation.inc):00008         PRESENTATION_COLD_PAGE_COUNT equ 4
+     3720             (_presentation.inc):00009         PRESENTATION_COLD_SIZE equ 14112
+     0000             (_presentation.inc):00010         PRESENTATION_TILE_ATLAS_OFFSET equ 0
+     0000             (_presentation.inc):00011         PRESENTATION_TILE_OFFSET equ 0
+     0000             (_presentation.inc):00012         PRESENTATION_TILE_ATLAS_SOURCE_OFFSET equ 0
+     1120             (_presentation.inc):00013         PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES equ 4384
+     1120             (_presentation.inc):00014         PRESENTATION_TILE_ATLAS_EXPANDED_BYTES equ 4384
+     0089             (_presentation.inc):00015         PRESENTATION_COLD_ONLY_TILE_COUNT equ 137
+     0089             (_presentation.inc):00016         PRESENTATION_GAMEPLAY_TILE_BASE equ 137
+     1120             (_presentation.inc):00017         PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ 4384
+     0024             (_presentation.inc):00018         PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ 36
+     0001             (_presentation.inc):00019         PRESENTATION_PHASE_TILE_OVERLAY_ENABLED equ 1
+     002B             (_presentation.inc):00020         PRESENTATION_PHASE_TILE_SLOT_0 equ 43
+     002F             (_presentation.inc):00021         PRESENTATION_PHASE_TILE_SLOT_1 equ 47
+     003C             (_presentation.inc):00022         PRESENTATION_ATTRACT_SURFACE_PAGE equ $3C
+     A000             (_presentation.inc):00023         PRESENTATION_ATTRACT_SURFACE_ADDRESS equ $A000
+     1E00             (_presentation.inc):00024         PRESENTATION_ATTRACT_SURFACE_BYTES equ 7680
+     BE00             (_presentation.inc):00025         PRESENTATION_ATTRACT_DESTINATION_ADDRESS equ $BE00
+     BE28             (_presentation.inc):00026         PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS equ $BE28
+     4000             (_presentation.inc):00027         PRESENTATION_MAP_OUTPUT_OFFSET equ $4000
+                      (_presentation.inc):00028         
+     0000             (_presentation.inc):00029         PRESENTATION_MAP_ATTRACT equ 0
+     0001             (_presentation.inc):00030         PRESENTATION_MAP_INSTRUCTIONS equ 1
+     0002             (_presentation.inc):00031         PRESENTATION_MAP_LEVEL_START equ 2
+     0003             (_presentation.inc):00032         PRESENTATION_MAP_HIGH_SCORE equ 3
+     0004             (_presentation.inc):00033         PRESENTATION_MAP_GAME_OVER equ 4
+     0005             (_presentation.inc):00034         PRESENTATION_MAP_ENTER_HIGH_SCORE equ 5
+     0006             (_presentation.inc):00035         PRESENTATION_MAP_OPTIONS equ 6
+     0007             (_presentation.inc):00036         PRESENTATION_MAP_CREDITS equ 7
+     0008             (_presentation.inc):00037         PRESENTATION_MAP_KEYBIND_OPTIONS equ 8
+                      (_presentation.inc):00038         
+                      (_presentation.inc):00039         ; Compressed map stream offsets and lengths in the cold payload.
+     0F20             (_presentation.inc):00040         PRESENTATION_MAP_STREAM_0 equ $0F20
+     00F9             (_presentation.inc):00041         PRESENTATION_MAP_STREAM_0_BYTES equ 249
+     1019             (_presentation.inc):00042         PRESENTATION_MAP_STREAM_1 equ $1019
+     029D             (_presentation.inc):00043         PRESENTATION_MAP_STREAM_1_BYTES equ 669
+     12B6             (_presentation.inc):00044         PRESENTATION_MAP_STREAM_2 equ $12B6
+     01E6             (_presentation.inc):00045         PRESENTATION_MAP_STREAM_2_BYTES equ 486
+     149C             (_presentation.inc):00046         PRESENTATION_MAP_STREAM_3 equ $149C
+     0254             (_presentation.inc):00047         PRESENTATION_MAP_STREAM_3_BYTES equ 596
+     16F0             (_presentation.inc):00048         PRESENTATION_MAP_STREAM_4 equ $16F0
+     00B9             (_presentation.inc):00049         PRESENTATION_MAP_STREAM_4_BYTES equ 185
+     17A9             (_presentation.inc):00050         PRESENTATION_MAP_STREAM_5 equ $17A9
+     03A4             (_presentation.inc):00051         PRESENTATION_MAP_STREAM_5_BYTES equ 932
+     1B4D             (_presentation.inc):00052         PRESENTATION_MAP_STREAM_6 equ $1B4D
+     0096             (_presentation.inc):00053         PRESENTATION_MAP_STREAM_6_BYTES equ 150
+     1BE3             (_presentation.inc):00054         PRESENTATION_MAP_STREAM_7 equ $1BE3
+     0128             (_presentation.inc):00055         PRESENTATION_MAP_STREAM_7_BYTES equ 296
+     1D0B             (_presentation.inc):00056         PRESENTATION_MAP_STREAM_8 equ $1D0B
+     010E             (_presentation.inc):00057         PRESENTATION_MAP_STREAM_8_BYTES equ 270
+                      (_presentation.inc):00058         
+                      (_presentation.inc):00059         ; BUG-012 arcade-derived demo direction stream.
+     2A1A             (_presentation.inc):00060         PRESENTATION_DEMO_ROUTE_OFFSET equ $2A1A
+     008F             (_presentation.inc):00061         PRESENTATION_DEMO_ROUTE_ACTIONS equ 143
+                      (_presentation.inc):00062         
+                      (_presentation.inc):00063         ; BUG-011 semantic instruction choreography.
+     2000             (_presentation.inc):00064         PRESENTATION_INSTRUCTION_EVENT_OFFSET equ $2000
+     000C             (_presentation.inc):00065         PRESENTATION_INSTRUCTION_EVENT_BYTES equ 12
+     0010             (_presentation.inc):00066         PRESENTATION_INSTRUCTION_EVENT_COUNT equ 16
+     20C0             (_presentation.inc):00067         PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ $20C0
+     24EE             (_presentation.inc):00068         PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ $24EE
+     2A84             (_presentation.inc):00069         PRESENTATION_INSTRUCTION_CUCUMBER_DST equ $2A84
+     2A84             (_presentation.inc):00070         PRESENTATION_PART_VEGETABLE_DST equ $2A84
+     253F             (_presentation.inc):00071         PRESENTATION_INSTRUCTION_DEATH_POINTERS equ $253F
+     000F             (_presentation.inc):00072         PRESENTATION_INSTRUCTION_DEATH_COUNT equ 15
+     0608             (_presentation.inc):00073         PRESENTATION_INSTRUCTION_DEATH_TICK equ 1544
+     0667             (_presentation.inc):00074         PRESENTATION_INSTRUCTION_ANGEL_TICK equ 1639
+     6170             (_presentation.inc):00075         PRESENTATION_INSTRUCTION_ANGEL_DST equ $6170
+     6170             (_presentation.inc):00076         PRESENTATION_INSTRUCTION_SKULL_DST equ $6170
+     06A8             (_presentation.inc):00077         PRESENTATION_INSTRUCTION_NEXT_TICK equ 1704
+     0020             (_presentation.inc):00078         PRESENTATION_INSTRUCTION_COLOUR_DWELL equ 32
+     0089             (_presentation.inc):00079         PRESENTATION_INSTRUCTION_BLACK_TILE equ 137
+     8440             (_presentation.inc):00080         PRESENTATION_INSTRUCTION_VALUE_DST equ $8440
+     4370             (_presentation.inc):00081         PRESENTATION_INSTRUCTION_LIFE_DST equ $4370
+     5270             (_presentation.inc):00082         PRESENTATION_INSTRUCTION_COIN_DST equ $5270
+     756C             (_presentation.inc):00083         PRESENTATION_INSTRUCTION_MULTIPLIER_0 equ $756C
+     846C             (_presentation.inc):00084         PRESENTATION_INSTRUCTION_MULTIPLIER_1 equ $846C
+     4334             (_presentation.inc):00085         PRESENTATION_INSTRUCTION_EXTRA_SPAN equ $4334
+     5234             (_presentation.inc):00086         PRESENTATION_INSTRUCTION_SPECIAL_SPAN equ $5234
+     6134             (_presentation.inc):00087         PRESENTATION_INSTRUCTION_HEART_SPAN equ $6134
+     7F34             (_presentation.inc):00088         PRESENTATION_INSTRUCTION_ICON_SPAN equ $7F34
+     4328             (_presentation.inc):00089         PRESENTATION_INSTRUCTION_ANCHOR_0 equ $4328
+     5228             (_presentation.inc):00090         PRESENTATION_INSTRUCTION_ANCHOR_1 equ $5228
+     6128             (_presentation.inc):00091         PRESENTATION_INSTRUCTION_ANCHOR_2 equ $6128
+     0060             (_presentation.inc):00092         PRESENTATION_INSTRUCTION_VALUE_RED_0 equ 96
+     002A             (_presentation.inc):00093         PRESENTATION_INSTRUCTION_VALUE_RED_1 equ 42
+     002A             (_presentation.inc):00094         PRESENTATION_INSTRUCTION_VALUE_RED_2 equ 42
+     0061             (_presentation.inc):00095         PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 equ 97
+     002A             (_presentation.inc):00096         PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 equ 42
+     002A             (_presentation.inc):00097         PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 equ 42
+     0052             (_presentation.inc):00098         PRESENTATION_INSTRUCTION_VALUE_BLUE_0 equ 82
+     002A             (_presentation.inc):00099         PRESENTATION_INSTRUCTION_VALUE_BLUE_1 equ 42
+     002A             (_presentation.inc):00100         PRESENTATION_INSTRUCTION_VALUE_BLUE_2 equ 42
+     00A9             (_presentation.inc):00101         PRESENTATION_INSTRUCTION_LIFE_0 equ 169
+     00AA             (_presentation.inc):00102         PRESENTATION_INSTRUCTION_LIFE_1 equ 170
+     00AB             (_presentation.inc):00103         PRESENTATION_INSTRUCTION_LIFE_2 equ 171
+     00AC             (_presentation.inc):00104         PRESENTATION_INSTRUCTION_LIFE_3 equ 172
+     007E             (_presentation.inc):00105         PRESENTATION_INSTRUCTION_COIN_0 equ 126
+     007F             (_presentation.inc):00106         PRESENTATION_INSTRUCTION_COIN_1 equ 127
+     0080             (_presentation.inc):00107         PRESENTATION_INSTRUCTION_COIN_2 equ 128
+     0081             (_presentation.inc):00108         PRESENTATION_INSTRUCTION_COIN_3 equ 129
+     002B             (_presentation.inc):00109         PRESENTATION_INSTRUCTION_X2_0 equ 43
+     002C             (_presentation.inc):00110         PRESENTATION_INSTRUCTION_X2_1 equ 44
+     002B             (_presentation.inc):00111         PRESENTATION_INSTRUCTION_X3_0 equ 43
+     002D             (_presentation.inc):00112         PRESENTATION_INSTRUCTION_X3_1 equ 45
+     002B             (_presentation.inc):00113         PRESENTATION_INSTRUCTION_X5_0 equ 43
+     002E             (_presentation.inc):00114         PRESENTATION_INSTRUCTION_X5_1 equ 46
+                      (_presentation.inc):00115         
+                      (_presentation.inc):00116         ; FEAT-003 authored high-score name-entry contract.
+     2999             (_presentation.inc):00117         PRESENTATION_NAME_ENTRY_CURSOR_OFFSET equ $2999
+     0081             (_presentation.inc):00118         PRESENTATION_NAME_ENTRY_CURSOR_BYTES equ 129
+     894C             (_presentation.inc):00119         PRESENTATION_NAME_ENTRY_CURSOR_DST equ $894C
+     0005             (_presentation.inc):00120         PRESENTATION_NAME_ENTRY_CURSOR_CODE equ 5
+     0026             (_presentation.inc):00121         PRESENTATION_NAME_ENTRY_GRID_COUNT equ 38
+     0003             (_presentation.inc):00122         PRESENTATION_NAME_ENTRY_CL_COUNT equ 3
+     0001             (_presentation.inc):00123         PRESENTATION_NAME_ENTRY_END_COUNT equ 1
+     7F04             (_presentation.inc):00124         PRESENTATION_NAME_ENTRY_NAME_DST equ $7F04
+     5C84             (_presentation.inc):00125         PRESENTATION_NAME_ENTRY_TOP_NAME_DST equ $5C84
+     2A84             (_presentation.inc):00126         PRESENTATION_NAME_ENTRY_SCORE_DST equ $2A84
+     6104             (_presentation.inc):00127         PRESENTATION_NAME_ENTRY_TOP_DST equ $6104
+     3E84             (_presentation.inc):00128         PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ $3E84
+     0089             (_presentation.inc):00129         PRESENTATION_NAME_ENTRY_BLACK_TILE equ 137
+     2BAA             (_presentation.inc):00130         PRESENTATION_NAME_ENTRY_TIMER_TABLE equ $2BAA
+     0004             (_presentation.inc):00131         PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES equ 4
+     003C             (_presentation.inc):00132         PRESENTATION_NAME_ENTRY_TIMER_FRAMES equ 60
+     005C             (_presentation.inc):00133         PRESENTATION_NAME_ENTRY_TIMER_COUNT equ 92
+     2D1A             (_presentation.inc):00134         PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ $2D1A
+     002D             (_presentation.inc):00135         PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ 45
+     2D47             (_presentation.inc):00136         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE equ $2D47
+     0240             (_presentation.inc):00137         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES equ 576
+     2F87             (_presentation.inc):00138         PRESENTATION_NAME_ENTRY_ACTION_TABLE equ $2F87
+     0087             (_presentation.inc):00139         PRESENTATION_NAME_ENTRY_ACTION_BYTES equ 135
+0000                  (_presentation.inc):00140         PRESENTATION_NAME_ENTRY_GRID_TILES
+0000                  (_presentation.inc):00141         PRESENTATION_NAME_ENTRY_GRID_CELLS
+0000                  (_presentation.inc):00142         PRESENTATION_NAME_ENTRY_NODE_TILES
+                      (_presentation.inc):00143                 ifne    PRESENTATION_NAME_ENTRY_DATA
+                      (_presentation.inc):00144                 fcb     $FE,$58,$5D,$29,$FE,$A4,$5B,$6D,$5E,$5A,$24,$6E,$6F,$5C,$70,$9D,$2A,$53,$71,$27,$25,$26,$28,$72,$73,$74,$59,$75,$52,$A3,$61,$63,$65,$64,$62,$60,$5F,$76,$77,$78,$FE,$79,$89,$7A,$FD
+0000                  (_presentation.inc):00145         PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS
+                      (_presentation.inc):00146                 endc
+     005C             (_presentation.inc):00147         PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 equ $5C
+     0058             (_presentation.inc):00148         PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 equ $58
+     00A4             (_presentation.inc):00149         PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 equ $A4
+     0059             (_presentation.inc):00150         PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 equ $59
+     005D             (_presentation.inc):00151         PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 equ $5D
+     0028             (_presentation.inc):00152         PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 equ $28
+     005E             (_presentation.inc):00153         PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 equ $5E
+     002A             (_presentation.inc):00154         PRESENTATION_GLYPH_0 equ 42
+     0052             (_presentation.inc):00155         PRESENTATION_GLYPH_1 equ 82
+     00A3             (_presentation.inc):00156         PRESENTATION_GLYPH_2 equ 163
+     0061             (_presentation.inc):00157         PRESENTATION_GLYPH_3 equ 97
+     0063             (_presentation.inc):00158         PRESENTATION_GLYPH_4 equ 99
+     0065             (_presentation.inc):00159         PRESENTATION_GLYPH_5 equ 101
+     0064             (_presentation.inc):00160         PRESENTATION_GLYPH_6 equ 100
+     0062             (_presentation.inc):00161         PRESENTATION_GLYPH_7 equ 98
+     0060             (_presentation.inc):00162         PRESENTATION_GLYPH_8 equ 96
+     005F             (_presentation.inc):00163         PRESENTATION_GLYPH_9 equ 95
+     0058             (_presentation.inc):00164         PRESENTATION_GLYPH_10 equ 88
+     005D             (_presentation.inc):00165         PRESENTATION_GLYPH_11 equ 93
+     0029             (_presentation.inc):00166         PRESENTATION_GLYPH_12 equ 41
+     00A4             (_presentation.inc):00167         PRESENTATION_GLYPH_13 equ 164
+     005B             (_presentation.inc):00168         PRESENTATION_GLYPH_14 equ 91
+     006D             (_presentation.inc):00169         PRESENTATION_GLYPH_15 equ 109
+     005E             (_presentation.inc):00170         PRESENTATION_GLYPH_16 equ 94
+     005A             (_presentation.inc):00171         PRESENTATION_GLYPH_17 equ 90
+     0024             (_presentation.inc):00172         PRESENTATION_GLYPH_18 equ 36
+     006E             (_presentation.inc):00173         PRESENTATION_GLYPH_19 equ 110
+     006F             (_presentation.inc):00174         PRESENTATION_GLYPH_20 equ 111
+     005C             (_presentation.inc):00175         PRESENTATION_GLYPH_21 equ 92
+     0070             (_presentation.inc):00176         PRESENTATION_GLYPH_22 equ 112
+     009D             (_presentation.inc):00177         PRESENTATION_GLYPH_23 equ 157
+     002A             (_presentation.inc):00178         PRESENTATION_GLYPH_24 equ 42
+     0053             (_presentation.inc):00179         PRESENTATION_GLYPH_25 equ 83
+     0071             (_presentation.inc):00180         PRESENTATION_GLYPH_26 equ 113
+     0027             (_presentation.inc):00181         PRESENTATION_GLYPH_27 equ 39
+     0025             (_presentation.inc):00182         PRESENTATION_GLYPH_28 equ 37
+     0026             (_presentation.inc):00183         PRESENTATION_GLYPH_29 equ 38
+     0028             (_presentation.inc):00184         PRESENTATION_GLYPH_30 equ 40
+     0072             (_presentation.inc):00185         PRESENTATION_GLYPH_31 equ 114
+     0073             (_presentation.inc):00186         PRESENTATION_GLYPH_32 equ 115
+     0074             (_presentation.inc):00187         PRESENTATION_GLYPH_33 equ 116
+     0059             (_presentation.inc):00188         PRESENTATION_GLYPH_34 equ 89
+     0075             (_presentation.inc):00189         PRESENTATION_GLYPH_35 equ 117
+     0078             (_presentation.inc):00190         PRESENTATION_GLYPH_36 equ 120
+                      (_presentation.inc):00191         
+                      (_presentation.inc):00192         ; Nine fixed seven-character session records live in PAR5 page $34.
+     AF84             (_presentation.inc):00193         PRESENTATION_HIGHSCORE_BASE equ $AF84
+     000A             (_presentation.inc):00194         PRESENTATION_HIGHSCORE_RECORD_BYTES equ 10
+     0003             (_presentation.inc):00195         PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3
+     0007             (_presentation.inc):00196         PRESENTATION_HIGHSCORE_NAME_BYTES equ 7
+     0009             (_presentation.inc):00197         PRESENTATION_HIGHSCORE_COUNT equ 9
+     0009             (_presentation.inc):00198         PRESENTATION_HIGHSCORE_DISPLAY_ROWS equ 9
+     0500             (_presentation.inc):00199         PRESENTATION_HIGHSCORE_ROW_STRIDE equ 1280
+     343C             (_presentation.inc):00200         PRESENTATION_HIGHSCORE_RANK_01_NAME_DST equ $343C
+     3460             (_presentation.inc):00201         PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST equ $3460
+     3E3C             (_presentation.inc):00202         PRESENTATION_HIGHSCORE_RANK_02_NAME_DST equ $3E3C
+     3E60             (_presentation.inc):00203         PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST equ $3E60
+     433C             (_presentation.inc):00204         PRESENTATION_HIGHSCORE_RANK_03_NAME_DST equ $433C
+     4360             (_presentation.inc):00205         PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST equ $4360
+     483C             (_presentation.inc):00206         PRESENTATION_HIGHSCORE_RANK_04_NAME_DST equ $483C
+     4860             (_presentation.inc):00207         PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST equ $4860
+     4D3C             (_presentation.inc):00208         PRESENTATION_HIGHSCORE_RANK_05_NAME_DST equ $4D3C
+     4D60             (_presentation.inc):00209         PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST equ $4D60
+     523C             (_presentation.inc):00210         PRESENTATION_HIGHSCORE_RANK_06_NAME_DST equ $523C
+     5260             (_presentation.inc):00211         PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST equ $5260
+     573C             (_presentation.inc):00212         PRESENTATION_HIGHSCORE_RANK_07_NAME_DST equ $573C
+     5760             (_presentation.inc):00213         PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST equ $5760
+     5C3C             (_presentation.inc):00214         PRESENTATION_HIGHSCORE_RANK_08_NAME_DST equ $5C3C
+     5C60             (_presentation.inc):00215         PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST equ $5C60
+     613C             (_presentation.inc):00216         PRESENTATION_HIGHSCORE_RANK_09_NAME_DST equ $613C
+     6160             (_presentation.inc):00217         PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST equ $6160
+     0024             (_presentation.inc):00218         PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA equ 36
+     343C             (_presentation.inc):00219         PRESENTATION_HIGHSCORE_TOP_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00220         PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+     343C             (_presentation.inc):00221         PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00222         PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+                      (_presentation.inc):00223         
+     00AE             (_presentation.inc):00224         SHARED_TEXT_BASE equ 174
+                      (_presentation.inc):00225         
+     003B             (_presentation.inc):00226         PRESENTATION_ATTRACT_BUNDLE_PAGE equ $3B
+     B720             (_presentation.inc):00227         PRESENTATION_ATTRACT_BUNDLE_ADDRESS equ $B720
+                      (ruction_runtime.s):00051                 include "ladybug_presentation_symbols.inc"
+     D5E8             (ation_symbols.inc):00001         PRES_MAIN_BLIT_TILE equ $D5E8
+     CD4F             (ation_symbols.inc):00002         PRES_MAIN_CAN_MOVE equ $CD4F
+     D322             (ation_symbols.inc):00003         PRES_MAIN_DEATH equ $D322
+     FC7E             (ation_symbols.inc):00004         PRES_MAIN_DYNAMIC_TEXT equ $FC7E
+     D520             (ation_symbols.inc):00005         PRES_MAIN_ENEMY equ $D520
+     D523             (ation_symbols.inc):00006         PRES_MAIN_ENEMY_TICK equ $D523
+     C5EB             (ation_symbols.inc):00007         PRES_MAIN_ENTITIES equ $C5EB
+     CAC7             (ation_symbols.inc):00008         PRES_MAIN_GATES equ $CAC7
+     C27D             (ation_symbols.inc):00009         PRES_MAIN_INIT equ $C27D
+     DF2A             (ation_symbols.inc):00010         PRES_MAIN_INSTALL_PHASE_TILES equ $DF2A
+     DF5F             (ation_symbols.inc):00011         PRES_MAIN_KEY_SERVICE equ $DF5F
+     F5C8             (ation_symbols.inc):00012         PRES_MAIN_MAP_STREAM_OFFSETS equ $F5C8
+     C5D8             (ation_symbols.inc):00013         PRES_MAIN_MAZE equ $C5D8
+     DF72             (ation_symbols.inc):00014         PRES_MAIN_NAME_LATE_TURN equ $DF72
+     C2D7             (ation_symbols.inc):00015         PRES_MAIN_NEXT_STAGE equ $C2D7
+     DF56             (ation_symbols.inc):00016         PRES_MAIN_PAGE24_RESUME equ $DF56
+     CB07             (ation_symbols.inc):00017         PRES_MAIN_PLAYER equ $CB07
+     CBA6             (ation_symbols.inc):00018         PRES_MAIN_PLAYER_TICK equ $CBA6
+     CB24             (ation_symbols.inc):00019         PRES_MAIN_READ_JOY equ $CB24
+     DF43             (ation_symbols.inc):00020         PRES_MAIN_READ_STAGE_LETTERS equ $DF43
+     D4F6             (ation_symbols.inc):00021         PRES_MAIN_RENDER equ $D4F6
+     D5A2             (ation_symbols.inc):00022         PRES_MAIN_RESTORE_PLAYER equ $D5A2
+     D579             (ation_symbols.inc):00023         PRES_MAIN_SAVE_PLAYER equ $D579
+     F5E6             (ation_symbols.inc):00024         PRES_MAIN_SCAN_BITS equ $F5E6
+     F5E3             (ation_symbols.inc):00025         PRES_MAIN_SCAN_DRIVES equ $F5E3
+     F5DA             (ation_symbols.inc):00026         PRES_MAIN_SCREEN_MODES equ $F5DA
+     FBBC             (ation_symbols.inc):00027         PRES_MAIN_SHARED_MASK equ $FBBC
+     FBA3             (ation_symbols.inc):00028         PRES_MAIN_STATIC_TEXT equ $FBA3
+     FCAF             (ation_symbols.inc):00029         PRES_MAIN_TOP_HUD equ $FCAF
+     0E79             (ation_symbols.inc):00030         PRES_MAIN_FB_CAPTURE equ $0E79
+     0E68             (ation_symbols.inc):00031         PRES_MAIN_FB_FINISH equ $0E68
+     0DFE             (ation_symbols.inc):00032         PRES_MAIN_FB_PREPARE equ $0DFE
+     0E6E             (ation_symbols.inc):00033         PRES_MAIN_FB_PUBLISH equ $0E6E
+     1B7E             (ation_symbols.inc):00034         PRES_MODULE_COLD_PTR equ $1B7E
+     1D57             (ation_symbols.inc):00035         PRES_MODULE_COLOUR_SURFACE equ $1D57
+     1D31             (ation_symbols.inc):00036         PRES_MODULE_COLOUR_TILE equ $1D31
+     1D14             (ation_symbols.inc):00037         PRES_MODULE_DRAW_ACTOR equ $1D14
+     1B77             (ation_symbols.inc):00038         PRES_MODULE_DRAW_RAW_TILE equ $1B77
+     1D97             (ation_symbols.inc):00039         PRES_MODULE_DRAW_SCORE equ $1D97
+     FC7E             (ation_symbols.inc):00040         PRES_MODULE_DRAW_TILE equ $FC7E
+     1BA3             (ation_symbols.inc):00041         PRES_MODULE_MAP_BACK equ $1BA3
+     19C8             (ation_symbols.inc):00042         PRES_MODULE_START_SCREEN equ $19C8
+     0561             (ation_symbols.inc):00043         PRES_RANKING_SLICE equ $0561
+     037C             (ation_symbols.inc):00044         PRES_HIGHSCORE_FB_PREPARE equ $037C
+     05E5             (ation_symbols.inc):00045         PRES_HIGHSCORE_FB_FINISH equ $05E5
+                      (ruction_runtime.s):00052         
+     FFA5             (ruction_runtime.s):00053         PAR5    equ $FFA5
+     0039             (ruction_runtime.s):00054         SPARSE_PLAYER_PAYLOAD_PAGE equ $39
+     A000             (ruction_runtime.s):00055         SPARSE_PLAYER_INDEX_ADDR equ $A000
+     0821             (ruction_runtime.s):00056         PRESENTATION_MODULE_DRAW equ $0821
+                      (ruction_runtime.s):00057         
+     00AE             (ruction_runtime.s):00058         PRES_DST equ $00AE
+     00B0             (ruction_runtime.s):00059         PRES_TIMER equ $00B0
+     00B7             (ruction_runtime.s):00060         PRES_OUT equ $00B7
+     00CA             (ruction_runtime.s):00061         PRES_PHASE equ $00CA
+     00CE             (ruction_runtime.s):00062         PRES_ACTOR_FRAME equ $00CE
+     00CF             (ruction_runtime.s):00063         PRES_HIGHLIGHT equ $00CF
+     00D0             (ruction_runtime.s):00064         PRES_COLOUR_TIMER equ $00D0
+     00D1             (ruction_runtime.s):00065         PRES_WORK equ $00D1
+     000B             (ruction_runtime.s):00066         PLAYER_FB equ $000B
+     006A             (ruction_runtime.s):00067         PLAYER_BG_VALID equ $006A
+     0067             (ruction_runtime.s):00068         PLAYER_OLD_FB equ $0067
+     0090             (ruction_runtime.s):00069         FB_BACK equ $0090
+                      (ruction_runtime.s):00070         
+                      (ruction_runtime.s):00071         ; Boot scratch is free after handoff.  The development verifier reads this
+                      (ruction_runtime.s):00072         ; compact trace after the uninterrupted choreography reaches its next screen.
+     06AA             (ruction_runtime.s):00073         IRT_TRACE_MAGIC equ $06AA
+     06AB             (ruction_runtime.s):00074         IRT_TRACE_COLOURS equ $06AB
+     06AC             (ruction_runtime.s):00075         IRT_TRACE_CONSUMES equ $06AC
+     06AD             (ruction_runtime.s):00076         IRT_TRACE_DEATHS equ $06AD
+     06AE             (ruction_runtime.s):00077         IRT_TRACE_OWNERS equ $06AE
+     06AF             (ruction_runtime.s):00078         IRT_TRACE_LAST_DEATH equ $06AF
+     00D2             (ruction_runtime.s):00079         IRT_OWNER_A_PHASE equ $00D2
+     00D3             (ruction_runtime.s):00080         IRT_OWNER_A_COLOUR equ $00D3
+     00D6             (ruction_runtime.s):00081         IRT_OWNER_B_PHASE equ $00D6
+     00D7             (ruction_runtime.s):00082         IRT_OWNER_B_COLOUR equ $00D7
+                      (ruction_runtime.s):00083         
+                      (ruction_runtime.s):00084                 org     $0300
+                      (ruction_runtime.s):00085         
+0300                  (ruction_runtime.s):00086         instruction_runtime_tick
+0300 DCB0             (ruction_runtime.s):00087                 ldd     PRES_TIMER
+0302 108306A8         (ruction_runtime.s):00088                 cmpd    #PRESENTATION_INSTRUCTION_NEXT_TICK
+0306 102400B6         (ruction_runtime.s):00089                 lbhs    irt_complete
+030A BD0DFE           (ruction_runtime.s):00090                 jsr     PRES_MAIN_FB_PREPARE
+030D 2565             (ruction_runtime.s):00091                 bcs     irt_active
+030F 96CA             (ruction_runtime.s):00092                 lda     PRES_PHASE
+0311 81FF             (ruction_runtime.s):00093                 cmpa    #$FF
+0313 2774             (ruction_runtime.s):00094                 beq     irt_init
+0315 1702CB           (ruction_runtime.s):00095                 lbsr    restore_actor
+0318 96CA             (ruction_runtime.s):00096                 lda     PRES_PHASE
+031A 8110             (ruction_runtime.s):00097                 cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
+031C 10240304         (ruction_runtime.s):00098                 lbhs    irt_death
+                      (ruction_runtime.s):00099         
+0320 0AD0             (ruction_runtime.s):00100                 dec     PRES_COLOUR_TIMER
+0322 2621             (ruction_runtime.s):00101                 bne     irt_event
+0324 8620             (ruction_runtime.s):00102                 lda     #PRESENTATION_INSTRUCTION_COLOUR_DWELL
+0326 97D0             (ruction_runtime.s):00103                 sta     PRES_COLOUR_TIMER
+0328 0CCF             (ruction_runtime.s):00104                 inc     PRES_HIGHLIGHT
+032A 96CF             (ruction_runtime.s):00105                 lda     PRES_HIGHLIGHT
+032C 8104             (ruction_runtime.s):00106                 cmpa    #4
+032E 2504             (ruction_runtime.s):00107                 blo     irt_colour_ready
+0330 8601             (ruction_runtime.s):00108                 lda     #1
+0332 97CF             (ruction_runtime.s):00109                 sta     PRES_HIGHLIGHT
+0334                  (ruction_runtime.s):00110         irt_colour_ready
+0334 7C06AB           (ruction_runtime.s):00111                 inc     IRT_TRACE_COLOURS
+0337 8E00D2           (ruction_runtime.s):00112                 ldx     #IRT_OWNER_A_PHASE
+033A 0D90             (ruction_runtime.s):00113                 tst     FB_BACK
+033C 2703             (ruction_runtime.s):00114                 beq     irt_colour_invalidate
+033E 8E00D6           (ruction_runtime.s):00115                 ldx     #IRT_OWNER_B_PHASE
+0341                  (ruction_runtime.s):00116         irt_colour_invalidate
+0341 86FF             (ruction_runtime.s):00117                 lda     #$FF
+0343 A701             (ruction_runtime.s):00118                 sta     1,x
+0345                  (ruction_runtime.s):00119         irt_colour_published
+                      (ruction_runtime.s):00120         
+0345                  (ruction_runtime.s):00121         irt_event
+0345 17011A           (ruction_runtime.s):00122                 lbsr    sync_persistent_state
+0348 96CA             (ruction_runtime.s):00123                 lda     PRES_PHASE
+034A 8110             (ruction_runtime.s):00124                 cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
+034C 102402D4         (ruction_runtime.s):00125                 lbhs    irt_death
+0350 170070           (ruction_runtime.s):00126                 lbsr    event_ptr_a
+0353 DCB0             (ruction_runtime.s):00127                 ldd     PRES_TIMER
+0355 10A384           (ruction_runtime.s):00128                 cmpd    ,x
+0358 2517             (ruction_runtime.s):00129                 blo     irt_draw_player
+035A 10A302           (ruction_runtime.s):00130                 cmpd    2,x
+035D 246D             (ruction_runtime.s):00131                 bhs     consume_event
+035F D6B1             (ruction_runtime.s):00132                 ldb     PRES_TIMER+1
+0361 C501             (ruction_runtime.s):00133                 bitb    #1
+0363 270C             (ruction_runtime.s):00134                 beq     irt_draw_player
+0365 DCB7             (ruction_runtime.s):00135                 ldd     PRES_OUT
+0367 10A304           (ruction_runtime.s):00136                 cmpd    4,x
+036A 2405             (ruction_runtime.s):00137                 bhs     irt_draw_player
+036C C30001           (ruction_runtime.s):00138                 addd    #1
+036F DDB7             (ruction_runtime.s):00139                 std     PRES_OUT
+0371                  (ruction_runtime.s):00140         irt_draw_player
+0371 170280           (ruction_runtime.s):00141                 lbsr    present_player
+0374                  (ruction_runtime.s):00142         irt_active
+0374 17010A           (ruction_runtime.s):00143                 lbsr    store_owner_state
+0377 8601             (ruction_runtime.s):00144                 lda     #1
+0379 D690             (ruction_runtime.s):00145                 ldb     FB_BACK
+037B 2701             (ruction_runtime.s):00146                 beq     irt_owner_ready
+037D 48               (ruction_runtime.s):00147                 lsla
+037E                  (ruction_runtime.s):00148         irt_owner_ready
+037E BA06AE           (ruction_runtime.s):00149                 ora     IRT_TRACE_OWNERS
+0381 B706AE           (ruction_runtime.s):00150                 sta     IRT_TRACE_OWNERS
+0384 BD0E68           (ruction_runtime.s):00151                 jsr     PRES_MAIN_FB_FINISH
+0387 4F               (ruction_runtime.s):00152                 clra
+0388 39               (ruction_runtime.s):00153                 rts
+                      (ruction_runtime.s):00154         
+0389                  (ruction_runtime.s):00155         irt_init
+0389 86A5             (ruction_runtime.s):00156                 lda     #$A5
+038B B706AA           (ruction_runtime.s):00157                 sta     IRT_TRACE_MAGIC
+038E 7F06AB           (ruction_runtime.s):00158                 clr     IRT_TRACE_COLOURS
+0391 7F06AC           (ruction_runtime.s):00159                 clr     IRT_TRACE_CONSUMES
+0394 7F06AD           (ruction_runtime.s):00160                 clr     IRT_TRACE_DEATHS
+0397 7F06AE           (ruction_runtime.s):00161                 clr     IRT_TRACE_OWNERS
+039A 86FF             (ruction_runtime.s):00162                 lda     #$FF
+039C B706AF           (ruction_runtime.s):00163                 sta     IRT_TRACE_LAST_DEATH
+039F 97D2             (ruction_runtime.s):00164                 sta     IRT_OWNER_A_PHASE
+03A1 97D3             (ruction_runtime.s):00165                 sta     IRT_OWNER_A_COLOUR
+03A3 97D6             (ruction_runtime.s):00166                 sta     IRT_OWNER_B_PHASE
+03A5 97D7             (ruction_runtime.s):00167                 sta     IRT_OWNER_B_COLOUR
+03A7 0FCA             (ruction_runtime.s):00168                 clr     PRES_PHASE
+03A9 8601             (ruction_runtime.s):00169                 lda     #1
+03AB 97CF             (ruction_runtime.s):00170                 sta     PRES_HIGHLIGHT
+03AD 8620             (ruction_runtime.s):00171                 lda     #PRESENTATION_INSTRUCTION_COLOUR_DWELL
+03AF 97D0             (ruction_runtime.s):00172                 sta     PRES_COLOUR_TIMER
+03B1 CC4328           (ruction_runtime.s):00173                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_0
+03B4 DDB7             (ruction_runtime.s):00174                 std     PRES_OUT
+03B6 0F6A             (ruction_runtime.s):00175                 clr     PLAYER_BG_VALID
+03B8 1700A7           (ruction_runtime.s):00176                 lbsr    sync_persistent_state
+03BB 170236           (ruction_runtime.s):00177                 lbsr    present_player
+03BE 20B4             (ruction_runtime.s):00178                 bra     irt_active
+                      (ruction_runtime.s):00179         
+03C0                  (ruction_runtime.s):00180         irt_complete
+03C0 8601             (ruction_runtime.s):00181                 lda     #1
+03C2 39               (ruction_runtime.s):00182                 rts
+                      (ruction_runtime.s):00183         
+                      (ruction_runtime.s):00184         ; A selects one generated twelve-byte event record; X returns mapped to it.
+03C3                  (ruction_runtime.s):00185         event_ptr_a
+03C3 C60C             (ruction_runtime.s):00186                 ldb     #PRESENTATION_INSTRUCTION_EVENT_BYTES
+03C5 3D               (ruction_runtime.s):00187                 mul
+03C6 C32000           (ruction_runtime.s):00188                 addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
+03C9 7E1B7E           (ruction_runtime.s):00189                 jmp     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):00190         
+03CC                  (ruction_runtime.s):00191         consume_event
+03CC 7C06AC           (ruction_runtime.s):00192                 inc     IRT_TRACE_CONSUMES
+03CF 170211           (ruction_runtime.s):00193                 lbsr    restore_actor
+03D2 96CA             (ruction_runtime.s):00194                 lda     PRES_PHASE
+03D4 17FFEC           (ruction_runtime.s):00195                 lbsr    event_ptr_a
+03D7 EC06             (ruction_runtime.s):00196                 ldd     6,x
+03D9 DDAE             (ruction_runtime.s):00197                 std     PRES_DST
+03DB 170147           (ruction_runtime.s):00198                 lbsr    clear_target
+                      (ruction_runtime.s):00199         
+03DE 96CA             (ruction_runtime.s):00200                 lda     PRES_PHASE
+03E0 17FFE0           (ruction_runtime.s):00201                 lbsr    event_ptr_a
+03E3 10AE08           (ruction_runtime.s):00202                 ldy     8,x
+03E6 2716             (ruction_runtime.s):00203                 beq     consume_reward
+03E8 E60A             (ruction_runtime.s):00204                 ldb     10,x
+03EA 270D             (ruction_runtime.s):00205                 beq     consume_hud_primary
+03EC A60B             (ruction_runtime.s):00206                 lda     11,x
+03EE 3422             (ruction_runtime.s):00207                 pshs    a,y
+03F0 3124             (ruction_runtime.s):00208                 leay    4,y
+03F2 BDFC7E           (ruction_runtime.s):00209                 jsr     PRES_MODULE_DRAW_TILE
+03F5 3524             (ruction_runtime.s):00210                 puls    b,y
+03F7 2002             (ruction_runtime.s):00211                 bra     consume_hud_draw
+03F9                  (ruction_runtime.s):00212         consume_hud_primary
+03F9 E60B             (ruction_runtime.s):00213                 ldb     11,x
+03FB                  (ruction_runtime.s):00214         consume_hud_draw
+03FB BDFC7E           (ruction_runtime.s):00215                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00216         
+03FE                  (ruction_runtime.s):00217         consume_reward
+03FE 96CA             (ruction_runtime.s):00218                 lda     PRES_PHASE
+0400 8104             (ruction_runtime.s):00219                 cmpa    #4
+0402 260A             (ruction_runtime.s):00220                 bne     consume_special
+0404 17017B           (ruction_runtime.s):00221                 lbsr    draw_life_reward
+0407 CC5228           (ruction_runtime.s):00222                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_1
+040A DDB7             (ruction_runtime.s):00223                 std     PRES_OUT
+040C 201B             (ruction_runtime.s):00224                 bra     consume_advance
+040E                  (ruction_runtime.s):00225         consume_special
+040E 810B             (ruction_runtime.s):00226                 cmpa    #11
+0410 260A             (ruction_runtime.s):00227                 bne     consume_heart
+0412 170176           (ruction_runtime.s):00228                 lbsr    draw_coin_reward
+0415 CC6128           (ruction_runtime.s):00229                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_2
+0418 DDB7             (ruction_runtime.s):00230                 std     PRES_OUT
+041A 200D             (ruction_runtime.s):00231                 bra     consume_advance
+041C                  (ruction_runtime.s):00232         consume_heart
+041C 810C             (ruction_runtime.s):00233                 cmpa    #12
+041E 2509             (ruction_runtime.s):00234                 blo     consume_advance
+0420 810F             (ruction_runtime.s):00235                 cmpa    #15
+0422 2405             (ruction_runtime.s):00236                 bhs     consume_advance
+0424 97D1             (ruction_runtime.s):00237                 sta     PRES_WORK
+0426 170191           (ruction_runtime.s):00238                 lbsr    draw_multipliers
+0429                  (ruction_runtime.s):00239         consume_advance
+0429 0CCA             (ruction_runtime.s):00240                 inc     PRES_PHASE
+042B 96CA             (ruction_runtime.s):00241                 lda     PRES_PHASE
+042D 8001             (ruction_runtime.s):00242                 suba    #1
+042F 810F             (ruction_runtime.s):00243                 cmpa    #15
+0431 2706             (ruction_runtime.s):00244                 beq     consume_skull
+0433 1701BE           (ruction_runtime.s):00245                 lbsr    present_player
+0436 16FF3B           (ruction_runtime.s):00246                 lbra    irt_active
+0439                  (ruction_runtime.s):00247         consume_skull
+0439 86FF             (ruction_runtime.s):00248                 lda     #$FF
+043B 97CE             (ruction_runtime.s):00249                 sta     PRES_ACTOR_FRAME
+043D 5F               (ruction_runtime.s):00250                 clrb
+043E 170216           (ruction_runtime.s):00251                 lbsr    present_death
+0441 16FF30           (ruction_runtime.s):00252                 lbra    irt_active
+                      (ruction_runtime.s):00253         
+                      (ruction_runtime.s):00254         ; Recolour all letter and heart targets. Consumed black cells remain black.
+0444                  (ruction_runtime.s):00255         recolour_x
+0444 108E7F34         (ruction_runtime.s):00256                 ldy     #$7F34          ; authored X root: column 13, row 19
+                      (ruction_runtime.s):00257         
+                      (ruction_runtime.s):00258         ; Recolour the complete 2x2 authored surface through its generated sparse
+                      (ruction_runtime.s):00259         ; nibble-selector stream. The stream excludes transparent and pink pixels.
+0448                  (ruction_runtime.s):00260         recolour_target
+0448 109FAE           (ruction_runtime.s):00261                 sty     PRES_DST
+044B 4F               (ruction_runtime.s):00262                 clra
+044C D6D1             (ruction_runtime.s):00263                 ldb     PRES_WORK
+044E 58               (ruction_runtime.s):00264                 lslb
+044F 49               (ruction_runtime.s):00265                 rola
+0450 C320C0           (ruction_runtime.s):00266                 addd    #PRESENTATION_INSTRUCTION_COLOUR_POINTERS
+0453 BD1B7E           (ruction_runtime.s):00267                 jsr     PRES_MODULE_COLD_PTR
+0456 EC84             (ruction_runtime.s):00268                 ldd     ,x
+0458 BD1B7E           (ruction_runtime.s):00269                 jsr     PRES_MODULE_COLD_PTR
+045B 1F13             (ruction_runtime.s):00270                 tfr     x,u
+045D 9EAE             (ruction_runtime.s):00271                 ldx     PRES_DST
+045F 7E1D57           (ruction_runtime.s):00272                 jmp     PRES_MODULE_COLOUR_SURFACE
+                      (ruction_runtime.s):00273         
+                      (ruction_runtime.s):00274         ; Reconstruct persistent mutations on the currently mapped BACK owner before
+                      (ruction_runtime.s):00275         ; drawing its owner-local actor frame.
+0462                  (ruction_runtime.s):00276         sync_persistent_state
+0462 8E00D2           (ruction_runtime.s):00277                 ldx     #IRT_OWNER_A_PHASE
+0465 0D90             (ruction_runtime.s):00278                 tst     FB_BACK
+0467 2703             (ruction_runtime.s):00279                 beq     sps_selected
+0469 8E00D6           (ruction_runtime.s):00280                 ldx     #IRT_OWNER_B_PHASE
+046C                  (ruction_runtime.s):00281         sps_selected
+046C 96CA             (ruction_runtime.s):00282                 lda     PRES_PHASE
+046E A184             (ruction_runtime.s):00283                 cmpa    ,x
+0470 2606             (ruction_runtime.s):00284                 bne     sps_apply
+0472 96CF             (ruction_runtime.s):00285                 lda     PRES_HIGHLIGHT
+0474 A101             (ruction_runtime.s):00286                 cmpa    1,x
+0476 271B             (ruction_runtime.s):00287                 beq     sps_done
+0478                  (ruction_runtime.s):00288         sps_apply
+0478 3410             (ruction_runtime.s):00289                 pshs    x
+047A 170017           (ruction_runtime.s):00290                 lbsr    apply_persistent_state
+047D 3510             (ruction_runtime.s):00291                 puls    x
+047F 200A             (ruction_runtime.s):00292                 bra     sps_store
+                      (ruction_runtime.s):00293         
+0481                  (ruction_runtime.s):00294         store_owner_state
+0481 8E00D2           (ruction_runtime.s):00295                 ldx     #IRT_OWNER_A_PHASE
+0484 0D90             (ruction_runtime.s):00296                 tst     FB_BACK
+0486 2703             (ruction_runtime.s):00297                 beq     sps_store
+0488 8E00D6           (ruction_runtime.s):00298                 ldx     #IRT_OWNER_B_PHASE
+048B                  (ruction_runtime.s):00299         sps_store
+048B 96CA             (ruction_runtime.s):00300                 lda     PRES_PHASE
+048D A784             (ruction_runtime.s):00301                 sta     ,x
+048F 96CF             (ruction_runtime.s):00302                 lda     PRES_HIGHLIGHT
+0491 A701             (ruction_runtime.s):00303                 sta     1,x
+0493                  (ruction_runtime.s):00304         sps_done
+0493 39               (ruction_runtime.s):00305                 rts
+                      (ruction_runtime.s):00306         
+0494                  (ruction_runtime.s):00307         apply_persistent_state
+0494 A684             (ruction_runtime.s):00308                 lda ,x
+0496 8110             (ruction_runtime.s):00309                 cmpa #16
+0498 2301             (ruction_runtime.s):00310                 bls aps_prior_ready
+049A 4F               (ruction_runtime.s):00311                 clra
+049B                  (ruction_runtime.s):00312         aps_prior_ready
+049B 3402             (ruction_runtime.s):00313                 pshs a
+049D 96CF             (ruction_runtime.s):00314                 lda     PRES_HIGHLIGHT
+049F 3402             (ruction_runtime.s):00315                 pshs    a
+04A1 17009A           (ruction_runtime.s):00316                 lbsr    draw_value
+04A4 A661             (ruction_runtime.s):00317                 lda 1,s
+04A6 97D1             (ruction_runtime.s):00318                 sta PRES_WORK
+04A8 810F             (ruction_runtime.s):00319                 cmpa #15
+04AA 244A             (ruction_runtime.s):00320                 bhs aps_events_done
+04AC                  (ruction_runtime.s):00321         aps_event
+04AC 96D1             (ruction_runtime.s):00322                 lda     PRES_WORK
+04AE 91CA             (ruction_runtime.s):00323                 cmpa    PRES_PHASE
+04B0 242C             (ruction_runtime.s):00324                 bhs     aps_unconsumed
+04B2 17FF0E           (ruction_runtime.s):00325                 lbsr    event_ptr_a
+04B5 EC06             (ruction_runtime.s):00326                 ldd     6,x
+04B7 DDAE             (ruction_runtime.s):00327                 std     PRES_DST
+04B9 170069           (ruction_runtime.s):00328                 lbsr    clear_target
+04BC 96D1             (ruction_runtime.s):00329                 lda     PRES_WORK
+04BE 17FF02           (ruction_runtime.s):00330                 lbsr    event_ptr_a
+04C1 10AE08           (ruction_runtime.s):00331                 ldy     8,x
+04C4 2728             (ruction_runtime.s):00332                 beq     aps_next
+04C6 E60A             (ruction_runtime.s):00333                 ldb     10,x
+04C8 270D             (ruction_runtime.s):00334                 beq     aps_hud_primary
+04CA A60B             (ruction_runtime.s):00335                 lda     11,x
+04CC 3422             (ruction_runtime.s):00336                 pshs    a,y
+04CE 3124             (ruction_runtime.s):00337                 leay    4,y
+04D0 BDFC7E           (ruction_runtime.s):00338                 jsr     PRES_MODULE_DRAW_TILE
+04D3 3524             (ruction_runtime.s):00339                 puls    b,y
+04D5 2002             (ruction_runtime.s):00340                 bra     aps_hud_draw
+04D7                  (ruction_runtime.s):00341         aps_hud_primary
+04D7 E60B             (ruction_runtime.s):00342                 ldb     11,x
+04D9                  (ruction_runtime.s):00343         aps_hud_draw
+04D9 BDFC7E           (ruction_runtime.s):00344                 jsr     PRES_MODULE_DRAW_TILE
+04DC 2010             (ruction_runtime.s):00345                 bra     aps_next
+04DE                  (ruction_runtime.s):00346         aps_unconsumed
+04DE A6E4             (ruction_runtime.s):00347                 lda     ,s
+04E0 97CF             (ruction_runtime.s):00348                 sta     PRES_HIGHLIGHT
+04E2 96D1             (ruction_runtime.s):00349                 lda     PRES_WORK
+04E4 17FEDC           (ruction_runtime.s):00350                 lbsr    event_ptr_a
+04E7 EC06             (ruction_runtime.s):00351                 ldd     6,x
+04E9 1F02             (ruction_runtime.s):00352                 tfr     d,y
+04EB 17FF5A           (ruction_runtime.s):00353                 lbsr    recolour_target
+04EE                  (ruction_runtime.s):00354         aps_next
+04EE 0CD1             (ruction_runtime.s):00355                 inc     PRES_WORK
+04F0 96D1             (ruction_runtime.s):00356                 lda     PRES_WORK
+04F2 810F             (ruction_runtime.s):00357                 cmpa    #15
+04F4 25B6             (ruction_runtime.s):00358                 blo     aps_event
+04F6                  (ruction_runtime.s):00359         aps_events_done
+04F6 17FF4B           (ruction_runtime.s):00360                 lbsr    recolour_x
+04F9 96CA             (ruction_runtime.s):00361                 lda     PRES_PHASE
+04FB 8105             (ruction_runtime.s):00362                 cmpa    #5
+04FD 251F             (ruction_runtime.s):00363                 blo     aps_done
+04FF 170080           (ruction_runtime.s):00364                 lbsr    draw_life_reward
+0502 96CA             (ruction_runtime.s):00365                 lda     PRES_PHASE
+0504 810C             (ruction_runtime.s):00366                 cmpa    #12
+0506 2516             (ruction_runtime.s):00367                 blo     aps_done
+0508 170080           (ruction_runtime.s):00368                 lbsr    draw_coin_reward
+050B 96CA             (ruction_runtime.s):00369                 lda     PRES_PHASE
+050D 810D             (ruction_runtime.s):00370                 cmpa    #13
+050F 250D             (ruction_runtime.s):00371                 blo     aps_done
+0511 8001             (ruction_runtime.s):00372                 suba    #1
+0513 810E             (ruction_runtime.s):00373                 cmpa    #14
+0515 2302             (ruction_runtime.s):00374                 bls     aps_multiplier_ready
+0517 860E             (ruction_runtime.s):00375                 lda     #14
+0519                  (ruction_runtime.s):00376         aps_multiplier_ready
+0519 97D1             (ruction_runtime.s):00377                 sta     PRES_WORK
+051B 17009C           (ruction_runtime.s):00378                 lbsr    draw_multipliers
+051E                  (ruction_runtime.s):00379         aps_done
+051E 3502             (ruction_runtime.s):00380                 puls    a
+0520 97CF             (ruction_runtime.s):00381                 sta     PRES_HIGHLIGHT
+0522 3261             (ruction_runtime.s):00382                 leas 1,s
+0524 39               (ruction_runtime.s):00383                 rts
+                      (ruction_runtime.s):00384         
+0525                  (ruction_runtime.s):00385         clear_target
+0525 9EAE             (ruction_runtime.s):00386                 ldx     PRES_DST
+0527                  (ruction_runtime.s):00387         clear_target_x
+0527 108E0010         (ruction_runtime.s):00388                 ldy     #16
+052B 4F               (ruction_runtime.s):00389                 clra
+052C 5F               (ruction_runtime.s):00390                 clrb
+052D                  (ruction_runtime.s):00391         ct_row
+052D ED84             (ruction_runtime.s):00392                 std     ,x
+052F ED02             (ruction_runtime.s):00393                 std     2,x
+0531 ED04             (ruction_runtime.s):00394                 std     4,x
+0533 ED06             (ruction_runtime.s):00395                 std     6,x
+0535 308900A0         (ruction_runtime.s):00396                 leax    160,x
+0539 313F             (ruction_runtime.s):00397                 leay    -1,y
+053B 26F0             (ruction_runtime.s):00398                 bne     ct_row
+053D 39               (ruction_runtime.s):00399                 rts
+                      (ruction_runtime.s):00400         
+053E                  (ruction_runtime.s):00401         draw_value
+053E 96CF             (ruction_runtime.s):00402                 lda     PRES_HIGHLIGHT
+0540 8101             (ruction_runtime.s):00403                 cmpa    #1
+0542 2716             (ruction_runtime.s):00404                 beq     dv_red
+0544 8102             (ruction_runtime.s):00405                 cmpa    #2
+0546 2709             (ruction_runtime.s):00406                 beq     dv_yellow
+0548 C652             (ruction_runtime.s):00407                 ldb     #PRESENTATION_INSTRUCTION_VALUE_BLUE_0
+054A 862A             (ruction_runtime.s):00408                 lda     #PRESENTATION_INSTRUCTION_VALUE_BLUE_1
+054C 8E002A           (ruction_runtime.s):00409                 ldx     #PRESENTATION_INSTRUCTION_VALUE_BLUE_2
+054F 2010             (ruction_runtime.s):00410                 bra     draw_value_tiles
+0551                  (ruction_runtime.s):00411         dv_yellow
+0551 C661             (ruction_runtime.s):00412                 ldb     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_0
+0553 862A             (ruction_runtime.s):00413                 lda     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_1
+0555 8E002A           (ruction_runtime.s):00414                 ldx     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_2
+0558 2007             (ruction_runtime.s):00415                 bra     draw_value_tiles
+055A                  (ruction_runtime.s):00416         dv_red
+055A C660             (ruction_runtime.s):00417                 ldb     #PRESENTATION_INSTRUCTION_VALUE_RED_0
+055C 862A             (ruction_runtime.s):00418                 lda     #PRESENTATION_INSTRUCTION_VALUE_RED_1
+055E 8E002A           (ruction_runtime.s):00419                 ldx     #PRESENTATION_INSTRUCTION_VALUE_RED_2
+0561                  (ruction_runtime.s):00420         draw_value_tiles
+0561 3412             (ruction_runtime.s):00421                 pshs    a,x
+0563 108E8440         (ruction_runtime.s):00422                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST
+0567 BDFC7E           (ruction_runtime.s):00423                 jsr     PRES_MODULE_DRAW_TILE
+056A 3512             (ruction_runtime.s):00424                 puls    a,x
+056C 3410             (ruction_runtime.s):00425                 pshs    x
+056E 1F89             (ruction_runtime.s):00426                 tfr     a,b
+0570 108E8444         (ruction_runtime.s):00427                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST+4
+0574 BDFC7E           (ruction_runtime.s):00428                 jsr     PRES_MODULE_DRAW_TILE
+0577 3510             (ruction_runtime.s):00429                 puls    x
+0579 1F10             (ruction_runtime.s):00430                 tfr     x,d
+057B 108E8448         (ruction_runtime.s):00431                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST+8
+057F 7EFC7E           (ruction_runtime.s):00432                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00433         
+0582                  (ruction_runtime.s):00434         draw_life_reward
+0582 8E0699           (ruction_runtime.s):00435                 ldx     #life_tiles
+0585 108E4370         (ruction_runtime.s):00436                 ldy     #PRESENTATION_INSTRUCTION_LIFE_DST
+0589 2007             (ruction_runtime.s):00437                 bra     draw_reward
+058B                  (ruction_runtime.s):00438         draw_coin_reward
+058B 8E069D           (ruction_runtime.s):00439                 ldx     #coin_tiles
+058E 108E5270         (ruction_runtime.s):00440                 ldy     #PRESENTATION_INSTRUCTION_COIN_DST
+0592                  (ruction_runtime.s):00441         draw_reward
+0592 E680             (ruction_runtime.s):00442                 ldb     ,x+
+0594 3430             (ruction_runtime.s):00443                 pshs    x,y
+0596 BDFC7E           (ruction_runtime.s):00444                 jsr     PRES_MODULE_DRAW_TILE
+0599 3530             (ruction_runtime.s):00445                 puls    x,y
+059B 3124             (ruction_runtime.s):00446                 leay    4,y
+059D E680             (ruction_runtime.s):00447                 ldb     ,x+
+059F 3430             (ruction_runtime.s):00448                 pshs    x,y
+05A1 BDFC7E           (ruction_runtime.s):00449                 jsr     PRES_MODULE_DRAW_TILE
+05A4 3530             (ruction_runtime.s):00450                 puls    x,y
+05A6 31A904FC         (ruction_runtime.s):00451                 leay    1276,y
+05AA E680             (ruction_runtime.s):00452                 ldb     ,x+
+05AC 3430             (ruction_runtime.s):00453                 pshs    x,y
+05AE BDFC7E           (ruction_runtime.s):00454                 jsr     PRES_MODULE_DRAW_TILE
+05B1 3530             (ruction_runtime.s):00455                 puls    x,y
+05B3 3124             (ruction_runtime.s):00456                 leay    4,y
+05B5 E684             (ruction_runtime.s):00457                 ldb     ,x
+05B7 7EFC7E           (ruction_runtime.s):00458                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00459         
+05BA                  (ruction_runtime.s):00460         draw_multipliers
+05BA 96D1             (ruction_runtime.s):00461                 lda     PRES_WORK
+05BC 800C             (ruction_runtime.s):00462                 suba    #12
+05BE 48               (ruction_runtime.s):00463                 lsla
+05BF 308D00DE         (ruction_runtime.s):00464                 leax    multiplier_tiles,pcr
+05C3 3086             (ruction_runtime.s):00465                 leax    a,x
+05C5 3410             (ruction_runtime.s):00466                 pshs    x
+05C7 108E756C         (ruction_runtime.s):00467                 ldy     #PRESENTATION_INSTRUCTION_MULTIPLIER_0
+05CB 8D06             (ruction_runtime.s):00468                 bsr     draw_multiplier_pair
+05CD 3510             (ruction_runtime.s):00469                 puls    x
+05CF 108E846C         (ruction_runtime.s):00470                 ldy     #PRESENTATION_INSTRUCTION_MULTIPLIER_1
+05D3                  (ruction_runtime.s):00471         draw_multiplier_pair
+05D3 3430             (ruction_runtime.s):00472                 pshs    x,y
+05D5 E684             (ruction_runtime.s):00473                 ldb     ,x
+05D7 BDFC7E           (ruction_runtime.s):00474                 jsr     PRES_MODULE_DRAW_TILE
+05DA 3530             (ruction_runtime.s):00475                 puls    x,y
+05DC 3124             (ruction_runtime.s):00476                 leay    4,y
+05DE E601             (ruction_runtime.s):00477                 ldb     1,x
+05E0 7EFC7E           (ruction_runtime.s):00478                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00479         
+05E3                  (ruction_runtime.s):00480         restore_actor
+05E3 8634             (ruction_runtime.s):00481                 lda     #$34
+05E5 B7FFA5           (ruction_runtime.s):00482                 sta     PAR5
+05E8 0D6A             (ruction_runtime.s):00483                 tst     PLAYER_BG_VALID
+05EA 2707             (ruction_runtime.s):00484                 beq     restore_done
+05EC DC67             (ruction_runtime.s):00485                 ldd     PLAYER_OLD_FB
+05EE DD0B             (ruction_runtime.s):00486                 std     PLAYER_FB
+05F0 BDD5A2           (ruction_runtime.s):00487                 jsr     PRES_MAIN_RESTORE_PLAYER
+05F3                  (ruction_runtime.s):00488         restore_done
+05F3 39               (ruction_runtime.s):00489                 rts
+                      (ruction_runtime.s):00490         
+05F4                  (ruction_runtime.s):00491         present_player
+05F4 8DED             (ruction_runtime.s):00492                 bsr     restore_actor
+05F6 DCB7             (ruction_runtime.s):00493                 ldd     PRES_OUT
+05F8 DD0B             (ruction_runtime.s):00494                 std     PLAYER_FB
+05FA BDD579           (ruction_runtime.s):00495                 jsr     PRES_MAIN_SAVE_PLAYER
+05FD                  (ruction_runtime.s):00496         player_underlay_saved
+05FD 96B1             (ruction_runtime.s):00497                 lda     PRES_TIMER+1
+05FF 44               (ruction_runtime.s):00498                 lsra
+0600 44               (ruction_runtime.s):00499                 lsra
+0601 44               (ruction_runtime.s):00500                 lsra
+0602 8403             (ruction_runtime.s):00501                 anda    #3
+0604 8B04             (ruction_runtime.s):00502                 adda    #4
+0606 97CE             (ruction_runtime.s):00503                 sta     PRES_ACTOR_FRAME
+0608 8639             (ruction_runtime.s):00504                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+060A B7FFA5           (ruction_runtime.s):00505                 sta     PAR5
+060D 96CE             (ruction_runtime.s):00506                 lda     PRES_ACTOR_FRAME
+060F C603             (ruction_runtime.s):00507                 ldb     #3
+0611 3D               (ruction_runtime.s):00508                 mul
+0612 8EA000           (ruction_runtime.s):00509                 ldx     #SPARSE_PLAYER_INDEX_ADDR
+0615 308B             (ruction_runtime.s):00510                 leax    d,x
+0617 EE01             (ruction_runtime.s):00511                 ldu     1,x
+0619 A684             (ruction_runtime.s):00512                 lda     ,x
+061B B7FFA5           (ruction_runtime.s):00513                 sta     PAR5
+061E 9EB7             (ruction_runtime.s):00514                 ldx     PRES_OUT
+0620 BD0821           (ruction_runtime.s):00515                 jsr     PRESENTATION_MODULE_DRAW
+0623 39               (ruction_runtime.s):00516                 rts
+                      (ruction_runtime.s):00517         
+0624                  (ruction_runtime.s):00518         irt_death
+0624 DCB0             (ruction_runtime.s):00519                 ldd     PRES_TIMER
+0626 10830667         (ruction_runtime.s):00520                 cmpd    #PRESENTATION_INSTRUCTION_ANGEL_TICK
+062A 241F             (ruction_runtime.s):00521                 bhs     death_angel
+062C 830626           (ruction_runtime.s):00522                 subd    #PRESENTATION_INSTRUCTION_DEATH_TICK+30
+062F 2511             (ruction_runtime.s):00523                 blo     death_impact
+0631 0FD1             (ruction_runtime.s):00524                 clr     PRES_WORK
+0633 0CD1             (ruction_runtime.s):00525                 inc     PRES_WORK
+0635                  (ruction_runtime.s):00526         death_divide
+0635 10830005         (ruction_runtime.s):00527                 cmpd    #5
+0639 2509             (ruction_runtime.s):00528                 blo     death_index_ready
+063B 830005           (ruction_runtime.s):00529                 subd    #5
+063E 0CD1             (ruction_runtime.s):00530                 inc     PRES_WORK
+0640 20F3             (ruction_runtime.s):00531                 bra     death_divide
+0642                  (ruction_runtime.s):00532         death_impact
+0642 0FD1             (ruction_runtime.s):00533                 clr     PRES_WORK
+0644                  (ruction_runtime.s):00534         death_index_ready
+0644 D6D1             (ruction_runtime.s):00535                 ldb     PRES_WORK
+0646 8D0F             (ruction_runtime.s):00536                 bsr     present_death
+0648 16FD29           (ruction_runtime.s):00537                 lbra    irt_active
+064B                  (ruction_runtime.s):00538         death_angel
+064B CC6170           (ruction_runtime.s):00539                 ldd     #PRESENTATION_INSTRUCTION_ANGEL_DST
+064E DDB7             (ruction_runtime.s):00540                 std     PRES_OUT
+0650 C60E             (ruction_runtime.s):00541                 ldb     #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
+0652 8D03             (ruction_runtime.s):00542                 bsr     present_death
+0654 16FD1D           (ruction_runtime.s):00543                 lbra    irt_active
+                      (ruction_runtime.s):00544         
+0657                  (ruction_runtime.s):00545         present_death
+0657 D7CE             (ruction_runtime.s):00546                 stb     PRES_ACTOR_FRAME
+0659 F106AF           (ruction_runtime.s):00547                 cmpb    IRT_TRACE_LAST_DEATH
+065C 2706             (ruction_runtime.s):00548                 beq     death_traced
+065E F706AF           (ruction_runtime.s):00549                 stb     IRT_TRACE_LAST_DEATH
+0661 7C06AD           (ruction_runtime.s):00550                 inc     IRT_TRACE_DEATHS
+0664                  (ruction_runtime.s):00551         death_traced
+0664 17FF7C           (ruction_runtime.s):00552                 lbsr    restore_actor
+0667 8E6170           (ruction_runtime.s):00553                 ldx     #PRESENTATION_INSTRUCTION_SKULL_DST
+066A 17FEBA           (ruction_runtime.s):00554                 lbsr    clear_target_x
+066D DCB7             (ruction_runtime.s):00555                 ldd     PRES_OUT
+066F DD0B             (ruction_runtime.s):00556                 std     PLAYER_FB
+0671 BDD579           (ruction_runtime.s):00557                 jsr     PRES_MAIN_SAVE_PLAYER
+0674 96CE             (ruction_runtime.s):00558                 lda     PRES_ACTOR_FRAME
+0676 810E             (ruction_runtime.s):00559                 cmpa    #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
+0678 2607             (ruction_runtime.s):00560                 bne     death_surface_ready
+067A DCB7             (ruction_runtime.s):00561                 ldd     PRES_OUT
+067C DDAE             (ruction_runtime.s):00562                 std     PRES_DST
+067E 17FEA4           (ruction_runtime.s):00563                 lbsr    clear_target
+0681                  (ruction_runtime.s):00564         death_surface_ready
+0681 96CE             (ruction_runtime.s):00565                 lda     PRES_ACTOR_FRAME
+0683 C602             (ruction_runtime.s):00566                 ldb     #2
+0685 3D               (ruction_runtime.s):00567                 mul
+0686 C3253F           (ruction_runtime.s):00568                 addd    #PRESENTATION_INSTRUCTION_DEATH_POINTERS
+0689 BD1B7E           (ruction_runtime.s):00569                 jsr     PRES_MODULE_COLD_PTR
+068C EC84             (ruction_runtime.s):00570                 ldd     ,x
+068E BD1B7E           (ruction_runtime.s):00571                 jsr     PRES_MODULE_COLD_PTR
+0691 1F13             (ruction_runtime.s):00572                 tfr     x,u
+0693 9EB7             (ruction_runtime.s):00573                 ldx     PRES_OUT
+0695 BD0821           (ruction_runtime.s):00574                 jsr     PRESENTATION_MODULE_DRAW
+0698                  (ruction_runtime.s):00575         death_frame_published
+0698                  (ruction_runtime.s):00576         death_drawn
+0698 39               (ruction_runtime.s):00577                 rts
+                      (ruction_runtime.s):00578         
+0699                  (ruction_runtime.s):00579         life_tiles
+0699 A9AA             (ruction_runtime.s):00580                 fcb     PRESENTATION_INSTRUCTION_LIFE_0,PRESENTATION_INSTRUCTION_LIFE_1
+069B ABAC             (ruction_runtime.s):00581                 fcb     PRESENTATION_INSTRUCTION_LIFE_2,PRESENTATION_INSTRUCTION_LIFE_3
+069D                  (ruction_runtime.s):00582         coin_tiles
+069D 7E7F             (ruction_runtime.s):00583                 fcb     PRESENTATION_INSTRUCTION_COIN_0,PRESENTATION_INSTRUCTION_COIN_1
+069F 8081             (ruction_runtime.s):00584                 fcb     PRESENTATION_INSTRUCTION_COIN_2,PRESENTATION_INSTRUCTION_COIN_3
+06A1                  (ruction_runtime.s):00585         multiplier_tiles
+06A1 2B2C             (ruction_runtime.s):00586                 fcb     PRESENTATION_INSTRUCTION_X2_0,PRESENTATION_INSTRUCTION_X2_1
+06A3 2B2D             (ruction_runtime.s):00587                 fcb     PRESENTATION_INSTRUCTION_X3_0,PRESENTATION_INSTRUCTION_X3_1
+06A5 2B2E             (ruction_runtime.s):00588                 fcb     PRESENTATION_INSTRUCTION_X5_0,PRESENTATION_INSTRUCTION_X5_1
+                      (ruction_runtime.s):00589         
+06A7                  (ruction_runtime.s):00590         instruction_runtime_end
+                      (ruction_runtime.s):00591         
+                      (ruction_runtime.s):00592                 else
+                      (ruction_runtime.s):00593         ; BUG-011 development instruction choreography.  The GMC loader stages this
+                      (ruction_runtime.s):00594         ; image behind the attract bundle in physical page $24; presentation startup
+                      (ruction_runtime.s):00595         ; copies it into boot-only RAM.
+                      (ruction_runtime.s):00596         ; DOC-002 source-contract mirror begins. Canonical definitions:
+                      (ruction_runtime.s):00597         ; wiki/internal/implementation/routine-catalog.html
+                      (ruction_runtime.s):00598         ; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+                      (ruction_runtime.s):00599         ; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+                      (ruction_runtime.s):00600         ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00601         ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+                      (ruction_runtime.s):00602         ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+                      (ruction_runtime.s):00603         ; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+                      (ruction_runtime.s):00604         ; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
+                      (ruction_runtime.s):00605         ; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+                      (ruction_runtime.s):00606         ; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+                      (ruction_runtime.s):00607         ; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00608         ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+                      (ruction_runtime.s):00609         ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+                      (ruction_runtime.s):00610         ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+                      (ruction_runtime.s):00611         ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
+                      (ruction_runtime.s):00612         ; DOC-002 source-contract mirror profile render Inputs: Current render intent, selected actor or tile state, and a valid BACK or staging destination
+                      (ruction_runtime.s):00613         ; DOC-002 source-contract mirror profile render Outputs: Updated destination pixels and any owner-local history required by later restoration
+                      (ruction_runtime.s):00614         ; DOC-002 source-contract mirror profile render Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (ruction_runtime.s):00615         ; DOC-002 source-contract mirror profile render Reads: Authoritative gameplay state, immutable art streams, and current owner-local background metadata
+                      (ruction_runtime.s):00616         ; DOC-002 source-contract mirror profile render Writes: BACK or staging pixels, render scratch, and owner-local save-under or damage metadata
+                      (ruction_runtime.s):00617         ; DOC-002 source-contract mirror profile render Side effects: Changes a non-visible composition surface or its metadata
+                      (ruction_runtime.s):00618         ; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
+                      (ruction_runtime.s):00619         ; DOC-002 source-contract mirror contract apply_persistent_state profile=presentation: Apply persistent state.
+                      (ruction_runtime.s):00620         ; DOC-002 source-contract mirror contract clear_target profile=render: Clear target.
+                      (ruction_runtime.s):00621         ; DOC-002 source-contract mirror contract clear_target_x profile=render: Clear target x.
+                      (ruction_runtime.s):00622         ; DOC-002 source-contract mirror contract draw_coin_reward profile=render: Draw coin reward.
+                      (ruction_runtime.s):00623         ; DOC-002 source-contract mirror contract draw_life_reward profile=render: Draw life reward.
+                      (ruction_runtime.s):00624         ; DOC-002 source-contract mirror contract draw_multiplier_pair profile=render: Draw multiplier pair.
+                      (ruction_runtime.s):00625         ; DOC-002 source-contract mirror contract draw_multipliers profile=render: Draw multipliers.
+                      (ruction_runtime.s):00626         ; DOC-002 source-contract mirror contract draw_value profile=render: Draw value.
+                      (ruction_runtime.s):00627         ; DOC-002 source-contract mirror contract event_ptr_a profile=copy: Resolve the current development instruction event record into an address.
+                      (ruction_runtime.s):00628         ; DOC-002 source-contract mirror contract instruction_runtime_tick profile=presentation: Advance the development instruction choreography and its persistent state.
+                      (ruction_runtime.s):00629         ; DOC-002 source-contract mirror contract present_death profile=presentation: Apply the development instruction death-presentation event.
+                      (ruction_runtime.s):00630         ; DOC-002 source-contract mirror contract present_player profile=presentation: Apply the development instruction player-presentation event.
+                      (ruction_runtime.s):00631         ; DOC-002 source-contract mirror contract recolour_collectibles profile=render: Recolour collectibles.
+                      (ruction_runtime.s):00632         ; DOC-002 source-contract mirror contract recolour_target profile=render: Recolour target.
+                      (ruction_runtime.s):00633         ; DOC-002 source-contract mirror contract restore_actor profile=render: Restore actor.
+                      (ruction_runtime.s):00634         ; DOC-002 source-contract mirror contract store_owner_state profile=presentation: Store owner state.
+                      (ruction_runtime.s):00635         ; DOC-002 source-contract mirror contract sync_persistent_state profile=presentation: Synchronize persistent state.
+                      (ruction_runtime.s):00636         ; DOC-002 source-contract mirror ends.
+                      (ruction_runtime.s):00637                 pragma  nodollarlocal,6809
+                      (ruction_runtime.s):00638                 setdp   $00
+                      (ruction_runtime.s):00639                 include "ladybug_presentation.inc"
+                      (ruction_runtime.s):00640                 include "ladybug_presentation_symbols.inc"
+                      (ruction_runtime.s):00641         
+06A7                  (ruction_runtime.s):00642         PAR5    equ $FFA5
+06A7                  (ruction_runtime.s):00643         SPARSE_PLAYER_PAYLOAD_PAGE equ $39
+06A7                  (ruction_runtime.s):00644         SPARSE_PLAYER_INDEX_ADDR equ $A000
+06A7                  (ruction_runtime.s):00645         PRESENTATION_MODULE_DRAW equ $0821
+                      (ruction_runtime.s):00646         
+06A7                  (ruction_runtime.s):00647         PRES_DST equ $00AE
+06A7                  (ruction_runtime.s):00648         PRES_TIMER equ $00B0
+06A7                  (ruction_runtime.s):00649         PRES_OUT equ $00B7
+06A7                  (ruction_runtime.s):00650         PRES_PHASE equ $00CA
+06A7                  (ruction_runtime.s):00651         PRES_ACTOR_FRAME equ $00CE
+06A7                  (ruction_runtime.s):00652         PRES_HIGHLIGHT equ $00CF
+06A7                  (ruction_runtime.s):00653         PRES_COLOUR_TIMER equ $00D0
+06A7                  (ruction_runtime.s):00654         PRES_WORK equ $00D1
+06A7                  (ruction_runtime.s):00655         PLAYER_FB equ $000B
+06A7                  (ruction_runtime.s):00656         PLAYER_BG_VALID equ $006A
+06A7                  (ruction_runtime.s):00657         PLAYER_OLD_FB equ $0067
+06A7                  (ruction_runtime.s):00658         FB_BACK equ $0090
+                      (ruction_runtime.s):00659         
+                      (ruction_runtime.s):00660         ; Boot scratch is free after handoff.  The development verifier reads this
+                      (ruction_runtime.s):00661         ; compact trace after the uninterrupted choreography reaches its next screen.
+06A7                  (ruction_runtime.s):00662         IRT_TRACE_MAGIC equ $06AA
+06A7                  (ruction_runtime.s):00663         IRT_TRACE_COLOURS equ $06AB
+06A7                  (ruction_runtime.s):00664         IRT_TRACE_CONSUMES equ $06AC
+06A7                  (ruction_runtime.s):00665         IRT_TRACE_DEATHS equ $06AD
+06A7                  (ruction_runtime.s):00666         IRT_TRACE_OWNERS equ $06AE
+06A7                  (ruction_runtime.s):00667         IRT_TRACE_LAST_DEATH equ $06AF
+06A7                  (ruction_runtime.s):00668         IRT_OWNER_A_PHASE equ $00D2
+06A7                  (ruction_runtime.s):00669         IRT_OWNER_A_COLOUR equ $00D3
+06A7                  (ruction_runtime.s):00670         IRT_OWNER_B_PHASE equ $00D6
+06A7                  (ruction_runtime.s):00671         IRT_OWNER_B_COLOUR equ $00D7
+                      (ruction_runtime.s):00672         
+                      (ruction_runtime.s):00673                 org     $0300
+                      (ruction_runtime.s):00674         
+06A7                  (ruction_runtime.s):00675         instruction_runtime_tick
+                      (ruction_runtime.s):00676                 ldd     PRES_TIMER
+                      (ruction_runtime.s):00677                 cmpd    #PRESENTATION_INSTRUCTION_NEXT_TICK
+                      (ruction_runtime.s):00678                 lbhs    irt_complete
+                      (ruction_runtime.s):00679                 jsr     PRES_MAIN_FB_PREPARE
+                      (ruction_runtime.s):00680                 bcs     irt_active
+                      (ruction_runtime.s):00681                 lda     PRES_PHASE
+                      (ruction_runtime.s):00682                 cmpa    #$FF
+                      (ruction_runtime.s):00683                 beq     irt_init
+                      (ruction_runtime.s):00684                 lbsr    restore_actor
+                      (ruction_runtime.s):00685                 lda     PRES_PHASE
+                      (ruction_runtime.s):00686                 cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
+                      (ruction_runtime.s):00687                 lbhs    irt_death
+                      (ruction_runtime.s):00688         
+                      (ruction_runtime.s):00689                 dec     PRES_COLOUR_TIMER
+                      (ruction_runtime.s):00690                 bne     irt_event
+                      (ruction_runtime.s):00691                 lda     #PRESENTATION_INSTRUCTION_COLOUR_DWELL
+                      (ruction_runtime.s):00692                 sta     PRES_COLOUR_TIMER
+                      (ruction_runtime.s):00693                 inc     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00694                 lda     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00695                 cmpa    #4
+                      (ruction_runtime.s):00696                 blo     irt_colour_ready
+                      (ruction_runtime.s):00697                 lda     #1
+                      (ruction_runtime.s):00698                 sta     PRES_HIGHLIGHT
+06A7                  (ruction_runtime.s):00699         irt_colour_ready
+                      (ruction_runtime.s):00700                 inc     IRT_TRACE_COLOURS
+                      (ruction_runtime.s):00701                 ldx     #IRT_OWNER_A_PHASE
+                      (ruction_runtime.s):00702                 tst     FB_BACK
+                      (ruction_runtime.s):00703                 beq     irt_colour_invalidate
+                      (ruction_runtime.s):00704                 ldx     #IRT_OWNER_B_PHASE
+06A7                  (ruction_runtime.s):00705         irt_colour_invalidate
+                      (ruction_runtime.s):00706                 lda     #$FF
+                      (ruction_runtime.s):00707                 sta     1,x
+06A7                  (ruction_runtime.s):00708         irt_colour_published
+                      (ruction_runtime.s):00709         
+06A7                  (ruction_runtime.s):00710         irt_event
+                      (ruction_runtime.s):00711                 lbsr    sync_persistent_state
+                      (ruction_runtime.s):00712                 lda     PRES_PHASE
+                      (ruction_runtime.s):00713                 cmpa    #PRESENTATION_INSTRUCTION_EVENT_COUNT
+                      (ruction_runtime.s):00714                 lbhs    irt_death
+                      (ruction_runtime.s):00715                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00716                 ldd     PRES_TIMER
+                      (ruction_runtime.s):00717                 cmpd    ,x
+                      (ruction_runtime.s):00718                 blo     irt_draw_player
+                      (ruction_runtime.s):00719                 cmpd    2,x
+                      (ruction_runtime.s):00720                 bhs     consume_event
+                      (ruction_runtime.s):00721                 ldd     PRES_OUT
+                      (ruction_runtime.s):00722                 cmpd    4,x
+                      (ruction_runtime.s):00723                 bhs     irt_draw_player
+                      (ruction_runtime.s):00724                 addd    #1
+                      (ruction_runtime.s):00725                 std     PRES_OUT
+06A7                  (ruction_runtime.s):00726         irt_draw_player
+                      (ruction_runtime.s):00727                 lbsr    present_player
+06A7                  (ruction_runtime.s):00728         irt_active
+                      (ruction_runtime.s):00729                 lbsr    store_owner_state
+                      (ruction_runtime.s):00730                 lda     #1
+                      (ruction_runtime.s):00731                 ldb     FB_BACK
+                      (ruction_runtime.s):00732                 beq     irt_owner_ready
+                      (ruction_runtime.s):00733                 lsla
+06A7                  (ruction_runtime.s):00734         irt_owner_ready
+                      (ruction_runtime.s):00735                 ora     IRT_TRACE_OWNERS
+                      (ruction_runtime.s):00736                 sta     IRT_TRACE_OWNERS
+                      (ruction_runtime.s):00737                 jsr     PRES_MAIN_FB_FINISH
+                      (ruction_runtime.s):00738                 clra
+                      (ruction_runtime.s):00739                 rts
+                      (ruction_runtime.s):00740         
+06A7                  (ruction_runtime.s):00741         irt_init
+                      (ruction_runtime.s):00742                 lda     #$A5
+                      (ruction_runtime.s):00743                 sta     IRT_TRACE_MAGIC
+                      (ruction_runtime.s):00744                 clr     IRT_TRACE_COLOURS
+                      (ruction_runtime.s):00745                 clr     IRT_TRACE_CONSUMES
+                      (ruction_runtime.s):00746                 clr     IRT_TRACE_DEATHS
+                      (ruction_runtime.s):00747                 clr     IRT_TRACE_OWNERS
+                      (ruction_runtime.s):00748                 lda     #$FF
+                      (ruction_runtime.s):00749                 sta     IRT_TRACE_LAST_DEATH
+                      (ruction_runtime.s):00750                 sta     IRT_OWNER_A_PHASE
+                      (ruction_runtime.s):00751                 sta     IRT_OWNER_A_COLOUR
+                      (ruction_runtime.s):00752                 sta     IRT_OWNER_B_PHASE
+                      (ruction_runtime.s):00753                 sta     IRT_OWNER_B_COLOUR
+                      (ruction_runtime.s):00754                 clr     PRES_PHASE
+                      (ruction_runtime.s):00755                 lda     #1
+                      (ruction_runtime.s):00756                 sta     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00757                 lda     #PRESENTATION_INSTRUCTION_COLOUR_DWELL
+                      (ruction_runtime.s):00758                 sta     PRES_COLOUR_TIMER
+                      (ruction_runtime.s):00759                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_0
+                      (ruction_runtime.s):00760                 std     PRES_OUT
+                      (ruction_runtime.s):00761                 clr     PLAYER_BG_VALID
+                      (ruction_runtime.s):00762                 lbsr    recolour_collectibles
+                      (ruction_runtime.s):00763                 lbsr    draw_value
+                      (ruction_runtime.s):00764                 lbsr    present_player
+                      (ruction_runtime.s):00765                 bra     irt_active
+                      (ruction_runtime.s):00766         
+06A7                  (ruction_runtime.s):00767         irt_complete
+                      (ruction_runtime.s):00768                 lda     #1
+                      (ruction_runtime.s):00769                 rts
+                      (ruction_runtime.s):00770         
+                      (ruction_runtime.s):00771         ; A selects one generated twelve-byte event record; X returns mapped to it.
+06A7                  (ruction_runtime.s):00772         event_ptr_a
+                      (ruction_runtime.s):00773                 ldb     #PRESENTATION_INSTRUCTION_EVENT_BYTES
+                      (ruction_runtime.s):00774                 mul
+                      (ruction_runtime.s):00775                 addd    #PRESENTATION_INSTRUCTION_EVENT_OFFSET
+                      (ruction_runtime.s):00776                 jmp     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):00777         
+06A7                  (ruction_runtime.s):00778         consume_event
+                      (ruction_runtime.s):00779                 inc     IRT_TRACE_CONSUMES
+                      (ruction_runtime.s):00780                 lbsr    restore_actor
+                      (ruction_runtime.s):00781                 lda     PRES_PHASE
+                      (ruction_runtime.s):00782                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00783                 ldd     6,x
+                      (ruction_runtime.s):00784                 std     PRES_DST
+                      (ruction_runtime.s):00785                 lbsr    clear_target
+                      (ruction_runtime.s):00786         
+                      (ruction_runtime.s):00787                 lda     PRES_PHASE
+                      (ruction_runtime.s):00788                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00789                 ldy     8,x
+                      (ruction_runtime.s):00790                 beq     consume_reward
+                      (ruction_runtime.s):00791                 ldb     10,x
+                      (ruction_runtime.s):00792                 beq     consume_hud_primary
+                      (ruction_runtime.s):00793                 lda     11,x
+                      (ruction_runtime.s):00794                 pshs    a,y
+                      (ruction_runtime.s):00795                 leay    4,y
+                      (ruction_runtime.s):00796                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00797                 puls    b,y
+                      (ruction_runtime.s):00798                 bra     consume_hud_draw
+06A7                  (ruction_runtime.s):00799         consume_hud_primary
+                      (ruction_runtime.s):00800                 ldb     11,x
+06A7                  (ruction_runtime.s):00801         consume_hud_draw
+                      (ruction_runtime.s):00802                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00803         
+06A7                  (ruction_runtime.s):00804         consume_reward
+                      (ruction_runtime.s):00805                 lda     PRES_PHASE
+                      (ruction_runtime.s):00806                 cmpa    #4
+                      (ruction_runtime.s):00807                 bne     consume_special
+                      (ruction_runtime.s):00808                 lbsr    draw_life_reward
+                      (ruction_runtime.s):00809                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_1
+                      (ruction_runtime.s):00810                 std     PRES_OUT
+                      (ruction_runtime.s):00811                 bra     consume_advance
+06A7                  (ruction_runtime.s):00812         consume_special
+                      (ruction_runtime.s):00813                 cmpa    #11
+                      (ruction_runtime.s):00814                 bne     consume_heart
+                      (ruction_runtime.s):00815                 lbsr    draw_coin_reward
+                      (ruction_runtime.s):00816                 ldd     #PRESENTATION_INSTRUCTION_ANCHOR_2
+                      (ruction_runtime.s):00817                 std     PRES_OUT
+                      (ruction_runtime.s):00818                 bra     consume_advance
+06A7                  (ruction_runtime.s):00819         consume_heart
+                      (ruction_runtime.s):00820                 cmpa    #12
+                      (ruction_runtime.s):00821                 blo     consume_advance
+                      (ruction_runtime.s):00822                 cmpa    #15
+                      (ruction_runtime.s):00823                 bhs     consume_advance
+                      (ruction_runtime.s):00824                 sta     PRES_WORK
+                      (ruction_runtime.s):00825                 lbsr    draw_multipliers
+06A7                  (ruction_runtime.s):00826         consume_advance
+                      (ruction_runtime.s):00827                 inc     PRES_PHASE
+                      (ruction_runtime.s):00828                 lda     PRES_PHASE
+                      (ruction_runtime.s):00829                 suba    #1
+                      (ruction_runtime.s):00830                 cmpa    #15
+                      (ruction_runtime.s):00831                 beq     consume_skull
+                      (ruction_runtime.s):00832                 lbsr    present_player
+                      (ruction_runtime.s):00833                 lbra    irt_active
+06A7                  (ruction_runtime.s):00834         consume_skull
+                      (ruction_runtime.s):00835                 lda     #$FF
+                      (ruction_runtime.s):00836                 sta     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):00837                 clrb
+                      (ruction_runtime.s):00838                 lbsr    present_death
+                      (ruction_runtime.s):00839                 lbra    irt_active
+                      (ruction_runtime.s):00840         
+                      (ruction_runtime.s):00841         ; Recolour all letter and heart targets. Consumed black cells remain black.
+06A7                  (ruction_runtime.s):00842         recolour_collectibles
+                      (ruction_runtime.s):00843                 clr     PRES_WORK
+06A7                  (ruction_runtime.s):00844         rc_next
+                      (ruction_runtime.s):00845                 lda     PRES_WORK
+                      (ruction_runtime.s):00846                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00847                 ldd     6,x
+                      (ruction_runtime.s):00848                 tfr     d,y
+                      (ruction_runtime.s):00849                 lbsr    recolour_target
+                      (ruction_runtime.s):00850                 inc     PRES_WORK
+                      (ruction_runtime.s):00851                 lda     PRES_WORK
+                      (ruction_runtime.s):00852                 cmpa    #15
+                      (ruction_runtime.s):00853                 blo     rc_next
+06A7                  (ruction_runtime.s):00854         recolour_x
+                      (ruction_runtime.s):00855                 ldy     #$7F34          ; authored X root: column 13, row 19
+                      (ruction_runtime.s):00856         
+                      (ruction_runtime.s):00857         ; Recolour the complete 2x2 authored surface through its generated sparse
+                      (ruction_runtime.s):00858         ; nibble-selector stream. The stream excludes transparent and pink pixels.
+06A7                  (ruction_runtime.s):00859         recolour_target
+                      (ruction_runtime.s):00860                 sty     PRES_DST
+                      (ruction_runtime.s):00861                 clra
+                      (ruction_runtime.s):00862                 ldb     PRES_WORK
+                      (ruction_runtime.s):00863                 lslb
+                      (ruction_runtime.s):00864                 rola
+                      (ruction_runtime.s):00865                 addd    #PRESENTATION_INSTRUCTION_COLOUR_POINTERS
+                      (ruction_runtime.s):00866                 jsr     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):00867                 ldd     ,x
+                      (ruction_runtime.s):00868                 jsr     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):00869                 tfr     x,u
+                      (ruction_runtime.s):00870                 ldx     PRES_DST
+                      (ruction_runtime.s):00871                 jmp     PRES_MODULE_COLOUR_SURFACE
+                      (ruction_runtime.s):00872         
+                      (ruction_runtime.s):00873         ; Reconstruct persistent mutations on the currently mapped BACK owner before
+                      (ruction_runtime.s):00874         ; drawing its owner-local actor frame.
+06A7                  (ruction_runtime.s):00875         sync_persistent_state
+                      (ruction_runtime.s):00876                 ldx     #IRT_OWNER_A_PHASE
+                      (ruction_runtime.s):00877                 tst     FB_BACK
+                      (ruction_runtime.s):00878                 beq     sps_selected
+                      (ruction_runtime.s):00879                 ldx     #IRT_OWNER_B_PHASE
+06A7                  (ruction_runtime.s):00880         sps_selected
+                      (ruction_runtime.s):00881                 lda     PRES_PHASE
+                      (ruction_runtime.s):00882                 cmpa    ,x
+                      (ruction_runtime.s):00883                 bne     sps_apply
+                      (ruction_runtime.s):00884                 lda     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00885                 cmpa    1,x
+                      (ruction_runtime.s):00886                 beq     sps_done
+06A7                  (ruction_runtime.s):00887         sps_apply
+                      (ruction_runtime.s):00888                 pshs    x
+                      (ruction_runtime.s):00889                 lbsr    apply_persistent_state
+                      (ruction_runtime.s):00890                 puls    x
+                      (ruction_runtime.s):00891                 bra     sps_store
+                      (ruction_runtime.s):00892         
+06A7                  (ruction_runtime.s):00893         store_owner_state
+                      (ruction_runtime.s):00894                 ldx     #IRT_OWNER_A_PHASE
+                      (ruction_runtime.s):00895                 tst     FB_BACK
+                      (ruction_runtime.s):00896                 beq     sps_store
+                      (ruction_runtime.s):00897                 ldx     #IRT_OWNER_B_PHASE
+06A7                  (ruction_runtime.s):00898         sps_store
+                      (ruction_runtime.s):00899                 lda     PRES_PHASE
+                      (ruction_runtime.s):00900                 sta     ,x
+                      (ruction_runtime.s):00901                 lda     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00902                 sta     1,x
+06A7                  (ruction_runtime.s):00903         sps_done
+                      (ruction_runtime.s):00904                 rts
+                      (ruction_runtime.s):00905         
+06A7                  (ruction_runtime.s):00906         apply_persistent_state
+                      (ruction_runtime.s):00907                 lda     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00908                 pshs    a
+                      (ruction_runtime.s):00909                 lbsr    draw_value
+                      (ruction_runtime.s):00910                 clr     PRES_WORK
+06A7                  (ruction_runtime.s):00911         aps_event
+                      (ruction_runtime.s):00912                 lda     PRES_WORK
+                      (ruction_runtime.s):00913                 cmpa    PRES_PHASE
+                      (ruction_runtime.s):00914                 bhs     aps_unconsumed
+                      (ruction_runtime.s):00915                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00916                 ldd     6,x
+                      (ruction_runtime.s):00917                 std     PRES_DST
+                      (ruction_runtime.s):00918                 lbsr    clear_target
+                      (ruction_runtime.s):00919                 lda     PRES_WORK
+                      (ruction_runtime.s):00920                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00921                 ldy     8,x
+                      (ruction_runtime.s):00922                 beq     aps_next
+                      (ruction_runtime.s):00923                 ldb     10,x
+                      (ruction_runtime.s):00924                 beq     aps_hud_primary
+                      (ruction_runtime.s):00925                 lda     11,x
+                      (ruction_runtime.s):00926                 pshs    a,y
+                      (ruction_runtime.s):00927                 leay    4,y
+                      (ruction_runtime.s):00928                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00929                 puls    b,y
+                      (ruction_runtime.s):00930                 bra     aps_hud_draw
+06A7                  (ruction_runtime.s):00931         aps_hud_primary
+                      (ruction_runtime.s):00932                 ldb     11,x
+06A7                  (ruction_runtime.s):00933         aps_hud_draw
+                      (ruction_runtime.s):00934                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):00935                 bra     aps_next
+06A7                  (ruction_runtime.s):00936         aps_unconsumed
+                      (ruction_runtime.s):00937                 lda     ,s
+                      (ruction_runtime.s):00938                 sta     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00939                 lda     PRES_WORK
+                      (ruction_runtime.s):00940                 lbsr    event_ptr_a
+                      (ruction_runtime.s):00941                 ldd     6,x
+                      (ruction_runtime.s):00942                 tfr     d,y
+                      (ruction_runtime.s):00943                 lbsr    recolour_target
+06A7                  (ruction_runtime.s):00944         aps_next
+                      (ruction_runtime.s):00945                 inc     PRES_WORK
+                      (ruction_runtime.s):00946                 lda     PRES_WORK
+                      (ruction_runtime.s):00947                 cmpa    #15
+                      (ruction_runtime.s):00948                 blo     aps_event
+                      (ruction_runtime.s):00949                 lbsr    recolour_x
+                      (ruction_runtime.s):00950                 lda     PRES_PHASE
+                      (ruction_runtime.s):00951                 cmpa    #5
+                      (ruction_runtime.s):00952                 blo     aps_done
+                      (ruction_runtime.s):00953                 lbsr    draw_life_reward
+                      (ruction_runtime.s):00954                 lda     PRES_PHASE
+                      (ruction_runtime.s):00955                 cmpa    #12
+                      (ruction_runtime.s):00956                 blo     aps_done
+                      (ruction_runtime.s):00957                 lbsr    draw_coin_reward
+                      (ruction_runtime.s):00958                 lda     PRES_PHASE
+                      (ruction_runtime.s):00959                 cmpa    #13
+                      (ruction_runtime.s):00960                 blo     aps_done
+                      (ruction_runtime.s):00961                 suba    #1
+                      (ruction_runtime.s):00962                 cmpa    #14
+                      (ruction_runtime.s):00963                 bls     aps_multiplier_ready
+                      (ruction_runtime.s):00964                 lda     #14
+06A7                  (ruction_runtime.s):00965         aps_multiplier_ready
+                      (ruction_runtime.s):00966                 sta     PRES_WORK
+                      (ruction_runtime.s):00967                 lbsr    draw_multipliers
+06A7                  (ruction_runtime.s):00968         aps_done
+                      (ruction_runtime.s):00969                 puls    a
+                      (ruction_runtime.s):00970                 sta     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00971                 rts
+                      (ruction_runtime.s):00972         
+06A7                  (ruction_runtime.s):00973         clear_target
+                      (ruction_runtime.s):00974                 ldx     PRES_DST
+06A7                  (ruction_runtime.s):00975         clear_target_x
+                      (ruction_runtime.s):00976                 ldy     #16
+                      (ruction_runtime.s):00977                 clra
+                      (ruction_runtime.s):00978                 clrb
+06A7                  (ruction_runtime.s):00979         ct_row
+                      (ruction_runtime.s):00980                 std     ,x
+                      (ruction_runtime.s):00981                 std     2,x
+                      (ruction_runtime.s):00982                 std     4,x
+                      (ruction_runtime.s):00983                 std     6,x
+                      (ruction_runtime.s):00984                 leax    160,x
+                      (ruction_runtime.s):00985                 leay    -1,y
+                      (ruction_runtime.s):00986                 bne     ct_row
+                      (ruction_runtime.s):00987                 rts
+                      (ruction_runtime.s):00988         
+06A7                  (ruction_runtime.s):00989         draw_value
+                      (ruction_runtime.s):00990                 lda     PRES_HIGHLIGHT
+                      (ruction_runtime.s):00991                 cmpa    #1
+                      (ruction_runtime.s):00992                 beq     dv_red
+                      (ruction_runtime.s):00993                 cmpa    #2
+                      (ruction_runtime.s):00994                 beq     dv_yellow
+                      (ruction_runtime.s):00995                 ldb     #PRESENTATION_INSTRUCTION_VALUE_BLUE_0
+                      (ruction_runtime.s):00996                 lda     #PRESENTATION_INSTRUCTION_VALUE_BLUE_1
+                      (ruction_runtime.s):00997                 ldx     #PRESENTATION_INSTRUCTION_VALUE_BLUE_2
+                      (ruction_runtime.s):00998                 bra     draw_value_tiles
+06A7                  (ruction_runtime.s):00999         dv_yellow
+                      (ruction_runtime.s):01000                 ldb     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_0
+                      (ruction_runtime.s):01001                 lda     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_1
+                      (ruction_runtime.s):01002                 ldx     #PRESENTATION_INSTRUCTION_VALUE_YELLOW_2
+                      (ruction_runtime.s):01003                 bra     draw_value_tiles
+06A7                  (ruction_runtime.s):01004         dv_red
+                      (ruction_runtime.s):01005                 ldb     #PRESENTATION_INSTRUCTION_VALUE_RED_0
+                      (ruction_runtime.s):01006                 lda     #PRESENTATION_INSTRUCTION_VALUE_RED_1
+                      (ruction_runtime.s):01007                 ldx     #PRESENTATION_INSTRUCTION_VALUE_RED_2
+06A7                  (ruction_runtime.s):01008         draw_value_tiles
+                      (ruction_runtime.s):01009                 pshs    a,x
+                      (ruction_runtime.s):01010                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST
+                      (ruction_runtime.s):01011                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01012                 puls    a,x
+                      (ruction_runtime.s):01013                 pshs    x
+                      (ruction_runtime.s):01014                 tfr     a,b
+                      (ruction_runtime.s):01015                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST+4
+                      (ruction_runtime.s):01016                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01017                 puls    x
+                      (ruction_runtime.s):01018                 tfr     x,d
+                      (ruction_runtime.s):01019                 ldy     #PRESENTATION_INSTRUCTION_VALUE_DST+8
+                      (ruction_runtime.s):01020                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01021         
+06A7                  (ruction_runtime.s):01022         draw_life_reward
+                      (ruction_runtime.s):01023                 ldx     #life_tiles
+                      (ruction_runtime.s):01024                 ldy     #PRESENTATION_INSTRUCTION_LIFE_DST
+                      (ruction_runtime.s):01025                 bra     draw_reward
+06A7                  (ruction_runtime.s):01026         draw_coin_reward
+                      (ruction_runtime.s):01027                 ldx     #coin_tiles
+                      (ruction_runtime.s):01028                 ldy     #PRESENTATION_INSTRUCTION_COIN_DST
+06A7                  (ruction_runtime.s):01029         draw_reward
+                      (ruction_runtime.s):01030                 ldb     ,x+
+                      (ruction_runtime.s):01031                 pshs    x,y
+                      (ruction_runtime.s):01032                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01033                 puls    x,y
+                      (ruction_runtime.s):01034                 leay    4,y
+                      (ruction_runtime.s):01035                 ldb     ,x+
+                      (ruction_runtime.s):01036                 pshs    x,y
+                      (ruction_runtime.s):01037                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01038                 puls    x,y
+                      (ruction_runtime.s):01039                 leay    1276,y
+                      (ruction_runtime.s):01040                 ldb     ,x+
+                      (ruction_runtime.s):01041                 pshs    x,y
+                      (ruction_runtime.s):01042                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01043                 puls    x,y
+                      (ruction_runtime.s):01044                 leay    4,y
+                      (ruction_runtime.s):01045                 ldb     ,x
+                      (ruction_runtime.s):01046                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01047         
+06A7                  (ruction_runtime.s):01048         draw_multipliers
+                      (ruction_runtime.s):01049                 lda     PRES_WORK
+                      (ruction_runtime.s):01050                 suba    #12
+                      (ruction_runtime.s):01051                 lsla
+                      (ruction_runtime.s):01052                 leax    multiplier_tiles,pcr
+                      (ruction_runtime.s):01053                 leax    a,x
+                      (ruction_runtime.s):01054                 pshs    x
+                      (ruction_runtime.s):01055                 ldy     #PRESENTATION_INSTRUCTION_MULTIPLIER_0
+                      (ruction_runtime.s):01056                 bsr     draw_multiplier_pair
+                      (ruction_runtime.s):01057                 puls    x
+                      (ruction_runtime.s):01058                 ldy     #PRESENTATION_INSTRUCTION_MULTIPLIER_1
+06A7                  (ruction_runtime.s):01059         draw_multiplier_pair
+                      (ruction_runtime.s):01060                 pshs    x,y
+                      (ruction_runtime.s):01061                 ldb     ,x
+                      (ruction_runtime.s):01062                 jsr     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01063                 puls    x,y
+                      (ruction_runtime.s):01064                 leay    4,y
+                      (ruction_runtime.s):01065                 ldb     1,x
+                      (ruction_runtime.s):01066                 jmp     PRES_MODULE_DRAW_TILE
+                      (ruction_runtime.s):01067         
+06A7                  (ruction_runtime.s):01068         restore_actor
+                      (ruction_runtime.s):01069                 lda     #$34
+                      (ruction_runtime.s):01070                 sta     PAR5
+                      (ruction_runtime.s):01071                 tst     PLAYER_BG_VALID
+                      (ruction_runtime.s):01072                 beq     restore_done
+                      (ruction_runtime.s):01073                 ldd     PLAYER_OLD_FB
+                      (ruction_runtime.s):01074                 std     PLAYER_FB
+                      (ruction_runtime.s):01075                 jsr     PRES_MAIN_RESTORE_PLAYER
+06A7                  (ruction_runtime.s):01076         restore_done
+                      (ruction_runtime.s):01077                 rts
+                      (ruction_runtime.s):01078         
+06A7                  (ruction_runtime.s):01079         present_player
+                      (ruction_runtime.s):01080                 bsr     restore_actor
+                      (ruction_runtime.s):01081                 ldd     PRES_OUT
+                      (ruction_runtime.s):01082                 std     PLAYER_FB
+                      (ruction_runtime.s):01083                 jsr     PRES_MAIN_SAVE_PLAYER
+06A7                  (ruction_runtime.s):01084         player_underlay_saved
+                      (ruction_runtime.s):01085                 lda     PRES_TIMER+1
+                      (ruction_runtime.s):01086                 lsra
+                      (ruction_runtime.s):01087                 lsra
+                      (ruction_runtime.s):01088                 lsra
+                      (ruction_runtime.s):01089                 anda    #3
+                      (ruction_runtime.s):01090                 adda    #4
+                      (ruction_runtime.s):01091                 sta     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):01092                 lda     #SPARSE_PLAYER_PAYLOAD_PAGE
+                      (ruction_runtime.s):01093                 sta     PAR5
+                      (ruction_runtime.s):01094                 lda     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):01095                 ldb     #3
+                      (ruction_runtime.s):01096                 mul
+                      (ruction_runtime.s):01097                 ldx     #SPARSE_PLAYER_INDEX_ADDR
+                      (ruction_runtime.s):01098                 leax    d,x
+                      (ruction_runtime.s):01099                 ldu     1,x
+                      (ruction_runtime.s):01100                 lda     ,x
+                      (ruction_runtime.s):01101                 sta     PAR5
+                      (ruction_runtime.s):01102                 ldx     PRES_OUT
+                      (ruction_runtime.s):01103                 jsr     PRESENTATION_MODULE_DRAW
+                      (ruction_runtime.s):01104                 rts
+                      (ruction_runtime.s):01105         
+06A7                  (ruction_runtime.s):01106         irt_death
+                      (ruction_runtime.s):01107                 ldd     PRES_TIMER
+                      (ruction_runtime.s):01108                 cmpd    #PRESENTATION_INSTRUCTION_ANGEL_TICK
+                      (ruction_runtime.s):01109                 bhs     death_angel
+                      (ruction_runtime.s):01110                 subd    #PRESENTATION_INSTRUCTION_DEATH_TICK+30
+                      (ruction_runtime.s):01111                 blo     death_impact
+                      (ruction_runtime.s):01112                 clr     PRES_WORK
+                      (ruction_runtime.s):01113                 inc     PRES_WORK
+06A7                  (ruction_runtime.s):01114         death_divide
+                      (ruction_runtime.s):01115                 cmpd    #5
+                      (ruction_runtime.s):01116                 blo     death_index_ready
+                      (ruction_runtime.s):01117                 subd    #5
+                      (ruction_runtime.s):01118                 inc     PRES_WORK
+                      (ruction_runtime.s):01119                 bra     death_divide
+06A7                  (ruction_runtime.s):01120         death_impact
+                      (ruction_runtime.s):01121                 clr     PRES_WORK
+06A7                  (ruction_runtime.s):01122         death_index_ready
+                      (ruction_runtime.s):01123                 ldb     PRES_WORK
+                      (ruction_runtime.s):01124                 bsr     present_death
+                      (ruction_runtime.s):01125                 lbra    irt_active
+06A7                  (ruction_runtime.s):01126         death_angel
+                      (ruction_runtime.s):01127                 ldd     #PRESENTATION_INSTRUCTION_ANGEL_DST
+                      (ruction_runtime.s):01128                 std     PRES_OUT
+                      (ruction_runtime.s):01129                 ldb     #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
+                      (ruction_runtime.s):01130                 bsr     present_death
+                      (ruction_runtime.s):01131                 lbra    irt_active
+                      (ruction_runtime.s):01132         
+06A7                  (ruction_runtime.s):01133         present_death
+                      (ruction_runtime.s):01134                 stb     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):01135                 cmpb    IRT_TRACE_LAST_DEATH
+                      (ruction_runtime.s):01136                 beq     death_traced
+                      (ruction_runtime.s):01137                 stb     IRT_TRACE_LAST_DEATH
+                      (ruction_runtime.s):01138                 inc     IRT_TRACE_DEATHS
+06A7                  (ruction_runtime.s):01139         death_traced
+                      (ruction_runtime.s):01140                 lbsr    restore_actor
+                      (ruction_runtime.s):01141                 ldx     #PRESENTATION_INSTRUCTION_SKULL_DST
+                      (ruction_runtime.s):01142                 lbsr    clear_target_x
+                      (ruction_runtime.s):01143                 ldd     PRES_OUT
+                      (ruction_runtime.s):01144                 std     PLAYER_FB
+                      (ruction_runtime.s):01145                 jsr     PRES_MAIN_SAVE_PLAYER
+                      (ruction_runtime.s):01146                 lda     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):01147                 cmpa    #PRESENTATION_INSTRUCTION_DEATH_COUNT-1
+                      (ruction_runtime.s):01148                 bne     death_surface_ready
+                      (ruction_runtime.s):01149                 ldd     PRES_OUT
+                      (ruction_runtime.s):01150                 std     PRES_DST
+                      (ruction_runtime.s):01151                 lbsr    clear_target
+06A7                  (ruction_runtime.s):01152         death_surface_ready
+                      (ruction_runtime.s):01153                 lda     PRES_ACTOR_FRAME
+                      (ruction_runtime.s):01154                 ldb     #2
+                      (ruction_runtime.s):01155                 mul
+                      (ruction_runtime.s):01156                 addd    #PRESENTATION_INSTRUCTION_DEATH_POINTERS
+                      (ruction_runtime.s):01157                 jsr     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):01158                 ldd     ,x
+                      (ruction_runtime.s):01159                 jsr     PRES_MODULE_COLD_PTR
+                      (ruction_runtime.s):01160                 tfr     x,u
+                      (ruction_runtime.s):01161                 ldx     PRES_OUT
+                      (ruction_runtime.s):01162                 jsr     PRESENTATION_MODULE_DRAW
+06A7                  (ruction_runtime.s):01163         death_frame_published
+06A7                  (ruction_runtime.s):01164         death_drawn
+                      (ruction_runtime.s):01165                 rts
+                      (ruction_runtime.s):01166         
+06A7                  (ruction_runtime.s):01167         life_tiles
+                      (ruction_runtime.s):01168                 fcb     PRESENTATION_INSTRUCTION_LIFE_0,PRESENTATION_INSTRUCTION_LIFE_1
+                      (ruction_runtime.s):01169                 fcb     PRESENTATION_INSTRUCTION_LIFE_2,PRESENTATION_INSTRUCTION_LIFE_3
+06A7                  (ruction_runtime.s):01170         coin_tiles
+                      (ruction_runtime.s):01171                 fcb     PRESENTATION_INSTRUCTION_COIN_0,PRESENTATION_INSTRUCTION_COIN_1
+                      (ruction_runtime.s):01172                 fcb     PRESENTATION_INSTRUCTION_COIN_2,PRESENTATION_INSTRUCTION_COIN_3
+06A7                  (ruction_runtime.s):01173         multiplier_tiles
+                      (ruction_runtime.s):01174                 fcb     PRESENTATION_INSTRUCTION_X2_0,PRESENTATION_INSTRUCTION_X2_1
+                      (ruction_runtime.s):01175                 fcb     PRESENTATION_INSTRUCTION_X3_0,PRESENTATION_INSTRUCTION_X3_1
+                      (ruction_runtime.s):01176                 fcb     PRESENTATION_INSTRUCTION_X5_0,PRESENTATION_INSTRUCTION_X5_1
+                      (ruction_runtime.s):01177         
+06A7                  (ruction_runtime.s):01178         instruction_runtime_end
+                      (ruction_runtime.s):01179         
+                      (ruction_runtime.s):01180                 endc
+                      (ruction_runtime.s):01181         
+                      (ruction_runtime.s):01182                 end
+
+Symbol Table:
+[SG] ADAPTIVE_RENDERING               0000
+[ G] apply_persistent_state           0494
+[ G] aps_done                         051E
+[ G] aps_event                        04AC
+[ G] aps_events_done                  04F6
+[ G] aps_hud_draw                     04D9
+[ G] aps_hud_primary                  04D7
+[ G] aps_multiplier_ready             0519
+[ G] aps_next                         04EE
+[ G] aps_prior_ready                  049B
+[ G] aps_unconsumed                   04DE
+[ G] clear_target                     0525
+[ G] clear_target_x                   0527
+[ G] coin_tiles                       069D
+[ G] consume_advance                  0429
+[ G] consume_event                    03CC
+[ G] consume_heart                    041C
+[ G] consume_hud_draw                 03FB
+[ G] consume_hud_primary              03F9
+[ G] consume_reward                   03FE
+[ G] consume_skull                    0439
+[ G] consume_special                  040E
+[ G] ct_row                           052D
+[ G] death_angel                      064B
+[ G] death_divide                     0635
+[ G] death_drawn                      0698
+[ G] death_frame_published            0698
+[ G] death_impact                     0642
+[ G] death_index_ready                0644
+[ G] death_surface_ready              0681
+[ G] death_traced                     0664
+[ G] draw_coin_reward                 058B
+[ G] draw_life_reward                 0582
+[ G] draw_multiplier_pair             05D3
+[ G] draw_multipliers                 05BA
+[ G] draw_reward                      0592
+[ G] draw_value                       053E
+[ G] draw_value_tiles                 0561
+[ G] dv_red                           055A
+[ G] dv_yellow                        0551
+[ G] event_ptr_a                      03C3
+[ G] FB_BACK                          0090
+[SG] HIGHSCORE_TEST_PROFILE           0000
+[ G] instruction_runtime_end          06A7
+[ G] instruction_runtime_tick         0300
+[ G] irt_active                       0374
+[ G] irt_colour_invalidate            0341
+[ G] irt_colour_published             0345
+[ G] irt_colour_ready                 0334
+[ G] irt_complete                     03C0
+[ G] irt_death                        0624
+[ G] irt_draw_player                  0371
+[ G] irt_event                        0345
+[ G] irt_init                         0389
+[ G] IRT_OWNER_A_COLOUR               00D3
+[ G] IRT_OWNER_A_PHASE                00D2
+[ G] IRT_OWNER_B_COLOUR               00D7
+[ G] IRT_OWNER_B_PHASE                00D6
+[ G] irt_owner_ready                  037E
+[ G] IRT_TRACE_COLOURS                06AB
+[ G] IRT_TRACE_CONSUMES               06AC
+[ G] IRT_TRACE_DEATHS                 06AD
+[ G] IRT_TRACE_LAST_DEATH             06AF
+[ G] IRT_TRACE_MAGIC                  06AA
+[ G] IRT_TRACE_OWNERS                 06AE
+[ G] life_tiles                       0699
+[ G] MENU_SCAN                        B086
+[ G] MENU_TICK                        B089
+[ G] multiplier_tiles                 06A1
+[ G] PAR5                             FFA5
+[ G] PLAYER_BG_VALID                  006A
+[ G] PLAYER_FB                        000B
+[ G] PLAYER_OLD_FB                    0067
+[ G] player_underlay_saved            05FD
+[ G] PRES_ACTOR_FRAME                 00CE
+[ G] PRES_COLOUR_TIMER                00D0
+[ G] PRES_DST                         00AE
+[ G] PRES_HIGHLIGHT                   00CF
+[ G] PRES_HIGHSCORE_FB_FINISH         05E5
+[ G] PRES_HIGHSCORE_FB_PREPARE        037C
+[ G] PRES_MAIN_BLIT_TILE              D5E8
+[ G] PRES_MAIN_CAN_MOVE               CD4F
+[ G] PRES_MAIN_DEATH                  D322
+[ G] PRES_MAIN_DYNAMIC_TEXT           FC7E
+[ G] PRES_MAIN_ENEMY                  D520
+[ G] PRES_MAIN_ENEMY_TICK             D523
+[ G] PRES_MAIN_ENTITIES               C5EB
+[ G] PRES_MAIN_FB_CAPTURE             0E79
+[ G] PRES_MAIN_FB_FINISH              0E68
+[ G] PRES_MAIN_FB_PREPARE             0DFE
+[ G] PRES_MAIN_FB_PUBLISH             0E6E
+[ G] PRES_MAIN_GATES                  CAC7
+[ G] PRES_MAIN_INIT                   C27D
+[ G] PRES_MAIN_INSTALL_PHASE_TILES    DF2A
+[ G] PRES_MAIN_KEY_SERVICE            DF5F
+[ G] PRES_MAIN_MAP_STREAM_OFFSETS     F5C8
+[ G] PRES_MAIN_MAZE                   C5D8
+[ G] PRES_MAIN_NAME_LATE_TURN         DF72
+[ G] PRES_MAIN_NEXT_STAGE             C2D7
+[ G] PRES_MAIN_PAGE24_RESUME          DF56
+[ G] PRES_MAIN_PLAYER                 CB07
+[ G] PRES_MAIN_PLAYER_TICK            CBA6
+[ G] PRES_MAIN_READ_JOY               CB24
+[ G] PRES_MAIN_READ_STAGE_LETTERS     DF43
+[ G] PRES_MAIN_RENDER                 D4F6
+[ G] PRES_MAIN_RESTORE_PLAYER         D5A2
+[ G] PRES_MAIN_SAVE_PLAYER            D579
+[ G] PRES_MAIN_SCAN_BITS              F5E6
+[ G] PRES_MAIN_SCAN_DRIVES            F5E3
+[ G] PRES_MAIN_SCREEN_MODES           F5DA
+[ G] PRES_MAIN_SHARED_MASK            FBBC
+[ G] PRES_MAIN_STATIC_TEXT            FBA3
+[ G] PRES_MAIN_TOP_HUD                FCAF
+[ G] PRES_MODULE_COLD_PTR             1B7E
+[ G] PRES_MODULE_COLOUR_SURFACE       1D57
+[ G] PRES_MODULE_COLOUR_TILE          1D31
+[ G] PRES_MODULE_DRAW_ACTOR           1D14
+[ G] PRES_MODULE_DRAW_RAW_TILE        1B77
+[ G] PRES_MODULE_DRAW_SCORE           1D97
+[ G] PRES_MODULE_DRAW_TILE            FC7E
+[ G] PRES_MODULE_MAP_BACK             1BA3
+[ G] PRES_MODULE_START_SCREEN         19C8
+[ G] PRES_OUT                         00B7
+[ G] PRES_PHASE                       00CA
+[ G] PRES_RANKING_SLICE               0561
+[ G] PRES_STAGE_SLICE                 B083
+[ G] PRES_TIMER                       00B0
+[ G] PRES_WORK                        00D1
+[ G] present_death                    0657
+[ G] present_player                   05F4
+[ G] PRESENTATION_ATTRACT_BUNDLE_ADDRESS B720
+[ G] PRESENTATION_ATTRACT_BUNDLE_PAGE 003B
+[ G] PRESENTATION_ATTRACT_DESTINATION_ADDRESS BE00
+[ G] PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS BE28
+[ G] PRESENTATION_ATTRACT_SURFACE_ADDRESS A000
+[ G] PRESENTATION_ATTRACT_SURFACE_BYTES 1E00
+[ G] PRESENTATION_ATTRACT_SURFACE_PAGE 003C
+[ G] PRESENTATION_COLD_ONLY_TILE_COUNT 0089
+[ G] PRESENTATION_COLD_PAGE           003A
+[ G] PRESENTATION_COLD_PAGE_COUNT     0004
+[ G] PRESENTATION_COLD_SIZE           3720
+[ G] PRESENTATION_DEMO_ROUTE_ACTIONS  008F
+[ G] PRESENTATION_DEMO_ROUTE_OFFSET   2A1A
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_BYTES 0024
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_OFFSET 1120
+[ G] PRESENTATION_GAMEPLAY_TILE_BASE  0089
+[ G] PRESENTATION_GLYPH_0             002A
+[ G] PRESENTATION_GLYPH_1             0052
+[ G] PRESENTATION_GLYPH_10            0058
+[ G] PRESENTATION_GLYPH_11            005D
+[ G] PRESENTATION_GLYPH_12            0029
+[ G] PRESENTATION_GLYPH_13            00A4
+[ G] PRESENTATION_GLYPH_14            005B
+[ G] PRESENTATION_GLYPH_15            006D
+[ G] PRESENTATION_GLYPH_16            005E
+[ G] PRESENTATION_GLYPH_17            005A
+[ G] PRESENTATION_GLYPH_18            0024
+[ G] PRESENTATION_GLYPH_19            006E
+[ G] PRESENTATION_GLYPH_2             00A3
+[ G] PRESENTATION_GLYPH_20            006F
+[ G] PRESENTATION_GLYPH_21            005C
+[ G] PRESENTATION_GLYPH_22            0070
+[ G] PRESENTATION_GLYPH_23            009D
+[ G] PRESENTATION_GLYPH_24            002A
+[ G] PRESENTATION_GLYPH_25            0053
+[ G] PRESENTATION_GLYPH_26            0071
+[ G] PRESENTATION_GLYPH_27            0027
+[ G] PRESENTATION_GLYPH_28            0025
+[ G] PRESENTATION_GLYPH_29            0026
+[ G] PRESENTATION_GLYPH_3             0061
+[ G] PRESENTATION_GLYPH_30            0028
+[ G] PRESENTATION_GLYPH_31            0072
+[ G] PRESENTATION_GLYPH_32            0073
+[ G] PRESENTATION_GLYPH_33            0074
+[ G] PRESENTATION_GLYPH_34            0059
+[ G] PRESENTATION_GLYPH_35            0075
+[ G] PRESENTATION_GLYPH_36            0078
+[ G] PRESENTATION_GLYPH_4             0063
+[ G] PRESENTATION_GLYPH_5             0065
+[ G] PRESENTATION_GLYPH_6             0064
+[ G] PRESENTATION_GLYPH_7             0062
+[ G] PRESENTATION_GLYPH_8             0060
+[ G] PRESENTATION_GLYPH_9             005F
+[ G] PRESENTATION_HIGHSCORE_BASE      AF84
+[ G] PRESENTATION_HIGHSCORE_COUNT     0009
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 005C
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 0058
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 00A4
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 0059
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 005D
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 0028
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 005E
+[ G] PRESENTATION_HIGHSCORE_DISPLAY_ROWS 0009
+[ G] PRESENTATION_HIGHSCORE_ENTRY_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_NAME_BYTES 0007
+[ G] PRESENTATION_HIGHSCORE_RANK_01_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_RANK_02_NAME_DST 3E3C
+[ G] PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST 3E60
+[ G] PRESENTATION_HIGHSCORE_RANK_03_NAME_DST 433C
+[ G] PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST 4360
+[ G] PRESENTATION_HIGHSCORE_RANK_04_NAME_DST 483C
+[ G] PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST 4860
+[ G] PRESENTATION_HIGHSCORE_RANK_05_NAME_DST 4D3C
+[ G] PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST 4D60
+[ G] PRESENTATION_HIGHSCORE_RANK_06_NAME_DST 523C
+[ G] PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST 5260
+[ G] PRESENTATION_HIGHSCORE_RANK_07_NAME_DST 573C
+[ G] PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST 5760
+[ G] PRESENTATION_HIGHSCORE_RANK_08_NAME_DST 5C3C
+[ G] PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST 5C60
+[ G] PRESENTATION_HIGHSCORE_RANK_09_NAME_DST 613C
+[ G] PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST 6160
+[ G] PRESENTATION_HIGHSCORE_RECORD_BYTES 000A
+[ G] PRESENTATION_HIGHSCORE_ROW_STRIDE 0500
+[ G] PRESENTATION_HIGHSCORE_SCORE_BYTES 0003
+[ G] PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA 0024
+[ G] PRESENTATION_HIGHSCORE_TOP_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_TOP_SCORE_DST 3460
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_0 4328
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_1 5228
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_2 6128
+[ G] PRESENTATION_INSTRUCTION_ANGEL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_ANGEL_TICK 0667
+[ G] PRESENTATION_INSTRUCTION_BLACK_TILE 0089
+[ G] PRESENTATION_INSTRUCTION_COIN_0  007E
+[ G] PRESENTATION_INSTRUCTION_COIN_1  007F
+[ G] PRESENTATION_INSTRUCTION_COIN_2  0080
+[ G] PRESENTATION_INSTRUCTION_COIN_3  0081
+[ G] PRESENTATION_INSTRUCTION_COIN_DST 5270
+[ G] PRESENTATION_INSTRUCTION_COLOUR_DWELL 0020
+[ G] PRESENTATION_INSTRUCTION_COLOUR_POINTERS 20C0
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_DST 2A84
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_STREAM 24EE
+[ G] PRESENTATION_INSTRUCTION_DEATH_COUNT 000F
+[ G] PRESENTATION_INSTRUCTION_DEATH_POINTERS 253F
+[ G] PRESENTATION_INSTRUCTION_DEATH_TICK 0608
+[ G] PRESENTATION_INSTRUCTION_EVENT_BYTES 000C
+[ G] PRESENTATION_INSTRUCTION_EVENT_COUNT 0010
+[ G] PRESENTATION_INSTRUCTION_EVENT_OFFSET 2000
+[ G] PRESENTATION_INSTRUCTION_EXTRA_SPAN 4334
+[ G] PRESENTATION_INSTRUCTION_HEART_SPAN 6134
+[ G] PRESENTATION_INSTRUCTION_ICON_SPAN 7F34
+[ G] PRESENTATION_INSTRUCTION_LIFE_0  00A9
+[ G] PRESENTATION_INSTRUCTION_LIFE_1  00AA
+[ G] PRESENTATION_INSTRUCTION_LIFE_2  00AB
+[ G] PRESENTATION_INSTRUCTION_LIFE_3  00AC
+[ G] PRESENTATION_INSTRUCTION_LIFE_DST 4370
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_0 756C
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_1 846C
+[ G] PRESENTATION_INSTRUCTION_NEXT_TICK 06A8
+[ G] PRESENTATION_INSTRUCTION_SKULL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_SPECIAL_SPAN 5234
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_0 0052
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_DST 8440
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_0 0060
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 0061
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 002A
+[ G] PRESENTATION_INSTRUCTION_X2_0    002B
+[ G] PRESENTATION_INSTRUCTION_X2_1    002C
+[ G] PRESENTATION_INSTRUCTION_X3_0    002B
+[ G] PRESENTATION_INSTRUCTION_X3_1    002D
+[ G] PRESENTATION_INSTRUCTION_X5_0    002B
+[ G] PRESENTATION_INSTRUCTION_X5_1    002E
+[ G] PRESENTATION_MAP_ATTRACT         0000
+[ G] PRESENTATION_MAP_BYTES           03C0
+[ G] PRESENTATION_MAP_COUNT           0009
+[ G] PRESENTATION_MAP_CREDITS         0007
+[ G] PRESENTATION_MAP_ENTER_HIGH_SCORE 0005
+[ G] PRESENTATION_MAP_GAME_OVER       0004
+[ G] PRESENTATION_MAP_HIGH_SCORE      0003
+[ G] PRESENTATION_MAP_INSTRUCTIONS    0001
+[ G] PRESENTATION_MAP_KEYBIND_OPTIONS 0008
+[ G] PRESENTATION_MAP_LEVEL_START     0002
+[ G] PRESENTATION_MAP_OPTIONS         0006
+[ G] PRESENTATION_MAP_OUTPUT_OFFSET   4000
+[ G] PRESENTATION_MAP_STREAM_0        0F20
+[ G] PRESENTATION_MAP_STREAM_0_BYTES  00F9
+[ G] PRESENTATION_MAP_STREAM_1        1019
+[ G] PRESENTATION_MAP_STREAM_1_BYTES  029D
+[ G] PRESENTATION_MAP_STREAM_2        12B6
+[ G] PRESENTATION_MAP_STREAM_2_BYTES  01E6
+[ G] PRESENTATION_MAP_STREAM_3        149C
+[ G] PRESENTATION_MAP_STREAM_3_BYTES  0254
+[ G] PRESENTATION_MAP_STREAM_4        16F0
+[ G] PRESENTATION_MAP_STREAM_4_BYTES  00B9
+[ G] PRESENTATION_MAP_STREAM_5        17A9
+[ G] PRESENTATION_MAP_STREAM_5_BYTES  03A4
+[ G] PRESENTATION_MAP_STREAM_6        1B4D
+[ G] PRESENTATION_MAP_STREAM_6_BYTES  0096
+[ G] PRESENTATION_MAP_STREAM_7        1BE3
+[ G] PRESENTATION_MAP_STREAM_7_BYTES  0128
+[ G] PRESENTATION_MAP_STREAM_8        1D0B
+[ G] PRESENTATION_MAP_STREAM_8_BYTES  010E
+[ G] PRESENTATION_MODULE_DRAW         0821
+[ G] PRESENTATION_NAME_ENTRY_ACTION_BYTES 0087
+[ G] PRESENTATION_NAME_ENTRY_ACTION_TABLE 2F87
+[ G] PRESENTATION_NAME_ENTRY_BLACK_TILE 0089
+[ G] PRESENTATION_NAME_ENTRY_CL_COUNT 0003
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_BYTES 0081
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_CODE 0005
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_DST 894C
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_OFFSET 2999
+[SG] PRESENTATION_NAME_ENTRY_DATA     0000
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES 002D
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE 2D1A
+[ G] PRESENTATION_NAME_ENTRY_END_COUNT 0001
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES 0240
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE 2D47
+[ G] PRESENTATION_NAME_ENTRY_GRID_CELLS 0000
+[ G] PRESENTATION_NAME_ENTRY_GRID_COUNT 0026
+[ G] PRESENTATION_NAME_ENTRY_GRID_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_NAME_DST 7F04
+[ G] PRESENTATION_NAME_ENTRY_NODE_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_SCORE_DST 2A84
+[ G] PRESENTATION_NAME_ENTRY_TIMER_COUNT 005C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_FRAMES 003C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES 0004
+[ G] PRESENTATION_NAME_ENTRY_TIMER_TABLE 2BAA
+[ G] PRESENTATION_NAME_ENTRY_TOP_DST  6104
+[ G] PRESENTATION_NAME_ENTRY_TOP_NAME_DST 5C84
+[ G] PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST 3E84
+[ G] PRESENTATION_PART_VEGETABLE_DST  2A84
+[ G] PRESENTATION_PHASE_TILE_OVERLAY_ENABLED 0001
+[ G] PRESENTATION_PHASE_TILE_SLOT_0   002B
+[ G] PRESENTATION_PHASE_TILE_SLOT_1   002F
+[ G] PRESENTATION_STAGE_PANEL_ENABLED 0001
+[ G] PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_EXPANDED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_OFFSET   0000
+[ G] PRESENTATION_TILE_ATLAS_SOURCE_OFFSET 0000
+[ G] PRESENTATION_TILE_BYTES          0020
+[ G] PRESENTATION_TILE_COUNT          00AD
+[ G] PRESENTATION_TILE_OFFSET         0000
+[ G] recolour_target                  0448
+[ G] recolour_x                       0444
+[ G] restore_actor                    05E3
+[ G] restore_done                     05F3
+[ G] SHARED_TEXT_BASE                 00AE
+[ G] SHARED_TEXT_ENABLED              0001
+[ G] SPARSE_PLAYER_INDEX_ADDR         A000
+[ G] SPARSE_PLAYER_PAYLOAD_PAGE       0039
+[ G] sps_apply                        0478
+[ G] sps_done                         0493
+[ G] sps_selected                     046C
+[ G] sps_store                        048B
+[ G] store_owner_state                0481
+[ G] sync_persistent_state            0462

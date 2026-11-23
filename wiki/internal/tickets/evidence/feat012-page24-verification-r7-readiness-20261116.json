@@ -1,0 +1,55 @@
+{
+  "date": "2026-11-16",
+  "assignment_status": "Ready for the approved one-shot sequence",
+  "source": {
+    "commit": "51e9649a51c6edfd8d883fa191d776d42d3f9d61",
+    "branch": "codex/feat012-page24-relocation-r5",
+    "worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat012-visible-input-r5\\ladybug",
+    "clean": true,
+    "build_directory_absent": true,
+    "explicit_wsl_git_preflight": "PASS: exact commit and branch; clean status; build directory and r7 output root absent; core.autocrlf=true; core.filemode=false"
+  },
+  "verifier": {
+    "path": "scripts/verify_presentation_flow.py",
+    "sha256": "192c4ef5c5fa2fbc2966a4a34b41bb0ad8b7e3401322a8142b6d7593462291d6",
+    "scope": "selects the COMPLETE_PROFILE demo branch after the HIGHSCORE_TEST_PROFILE branch; checks first completed death and STAGE_PENDING handoff; requires install_highscore_runtime, PRESENTATION_MAP_HIGH_SCORE, and start_screen"
+  },
+  "qualification": {
+    "path": "feat012-page24-static-flow-qualification-r7-20261116.json",
+    "sha256": "dbdcce9c089b773588563b920d57f1d28e9c389a38031e819653ae766d2bc675",
+    "valid_fixture": "PASS, exit 0",
+    "negative_demo_handoff": "expected failure, exit 1",
+    "negative_page24_installer": "expected failure, exit 1",
+    "raw_stdout_stderr_and_fixture_source_hashes_retained": true
+  },
+  "package": {
+    "path": "feat012-page24-verification-commands-r7-20261116.sh",
+    "sha256": "227bc4861f81e1115e5a27b25096a38733aa36986990b104dcbba3e244133dc8",
+    "bash_syntax": "PASS",
+    "copy_failure_probe": "PASS: terminal failure status written; prior/source files retained; next step not reached",
+    "default_invocation": "not run before readiness",
+    "output_root": "feat012-page24-verification-r7-20261116",
+    "output_root_absent_at_readiness": true
+  },
+  "visible_input_launcher": {
+    "path": "feat012-page24-visible-input-launch-r7-20261116.sh",
+    "sha256": "74d715e3b9cb65e776320cbba9e8bfbab9c8b042809f44a952c00f73c85cd970",
+    "bash_syntax": "PASS",
+    "expected_rom_sha256": "71140f66117e859bd4a51c8d9becc3a4f81d67ec560ac0145171f4a57822b7ae",
+    "launched": false
+  },
+  "manual_result_template": {
+    "path": "feat012-page24-visible-input-result-template-r7-20261116.json",
+    "sha256": "87b2c77e7ecad8781c41999ecf06ecd58e87c38c7779e43650ebbdbdc7402c28",
+    "source_commit": "51e9649a51c6edfd8d883fa191d776d42d3f9d61",
+    "status": "pending"
+  },
+  "prior_r6": "Not dispatched. Sol QA found that its source slice included text from the inactive HIGHSCORE_TEST_PROFILE branch and its receipt omitted fixture hashes/raw outputs; r7 corrects both within the approved active-branch scope.",
+  "not_run": [
+    "one-shot package without arguments",
+    "fresh build",
+    "cold-start runtime acceptance",
+    "XRoar launch",
+    "visible A/Return input"
+  ]
+}

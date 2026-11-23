@@ -1,0 +1,44 @@
+{
+  "date": "2026-11-16",
+  "assignment_state": "Approved; not Ready; one-shot not dispatched",
+  "user_approval": "Assignment 5 and visible card R5-UI-01 approved; static-flow qualification and conditional one-shot authorized",
+  "candidate": {
+    "commit": "424fb050bad6bdbcfb8796db3f3b53730a9b2e52",
+    "branch": "codex/feat012-page24-relocation-r5",
+    "worktree_clean": true,
+    "build_directory_absent": true
+  },
+  "package": {
+    "path": "feat012-page24-verification-commands-r5-20261116.sh",
+    "sha256": "497a848f99c2322564bca1f17f3f7114ee84b92671f1c1a5ac6476f87b63fc24",
+    "invoked_without_arguments": false,
+    "output_root_created": false
+  },
+  "qualification": {
+    "command": "python3 -B scripts/verify_presentation_flow.py",
+    "deadline_seconds": 55,
+    "elapsed_seconds": 0.2,
+    "exit_code": 1,
+    "result": "FAIL: presentation flow proof: Attract schedule queued repaint did not yield",
+    "fixture_worktree": "C:\\Users\\19029\\.codex\\worktrees\\feat012-page24-sizing-r4\\ladybug",
+    "fixture_head": "424fb050bad6bdbcfb8796db3f3b53730a9b2e52",
+    "fixture_clean": true,
+    "profile": "complete, keyboard, adaptive, 6809",
+    "build_receipt_revision": "ae177ba5c74f0af43191aaa3baa0e60b0adf8657",
+    "presentation_module_sha256": "3f695df8dcf8837dbaed7db65140a6504aed015cb3ff5aaac64d1fba08404df6",
+    "presentation_map_sha256": "33719d83920c08346847d89dbd0b23384ff2047e9e746c24d7229feaa87a1884",
+    "rom_sha256": "71140f66117e859bd4a51c8d9becc3a4f81d67ec560ac0145171f4a57822b7ae",
+    "verifier_sha256": "14741595f94187d7d2d6c0cf30e89903e17566a777d023cd2561e0ebbc4253b2",
+    "negative_control": "not run because the positive fixture failed"
+  },
+  "observed_code_order": "The emitted Attract path refreshes actor pixels before queued menu dispatch and repaint. The verifier expects clock, menu, paint in that replay case. Related clean, queued, and visible-dirty schedule assertions also assume an older callback order and require review.",
+  "classification": "Static-flow qualification failure; not a product runtime assertion or accepted pass.",
+  "not_run": [
+    "one-shot package",
+    "fresh build",
+    "cold-start runtime card",
+    "XRoar launch",
+    "visible A/Return input"
+  ],
+  "next_gate": "Correct and requalify the static-flow checker with valid and intentionally defective fixtures; a checker/package revision change requires a new frozen package identity and ticket readiness review."
+}

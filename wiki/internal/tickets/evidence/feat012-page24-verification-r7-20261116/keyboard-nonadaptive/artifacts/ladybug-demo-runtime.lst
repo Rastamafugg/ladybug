@@ -1,0 +1,1819 @@
+                      (rc/demo_runtime.s):00001         ; DOC-002 source-contract mirror contract logo_tick profile=presentation: Advance the shared logo phase on Attract and High Score; High Score also advances its timer. When the phase changes, redraw changing logo tiles on BACK if publication is idle. Cache the active screen's generated Tiled root when the screen changes; add each shared root-relative offset to form a tile destination.
+                      (rc/demo_runtime.s):00002         ; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
+                      (rc/demo_runtime.s):00003         ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
+                      (rc/demo_runtime.s):00004         ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.
+                      (rc/demo_runtime.s):00005         ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
+                      (rc/demo_runtime.s):00006         ; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan input and route safe automatic-loop wake while preserving local menu edges.
+                      (rc/demo_runtime.s):00007         ; DOC-002 source-contract mirror contract menu_load_finish profile=presentation: Paint authored menu rows; Options keeps selector brackets, while high-score selection changes text colour only.
+                      (rc/demo_runtime.s):00008         ; DOC-002 source-contract mirror contract highscore_commit_name profile=presentation: Highscore commit name.
+                      (rc/demo_runtime.s):00009         ; DOC-002 source-contract mirror contract highscore_prepare_name profile=presentation: Highscore prepare name.
+                      (rc/demo_runtime.s):00010         ; DOC-002 source-contract mirror contract stage_player_score profile=presentation: Draw zero for a fresh game or current packed-BCD score during hidden level-start hydration.
+                      (rc/demo_runtime.s):00011         ; DOC-002 source-contract mirror contract stage_panel_char profile=presentation: Stage panel char.
+                      (rc/demo_runtime.s):00012         ; DOC-002 source-contract mirror contract presentation_panel_slice profile=presentation: Dispatch helper slices to the TOP redraw or the High Score logo slice; leave unrelated slices and screens unchanged.
+                      (rc/demo_runtime.s):00013         ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
+                      (rc/demo_runtime.s):00014         ; DOC-002 source-contract mirror contract stage_panel_text profile=presentation: Stage panel text.
+                      (rc/demo_runtime.s):00015         ; DOC-002 source-contract mirror contract stage_select profile=presentation: Stage select.
+                      (rc/demo_runtime.s):00016         ; DOC-002 source-contract mirror contract HIGHSCORE_PHASE_HELPER_ADDRESS profile=presentation: Highscore phase helper address.
+                      (rc/demo_runtime.s):00017         ; DOC-002 source-contract mirror contract capture_cursor profile=presentation: Capture cursor.
+                      (rc/demo_runtime.s):00018         ; DOC-002 source-contract mirror contract capture_initial profile=presentation: Capture initial.
+                      (rc/demo_runtime.s):00019         ; DOC-002 source-contract mirror contract capture_owner profile=presentation: Capture owner.
+                      (rc/demo_runtime.s):00020         ; DOC-002 source-contract mirror contract draw_cursor profile=presentation: Draw cursor.
+                      (rc/demo_runtime.s):00021         ; DOC-002 source-contract mirror contract draw_entry_scores profile=presentation: Draw entry scores.
+                      (rc/demo_runtime.s):00022         ; DOC-002 source-contract mirror contract draw_name_fields profile=presentation: Draw name fields.
+                      (rc/demo_runtime.s):00023         ; DOC-002 source-contract mirror contract draw_record_name profile=presentation: Draw record name.
+                      (rc/demo_runtime.s):00024         ; DOC-002 source-contract mirror contract draw_score profile=presentation: Tail-call the shared presentation score painter for record and name-entry score fields.
+                      (rc/demo_runtime.s):00025         ; DOC-002 source-contract mirror contract init_scores profile=presentation: Init scores.
+                      (rc/demo_runtime.s):00026         ; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
+                      (rc/demo_runtime.s):00027         ; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
+                      (rc/demo_runtime.s):00028         ; DOC-002 source-contract mirror contract name_cell_arrival profile=presentation: Name cell arrival.
+                      (rc/demo_runtime.s):00029         ; DOC-002 source-contract mirror contract name_tick profile=presentation: Name tick.
+                      (rc/demo_runtime.s):00030         ; DOC-002 source-contract mirror contract restore_cursor profile=presentation: Restore cursor.
+                      (rc/demo_runtime.s):00031         ; DOC-002 source-contract mirror contract update_name_frame profile=presentation: Update name frame.
+                      (rc/demo_runtime.s):00032                 include "ladybug_shared_mode.inc"
+     0001             (g_shared_mode.inc):00001         SHARED_TEXT_ENABLED equ 1
+     B083             (g_shared_mode.inc):00002         PRES_STAGE_SLICE equ $B083
+     B086             (g_shared_mode.inc):00003         MENU_SCAN equ $B086
+     B089             (g_shared_mode.inc):00004         MENU_TICK equ $B089
+                      (rc/demo_runtime.s):00033                 ifne SHARED_TEXT_ENABLED*COMPLETE_PHASE_AUX
+                      (rc/demo_runtime.s):00034                 include "ladybug_text_colours.inc"
+                      (rc/demo_runtime.s):00035                 ifne HIGHSCORE_PHASE_HELPER
+                      (rc/demo_runtime.s):00036                 include "shared_text_stage.inc"
+                      (rc/demo_runtime.s):00037                 else
+                      (rc/demo_runtime.s):00038                 include "shared_text_ranking.inc"
+                      (rc/demo_runtime.s):00039                 endc
+                      (rc/demo_runtime.s):00040                 else
+                      (rc/demo_runtime.s):00041         ; BUG-012 release-profile demo route director, copied to low RAM $0300.
+                      (rc/demo_runtime.s):00042         ; DOC-002 source-contract mirror begins. Canonical definitions:
+                      (rc/demo_runtime.s):00043         ; wiki/internal/implementation/routine-catalog.html
+                      (rc/demo_runtime.s):00044         ; DOC-002 source-contract mirror profile presentation Inputs: Presentation state, interval timer, input edges, current map, and the selected auxiliary profile
+                      (rc/demo_runtime.s):00045         ; DOC-002 source-contract mirror profile presentation Outputs: Updated presentation state and the dispatcher retain/release status when applicable
+                      (rc/demo_runtime.s):00046         ; DOC-002 source-contract mirror profile presentation Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (rc/demo_runtime.s):00047         ; DOC-002 source-contract mirror profile presentation Reads: Presentation direct-page state, cold payloads, authored map streams, and input state
+                      (rc/demo_runtime.s):00048         ; DOC-002 source-contract mirror profile presentation Writes: Presentation state, mapped BACK pixels, and presentation-owned persistent metadata
+                      (rc/demo_runtime.s):00049         ; DOC-002 source-contract mirror profile presentation Side effects: May retain the foreground interval or produce a complete presentation surface
+                      (rc/demo_runtime.s):00050         ; DOC-002 source-contract mirror profile presentation Invariants: Gameplay simulation begins only after release; hidden hydration may prepare initial-stage state and hold it unchanged until release; FRONT publication remains IRQ-owned
+                      (rc/demo_runtime.s):00051         ; DOC-002 source-contract mirror profile copy Inputs: Source and destination identities, bounded count or stream metadata, and any required mapped page
+                      (rc/demo_runtime.s):00052         ; DOC-002 source-contract mirror profile copy Outputs: Copied, decoded, merged, cached, or addressed data plus caller-visible pointer progress
+                      (rc/demo_runtime.s):00053         ; DOC-002 source-contract mirror profile copy Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
+                      (rc/demo_runtime.s):00054         ; DOC-002 source-contract mirror profile copy Reads: The declared source stream, table, framebuffer rows, or metadata record
+                      (rc/demo_runtime.s):00055         ; DOC-002 source-contract mirror profile copy Writes: Only the declared bounded destination record, cache, row range, or scratch fields
+                      (rc/demo_runtime.s):00056         ; DOC-002 source-contract mirror profile copy Side effects: May temporarily map a required GIME page while moving or decoding data
+                      (rc/demo_runtime.s):00057         ; DOC-002 source-contract mirror profile copy Invariants: Counts and destination bounds are honored; any temporary GIME mapping is restored before returning unless the routine contract explicitly states otherwise
+                      (rc/demo_runtime.s):00058         ; DOC-002 source-contract mirror contract demo_runtime_tick profile=presentation: Advance the deterministic release-demo route at eligible semantic cells.
+                      (rc/demo_runtime.s):00059         ; DOC-002 source-contract mirror ends.
+                      (rc/demo_runtime.s):00060                 pragma  nodollarlocal,6809
+     00               (rc/demo_runtime.s):00061                 setdp   $00
+                      (rc/demo_runtime.s):00062                 include "ladybug_presentation.inc"
+                      (_presentation.inc):00001         ; Generated by scripts/build_presentation.py; do not edit.
+     0009             (_presentation.inc):00002         PRESENTATION_MAP_COUNT equ 9
+     03C0             (_presentation.inc):00003         PRESENTATION_MAP_BYTES equ 960
+     0001             (_presentation.inc):00004         PRESENTATION_STAGE_PANEL_ENABLED equ 1
+     0020             (_presentation.inc):00005         PRESENTATION_TILE_BYTES equ 32
+     00AD             (_presentation.inc):00006         PRESENTATION_TILE_COUNT equ 173
+     003A             (_presentation.inc):00007         PRESENTATION_COLD_PAGE equ $3A
+     0004             (_presentation.inc):00008         PRESENTATION_COLD_PAGE_COUNT equ 4
+     3720             (_presentation.inc):00009         PRESENTATION_COLD_SIZE equ 14112
+     0000             (_presentation.inc):00010         PRESENTATION_TILE_ATLAS_OFFSET equ 0
+     0000             (_presentation.inc):00011         PRESENTATION_TILE_OFFSET equ 0
+     0000             (_presentation.inc):00012         PRESENTATION_TILE_ATLAS_SOURCE_OFFSET equ 0
+     1120             (_presentation.inc):00013         PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES equ 4384
+     1120             (_presentation.inc):00014         PRESENTATION_TILE_ATLAS_EXPANDED_BYTES equ 4384
+     0089             (_presentation.inc):00015         PRESENTATION_COLD_ONLY_TILE_COUNT equ 137
+     0089             (_presentation.inc):00016         PRESENTATION_GAMEPLAY_TILE_BASE equ 137
+     1120             (_presentation.inc):00017         PRESENTATION_GAMEPLAY_LOOKUP_OFFSET equ 4384
+     0024             (_presentation.inc):00018         PRESENTATION_GAMEPLAY_LOOKUP_BYTES equ 36
+     0001             (_presentation.inc):00019         PRESENTATION_PHASE_TILE_OVERLAY_ENABLED equ 1
+     002B             (_presentation.inc):00020         PRESENTATION_PHASE_TILE_SLOT_0 equ 43
+     002F             (_presentation.inc):00021         PRESENTATION_PHASE_TILE_SLOT_1 equ 47
+     003C             (_presentation.inc):00022         PRESENTATION_ATTRACT_SURFACE_PAGE equ $3C
+     A000             (_presentation.inc):00023         PRESENTATION_ATTRACT_SURFACE_ADDRESS equ $A000
+     1E00             (_presentation.inc):00024         PRESENTATION_ATTRACT_SURFACE_BYTES equ 7680
+     BE00             (_presentation.inc):00025         PRESENTATION_ATTRACT_DESTINATION_ADDRESS equ $BE00
+     BE28             (_presentation.inc):00026         PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS equ $BE28
+     4000             (_presentation.inc):00027         PRESENTATION_MAP_OUTPUT_OFFSET equ $4000
+                      (_presentation.inc):00028         
+     0000             (_presentation.inc):00029         PRESENTATION_MAP_ATTRACT equ 0
+     0001             (_presentation.inc):00030         PRESENTATION_MAP_INSTRUCTIONS equ 1
+     0002             (_presentation.inc):00031         PRESENTATION_MAP_LEVEL_START equ 2
+     0003             (_presentation.inc):00032         PRESENTATION_MAP_HIGH_SCORE equ 3
+     0004             (_presentation.inc):00033         PRESENTATION_MAP_GAME_OVER equ 4
+     0005             (_presentation.inc):00034         PRESENTATION_MAP_ENTER_HIGH_SCORE equ 5
+     0006             (_presentation.inc):00035         PRESENTATION_MAP_OPTIONS equ 6
+     0007             (_presentation.inc):00036         PRESENTATION_MAP_CREDITS equ 7
+     0008             (_presentation.inc):00037         PRESENTATION_MAP_KEYBIND_OPTIONS equ 8
+                      (_presentation.inc):00038         
+                      (_presentation.inc):00039         ; Compressed map stream offsets and lengths in the cold payload.
+     0F20             (_presentation.inc):00040         PRESENTATION_MAP_STREAM_0 equ $0F20
+     00F9             (_presentation.inc):00041         PRESENTATION_MAP_STREAM_0_BYTES equ 249
+     1019             (_presentation.inc):00042         PRESENTATION_MAP_STREAM_1 equ $1019
+     029D             (_presentation.inc):00043         PRESENTATION_MAP_STREAM_1_BYTES equ 669
+     12B6             (_presentation.inc):00044         PRESENTATION_MAP_STREAM_2 equ $12B6
+     01E6             (_presentation.inc):00045         PRESENTATION_MAP_STREAM_2_BYTES equ 486
+     149C             (_presentation.inc):00046         PRESENTATION_MAP_STREAM_3 equ $149C
+     0254             (_presentation.inc):00047         PRESENTATION_MAP_STREAM_3_BYTES equ 596
+     16F0             (_presentation.inc):00048         PRESENTATION_MAP_STREAM_4 equ $16F0
+     00B9             (_presentation.inc):00049         PRESENTATION_MAP_STREAM_4_BYTES equ 185
+     17A9             (_presentation.inc):00050         PRESENTATION_MAP_STREAM_5 equ $17A9
+     03A4             (_presentation.inc):00051         PRESENTATION_MAP_STREAM_5_BYTES equ 932
+     1B4D             (_presentation.inc):00052         PRESENTATION_MAP_STREAM_6 equ $1B4D
+     0096             (_presentation.inc):00053         PRESENTATION_MAP_STREAM_6_BYTES equ 150
+     1BE3             (_presentation.inc):00054         PRESENTATION_MAP_STREAM_7 equ $1BE3
+     0128             (_presentation.inc):00055         PRESENTATION_MAP_STREAM_7_BYTES equ 296
+     1D0B             (_presentation.inc):00056         PRESENTATION_MAP_STREAM_8 equ $1D0B
+     010E             (_presentation.inc):00057         PRESENTATION_MAP_STREAM_8_BYTES equ 270
+                      (_presentation.inc):00058         
+                      (_presentation.inc):00059         ; BUG-012 arcade-derived demo direction stream.
+     2A1A             (_presentation.inc):00060         PRESENTATION_DEMO_ROUTE_OFFSET equ $2A1A
+     008F             (_presentation.inc):00061         PRESENTATION_DEMO_ROUTE_ACTIONS equ 143
+                      (_presentation.inc):00062         
+                      (_presentation.inc):00063         ; BUG-011 semantic instruction choreography.
+     2000             (_presentation.inc):00064         PRESENTATION_INSTRUCTION_EVENT_OFFSET equ $2000
+     000C             (_presentation.inc):00065         PRESENTATION_INSTRUCTION_EVENT_BYTES equ 12
+     0010             (_presentation.inc):00066         PRESENTATION_INSTRUCTION_EVENT_COUNT equ 16
+     20C0             (_presentation.inc):00067         PRESENTATION_INSTRUCTION_COLOUR_POINTERS equ $20C0
+     24EE             (_presentation.inc):00068         PRESENTATION_INSTRUCTION_CUCUMBER_STREAM equ $24EE
+     2A84             (_presentation.inc):00069         PRESENTATION_INSTRUCTION_CUCUMBER_DST equ $2A84
+     2A84             (_presentation.inc):00070         PRESENTATION_PART_VEGETABLE_DST equ $2A84
+     253F             (_presentation.inc):00071         PRESENTATION_INSTRUCTION_DEATH_POINTERS equ $253F
+     000F             (_presentation.inc):00072         PRESENTATION_INSTRUCTION_DEATH_COUNT equ 15
+     0608             (_presentation.inc):00073         PRESENTATION_INSTRUCTION_DEATH_TICK equ 1544
+     0667             (_presentation.inc):00074         PRESENTATION_INSTRUCTION_ANGEL_TICK equ 1639
+     6170             (_presentation.inc):00075         PRESENTATION_INSTRUCTION_ANGEL_DST equ $6170
+     6170             (_presentation.inc):00076         PRESENTATION_INSTRUCTION_SKULL_DST equ $6170
+     06A8             (_presentation.inc):00077         PRESENTATION_INSTRUCTION_NEXT_TICK equ 1704
+     0020             (_presentation.inc):00078         PRESENTATION_INSTRUCTION_COLOUR_DWELL equ 32
+     0089             (_presentation.inc):00079         PRESENTATION_INSTRUCTION_BLACK_TILE equ 137
+     8440             (_presentation.inc):00080         PRESENTATION_INSTRUCTION_VALUE_DST equ $8440
+     4370             (_presentation.inc):00081         PRESENTATION_INSTRUCTION_LIFE_DST equ $4370
+     5270             (_presentation.inc):00082         PRESENTATION_INSTRUCTION_COIN_DST equ $5270
+     756C             (_presentation.inc):00083         PRESENTATION_INSTRUCTION_MULTIPLIER_0 equ $756C
+     846C             (_presentation.inc):00084         PRESENTATION_INSTRUCTION_MULTIPLIER_1 equ $846C
+     4334             (_presentation.inc):00085         PRESENTATION_INSTRUCTION_EXTRA_SPAN equ $4334
+     5234             (_presentation.inc):00086         PRESENTATION_INSTRUCTION_SPECIAL_SPAN equ $5234
+     6134             (_presentation.inc):00087         PRESENTATION_INSTRUCTION_HEART_SPAN equ $6134
+     7F34             (_presentation.inc):00088         PRESENTATION_INSTRUCTION_ICON_SPAN equ $7F34
+     4328             (_presentation.inc):00089         PRESENTATION_INSTRUCTION_ANCHOR_0 equ $4328
+     5228             (_presentation.inc):00090         PRESENTATION_INSTRUCTION_ANCHOR_1 equ $5228
+     6128             (_presentation.inc):00091         PRESENTATION_INSTRUCTION_ANCHOR_2 equ $6128
+     0060             (_presentation.inc):00092         PRESENTATION_INSTRUCTION_VALUE_RED_0 equ 96
+     002A             (_presentation.inc):00093         PRESENTATION_INSTRUCTION_VALUE_RED_1 equ 42
+     002A             (_presentation.inc):00094         PRESENTATION_INSTRUCTION_VALUE_RED_2 equ 42
+     0061             (_presentation.inc):00095         PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 equ 97
+     002A             (_presentation.inc):00096         PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 equ 42
+     002A             (_presentation.inc):00097         PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 equ 42
+     0052             (_presentation.inc):00098         PRESENTATION_INSTRUCTION_VALUE_BLUE_0 equ 82
+     002A             (_presentation.inc):00099         PRESENTATION_INSTRUCTION_VALUE_BLUE_1 equ 42
+     002A             (_presentation.inc):00100         PRESENTATION_INSTRUCTION_VALUE_BLUE_2 equ 42
+     00A9             (_presentation.inc):00101         PRESENTATION_INSTRUCTION_LIFE_0 equ 169
+     00AA             (_presentation.inc):00102         PRESENTATION_INSTRUCTION_LIFE_1 equ 170
+     00AB             (_presentation.inc):00103         PRESENTATION_INSTRUCTION_LIFE_2 equ 171
+     00AC             (_presentation.inc):00104         PRESENTATION_INSTRUCTION_LIFE_3 equ 172
+     007E             (_presentation.inc):00105         PRESENTATION_INSTRUCTION_COIN_0 equ 126
+     007F             (_presentation.inc):00106         PRESENTATION_INSTRUCTION_COIN_1 equ 127
+     0080             (_presentation.inc):00107         PRESENTATION_INSTRUCTION_COIN_2 equ 128
+     0081             (_presentation.inc):00108         PRESENTATION_INSTRUCTION_COIN_3 equ 129
+     002B             (_presentation.inc):00109         PRESENTATION_INSTRUCTION_X2_0 equ 43
+     002C             (_presentation.inc):00110         PRESENTATION_INSTRUCTION_X2_1 equ 44
+     002B             (_presentation.inc):00111         PRESENTATION_INSTRUCTION_X3_0 equ 43
+     002D             (_presentation.inc):00112         PRESENTATION_INSTRUCTION_X3_1 equ 45
+     002B             (_presentation.inc):00113         PRESENTATION_INSTRUCTION_X5_0 equ 43
+     002E             (_presentation.inc):00114         PRESENTATION_INSTRUCTION_X5_1 equ 46
+                      (_presentation.inc):00115         
+                      (_presentation.inc):00116         ; FEAT-003 authored high-score name-entry contract.
+     2999             (_presentation.inc):00117         PRESENTATION_NAME_ENTRY_CURSOR_OFFSET equ $2999
+     0081             (_presentation.inc):00118         PRESENTATION_NAME_ENTRY_CURSOR_BYTES equ 129
+     894C             (_presentation.inc):00119         PRESENTATION_NAME_ENTRY_CURSOR_DST equ $894C
+     0005             (_presentation.inc):00120         PRESENTATION_NAME_ENTRY_CURSOR_CODE equ 5
+     0026             (_presentation.inc):00121         PRESENTATION_NAME_ENTRY_GRID_COUNT equ 38
+     0003             (_presentation.inc):00122         PRESENTATION_NAME_ENTRY_CL_COUNT equ 3
+     0001             (_presentation.inc):00123         PRESENTATION_NAME_ENTRY_END_COUNT equ 1
+     7F04             (_presentation.inc):00124         PRESENTATION_NAME_ENTRY_NAME_DST equ $7F04
+     5C84             (_presentation.inc):00125         PRESENTATION_NAME_ENTRY_TOP_NAME_DST equ $5C84
+     2A84             (_presentation.inc):00126         PRESENTATION_NAME_ENTRY_SCORE_DST equ $2A84
+     6104             (_presentation.inc):00127         PRESENTATION_NAME_ENTRY_TOP_DST equ $6104
+     3E84             (_presentation.inc):00128         PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST equ $3E84
+     0089             (_presentation.inc):00129         PRESENTATION_NAME_ENTRY_BLACK_TILE equ 137
+     2BAA             (_presentation.inc):00130         PRESENTATION_NAME_ENTRY_TIMER_TABLE equ $2BAA
+     0004             (_presentation.inc):00131         PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES equ 4
+     003C             (_presentation.inc):00132         PRESENTATION_NAME_ENTRY_TIMER_FRAMES equ 60
+     005C             (_presentation.inc):00133         PRESENTATION_NAME_ENTRY_TIMER_COUNT equ 92
+     2D1A             (_presentation.inc):00134         PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE equ $2D1A
+     002D             (_presentation.inc):00135         PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES equ 45
+     2D47             (_presentation.inc):00136         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE equ $2D47
+     0240             (_presentation.inc):00137         PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES equ 576
+     2F87             (_presentation.inc):00138         PRESENTATION_NAME_ENTRY_ACTION_TABLE equ $2F87
+     0087             (_presentation.inc):00139         PRESENTATION_NAME_ENTRY_ACTION_BYTES equ 135
+0000                  (_presentation.inc):00140         PRESENTATION_NAME_ENTRY_GRID_TILES
+0000                  (_presentation.inc):00141         PRESENTATION_NAME_ENTRY_GRID_CELLS
+0000                  (_presentation.inc):00142         PRESENTATION_NAME_ENTRY_NODE_TILES
+                      (_presentation.inc):00143                 ifne    PRESENTATION_NAME_ENTRY_DATA
+                      (_presentation.inc):00144                 fcb     $FE,$58,$5D,$29,$FE,$A4,$5B,$6D,$5E,$5A,$24,$6E,$6F,$5C,$70,$9D,$2A,$53,$71,$27,$25,$26,$28,$72,$73,$74,$59,$75,$52,$A3,$61,$63,$65,$64,$62,$60,$5F,$76,$77,$78,$FE,$79,$89,$7A,$FD
+0000                  (_presentation.inc):00145         PRESENTATION_NAME_ENTRY_NODE_DESTINATIONS
+                      (_presentation.inc):00146                 endc
+     005C             (_presentation.inc):00147         PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 equ $5C
+     0058             (_presentation.inc):00148         PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 equ $58
+     00A4             (_presentation.inc):00149         PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 equ $A4
+     0059             (_presentation.inc):00150         PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 equ $59
+     005D             (_presentation.inc):00151         PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 equ $5D
+     0028             (_presentation.inc):00152         PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 equ $28
+     005E             (_presentation.inc):00153         PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 equ $5E
+     002A             (_presentation.inc):00154         PRESENTATION_GLYPH_0 equ 42
+     0052             (_presentation.inc):00155         PRESENTATION_GLYPH_1 equ 82
+     00A3             (_presentation.inc):00156         PRESENTATION_GLYPH_2 equ 163
+     0061             (_presentation.inc):00157         PRESENTATION_GLYPH_3 equ 97
+     0063             (_presentation.inc):00158         PRESENTATION_GLYPH_4 equ 99
+     0065             (_presentation.inc):00159         PRESENTATION_GLYPH_5 equ 101
+     0064             (_presentation.inc):00160         PRESENTATION_GLYPH_6 equ 100
+     0062             (_presentation.inc):00161         PRESENTATION_GLYPH_7 equ 98
+     0060             (_presentation.inc):00162         PRESENTATION_GLYPH_8 equ 96
+     005F             (_presentation.inc):00163         PRESENTATION_GLYPH_9 equ 95
+     0058             (_presentation.inc):00164         PRESENTATION_GLYPH_10 equ 88
+     005D             (_presentation.inc):00165         PRESENTATION_GLYPH_11 equ 93
+     0029             (_presentation.inc):00166         PRESENTATION_GLYPH_12 equ 41
+     00A4             (_presentation.inc):00167         PRESENTATION_GLYPH_13 equ 164
+     005B             (_presentation.inc):00168         PRESENTATION_GLYPH_14 equ 91
+     006D             (_presentation.inc):00169         PRESENTATION_GLYPH_15 equ 109
+     005E             (_presentation.inc):00170         PRESENTATION_GLYPH_16 equ 94
+     005A             (_presentation.inc):00171         PRESENTATION_GLYPH_17 equ 90
+     0024             (_presentation.inc):00172         PRESENTATION_GLYPH_18 equ 36
+     006E             (_presentation.inc):00173         PRESENTATION_GLYPH_19 equ 110
+     006F             (_presentation.inc):00174         PRESENTATION_GLYPH_20 equ 111
+     005C             (_presentation.inc):00175         PRESENTATION_GLYPH_21 equ 92
+     0070             (_presentation.inc):00176         PRESENTATION_GLYPH_22 equ 112
+     009D             (_presentation.inc):00177         PRESENTATION_GLYPH_23 equ 157
+     002A             (_presentation.inc):00178         PRESENTATION_GLYPH_24 equ 42
+     0053             (_presentation.inc):00179         PRESENTATION_GLYPH_25 equ 83
+     0071             (_presentation.inc):00180         PRESENTATION_GLYPH_26 equ 113
+     0027             (_presentation.inc):00181         PRESENTATION_GLYPH_27 equ 39
+     0025             (_presentation.inc):00182         PRESENTATION_GLYPH_28 equ 37
+     0026             (_presentation.inc):00183         PRESENTATION_GLYPH_29 equ 38
+     0028             (_presentation.inc):00184         PRESENTATION_GLYPH_30 equ 40
+     0072             (_presentation.inc):00185         PRESENTATION_GLYPH_31 equ 114
+     0073             (_presentation.inc):00186         PRESENTATION_GLYPH_32 equ 115
+     0074             (_presentation.inc):00187         PRESENTATION_GLYPH_33 equ 116
+     0059             (_presentation.inc):00188         PRESENTATION_GLYPH_34 equ 89
+     0075             (_presentation.inc):00189         PRESENTATION_GLYPH_35 equ 117
+     0078             (_presentation.inc):00190         PRESENTATION_GLYPH_36 equ 120
+                      (_presentation.inc):00191         
+                      (_presentation.inc):00192         ; Nine fixed seven-character session records live in PAR5 page $34.
+     AF84             (_presentation.inc):00193         PRESENTATION_HIGHSCORE_BASE equ $AF84
+     000A             (_presentation.inc):00194         PRESENTATION_HIGHSCORE_RECORD_BYTES equ 10
+     0003             (_presentation.inc):00195         PRESENTATION_HIGHSCORE_SCORE_BYTES equ 3
+     0007             (_presentation.inc):00196         PRESENTATION_HIGHSCORE_NAME_BYTES equ 7
+     0009             (_presentation.inc):00197         PRESENTATION_HIGHSCORE_COUNT equ 9
+     0009             (_presentation.inc):00198         PRESENTATION_HIGHSCORE_DISPLAY_ROWS equ 9
+     0500             (_presentation.inc):00199         PRESENTATION_HIGHSCORE_ROW_STRIDE equ 1280
+     343C             (_presentation.inc):00200         PRESENTATION_HIGHSCORE_RANK_01_NAME_DST equ $343C
+     3460             (_presentation.inc):00201         PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST equ $3460
+     3E3C             (_presentation.inc):00202         PRESENTATION_HIGHSCORE_RANK_02_NAME_DST equ $3E3C
+     3E60             (_presentation.inc):00203         PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST equ $3E60
+     433C             (_presentation.inc):00204         PRESENTATION_HIGHSCORE_RANK_03_NAME_DST equ $433C
+     4360             (_presentation.inc):00205         PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST equ $4360
+     483C             (_presentation.inc):00206         PRESENTATION_HIGHSCORE_RANK_04_NAME_DST equ $483C
+     4860             (_presentation.inc):00207         PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST equ $4860
+     4D3C             (_presentation.inc):00208         PRESENTATION_HIGHSCORE_RANK_05_NAME_DST equ $4D3C
+     4D60             (_presentation.inc):00209         PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST equ $4D60
+     523C             (_presentation.inc):00210         PRESENTATION_HIGHSCORE_RANK_06_NAME_DST equ $523C
+     5260             (_presentation.inc):00211         PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST equ $5260
+     573C             (_presentation.inc):00212         PRESENTATION_HIGHSCORE_RANK_07_NAME_DST equ $573C
+     5760             (_presentation.inc):00213         PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST equ $5760
+     5C3C             (_presentation.inc):00214         PRESENTATION_HIGHSCORE_RANK_08_NAME_DST equ $5C3C
+     5C60             (_presentation.inc):00215         PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST equ $5C60
+     613C             (_presentation.inc):00216         PRESENTATION_HIGHSCORE_RANK_09_NAME_DST equ $613C
+     6160             (_presentation.inc):00217         PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST equ $6160
+     0024             (_presentation.inc):00218         PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA equ 36
+     343C             (_presentation.inc):00219         PRESENTATION_HIGHSCORE_TOP_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00220         PRESENTATION_HIGHSCORE_TOP_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+     343C             (_presentation.inc):00221         PRESENTATION_HIGHSCORE_ENTRY_NAME_DST equ PRESENTATION_HIGHSCORE_RANK_01_NAME_DST
+     3460             (_presentation.inc):00222         PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST equ PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST
+                      (_presentation.inc):00223         
+     00AE             (_presentation.inc):00224         SHARED_TEXT_BASE equ 174
+                      (_presentation.inc):00225         
+     003B             (_presentation.inc):00226         PRESENTATION_ATTRACT_BUNDLE_PAGE equ $3B
+     B720             (_presentation.inc):00227         PRESENTATION_ATTRACT_BUNDLE_ADDRESS equ $B720
+                      (rc/demo_runtime.s):00063                 include "ladybug_presentation_symbols.inc"
+     D5E8             (ation_symbols.inc):00001         PRES_MAIN_BLIT_TILE equ $D5E8
+     CD4F             (ation_symbols.inc):00002         PRES_MAIN_CAN_MOVE equ $CD4F
+     D322             (ation_symbols.inc):00003         PRES_MAIN_DEATH equ $D322
+     FC7E             (ation_symbols.inc):00004         PRES_MAIN_DYNAMIC_TEXT equ $FC7E
+     D520             (ation_symbols.inc):00005         PRES_MAIN_ENEMY equ $D520
+     D523             (ation_symbols.inc):00006         PRES_MAIN_ENEMY_TICK equ $D523
+     C5EB             (ation_symbols.inc):00007         PRES_MAIN_ENTITIES equ $C5EB
+     CAC7             (ation_symbols.inc):00008         PRES_MAIN_GATES equ $CAC7
+     C27D             (ation_symbols.inc):00009         PRES_MAIN_INIT equ $C27D
+     DF2A             (ation_symbols.inc):00010         PRES_MAIN_INSTALL_PHASE_TILES equ $DF2A
+     DF5F             (ation_symbols.inc):00011         PRES_MAIN_KEY_SERVICE equ $DF5F
+     F5C8             (ation_symbols.inc):00012         PRES_MAIN_MAP_STREAM_OFFSETS equ $F5C8
+     C5D8             (ation_symbols.inc):00013         PRES_MAIN_MAZE equ $C5D8
+     DF72             (ation_symbols.inc):00014         PRES_MAIN_NAME_LATE_TURN equ $DF72
+     C2D7             (ation_symbols.inc):00015         PRES_MAIN_NEXT_STAGE equ $C2D7
+     DF56             (ation_symbols.inc):00016         PRES_MAIN_PAGE24_RESUME equ $DF56
+     CB07             (ation_symbols.inc):00017         PRES_MAIN_PLAYER equ $CB07
+     CBA6             (ation_symbols.inc):00018         PRES_MAIN_PLAYER_TICK equ $CBA6
+     CB24             (ation_symbols.inc):00019         PRES_MAIN_READ_JOY equ $CB24
+     DF43             (ation_symbols.inc):00020         PRES_MAIN_READ_STAGE_LETTERS equ $DF43
+     D4F6             (ation_symbols.inc):00021         PRES_MAIN_RENDER equ $D4F6
+     D5A2             (ation_symbols.inc):00022         PRES_MAIN_RESTORE_PLAYER equ $D5A2
+     D579             (ation_symbols.inc):00023         PRES_MAIN_SAVE_PLAYER equ $D579
+     F5E6             (ation_symbols.inc):00024         PRES_MAIN_SCAN_BITS equ $F5E6
+     F5E3             (ation_symbols.inc):00025         PRES_MAIN_SCAN_DRIVES equ $F5E3
+     F5DA             (ation_symbols.inc):00026         PRES_MAIN_SCREEN_MODES equ $F5DA
+     FBBC             (ation_symbols.inc):00027         PRES_MAIN_SHARED_MASK equ $FBBC
+     FBA3             (ation_symbols.inc):00028         PRES_MAIN_STATIC_TEXT equ $FBA3
+     FCAF             (ation_symbols.inc):00029         PRES_MAIN_TOP_HUD equ $FCAF
+     0E79             (ation_symbols.inc):00030         PRES_MAIN_FB_CAPTURE equ $0E79
+     0E68             (ation_symbols.inc):00031         PRES_MAIN_FB_FINISH equ $0E68
+     0DFE             (ation_symbols.inc):00032         PRES_MAIN_FB_PREPARE equ $0DFE
+     0E6E             (ation_symbols.inc):00033         PRES_MAIN_FB_PUBLISH equ $0E6E
+     1B7E             (ation_symbols.inc):00034         PRES_MODULE_COLD_PTR equ $1B7E
+     1D57             (ation_symbols.inc):00035         PRES_MODULE_COLOUR_SURFACE equ $1D57
+     1D31             (ation_symbols.inc):00036         PRES_MODULE_COLOUR_TILE equ $1D31
+     1D14             (ation_symbols.inc):00037         PRES_MODULE_DRAW_ACTOR equ $1D14
+     1B77             (ation_symbols.inc):00038         PRES_MODULE_DRAW_RAW_TILE equ $1B77
+     1D97             (ation_symbols.inc):00039         PRES_MODULE_DRAW_SCORE equ $1D97
+     FC7E             (ation_symbols.inc):00040         PRES_MODULE_DRAW_TILE equ $FC7E
+     1BA3             (ation_symbols.inc):00041         PRES_MODULE_MAP_BACK equ $1BA3
+     19C8             (ation_symbols.inc):00042         PRES_MODULE_START_SCREEN equ $19C8
+                      (rc/demo_runtime.s):00064         
+     FFA5             (rc/demo_runtime.s):00065         PAR5    equ $FFA5
+     0006             (rc/demo_runtime.s):00066         PLAYER_DIR equ $0006
+     0007             (rc/demo_runtime.s):00067         PLAYER_FACE equ $0007
+     0008             (rc/demo_runtime.s):00068         PLAYER_STEP equ $0008
+     000B             (rc/demo_runtime.s):00069         PLAYER_FB equ $000B
+     0009             (rc/demo_runtime.s):00070         PLAYER_CELL_X equ $0009
+     000A             (rc/demo_runtime.s):00071         PLAYER_CELL_Y equ $000A
+     000F             (rc/demo_runtime.s):00072         PLAYER_WANT equ $000F
+     0018             (rc/demo_runtime.s):00073         PLAYER_MANUAL equ $0018
+     00DA             (rc/demo_runtime.s):00074         PRES_DEMO_ROUTE equ $00DA
+     00DB             (rc/demo_runtime.s):00075         PRES_DEMO_LAST_X equ $00DB
+     00DC             (rc/demo_runtime.s):00076         PRES_DEMO_LAST_Y equ $00DC
+     00DD             (rc/demo_runtime.s):00077         PRES_DEMO_DIR equ $00DD
+     00DF             (rc/demo_runtime.s):00078         PRES_NAME_ROW equ $00DF
+     00E0             (rc/demo_runtime.s):00079         PRES_NAME_COL equ $00E0
+     00E1             (rc/demo_runtime.s):00080         PRES_NAME_REPEAT equ $00E1
+     00E2             (rc/demo_runtime.s):00081         PRES_NAME_LAST_DIR equ $00E2
+     00E1             (rc/demo_runtime.s):00082         PRES_TICK_PHASE equ $00E1
+     00E2             (rc/demo_runtime.s):00083         PRES_NAME_FLAGS equ $00E2
+     00E8             (rc/demo_runtime.s):00084         PRES_NAME_TIMER_PHASE equ $00E8
+     00E9             (rc/demo_runtime.s):00085         PRES_NAME_TIMER_BOX equ $00E9
+     00E3             (rc/demo_runtime.s):00086         PRES_NAME_OWNER equ $00E3
+     00E4             (rc/demo_runtime.s):00087         PRES_NAME_PTR equ $00E4
+     00E6             (rc/demo_runtime.s):00088         PRES_NAME_TILE equ $00E6
+     00E7             (rc/demo_runtime.s):00089         PRES_HS_READY equ $00E7
+                      (rc/demo_runtime.s):00090         ; High-score test only: demo-route scratch bytes hold the two owner-local
+                      (rc/demo_runtime.s):00091         ; cursor destinations; the name tile byte holds the latched move direction.
+     00DA             (rc/demo_runtime.s):00092         PRES_NAME_PTR_A equ $00DA
+     00DC             (rc/demo_runtime.s):00093         PRES_NAME_PTR_B equ $00DC
+     00DE             (rc/demo_runtime.s):00094         PRES_NAME_STEPS equ $00DE
+     00E6             (rc/demo_runtime.s):00095         PRES_NAME_DIR equ $00E6
+     00A5             (rc/demo_runtime.s):00096         PRES_MODE equ $00A5
+     00A6             (rc/demo_runtime.s):00097         PRES_SCREEN equ $00A6
+     00B5             (rc/demo_runtime.s):00098         PRES_IN equ $00B5
+     00B7             (rc/demo_runtime.s):00099         PRES_OUT equ $00B7
+     00C2             (rc/demo_runtime.s):00100         PRES_TMP_H equ $00C2
+     00C3             (rc/demo_runtime.s):00101         PRES_TMP_M equ $00C3
+     00C4             (rc/demo_runtime.s):00102         PRES_TMP_L equ $00C4
+     00C9             (rc/demo_runtime.s):00103         PRES_INSERT equ $00C9
+     00CB             (rc/demo_runtime.s):00104         PRES_NAME_LEN equ $00CB
+     00BF             (rc/demo_runtime.s):00105         PRES_SCORE_H equ $00BF
+     00C0             (rc/demo_runtime.s):00106         PRES_SCORE_M equ $00C0
+     00C1             (rc/demo_runtime.s):00107         PRES_SCORE_L equ $00C1
+     00B0             (rc/demo_runtime.s):00108         PRES_TIMER equ $00B0
+     AF84             (rc/demo_runtime.s):00109         PRES_HIGHSCORE_BASE equ $AF84
+     AFDE             (rc/demo_runtime.s):00110         PRES_PENDING_NAME equ $AFDE
+                      (rc/demo_runtime.s):00111         ; The page-$24 helper executes through PAR5, so page-$34 score state uses a
+                      (rc/demo_runtime.s):00112         ; temporary PAR4 alias instead of dereferencing the helper's own window.
+     8F84             (rc/demo_runtime.s):00113         PRES_HIGHSCORE_ALIAS equ $8F84
+     8FDE             (rc/demo_runtime.s):00114         PRES_PENDING_NAME_ALIAS equ $8FDE
+     A590             (rc/demo_runtime.s):00115         PRES_CURSOR_SAVE_A equ $A590
+     A610             (rc/demo_runtime.s):00116         PRES_CURSOR_SAVE_B equ $A610
+     00FE             (rc/demo_runtime.s):00117         PRES_NAME_CL equ $FE
+     00FD             (rc/demo_runtime.s):00118         PRES_NAME_END equ $FD
+     0089             (rc/demo_runtime.s):00119         PRES_HS_BLACK equ PRESENTATION_NAME_ENTRY_BLACK_TILE
+     E3D0             (rc/demo_runtime.s):00120         PRESENTATION_GAMEPLAY_TILES equ $E3D0
+     0001             (rc/demo_runtime.s):00121         MODE_LOAD equ 1
+     0007             (rc/demo_runtime.s):00122         MODE_GAMEOVER equ 7
+     0008             (rc/demo_runtime.s):00123         MODE_NAME equ 8
+     0003             (rc/demo_runtime.s):00124         MAP_HIGH_SCORE equ PRESENTATION_MAP_HIGH_SCORE
+     0005             (rc/demo_runtime.s):00125         MAP_ENTER_HIGH_SCORE equ PRESENTATION_MAP_ENTER_HIGH_SCORE
+     0000             (rc/demo_runtime.s):00126         DIR_N equ 0
+     0001             (rc/demo_runtime.s):00127         DIR_E equ 1
+     0002             (rc/demo_runtime.s):00128         DIR_S equ 2
+     0003             (rc/demo_runtime.s):00129         DIR_W equ 3
+     00FF             (rc/demo_runtime.s):00130         DIR_NONE equ $FF
+     0090             (rc/demo_runtime.s):00131         FB_BACK_ID equ $0090
+     0091             (rc/demo_runtime.s):00132         FB_PENDING equ $0091
+     0098             (rc/demo_runtime.s):00133         FB_RENDER_ACTIVE equ $0098
+     00D4             (rc/demo_runtime.s):00134         PRES_HOLD_STATE equ $00D4
+     0081             (rc/demo_runtime.s):00135         PRES_HOLD_FINAL equ $81
+     FFA1             (rc/demo_runtime.s):00136         PAR1 equ $FFA1
+     FFA2             (rc/demo_runtime.s):00137         PAR2 equ $FFA2
+     FFA3             (rc/demo_runtime.s):00138         PAR3 equ $FFA3
+     FFA4             (rc/demo_runtime.s):00139         PAR4 equ $FFA4
+     0005             (rc/demo_runtime.s):00140         JOY_DIR equ $0005
+     0002             (rc/demo_runtime.s):00141         FRAMES equ $0002
+     0821             (rc/demo_runtime.s):00142         PRES_MODULE_DRAW equ $0821
+     0812             (rc/demo_runtime.s):00143         PRES_MAIN_PLAYER_DRAW equ $0812
+     004F             (rc/demo_runtime.s):00144         PLAYER_ANIM equ $004F
+     0050             (rc/demo_runtime.s):00145         PLAYER_ANIM_TIMER equ $0050
+                      (rc/demo_runtime.s):00146         
+                      (rc/demo_runtime.s):00147                 ifne    HIGHSCORE_PHASE_HELPER
+                      (rc/demo_runtime.s):00148         
+                      (rc/demo_runtime.s):00149         ; Page-$24 high-score helper.  It remains mapped only while the low-RAM
+                      (rc/demo_runtime.s):00150         ; high-score owner calls it.  All calls that may change PAR5 return through
+                      (rc/demo_runtime.s):00151         ; presentation_page24_resume in resident code.
+0000                  (rc/demo_runtime.s):00152         SND_DATA equ $FF51
+                      (rc/demo_runtime.s):00153         
+                      (rc/demo_runtime.s):00154                 org     HIGHSCORE_PHASE_HELPER_ADDRESS
+                      (rc/demo_runtime.s):00155         
+0000                  (rc/demo_runtime.s):00156         highscore_phase_tick
+                      (rc/demo_runtime.s):00157                 lda     PRES_MODE
+                      (rc/demo_runtime.s):00158                 cmpa    #MODE_GAMEOVER
+                      (rc/demo_runtime.s):00159                 lbeq    highscore_gameover_tick
+                      (rc/demo_runtime.s):00160                 tst     PRES_NAME_FLAGS
+                      (rc/demo_runtime.s):00161                 lbne    highscore_commit_done
+                      (rc/demo_runtime.s):00162                 lda     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00163                 lbmi    highscore_timer_owner
+                      (rc/demo_runtime.s):00164                 tsta
+                      (rc/demo_runtime.s):00165                 beq     highscore_timer_frame
+                      (rc/demo_runtime.s):00166                 dec     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00167                 lda     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00168                 cmpa    #2
+                      (rc/demo_runtime.s):00169                 lbeq    highscore_tick_second
+                      (rc/demo_runtime.s):00170                 tsta
+                      (rc/demo_runtime.s):00171                 bne     highscore_timer_frame
+                      (rc/demo_runtime.s):00172                 lda     #$9F
+                      (rc/demo_runtime.s):00173                 sta     SND_DATA
+0000                  (rc/demo_runtime.s):00174         highscore_timer_frame
+                      (rc/demo_runtime.s):00175                 inc     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00176                 lda     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00177                 cmpa    #PRESENTATION_NAME_ENTRY_TIMER_FRAMES
+                      (rc/demo_runtime.s):00178                 lblo    highscore_phase_hold
+                      (rc/demo_runtime.s):00179                 clr     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00180                 lda     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00181                 cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+                      (rc/demo_runtime.s):00182                 lbhs    highscore_commit_done
+                      (rc/demo_runtime.s):00183                 lda     #$80
+                      (rc/demo_runtime.s):00184                 sta     PRES_TICK_PHASE
+0000                  (rc/demo_runtime.s):00185         highscore_timer_prepare
+                      (rc/demo_runtime.s):00186                 lda     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00187                 sta     PRES_TMP_H
+                      (rc/demo_runtime.s):00188                 ldd     #highscore_after_prepare
+                      (rc/demo_runtime.s):00189                 std     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00190                 ldd     #PRES_MAIN_PAGE24_RESUME
+                      (rc/demo_runtime.s):00191                 pshs    d
+                      (rc/demo_runtime.s):00192                 jmp     PRES_MAIN_FB_PREPARE
+                      (rc/demo_runtime.s):00193         
+0000                  (rc/demo_runtime.s):00194         highscore_after_prepare
+0000                  (rc/demo_runtime.s):00195         highscore_timer_draw
+                      (rc/demo_runtime.s):00196                 lda     PRES_TMP_H
+                      (rc/demo_runtime.s):00197                 ldb     #PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES
+                      (rc/demo_runtime.s):00198                 mul
+                      (rc/demo_runtime.s):00199                 ldx     #highscore_timer_records
+                      (rc/demo_runtime.s):00200                 leax    d,x
+                      (rc/demo_runtime.s):00201                 ldd     ,x
+                      (rc/demo_runtime.s):00202                 tfr     d,y
+                      (rc/demo_runtime.s):00203                 ldb     3,x
+                      (rc/demo_runtime.s):00204                 ldd     #highscore_after_tile
+                      (rc/demo_runtime.s):00205                 std     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00206                 ldd     #PRES_MAIN_PAGE24_RESUME
+                      (rc/demo_runtime.s):00207                 pshs    d
+                      (rc/demo_runtime.s):00208                 jmp     PRES_MODULE_DRAW_TILE
+                      (rc/demo_runtime.s):00209         
+                      (rc/demo_runtime.s):00210         ; Raw lwasm output concatenates discontinuous ORG regions instead of emitting
+                      (rc/demo_runtime.s):00211         ; their address gap.  Materialize this reserved continuation window so every
+                      (rc/demo_runtime.s):00212         ; absolute helper label retains the same file offset after loading at $AC40.
+0000                  (rc/demo_runtime.s):00213         highscore_phase_helper_gap
+                      (rc/demo_runtime.s):00214                 rmb     HIGHSCORE_PHASE_HELPER_RESUME-*
+0000                  (rc/demo_runtime.s):00215         highscore_after_tile
+                      (rc/demo_runtime.s):00216                 clra
+                      (rc/demo_runtime.s):00217                 rts
+                      (rc/demo_runtime.s):00218         
+                      (rc/demo_runtime.s):00219         ; A timer tile is persistent state.  Apply it to the current BACK, allow the
+                      (rc/demo_runtime.s):00220         ; low-RAM name renderer to close and publish every dynamic layer, wait for the
+                      (rc/demo_runtime.s):00221         ; IRQ owner swap, then repeat the same one-tile transaction for the other
+                      (rc/demo_runtime.s):00222         ; owner.  $80 is first-owner published; $81 is second-owner published.
+0000                  (rc/demo_runtime.s):00223         highscore_timer_owner
+                      (rc/demo_runtime.s):00224                 inc     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00225                 tst     FB_PENDING
+                      (rc/demo_runtime.s):00226                 bne     highscore_phase_busy
+                      (rc/demo_runtime.s):00227                 cmpa    #$80
+                      (rc/demo_runtime.s):00228                 bne     highscore_timer_complete
+                      (rc/demo_runtime.s):00229                 inc     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00230                 lbra    highscore_timer_prepare
+0000                  (rc/demo_runtime.s):00231         highscore_timer_complete
+                      (rc/demo_runtime.s):00232                 inc     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00233                 lda     #4
+                      (rc/demo_runtime.s):00234                 sta     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00235                 lda     #$86
+                      (rc/demo_runtime.s):00236                 sta     SND_DATA
+                      (rc/demo_runtime.s):00237                 lda     #$35
+                      (rc/demo_runtime.s):00238                 sta     SND_DATA
+                      (rc/demo_runtime.s):00239                 lda     #$91
+                      (rc/demo_runtime.s):00240                 sta     SND_DATA
+                      (rc/demo_runtime.s):00241                 lda     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00242                 cmpa    #PRESENTATION_NAME_ENTRY_TIMER_COUNT
+                      (rc/demo_runtime.s):00243                 bhs     highscore_commit_done
+0000                  (rc/demo_runtime.s):00244         highscore_phase_hold
+                      (rc/demo_runtime.s):00245                 clra
+                      (rc/demo_runtime.s):00246                 rts
+0000                  (rc/demo_runtime.s):00247         highscore_phase_busy
+                      (rc/demo_runtime.s):00248                 lda     #1
+                      (rc/demo_runtime.s):00249                 rts
+                      (rc/demo_runtime.s):00250         
+0000                  (rc/demo_runtime.s):00251         highscore_tick_second
+                      (rc/demo_runtime.s):00252                 lda     #$8A
+                      (rc/demo_runtime.s):00253                 sta     SND_DATA
+                      (rc/demo_runtime.s):00254                 lda     #$23
+                      (rc/demo_runtime.s):00255                 sta     SND_DATA
+                      (rc/demo_runtime.s):00256                 lda     #$92
+                      (rc/demo_runtime.s):00257                 sta     SND_DATA
+                      (rc/demo_runtime.s):00258                 lbra    highscore_timer_frame
+                      (rc/demo_runtime.s):00259         
+0000                  (rc/demo_runtime.s):00260         highscore_commit_done
+                      (rc/demo_runtime.s):00261                 lbsr    highscore_commit_name
+                      (rc/demo_runtime.s):00262                 ldd     #highscore_after_highscore_start
+                      (rc/demo_runtime.s):00263                 std     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00264                 ldd     #PRES_MAIN_PAGE24_RESUME
+                      (rc/demo_runtime.s):00265                 pshs    d
+                      (rc/demo_runtime.s):00266                 lda     #MAP_HIGH_SCORE
+                      (rc/demo_runtime.s):00267                 jmp     PRES_MODULE_START_SCREEN
+0000                  (rc/demo_runtime.s):00268         highscore_after_highscore_start
+                      (rc/demo_runtime.s):00269                 lda     #1
+                      (rc/demo_runtime.s):00270                 rts
+                      (rc/demo_runtime.s):00271         
+0000                  (rc/demo_runtime.s):00272         highscore_gameover_tick
+                      (rc/demo_runtime.s):00273                 ldd     PRES_TIMER
+                      (rc/demo_runtime.s):00274                 addd    #1
+                      (rc/demo_runtime.s):00275                 std     PRES_TIMER
+                      (rc/demo_runtime.s):00276                 cmpd    #180
+                      (rc/demo_runtime.s):00277                 blo     highscore_phase_hold
+                      (rc/demo_runtime.s):00278                 lbsr    highscore_prepare_name
+                      (rc/demo_runtime.s):00279                 ldd     #highscore_after_name_start
+                      (rc/demo_runtime.s):00280                 std     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00281                 ldd     #PRES_MAIN_PAGE24_RESUME
+                      (rc/demo_runtime.s):00282                 pshs    d
+                      (rc/demo_runtime.s):00283                 lda     #MAP_ENTER_HIGH_SCORE
+                      (rc/demo_runtime.s):00284                 jmp     PRES_MODULE_START_SCREEN
+0000                  (rc/demo_runtime.s):00285         highscore_after_name_start
+                      (rc/demo_runtime.s):00286                 lda     #1
+                      (rc/demo_runtime.s):00287                 rts
+                      (rc/demo_runtime.s):00288         
+0000                  (rc/demo_runtime.s):00289         highscore_prepare_name
+                      (rc/demo_runtime.s):00290                 pshs    cc
+                      (rc/demo_runtime.s):00291                 orcc    #$10
+                      (rc/demo_runtime.s):00292                 lda     PAR4
+                      (rc/demo_runtime.s):00293                 pshs    a
+                      (rc/demo_runtime.s):00294                 lda     #$34
+                      (rc/demo_runtime.s):00295                 sta     PAR4
+                      (rc/demo_runtime.s):00296                 tst     PRES_HS_READY
+                      (rc/demo_runtime.s):00297                 bne     highscore_prepare_ready
+                      (rc/demo_runtime.s):00298                 ldu     #PRES_HIGHSCORE_ALIAS
+                      (rc/demo_runtime.s):00299                 lda     #9
+0000                  (rc/demo_runtime.s):00300         highscore_prepare_row
+                      (rc/demo_runtime.s):00301                 sta     ,u+
+                      (rc/demo_runtime.s):00302                 clr     ,u+
+                      (rc/demo_runtime.s):00303                 clr     ,u+
+                      (rc/demo_runtime.s):00304                 pshs    a
+                      (rc/demo_runtime.s):00305                 ldx     #highscore_default_name_data
+                      (rc/demo_runtime.s):00306                 ldy     #7
+0000                  (rc/demo_runtime.s):00307         highscore_prepare_default
+                      (rc/demo_runtime.s):00308                 lda     ,x+
+                      (rc/demo_runtime.s):00309                 sta     ,u+
+                      (rc/demo_runtime.s):00310                 leay    -1,y
+                      (rc/demo_runtime.s):00311                 bne     highscore_prepare_default
+                      (rc/demo_runtime.s):00312                 puls    a
+                      (rc/demo_runtime.s):00313                 deca
+                      (rc/demo_runtime.s):00314                 bne     highscore_prepare_row
+                      (rc/demo_runtime.s):00315                 inc     PRES_HS_READY
+0000                  (rc/demo_runtime.s):00316         highscore_prepare_ready
+                      (rc/demo_runtime.s):00317                 clr     PRES_NAME_FLAGS
+                      (rc/demo_runtime.s):00318                 clr     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00319                 clr     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00320                 clr     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00321                 lda     #$09
+                      (rc/demo_runtime.s):00322                 sta     PRES_SCORE_H
+                      (rc/demo_runtime.s):00323                 lda     #$50
+                      (rc/demo_runtime.s):00324                 sta     PRES_SCORE_M
+                      (rc/demo_runtime.s):00325                 clr     PRES_SCORE_L
+                      (rc/demo_runtime.s):00326                 clr     PRES_INSERT
+                      (rc/demo_runtime.s):00327                 clr     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00328                 lda     #19
+                      (rc/demo_runtime.s):00329                 sta     PRES_NAME_COL
+                      (rc/demo_runtime.s):00330                 sta     PLAYER_CELL_X
+                      (rc/demo_runtime.s):00331                 lda     #22
+                      (rc/demo_runtime.s):00332                 sta     PRES_NAME_ROW
+                      (rc/demo_runtime.s):00333                 sta     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00334                 lda     #DIR_NONE
+                      (rc/demo_runtime.s):00335                 sta     PLAYER_DIR
+                      (rc/demo_runtime.s):00336                 sta     PLAYER_WANT
+                      (rc/demo_runtime.s):00337                 lda     #DIR_N
+                      (rc/demo_runtime.s):00338                 sta     PLAYER_FACE
+                      (rc/demo_runtime.s):00339                 clr     PLAYER_ANIM
+                      (rc/demo_runtime.s):00340                 clr     PRES_NAME_STEPS
+                      (rc/demo_runtime.s):00341                 lda     #8
+                      (rc/demo_runtime.s):00342                 sta     PLAYER_ANIM_TIMER
+                      (rc/demo_runtime.s):00343                 ldx     #PRES_PENDING_NAME_ALIAS
+                      (rc/demo_runtime.s):00344                 lda     #PRES_HS_BLACK
+                      (rc/demo_runtime.s):00345                 ldb     #7
+0000                  (rc/demo_runtime.s):00346         highscore_prepare_blank
+                      (rc/demo_runtime.s):00347                 sta     ,x+
+                      (rc/demo_runtime.s):00348                 decb
+                      (rc/demo_runtime.s):00349                 bne     highscore_prepare_blank
+                      (rc/demo_runtime.s):00350                 puls    a
+                      (rc/demo_runtime.s):00351                 sta     PAR4
+                      (rc/demo_runtime.s):00352                 puls    cc
+                      (rc/demo_runtime.s):00353                 rts
+                      (rc/demo_runtime.s):00354         
+0000                  (rc/demo_runtime.s):00355         highscore_commit_name
+                      (rc/demo_runtime.s):00356                 lda     PRES_INSERT
+                      (rc/demo_runtime.s):00357                 cmpa    #$FF
+                      (rc/demo_runtime.s):00358                 beq     highscore_commit_return
+                      (rc/demo_runtime.s):00359                 pshs    cc
+                      (rc/demo_runtime.s):00360                 orcc    #$10
+                      (rc/demo_runtime.s):00361                 lda     PAR4
+                      (rc/demo_runtime.s):00362                 pshs    a
+                      (rc/demo_runtime.s):00363                 lda     #$34
+                      (rc/demo_runtime.s):00364                 sta     PAR4
+                      (rc/demo_runtime.s):00365                 lda     #7
+                      (rc/demo_runtime.s):00366                 sta     PRES_TMP_H
+                      (rc/demo_runtime.s):00367                 ldx     #PRES_HIGHSCORE_ALIAS+70
+                      (rc/demo_runtime.s):00368                 ldu     #PRES_HIGHSCORE_ALIAS+80
+0000                  (rc/demo_runtime.s):00369         highscore_commit_shift
+                      (rc/demo_runtime.s):00370                 lda     PRES_TMP_H
+                      (rc/demo_runtime.s):00371                 bmi     highscore_commit_write
+                      (rc/demo_runtime.s):00372                 cmpa    PRES_INSERT
+                      (rc/demo_runtime.s):00373                 blo     highscore_commit_write
+                      (rc/demo_runtime.s):00374                 ldb     #10
+0000                  (rc/demo_runtime.s):00375         highscore_commit_record
+                      (rc/demo_runtime.s):00376                 lda     ,x+
+                      (rc/demo_runtime.s):00377                 sta     ,u+
+                      (rc/demo_runtime.s):00378                 decb
+                      (rc/demo_runtime.s):00379                 bne     highscore_commit_record
+                      (rc/demo_runtime.s):00380                 leax    -20,x
+                      (rc/demo_runtime.s):00381                 leau    -20,u
+                      (rc/demo_runtime.s):00382                 dec     PRES_TMP_H
+                      (rc/demo_runtime.s):00383                 bra     highscore_commit_shift
+0000                  (rc/demo_runtime.s):00384         highscore_commit_write
+                      (rc/demo_runtime.s):00385                 ldx     #PRES_HIGHSCORE_ALIAS
+                      (rc/demo_runtime.s):00386                 ldb     PRES_INSERT
+0000                  (rc/demo_runtime.s):00387         highscore_commit_find
+                      (rc/demo_runtime.s):00388                 beq     highscore_commit_score
+                      (rc/demo_runtime.s):00389                 leax    10,x
+                      (rc/demo_runtime.s):00390                 decb
+                      (rc/demo_runtime.s):00391                 bra     highscore_commit_find
+0000                  (rc/demo_runtime.s):00392         highscore_commit_score
+                      (rc/demo_runtime.s):00393                 lda     PRES_SCORE_H
+                      (rc/demo_runtime.s):00394                 sta     ,x+
+                      (rc/demo_runtime.s):00395                 lda     PRES_SCORE_M
+                      (rc/demo_runtime.s):00396                 sta     ,x+
+                      (rc/demo_runtime.s):00397                 lda     PRES_SCORE_L
+                      (rc/demo_runtime.s):00398                 sta     ,x+
+                      (rc/demo_runtime.s):00399                 ldu     #PRES_PENDING_NAME_ALIAS
+                      (rc/demo_runtime.s):00400                 ldb     #7
+0000                  (rc/demo_runtime.s):00401         highscore_commit_name_loop
+                      (rc/demo_runtime.s):00402                 lda     ,u+
+                      (rc/demo_runtime.s):00403                 sta     ,x+
+                      (rc/demo_runtime.s):00404                 decb
+                      (rc/demo_runtime.s):00405                 bne     highscore_commit_name_loop
+                      (rc/demo_runtime.s):00406                 puls    a
+                      (rc/demo_runtime.s):00407                 sta     PAR4
+                      (rc/demo_runtime.s):00408                 puls    cc
+0000                  (rc/demo_runtime.s):00409         highscore_commit_return
+                      (rc/demo_runtime.s):00410                 rts
+                      (rc/demo_runtime.s):00411         
+0000                  (rc/demo_runtime.s):00412         highscore_timer_records
+                      (rc/demo_runtime.s):00413                 include "ladybug_presentation_timer_records.inc"
+                      (rc/demo_runtime.s):00414         
+0000                  (rc/demo_runtime.s):00415         highscore_default_name_data
+                      (rc/demo_runtime.s):00416                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+                      (rc/demo_runtime.s):00417                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+                      (rc/demo_runtime.s):00418                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+                      (rc/demo_runtime.s):00419                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+                      (rc/demo_runtime.s):00420                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+                      (rc/demo_runtime.s):00421                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+                      (rc/demo_runtime.s):00422                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+                      (rc/demo_runtime.s):00423         
+0000                  (rc/demo_runtime.s):00424         highscore_phase_helper_end
+                      (rc/demo_runtime.s):00425         
+                      (rc/demo_runtime.s):00426                 else
+                      (rc/demo_runtime.s):00427         
+                      (rc/demo_runtime.s):00428                 org $0300
+                      (rc/demo_runtime.s):00429         
+0300                  (rc/demo_runtime.s):00430         demo_runtime_tick
+                      (rc/demo_runtime.s):00431                 ifne    HIGHSCORE_TEST_PROFILE
+                      (rc/demo_runtime.s):00432                 lda     PRES_MODE
+                      (rc/demo_runtime.s):00433                 cmpa    #MODE_NAME
+                      (rc/demo_runtime.s):00434                 beq     highscore_name_tick
+                      (rc/demo_runtime.s):00435                 cmpa    #MODE_GAMEOVER
+                      (rc/demo_runtime.s):00436                 ifne    COMPLETE_PHASE_AUX
+                      (rc/demo_runtime.s):00437                 lbeq    highscore_name_tick
+                      (rc/demo_runtime.s):00438                 else
+                      (rc/demo_runtime.s):00439                 lbeq    prepare_name
+                      (rc/demo_runtime.s):00440                 endc
+                      (rc/demo_runtime.s):00441                 lda     PRES_SCREEN
+                      (rc/demo_runtime.s):00442                 cmpa    #MAP_ENTER_HIGH_SCORE
+                      (rc/demo_runtime.s):00443                 lbeq    render_name_screen
+                      (rc/demo_runtime.s):00444                 cmpa    #MAP_HIGH_SCORE
+                      (rc/demo_runtime.s):00445                 lbeq    render_high_score
+                      (rc/demo_runtime.s):00446                 else
+0300 0D18             (rc/demo_runtime.s):00447                 tst     PLAYER_MANUAL
+0302 270E             (rc/demo_runtime.s):00448                 beq     demo_route_wait_entrance
+0304 96DD             (rc/demo_runtime.s):00449                 lda     PRES_DEMO_DIR
+0306 9705             (rc/demo_runtime.s):00450                 sta     JOY_DIR
+0308 970F             (rc/demo_runtime.s):00451                 sta     PLAYER_WANT
+030A                  (rc/demo_runtime.s):00452         demo_route_reasserted
+030A 81FF             (rc/demo_runtime.s):00453                 cmpa    #$FF
+030C 2718             (rc/demo_runtime.s):00454                 beq     demo_route_aligned
+030E 9707             (rc/demo_runtime.s):00455                 sta     PLAYER_FACE
+0310 2014             (rc/demo_runtime.s):00456                 bra     demo_route_aligned
+0312                  (rc/demo_runtime.s):00457         demo_route_wait_entrance
+0312 0D08             (rc/demo_runtime.s):00458                 tst     PLAYER_STEP
+0314 266F             (rc/demo_runtime.s):00459                 bne     demo_route_done
+0316 9609             (rc/demo_runtime.s):00460                 lda     PLAYER_CELL_X
+0318 810C             (rc/demo_runtime.s):00461                 cmpa    #12
+031A 2669             (rc/demo_runtime.s):00462                 bne     demo_route_done
+031C 960A             (rc/demo_runtime.s):00463                 lda     PLAYER_CELL_Y
+031E 8112             (rc/demo_runtime.s):00464                 cmpa    #18
+0320 2663             (rc/demo_runtime.s):00465                 bne     demo_route_done
+0322 8601             (rc/demo_runtime.s):00466                 lda     #1
+0324 9718             (rc/demo_runtime.s):00467                 sta     PLAYER_MANUAL
+0326                  (rc/demo_runtime.s):00468         demo_route_aligned
+0326 0D08             (rc/demo_runtime.s):00469                 tst     PLAYER_STEP
+0328 265B             (rc/demo_runtime.s):00470                 bne     demo_route_done
+032A 9609             (rc/demo_runtime.s):00471                 lda     PLAYER_CELL_X
+032C 8501             (rc/demo_runtime.s):00472                 bita    #1
+032E 2655             (rc/demo_runtime.s):00473                 bne     demo_route_done
+0330 91DB             (rc/demo_runtime.s):00474                 cmpa    PRES_DEMO_LAST_X
+0332 260A             (rc/demo_runtime.s):00475                 bne     demo_route_new_cell
+0334 960A             (rc/demo_runtime.s):00476                 lda     PLAYER_CELL_Y
+0336 8501             (rc/demo_runtime.s):00477                 bita    #1
+0338 264B             (rc/demo_runtime.s):00478                 bne     demo_route_done
+033A 91DC             (rc/demo_runtime.s):00479                 cmpa    PRES_DEMO_LAST_Y
+033C 2747             (rc/demo_runtime.s):00480                 beq     demo_route_done
+033E                  (rc/demo_runtime.s):00481         demo_route_new_cell
+033E 960A             (rc/demo_runtime.s):00482                 lda     PLAYER_CELL_Y
+0340 8501             (rc/demo_runtime.s):00483                 bita    #1
+0342 2641             (rc/demo_runtime.s):00484                 bne     demo_route_done
+0344 D6DA             (rc/demo_runtime.s):00485                 ldb     PRES_DEMO_ROUTE
+0346 C18F             (rc/demo_runtime.s):00486                 cmpb    #PRESENTATION_DEMO_ROUTE_ACTIONS
+0348 243C             (rc/demo_runtime.s):00487                 bhs     demo_route_hold
+034A 4F               (rc/demo_runtime.s):00488                 clra
+034B C32A1A           (rc/demo_runtime.s):00489                 addd    #PRESENTATION_DEMO_ROUTE_OFFSET
+034E 1F01             (rc/demo_runtime.s):00490                 tfr     d,x
+0350 1F89             (rc/demo_runtime.s):00491                 tfr     a,b
+0352 C4E0             (rc/demo_runtime.s):00492                 andb    #$E0
+0354 54               (rc/demo_runtime.s):00493                 lsrb
+0355 54               (rc/demo_runtime.s):00494                 lsrb
+0356 54               (rc/demo_runtime.s):00495                 lsrb
+0357 54               (rc/demo_runtime.s):00496                 lsrb
+0358 54               (rc/demo_runtime.s):00497                 lsrb
+0359 CB3A             (rc/demo_runtime.s):00498                 addb    #PRESENTATION_COLD_PAGE
+035B F7FFA5           (rc/demo_runtime.s):00499                 stb     PAR5
+035E 1F10             (rc/demo_runtime.s):00500                 tfr     x,d
+0360 841F             (rc/demo_runtime.s):00501                 anda    #$1F
+0362 8BA0             (rc/demo_runtime.s):00502                 adda    #$A0
+0364 1F01             (rc/demo_runtime.s):00503                 tfr     d,x
+0366 A684             (rc/demo_runtime.s):00504                 lda     ,x
+0368 3402             (rc/demo_runtime.s):00505                 pshs    a
+036A 8634             (rc/demo_runtime.s):00506                 lda     #$34
+036C B7FFA5           (rc/demo_runtime.s):00507                 sta     PAR5
+036F 3502             (rc/demo_runtime.s):00508                 puls    a
+0371 97DD             (rc/demo_runtime.s):00509                 sta     PRES_DEMO_DIR
+0373 9609             (rc/demo_runtime.s):00510                 lda     PLAYER_CELL_X
+0375 97DB             (rc/demo_runtime.s):00511                 sta     PRES_DEMO_LAST_X
+0377 960A             (rc/demo_runtime.s):00512                 lda     PLAYER_CELL_Y
+0379 97DC             (rc/demo_runtime.s):00513                 sta     PRES_DEMO_LAST_Y
+037B 96DD             (rc/demo_runtime.s):00514                 lda     PRES_DEMO_DIR
+037D 9705             (rc/demo_runtime.s):00515                 sta     JOY_DIR
+037F 970F             (rc/demo_runtime.s):00516                 sta     PLAYER_WANT
+0381 9707             (rc/demo_runtime.s):00517                 sta     PLAYER_FACE
+0383                  (rc/demo_runtime.s):00518         demo_route_advance
+0383 0CDA             (rc/demo_runtime.s):00519                 inc     PRES_DEMO_ROUTE
+0385                  (rc/demo_runtime.s):00520         demo_route_advanced
+0385                  (rc/demo_runtime.s):00521         demo_route_done
+0385 39               (rc/demo_runtime.s):00522                 rts
+0386                  (rc/demo_runtime.s):00523         demo_route_hold
+0386 86FF             (rc/demo_runtime.s):00524                 lda     #$FF
+0388 97DD             (rc/demo_runtime.s):00525                 sta     PRES_DEMO_DIR
+038A 9705             (rc/demo_runtime.s):00526                 sta     JOY_DIR
+038C 970F             (rc/demo_runtime.s):00527                 sta     PLAYER_WANT
+038E                  (rc/demo_runtime.s):00528         demo_route_held
+038E 39               (rc/demo_runtime.s):00529                 rts
+                      (rc/demo_runtime.s):00530                 endc
+                      (rc/demo_runtime.s):00531                 ifne    HIGHSCORE_TEST_PROFILE
+038F                  (rc/demo_runtime.s):00532         demo_runtime_done
+                      (rc/demo_runtime.s):00533                 rts
+038F                  (rc/demo_runtime.s):00534         init_scores
+                      (rc/demo_runtime.s):00535                 lda     #$34
+                      (rc/demo_runtime.s):00536                 sta     PAR5
+                      (rc/demo_runtime.s):00537                 tst     PRES_HS_READY
+                      (rc/demo_runtime.s):00538                 bne     init_scores_done
+                      (rc/demo_runtime.s):00539                 ldu     #PRES_HIGHSCORE_BASE
+                      (rc/demo_runtime.s):00540                 lda     #9
+038F                  (rc/demo_runtime.s):00541         init_scores_row
+                      (rc/demo_runtime.s):00542                 sta     ,u+
+                      (rc/demo_runtime.s):00543                 clr     ,u+
+                      (rc/demo_runtime.s):00544                 clr     ,u+
+                      (rc/demo_runtime.s):00545                 pshs    a
+                      (rc/demo_runtime.s):00546                 ldx     #highscore_default_name_data
+                      (rc/demo_runtime.s):00547                 ldy     #7
+038F                  (rc/demo_runtime.s):00548         init_scores_name
+                      (rc/demo_runtime.s):00549                 lda     ,x+
+                      (rc/demo_runtime.s):00550                 sta     ,u+
+                      (rc/demo_runtime.s):00551                 leay    -1,y
+                      (rc/demo_runtime.s):00552                 bne     init_scores_name
+                      (rc/demo_runtime.s):00553                 puls    a
+                      (rc/demo_runtime.s):00554                 deca
+                      (rc/demo_runtime.s):00555                 bne     init_scores_row
+                      (rc/demo_runtime.s):00556                 inc     PRES_HS_READY
+038F                  (rc/demo_runtime.s):00557         init_scores_done
+                      (rc/demo_runtime.s):00558                 rts
+                      (rc/demo_runtime.s):00559         
+038F                  (rc/demo_runtime.s):00560         highscore_name_tick
+                      (rc/demo_runtime.s):00561                 lda     PRES_HOLD_STATE
+                      (rc/demo_runtime.s):00562                 cmpa    #PRES_HOLD_FINAL
+                      (rc/demo_runtime.s):00563                 bne     highscore_name_ready
+                      (rc/demo_runtime.s):00564                 tst     FB_PENDING
+                      (rc/demo_runtime.s):00565                 bne     highscore_name_hold
+                      (rc/demo_runtime.s):00566                 clr     PRES_HOLD_STATE
+038F                  (rc/demo_runtime.s):00567         highscore_name_ready
+                      (rc/demo_runtime.s):00568                 lda     #$24
+                      (rc/demo_runtime.s):00569                 sta     PAR5
+                      (rc/demo_runtime.s):00570                 jsr     HIGHSCORE_PHASE_HELPER_ADDRESS
+                      (rc/demo_runtime.s):00571                 pshs    a
+                      (rc/demo_runtime.s):00572                 lda     #$34
+                      (rc/demo_runtime.s):00573                 sta     PAR5
+                      (rc/demo_runtime.s):00574                 puls    a
+                      (rc/demo_runtime.s):00575                 tsta
+                      (rc/demo_runtime.s):00576                 bne     demo_runtime_done
+                      (rc/demo_runtime.s):00577                 lda     PRES_MODE
+                      (rc/demo_runtime.s):00578                 cmpa    #MODE_GAMEOVER
+                      (rc/demo_runtime.s):00579                 bne     name_tick
+                      (rc/demo_runtime.s):00580                 lda     #1
+                      (rc/demo_runtime.s):00581                 rts
+038F                  (rc/demo_runtime.s):00582         highscore_name_hold
+                      (rc/demo_runtime.s):00583                 lda     #1
+                      (rc/demo_runtime.s):00584                 rts
+                      (rc/demo_runtime.s):00585         
+                      (rc/demo_runtime.s):00586                 ifeq    COMPLETE_PHASE_AUX
+038F                  (rc/demo_runtime.s):00587         prepare_name
+                      (rc/demo_runtime.s):00588                 bsr     init_scores
+                      (rc/demo_runtime.s):00589                 clr     PRES_NAME_FLAGS
+                      (rc/demo_runtime.s):00590                 clr     PRES_TICK_PHASE
+                      (rc/demo_runtime.s):00591                 clr     PRES_NAME_TIMER_PHASE
+                      (rc/demo_runtime.s):00592                 clr     PRES_NAME_TIMER_BOX
+                      (rc/demo_runtime.s):00593                 lda     #$09
+                      (rc/demo_runtime.s):00594                 sta     PRES_SCORE_H
+                      (rc/demo_runtime.s):00595                 lda     #$50
+                      (rc/demo_runtime.s):00596                 sta     PRES_SCORE_M
+                      (rc/demo_runtime.s):00597                 clr     PRES_SCORE_L
+                      (rc/demo_runtime.s):00598                 clr     PRES_INSERT
+                      (rc/demo_runtime.s):00599                 clr     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00600                 lda     #9
+                      (rc/demo_runtime.s):00601                 sta     PRES_NAME_ROW
+                      (rc/demo_runtime.s):00602                 lda     #2
+                      (rc/demo_runtime.s):00603                 sta     PRES_NAME_COL
+                      (rc/demo_runtime.s):00604                 lda     #DIR_NONE
+                      (rc/demo_runtime.s):00605                 sta     PLAYER_DIR
+                      (rc/demo_runtime.s):00606                 sta     PLAYER_WANT
+                      (rc/demo_runtime.s):00607                 lda     #DIR_N
+                      (rc/demo_runtime.s):00608                 sta     PLAYER_FACE
+                      (rc/demo_runtime.s):00609                 clr     PLAYER_ANIM
+                      (rc/demo_runtime.s):00610                 lda     #8
+                      (rc/demo_runtime.s):00611                 sta     PLAYER_ANIM_TIMER
+                      (rc/demo_runtime.s):00612                 lda     #19
+                      (rc/demo_runtime.s):00613                 sta     PLAYER_CELL_X
+                      (rc/demo_runtime.s):00614                 sta     PRES_NAME_COL
+                      (rc/demo_runtime.s):00615                 lda     #22
+                      (rc/demo_runtime.s):00616                 sta     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00617                 sta     PRES_NAME_ROW
+                      (rc/demo_runtime.s):00618                 ldx     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00619                 lda     #PRES_HS_BLACK
+                      (rc/demo_runtime.s):00620                 ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+038F                  (rc/demo_runtime.s):00621         prepare_name_blank
+                      (rc/demo_runtime.s):00622                 sta     ,x+
+                      (rc/demo_runtime.s):00623                 decb
+                      (rc/demo_runtime.s):00624                 bne     prepare_name_blank
+                      (rc/demo_runtime.s):00625                 rts
+                      (rc/demo_runtime.s):00626                 endc
+                      (rc/demo_runtime.s):00627         
+                      (rc/demo_runtime.s):00628                 ifne    0
+038F                  (rc/demo_runtime.s):00629         qualify_score
+                      (rc/demo_runtime.s):00630                 lbsr    init_scores
+                      (rc/demo_runtime.s):00631                 lda     #$FF
+                      (rc/demo_runtime.s):00632                 sta     PRES_INSERT
+                      (rc/demo_runtime.s):00633                 ldx     #PRES_HIGHSCORE_BASE
+                      (rc/demo_runtime.s):00634                 clrb
+038F                  (rc/demo_runtime.s):00635         qualify_loop
+                      (rc/demo_runtime.s):00636                 lda     PRES_SCORE_H
+                      (rc/demo_runtime.s):00637                 cmpa    ,x
+                      (rc/demo_runtime.s):00638                 bhi     qualify_found
+                      (rc/demo_runtime.s):00639                 blo     qualify_next
+                      (rc/demo_runtime.s):00640                 lda     PRES_SCORE_M
+                      (rc/demo_runtime.s):00641                 cmpa    1,x
+                      (rc/demo_runtime.s):00642                 bhi     qualify_found
+                      (rc/demo_runtime.s):00643                 blo     qualify_next
+                      (rc/demo_runtime.s):00644                 lda     PRES_SCORE_L
+                      (rc/demo_runtime.s):00645                 cmpa    2,x
+                      (rc/demo_runtime.s):00646                 bhi     qualify_found
+038F                  (rc/demo_runtime.s):00647         qualify_next
+                      (rc/demo_runtime.s):00648                 leax    10,x
+                      (rc/demo_runtime.s):00649                 incb
+                      (rc/demo_runtime.s):00650                 cmpb    #9
+                      (rc/demo_runtime.s):00651                 blo     qualify_loop
+                      (rc/demo_runtime.s):00652                 rts
+038F                  (rc/demo_runtime.s):00653         qualify_found
+                      (rc/demo_runtime.s):00654                 stb     PRES_INSERT
+                      (rc/demo_runtime.s):00655                 rts
+                      (rc/demo_runtime.s):00656                 endc
+038F                  (rc/demo_runtime.s):00657         name_tick
+                      (rc/demo_runtime.s):00658                 jsr     PRES_MAIN_READ_JOY
+038F                  (rc/demo_runtime.s):00659         name_joy_ready
+                      (rc/demo_runtime.s):00660                 lda     JOY_DIR
+                      (rc/demo_runtime.s):00661                 cmpa    #DIR_NONE
+                      (rc/demo_runtime.s):00662                 beq     name_idle
+                      (rc/demo_runtime.s):00663                 lda     FRAMES+1
+                      (rc/demo_runtime.s):00664                 lsra
+                      (rc/demo_runtime.s):00665                 bcs     name_idle
+                      (rc/demo_runtime.s):00666                 tst     PRES_NAME_STEPS
+                      (rc/demo_runtime.s):00667                 bne     name_move_active
+                      (rc/demo_runtime.s):00668                 lda     PLAYER_WANT
+                      (rc/demo_runtime.s):00669                 cmpa    #DIR_NONE
+                      (rc/demo_runtime.s):00670                 beq     name_idle
+                      (rc/demo_runtime.s):00671                 bsr     name_can_move
+                      (rc/demo_runtime.s):00672                 beq     name_idle
+                      (rc/demo_runtime.s):00673                 lda     PLAYER_WANT
+                      (rc/demo_runtime.s):00674                 sta     PLAYER_DIR
+                      (rc/demo_runtime.s):00675                 sta     PLAYER_FACE
+                      (rc/demo_runtime.s):00676                 lda     #4
+                      (rc/demo_runtime.s):00677                 sta     PRES_NAME_STEPS
+038F                  (rc/demo_runtime.s):00678         name_move_active
+                      (rc/demo_runtime.s):00679                 bsr     name_advance
+                      (rc/demo_runtime.s):00680                 rts
+038F                  (rc/demo_runtime.s):00681         name_idle
+                      (rc/demo_runtime.s):00682                 tst     FB_RENDER_ACTIVE
+                      (rc/demo_runtime.s):00683                 beq     name_idle_done
+                      (rc/demo_runtime.s):00684                 lbsr    update_name_frame
+038F                  (rc/demo_runtime.s):00685         name_idle_done
+                      (rc/demo_runtime.s):00686                 clra
+                      (rc/demo_runtime.s):00687                 rts
+                      (rc/demo_runtime.s):00688         
+038F                  (rc/demo_runtime.s):00689         name_advance
+                      (rc/demo_runtime.s):00690                 ldx     PLAYER_FB
+                      (rc/demo_runtime.s):00691                 lda     PLAYER_DIR
+                      (rc/demo_runtime.s):00692                 cmpa    #DIR_N
+                      (rc/demo_runtime.s):00693                 beq     name_step_n
+                      (rc/demo_runtime.s):00694                 cmpa    #DIR_E
+                      (rc/demo_runtime.s):00695                 beq     name_step_e
+                      (rc/demo_runtime.s):00696                 cmpa    #DIR_S
+                      (rc/demo_runtime.s):00697                 beq     name_step_s
+                      (rc/demo_runtime.s):00698                 leax    -1,x
+                      (rc/demo_runtime.s):00699                 bra     name_step_store
+038F                  (rc/demo_runtime.s):00700         name_step_n
+                      (rc/demo_runtime.s):00701                 leax    -320,x
+                      (rc/demo_runtime.s):00702                 bra     name_step_store
+038F                  (rc/demo_runtime.s):00703         name_step_e
+                      (rc/demo_runtime.s):00704                 leax    1,x
+                      (rc/demo_runtime.s):00705                 bra     name_step_store
+038F                  (rc/demo_runtime.s):00706         name_step_s
+                      (rc/demo_runtime.s):00707                 leax    320,x
+038F                  (rc/demo_runtime.s):00708         name_step_store
+                      (rc/demo_runtime.s):00709                 stx     PLAYER_FB
+                      (rc/demo_runtime.s):00710                 dec     PRES_NAME_STEPS
+                      (rc/demo_runtime.s):00711                 bne     name_cursor_redraw
+                      (rc/demo_runtime.s):00712                 lda     PLAYER_DIR
+                      (rc/demo_runtime.s):00713                 cmpa    #DIR_N
+                      (rc/demo_runtime.s):00714                 bne     move_s
+                      (rc/demo_runtime.s):00715                 dec     PRES_NAME_ROW
+                      (rc/demo_runtime.s):00716                 dec     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00717                 bra     move_node
+038F                  (rc/demo_runtime.s):00718         move_s
+                      (rc/demo_runtime.s):00719                 cmpa    #DIR_S
+                      (rc/demo_runtime.s):00720                 bne     move_w
+                      (rc/demo_runtime.s):00721                 inc     PRES_NAME_ROW
+                      (rc/demo_runtime.s):00722                 inc     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00723                 bra     move_node
+038F                  (rc/demo_runtime.s):00724         move_w
+                      (rc/demo_runtime.s):00725                 cmpa    #DIR_W
+                      (rc/demo_runtime.s):00726                 bne     move_e
+                      (rc/demo_runtime.s):00727                 dec     PRES_NAME_COL
+                      (rc/demo_runtime.s):00728                 dec     PLAYER_CELL_X
+                      (rc/demo_runtime.s):00729                 bra     move_node
+038F                  (rc/demo_runtime.s):00730         move_e
+                      (rc/demo_runtime.s):00731                 inc     PRES_NAME_COL
+                      (rc/demo_runtime.s):00732                 inc     PLAYER_CELL_X
+                      (rc/demo_runtime.s):00733                 bra     move_node
+038F                  (rc/demo_runtime.s):00734         name_cursor_redraw
+                      (rc/demo_runtime.s):00735                 lbsr    update_name_frame
+                      (rc/demo_runtime.s):00736                 clra
+                      (rc/demo_runtime.s):00737                 rts
+038F                  (rc/demo_runtime.s):00738         move_node
+                      (rc/demo_runtime.s):00739                 bsr     name_cell_arrival
+                      (rc/demo_runtime.s):00740                 tsta
+                      (rc/demo_runtime.s):00741                 bne     move_end
+                      (rc/demo_runtime.s):00742                 lbsr    update_name_frame
+                      (rc/demo_runtime.s):00743                 clra
+                      (rc/demo_runtime.s):00744                 rts
+038F                  (rc/demo_runtime.s):00745         move_end
+                      (rc/demo_runtime.s):00746                 lbsr    update_name_frame
+                      (rc/demo_runtime.s):00747                 lda     #1
+                      (rc/demo_runtime.s):00748                 rts
+                      (rc/demo_runtime.s):00749         
+038F                  (rc/demo_runtime.s):00750         name_can_move
+                      (rc/demo_runtime.s):00751                 sta     PRES_NAME_TILE
+                      (rc/demo_runtime.s):00752                 lda     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00753                 ldb     #24
+                      (rc/demo_runtime.s):00754                 mul
+                      (rc/demo_runtime.s):00755                 addb    PLAYER_CELL_X
+                      (rc/demo_runtime.s):00756                 adca    #0
+                      (rc/demo_runtime.s):00757                 subd    #8
+                      (rc/demo_runtime.s):00758                 addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE
+                      (rc/demo_runtime.s):00759                 jsr     PRES_MODULE_COLD_PTR
+                      (rc/demo_runtime.s):00760                 ldb     ,x
+                      (rc/demo_runtime.s):00761                 lda     #$34
+                      (rc/demo_runtime.s):00762                 sta     PAR5
+                      (rc/demo_runtime.s):00763                 lda     PRES_NAME_TILE
+                      (rc/demo_runtime.s):00764                 cmpa    #DIR_N
+                      (rc/demo_runtime.s):00765                 beq     name_can_n
+                      (rc/demo_runtime.s):00766                 cmpa    #DIR_E
+                      (rc/demo_runtime.s):00767                 beq     name_can_e
+                      (rc/demo_runtime.s):00768                 cmpa    #DIR_S
+                      (rc/demo_runtime.s):00769                 beq     name_can_s
+                      (rc/demo_runtime.s):00770                 bitb    #8
+                      (rc/demo_runtime.s):00771                 bra     name_can_result
+038F                  (rc/demo_runtime.s):00772         name_can_n
+                      (rc/demo_runtime.s):00773                 bitb    #1
+                      (rc/demo_runtime.s):00774                 bra     name_can_result
+038F                  (rc/demo_runtime.s):00775         name_can_e
+                      (rc/demo_runtime.s):00776                 bitb    #2
+                      (rc/demo_runtime.s):00777                 bra     name_can_result
+038F                  (rc/demo_runtime.s):00778         name_can_s
+                      (rc/demo_runtime.s):00779                 bitb    #4
+038F                  (rc/demo_runtime.s):00780         name_can_result
+                      (rc/demo_runtime.s):00781                 beq     name_can_blocked
+                      (rc/demo_runtime.s):00782                 lda     #1
+                      (rc/demo_runtime.s):00783                 rts
+038F                  (rc/demo_runtime.s):00784         name_can_blocked
+                      (rc/demo_runtime.s):00785                 clra
+                      (rc/demo_runtime.s):00786                 rts
+                      (rc/demo_runtime.s):00787         
+038F                  (rc/demo_runtime.s):00788         name_cell_arrival
+                      (rc/demo_runtime.s):00789                 ldd     #PRESENTATION_NAME_ENTRY_ACTION_TABLE
+                      (rc/demo_runtime.s):00790                 jsr     PRES_MODULE_COLD_PTR
+                      (rc/demo_runtime.s):00791                 ldb     #PRESENTATION_NAME_ENTRY_ACTION_BYTES/3
+038F                  (rc/demo_runtime.s):00792         name_action_loop
+                      (rc/demo_runtime.s):00793                 ; The generated action table is local to the 24-cell maze window;
+                      (rc/demo_runtime.s):00794                 ; player coordinates remain screen-space columns 8..31.
+                      (rc/demo_runtime.s):00795                 lda     PLAYER_CELL_X
+                      (rc/demo_runtime.s):00796                 suba    #8
+                      (rc/demo_runtime.s):00797                 cmpa    ,x
+                      (rc/demo_runtime.s):00798                 bne     name_action_next
+                      (rc/demo_runtime.s):00799                 lda     PLAYER_CELL_Y
+                      (rc/demo_runtime.s):00800                 cmpa    1,x
+                      (rc/demo_runtime.s):00801                 bne     name_action_next
+                      (rc/demo_runtime.s):00802                 lda     2,x
+                      (rc/demo_runtime.s):00803                 sta     PRES_NAME_TILE
+                      (rc/demo_runtime.s):00804                 cmpa    #PRES_NAME_END
+                      (rc/demo_runtime.s):00805                 beq     name_action_end
+                      (rc/demo_runtime.s):00806                 lda     #$34
+                      (rc/demo_runtime.s):00807                 sta     PAR5
+                      (rc/demo_runtime.s):00808                 lda     PRES_NAME_TILE
+                      (rc/demo_runtime.s):00809                 cmpa    #PRES_NAME_CL
+                      (rc/demo_runtime.s):00810                 beq     name_action_cl
+                      (rc/demo_runtime.s):00811                 lda     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00812                 cmpa    #7
+                      (rc/demo_runtime.s):00813                 bhs     name_action_done
+                      (rc/demo_runtime.s):00814                 tfr     a,b
+                      (rc/demo_runtime.s):00815                 ldx     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00816                 abx
+                      (rc/demo_runtime.s):00817                 lda     PRES_NAME_TILE
+                      (rc/demo_runtime.s):00818                 sta     ,x
+                      (rc/demo_runtime.s):00819                 inc     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00820                 bra     name_action_done
+038F                  (rc/demo_runtime.s):00821         name_action_cl
+                      (rc/demo_runtime.s):00822                 tst     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00823                 beq     name_action_done
+                      (rc/demo_runtime.s):00824                 dec     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00825                 ldx     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00826                 lda     PRES_NAME_LEN
+                      (rc/demo_runtime.s):00827                 tfr     a,b
+                      (rc/demo_runtime.s):00828                 abx
+                      (rc/demo_runtime.s):00829                 ldb     #PRES_HS_BLACK
+                      (rc/demo_runtime.s):00830                 stb     ,x
+038F                  (rc/demo_runtime.s):00831         name_action_done
+                      (rc/demo_runtime.s):00832                 clra
+                      (rc/demo_runtime.s):00833                 rts
+038F                  (rc/demo_runtime.s):00834         name_action_next
+                      (rc/demo_runtime.s):00835                 leax    3,x
+                      (rc/demo_runtime.s):00836                 decb
+                      (rc/demo_runtime.s):00837                 bne     name_action_loop
+                      (rc/demo_runtime.s):00838                 clra
+                      (rc/demo_runtime.s):00839                 rts
+038F                  (rc/demo_runtime.s):00840         name_action_end
+                      (rc/demo_runtime.s):00841                 inc     PRES_NAME_FLAGS
+                      (rc/demo_runtime.s):00842                 clra
+                      (rc/demo_runtime.s):00843                 rts
+                      (rc/demo_runtime.s):00844         
+                      (rc/demo_runtime.s):00845                 ifne    0
+038F                  (rc/demo_runtime.s):00846         commit_name
+                      (rc/demo_runtime.s):00847                 lda     PRES_INSERT
+                      (rc/demo_runtime.s):00848                 cmpa    #$FF
+                      (rc/demo_runtime.s):00849                 beq     commit_done
+                      (rc/demo_runtime.s):00850                 sta     PRES_TMP_H
+                      (rc/demo_runtime.s):00851                 ldx     #PRES_HIGHSCORE_BASE+70
+                      (rc/demo_runtime.s):00852                 ldu     #PRES_HIGHSCORE_BASE+80
+038F                  (rc/demo_runtime.s):00853         commit_shift
+                      (rc/demo_runtime.s):00854                 lda     PRES_TMP_H
+                      (rc/demo_runtime.s):00855                 cmpa    PRES_INSERT
+                      (rc/demo_runtime.s):00856                 blo     commit_write
+                      (rc/demo_runtime.s):00857                 ldb     #10
+038F                  (rc/demo_runtime.s):00858         commit_record
+                      (rc/demo_runtime.s):00859                 lda     ,x+
+                      (rc/demo_runtime.s):00860                 sta     ,u+
+                      (rc/demo_runtime.s):00861                 decb
+                      (rc/demo_runtime.s):00862                 bne     commit_record
+                      (rc/demo_runtime.s):00863                 leax    -20,x
+                      (rc/demo_runtime.s):00864                 leau    -20,u
+                      (rc/demo_runtime.s):00865                 dec     PRES_TMP_H
+                      (rc/demo_runtime.s):00866                 bra     commit_shift
+038F                  (rc/demo_runtime.s):00867         commit_write
+                      (rc/demo_runtime.s):00868                 ldx     #PRES_HIGHSCORE_BASE
+                      (rc/demo_runtime.s):00869                 ldb     PRES_INSERT
+038F                  (rc/demo_runtime.s):00870         commit_find
+                      (rc/demo_runtime.s):00871                 beq     commit_score
+                      (rc/demo_runtime.s):00872                 leax    10,x
+                      (rc/demo_runtime.s):00873                 decb
+                      (rc/demo_runtime.s):00874                 bra     commit_find
+038F                  (rc/demo_runtime.s):00875         commit_score
+                      (rc/demo_runtime.s):00876                 lda     PRES_SCORE_H
+                      (rc/demo_runtime.s):00877                 sta     ,x+
+                      (rc/demo_runtime.s):00878                 lda     PRES_SCORE_M
+                      (rc/demo_runtime.s):00879                 sta     ,x+
+                      (rc/demo_runtime.s):00880                 lda     PRES_SCORE_L
+                      (rc/demo_runtime.s):00881                 sta     ,x+
+                      (rc/demo_runtime.s):00882                 ldu     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00883                 ldb     #7
+038F                  (rc/demo_runtime.s):00884         commit_name_loop
+                      (rc/demo_runtime.s):00885                 lda     ,u+
+                      (rc/demo_runtime.s):00886                 sta     ,x+
+                      (rc/demo_runtime.s):00887                 decb
+                      (rc/demo_runtime.s):00888                 bne     commit_name_loop
+038F                  (rc/demo_runtime.s):00889         commit_done
+                      (rc/demo_runtime.s):00890                 rts
+                      (rc/demo_runtime.s):00891                 endc
+038F                  (rc/demo_runtime.s):00892         render_name_screen
+                      (rc/demo_runtime.s):00893                 clr     PRES_NAME_STEPS
+                      (rc/demo_runtime.s):00894                 ifeq    COMPLETE_PHASE_AUX
+                      (rc/demo_runtime.s):00895                 lbsr    prepare_name
+                      (rc/demo_runtime.s):00896                 endc
+                      (rc/demo_runtime.s):00897                 jsr     PRES_MODULE_MAP_BACK
+                      (rc/demo_runtime.s):00898                 bsr     draw_name_fields
+                      (rc/demo_runtime.s):00899                 bsr     draw_entry_scores
+                      (rc/demo_runtime.s):00900                 lbsr    capture_initial
+                      (rc/demo_runtime.s):00901                 lbsr    draw_cursor
+                      (rc/demo_runtime.s):00902                 rts
+                      (rc/demo_runtime.s):00903         
+038F                  (rc/demo_runtime.s):00904         draw_name_fields
+                      (rc/demo_runtime.s):00905                 ldx     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00906                 ldy     #PRESENTATION_NAME_ENTRY_NAME_DST
+                      (rc/demo_runtime.s):00907                 lbsr    draw_record_name
+                      (rc/demo_runtime.s):00908                 lda     PRES_INSERT
+                      (rc/demo_runtime.s):00909                 bne     entry_name_top_old
+                      (rc/demo_runtime.s):00910                 ldx     #PRES_PENDING_NAME
+                      (rc/demo_runtime.s):00911                 bra     entry_name_top_draw
+038F                  (rc/demo_runtime.s):00912         entry_name_top_old
+                      (rc/demo_runtime.s):00913                 ldx     #PRES_HIGHSCORE_BASE+3
+038F                  (rc/demo_runtime.s):00914         entry_name_top_draw
+                      (rc/demo_runtime.s):00915                 ldy     #PRESENTATION_NAME_ENTRY_TOP_NAME_DST
+                      (rc/demo_runtime.s):00916                 lbsr    draw_record_name
+038F                  (rc/demo_runtime.s):00917         draw_name_done
+                      (rc/demo_runtime.s):00918                 rts
+                      (rc/demo_runtime.s):00919         
+038F                  (rc/demo_runtime.s):00920         draw_entry_scores
+                      (rc/demo_runtime.s):00921                 ldx     #PRES_SCORE_H
+                      (rc/demo_runtime.s):00922                 ldy     #PRESENTATION_NAME_ENTRY_SCORE_DST
+                      (rc/demo_runtime.s):00923                 lbsr    draw_score
+                      (rc/demo_runtime.s):00924                 lda     PRES_INSERT
+                      (rc/demo_runtime.s):00925                 bne     entry_top_old
+                      (rc/demo_runtime.s):00926                 ldx     #PRES_SCORE_H
+                      (rc/demo_runtime.s):00927                 bra     entry_top_right
+038F                  (rc/demo_runtime.s):00928         entry_top_old
+                      (rc/demo_runtime.s):00929                 ldx     #PRES_HIGHSCORE_BASE
+038F                  (rc/demo_runtime.s):00930         entry_top_right
+                      (rc/demo_runtime.s):00931                 ldy     #PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST
+                      (rc/demo_runtime.s):00932                 bsr     draw_score
+                      (rc/demo_runtime.s):00933                 lda     PRES_INSERT
+                      (rc/demo_runtime.s):00934                 bne     entry_top_left_old
+                      (rc/demo_runtime.s):00935                 ldx     #PRES_SCORE_H
+                      (rc/demo_runtime.s):00936                 bra     entry_top_left
+038F                  (rc/demo_runtime.s):00937         entry_top_left_old
+                      (rc/demo_runtime.s):00938                 ldx     #PRES_HIGHSCORE_BASE
+038F                  (rc/demo_runtime.s):00939         entry_top_left
+                      (rc/demo_runtime.s):00940                 ldy     #PRESENTATION_NAME_ENTRY_TOP_DST
+                      (rc/demo_runtime.s):00941                 lbsr    draw_score
+                      (rc/demo_runtime.s):00942                 rts
+                      (rc/demo_runtime.s):00943         
+038F                  (rc/demo_runtime.s):00944         render_high_score
+                      (rc/demo_runtime.s):00945                 jsr     PRES_MODULE_MAP_BACK
+                      (rc/demo_runtime.s):00946                 bsr     draw_high_score_screen
+                      (rc/demo_runtime.s):00947                 rts
+                      (rc/demo_runtime.s):00948         
+038F                  (rc/demo_runtime.s):00949         draw_high_score_screen
+                      (rc/demo_runtime.s):00950                 ldx     #PRES_HIGHSCORE_BASE
+                      (rc/demo_runtime.s):00951                 ldu     #PRESENTATION_HIGHSCORE_TOP_NAME_DST
+                      (rc/demo_runtime.s):00952                 ldy     #PRESENTATION_HIGHSCORE_TOP_SCORE_DST
+                      (rc/demo_runtime.s):00953                 bsr     draw_high_score_entry
+                      (rc/demo_runtime.s):00954                 ldx     #PRES_HIGHSCORE_BASE
+                      (rc/demo_runtime.s):00955                 ldu     #PRESENTATION_HIGHSCORE_ENTRY_NAME_DST
+                      (rc/demo_runtime.s):00956                 ldy     #PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST
+                      (rc/demo_runtime.s):00957                 ldb     #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
+038F                  (rc/demo_runtime.s):00958         draw_high_score_rows
+                      (rc/demo_runtime.s):00959                 pshs    b
+                      (rc/demo_runtime.s):00960                 lda     PRES_HS_READY
+                      (rc/demo_runtime.s):00961                 bne     draw_high_score_row_ready
+                      (rc/demo_runtime.s):00962                 cmpb    #PRESENTATION_HIGHSCORE_DISPLAY_ROWS-1
+                      (rc/demo_runtime.s):00963                 beq     draw_high_score_row_ready
+                      (rc/demo_runtime.s):00964                 ldx     #highscore_default_record_data
+038F                  (rc/demo_runtime.s):00965         draw_high_score_row_ready
+                      (rc/demo_runtime.s):00966                 bsr     draw_high_score_entry
+                      (rc/demo_runtime.s):00967                 puls    b
+                      (rc/demo_runtime.s):00968                 leau    PRESENTATION_HIGHSCORE_ROW_STRIDE,u
+                      (rc/demo_runtime.s):00969                 leay    PRESENTATION_HIGHSCORE_ROW_STRIDE,y
+                      (rc/demo_runtime.s):00970                 decb
+                      (rc/demo_runtime.s):00971                 bne     draw_high_score_rows
+                      (rc/demo_runtime.s):00972                 rts
+                      (rc/demo_runtime.s):00973         
+038F                  (rc/demo_runtime.s):00974         draw_high_score_entry
+                      (rc/demo_runtime.s):00975                 stx     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00976                 pshs    u,y
+                      (rc/demo_runtime.s):00977                 tfr     u,y
+                      (rc/demo_runtime.s):00978                 ldx     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00979                 leax    3,x
+                      (rc/demo_runtime.s):00980                 bsr     draw_record_name
+                      (rc/demo_runtime.s):00981                 puls    u,y
+                      (rc/demo_runtime.s):00982                 pshs    u,y
+                      (rc/demo_runtime.s):00983                 tfr     u,y
+                      (rc/demo_runtime.s):00984                 leay    PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA,y
+                      (rc/demo_runtime.s):00985                 ldx     PRES_NAME_PTR
+                      (rc/demo_runtime.s):00986                 bsr     draw_score
+                      (rc/demo_runtime.s):00987                 puls    u,y
+                      (rc/demo_runtime.s):00988                 leax    7,x
+                      (rc/demo_runtime.s):00989                 rts
+                      (rc/demo_runtime.s):00990         
+038F                  (rc/demo_runtime.s):00991         draw_record_name
+                      (rc/demo_runtime.s):00992                 ldb     #PRESENTATION_HIGHSCORE_NAME_BYTES
+038F                  (rc/demo_runtime.s):00993         record_name_loop
+                      (rc/demo_runtime.s):00994                 lda     #$34
+                      (rc/demo_runtime.s):00995                 sta     PAR5
+                      (rc/demo_runtime.s):00996                 lda     ,x+
+                      (rc/demo_runtime.s):00997                 pshs    b,x,y
+                      (rc/demo_runtime.s):00998                 tsta
+                      (rc/demo_runtime.s):00999                 bne     record_name_tile
+                      (rc/demo_runtime.s):01000                 ldb     #PRES_HS_BLACK
+                      (rc/demo_runtime.s):01001                 bra     record_name_draw
+038F                  (rc/demo_runtime.s):01002         record_name_tile
+                      (rc/demo_runtime.s):01003                 tfr     a,b
+038F                  (rc/demo_runtime.s):01004         record_name_draw
+                      (rc/demo_runtime.s):01005                 jsr     PRES_MODULE_DRAW_TILE
+                      (rc/demo_runtime.s):01006                 puls    b,x,y
+                      (rc/demo_runtime.s):01007                 leay    4,y
+                      (rc/demo_runtime.s):01008                 decb
+                      (rc/demo_runtime.s):01009                 bne     record_name_loop
+                      (rc/demo_runtime.s):01010                 rts
+                      (rc/demo_runtime.s):01011         
+038F                  (rc/demo_runtime.s):01012         draw_score
+                      (rc/demo_runtime.s):01013                 jmp     PRES_MODULE_DRAW_SCORE
+                      (rc/demo_runtime.s):01014         
+038F                  (rc/demo_runtime.s):01015         capture_initial
+                      (rc/demo_runtime.s):01016                 lda     #$34
+                      (rc/demo_runtime.s):01017                 sta     PAR5
+                      (rc/demo_runtime.s):01018                 ldx     #PRESENTATION_NAME_ENTRY_CURSOR_DST
+                      (rc/demo_runtime.s):01019                 stx     PLAYER_FB
+                      (rc/demo_runtime.s):01020                 stx     PRES_NAME_PTR_A
+                      (rc/demo_runtime.s):01021                 stx     PRES_NAME_PTR_B
+                      (rc/demo_runtime.s):01022                 ldu     #PRES_CURSOR_SAVE_A
+                      (rc/demo_runtime.s):01023                 bsr     capture_cursor
+                      (rc/demo_runtime.s):01024                 ldx     #PRES_CURSOR_SAVE_A
+                      (rc/demo_runtime.s):01025                 ldu     #PRES_CURSOR_SAVE_B
+                      (rc/demo_runtime.s):01026                 ldy     #64
+038F                  (rc/demo_runtime.s):01027         capture_copy
+                      (rc/demo_runtime.s):01028                 ldd     ,x++
+                      (rc/demo_runtime.s):01029                 std     ,u++
+                      (rc/demo_runtime.s):01030                 leay    -1,y
+                      (rc/demo_runtime.s):01031                 bne     capture_copy
+                      (rc/demo_runtime.s):01032                 rts
+                      (rc/demo_runtime.s):01033         
+038F                  (rc/demo_runtime.s):01034         update_name_frame
+                      (rc/demo_runtime.s):01035                 lda     FB_BACK_ID
+                      (rc/demo_runtime.s):01036                 sta     PRES_NAME_OWNER
+                      (rc/demo_runtime.s):01037                 lda     #$34
+                      (rc/demo_runtime.s):01038                 sta     PAR5
+                      (rc/demo_runtime.s):01039                 jsr     PRES_MAIN_FB_PREPARE
+                      (rc/demo_runtime.s):01040                 jsr     PRES_MODULE_MAP_BACK
+                      (rc/demo_runtime.s):01041                 bsr     restore_cursor
+                      (rc/demo_runtime.s):01042                 lbsr    draw_name_fields
+                      (rc/demo_runtime.s):01043                 bsr     capture_owner
+                      (rc/demo_runtime.s):01044                 bsr     draw_cursor
+                      (rc/demo_runtime.s):01045                 lda     #$34
+                      (rc/demo_runtime.s):01046                 sta     PAR5
+                      (rc/demo_runtime.s):01047                 jmp     PRES_MAIN_FB_FINISH
+                      (rc/demo_runtime.s):01048         
+038F                  (rc/demo_runtime.s):01049         capture_cursor
+                      (rc/demo_runtime.s):01050                 ldy     #16
+038F                  (rc/demo_runtime.s):01051         capture_row
+                      (rc/demo_runtime.s):01052                 ldd     ,x++
+                      (rc/demo_runtime.s):01053                 std     ,u++
+                      (rc/demo_runtime.s):01054                 ldd     ,x++
+                      (rc/demo_runtime.s):01055                 std     ,u++
+                      (rc/demo_runtime.s):01056                 ldd     ,x++
+                      (rc/demo_runtime.s):01057                 std     ,u++
+                      (rc/demo_runtime.s):01058                 ldd     ,x++
+                      (rc/demo_runtime.s):01059                 std     ,u++
+                      (rc/demo_runtime.s):01060                 leax    152,x
+                      (rc/demo_runtime.s):01061                 leay    -1,y
+                      (rc/demo_runtime.s):01062                 bne     capture_row
+                      (rc/demo_runtime.s):01063                 rts
+                      (rc/demo_runtime.s):01064         
+038F                  (rc/demo_runtime.s):01065         restore_cursor
+                      (rc/demo_runtime.s):01066                 lda     #$34
+                      (rc/demo_runtime.s):01067                 sta     PAR5
+                      (rc/demo_runtime.s):01068                 lda     PRES_NAME_OWNER
+                      (rc/demo_runtime.s):01069                 beq     restore_a
+                      (rc/demo_runtime.s):01070                 ldu     #PRES_CURSOR_SAVE_B
+                      (rc/demo_runtime.s):01071                 ldx     PRES_NAME_PTR_B
+                      (rc/demo_runtime.s):01072                 bra     restore_ready
+038F                  (rc/demo_runtime.s):01073         restore_a
+                      (rc/demo_runtime.s):01074                 ldu     #PRES_CURSOR_SAVE_A
+                      (rc/demo_runtime.s):01075                 ldx     PRES_NAME_PTR_A
+038F                  (rc/demo_runtime.s):01076         restore_ready
+                      (rc/demo_runtime.s):01077                 ldy     #16
+038F                  (rc/demo_runtime.s):01078         restore_row
+                      (rc/demo_runtime.s):01079                 ldd     ,u++
+                      (rc/demo_runtime.s):01080                 std     ,x++
+                      (rc/demo_runtime.s):01081                 ldd     ,u++
+                      (rc/demo_runtime.s):01082                 std     ,x++
+                      (rc/demo_runtime.s):01083                 ldd     ,u++
+                      (rc/demo_runtime.s):01084                 std     ,x++
+                      (rc/demo_runtime.s):01085                 ldd     ,u++
+                      (rc/demo_runtime.s):01086                 std     ,x++
+                      (rc/demo_runtime.s):01087                 leax    152,x
+                      (rc/demo_runtime.s):01088                 leay    -1,y
+                      (rc/demo_runtime.s):01089                 bne     restore_row
+                      (rc/demo_runtime.s):01090                 rts
+                      (rc/demo_runtime.s):01091         
+038F                  (rc/demo_runtime.s):01092         capture_owner
+                      (rc/demo_runtime.s):01093                 lda     #$34
+                      (rc/demo_runtime.s):01094                 sta     PAR5
+                      (rc/demo_runtime.s):01095                 lda     PRES_NAME_OWNER
+                      (rc/demo_runtime.s):01096                 beq     capture_a
+                      (rc/demo_runtime.s):01097                 ldu     #PRES_CURSOR_SAVE_B
+                      (rc/demo_runtime.s):01098                 ldx     PLAYER_FB
+                      (rc/demo_runtime.s):01099                 stx     PRES_NAME_PTR_B
+                      (rc/demo_runtime.s):01100                 bsr     capture_cursor
+                      (rc/demo_runtime.s):01101                 rts
+038F                  (rc/demo_runtime.s):01102         capture_a
+                      (rc/demo_runtime.s):01103                 ldu     #PRES_CURSOR_SAVE_A
+                      (rc/demo_runtime.s):01104                 ldx     PLAYER_FB
+                      (rc/demo_runtime.s):01105                 stx     PRES_NAME_PTR_A
+                      (rc/demo_runtime.s):01106                 bsr     capture_cursor
+                      (rc/demo_runtime.s):01107                 rts
+                      (rc/demo_runtime.s):01108         
+038F                  (rc/demo_runtime.s):01109         draw_cursor
+                      (rc/demo_runtime.s):01110                 ldx     PLAYER_FB
+                      (rc/demo_runtime.s):01111                 jmp     PRES_MAIN_PLAYER_DRAW
+                      (rc/demo_runtime.s):01112         
+                      (rc/demo_runtime.s):01113         
+038F                  (rc/demo_runtime.s):01114         highscore_default_record_data
+                      (rc/demo_runtime.s):01115                 fcb     0,0,0
+038F                  (rc/demo_runtime.s):01116         highscore_default_name_data
+                      (rc/demo_runtime.s):01117                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_0
+                      (rc/demo_runtime.s):01118                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_1
+                      (rc/demo_runtime.s):01119                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_2
+                      (rc/demo_runtime.s):01120                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_3
+                      (rc/demo_runtime.s):01121                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_4
+                      (rc/demo_runtime.s):01122                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_5
+                      (rc/demo_runtime.s):01123                 fcb     PRESENTATION_HIGHSCORE_DEFAULT_NAME_6
+                      (rc/demo_runtime.s):01124         
+                      (rc/demo_runtime.s):01125                 ifne    0
+038F                  (rc/demo_runtime.s):01126         draw_tile
+                      (rc/demo_runtime.s):01127                 cmpb    #PRESENTATION_GAMEPLAY_TILE_BASE
+                      (rc/demo_runtime.s):01128                 blo     draw_cold
+                      (rc/demo_runtime.s):01129                 subb    #PRESENTATION_GAMEPLAY_TILE_BASE
+                      (rc/demo_runtime.s):01130                 clra
+                      (rc/demo_runtime.s):01131                 addd    #PRESENTATION_GAMEPLAY_LOOKUP_OFFSET
+                      (rc/demo_runtime.s):01132                 lbsr    cold_ptr
+                      (rc/demo_runtime.s):01133                 lda     ,x
+                      (rc/demo_runtime.s):01134                 ldb     #32
+                      (rc/demo_runtime.s):01135                 mul
+                      (rc/demo_runtime.s):01136                 ldu     #PRESENTATION_GAMEPLAY_TILES
+                      (rc/demo_runtime.s):01137                 leau    d,u
+                      (rc/demo_runtime.s):01138                 tfr     y,x
+                      (rc/demo_runtime.s):01139                 tfr     u,y
+                      (rc/demo_runtime.s):01140                 jmp     PRES_MAIN_BLIT_TILE
+038F                  (rc/demo_runtime.s):01141         draw_cold
+                      (rc/demo_runtime.s):01142                 tfr     b,a
+                      (rc/demo_runtime.s):01143                 ldb     #32
+                      (rc/demo_runtime.s):01144                 mul
+                      (rc/demo_runtime.s):01145                 addd    #PRESENTATION_TILE_ATLAS_OFFSET
+                      (rc/demo_runtime.s):01146                 lbsr    cold_ptr
+                      (rc/demo_runtime.s):01147                 tfr     x,u
+                      (rc/demo_runtime.s):01148                 tfr     y,x
+                      (rc/demo_runtime.s):01149                 tfr     u,y
+                      (rc/demo_runtime.s):01150                 jmp     PRES_MAIN_BLIT_TILE
+                      (rc/demo_runtime.s):01151         
+038F                  (rc/demo_runtime.s):01152         cold_ptr
+                      (rc/demo_runtime.s):01153                 tfr     d,x
+                      (rc/demo_runtime.s):01154                 tfr     a,b
+                      (rc/demo_runtime.s):01155                 andb    #$E0
+                      (rc/demo_runtime.s):01156                 lsrb
+                      (rc/demo_runtime.s):01157                 lsrb
+                      (rc/demo_runtime.s):01158                 lsrb
+                      (rc/demo_runtime.s):01159                 lsrb
+                      (rc/demo_runtime.s):01160                 lsrb
+                      (rc/demo_runtime.s):01161                 addb    #PRESENTATION_COLD_PAGE
+                      (rc/demo_runtime.s):01162                 stb     PAR5
+                      (rc/demo_runtime.s):01163                 tfr     x,d
+                      (rc/demo_runtime.s):01164                 anda    #$1F
+                      (rc/demo_runtime.s):01165                 adda    #$A0
+                      (rc/demo_runtime.s):01166                 tfr     d,x
+                      (rc/demo_runtime.s):01167                 rts
+                      (rc/demo_runtime.s):01168         
+038F                  (rc/demo_runtime.s):01169         map_back
+                      (rc/demo_runtime.s):01170                 lda     FB_BACK_ID
+                      (rc/demo_runtime.s):01171                 bne     map_back_b
+                      (rc/demo_runtime.s):01172                 lda     #$30
+                      (rc/demo_runtime.s):01173                 bra     map_back_set
+038F                  (rc/demo_runtime.s):01174         map_back_b
+                      (rc/demo_runtime.s):01175                 lda     #$2C
+038F                  (rc/demo_runtime.s):01176         map_back_set
+                      (rc/demo_runtime.s):01177                 sta     PAR1
+                      (rc/demo_runtime.s):01178                 inca
+                      (rc/demo_runtime.s):01179                 sta     PAR2
+                      (rc/demo_runtime.s):01180                 inca
+                      (rc/demo_runtime.s):01181                 sta     PAR3
+                      (rc/demo_runtime.s):01182                 inca
+                      (rc/demo_runtime.s):01183                 sta     PAR4
+                      (rc/demo_runtime.s):01184                 lda     #$3A
+                      (rc/demo_runtime.s):01185                 sta     PAR5
+                      (rc/demo_runtime.s):01186                 rts
+                      (rc/demo_runtime.s):01187                 endc
+                      (rc/demo_runtime.s):01188         
+                      (rc/demo_runtime.s):01189                 endc
+038F                  (rc/demo_runtime.s):01190         demo_runtime_end
+                      (rc/demo_runtime.s):01191                 endc
+                      (rc/demo_runtime.s):01192         
+                      (rc/demo_runtime.s):01193                 endc
+                      (rc/demo_runtime.s):01194                 end
+
+Symbol Table:
+[SG] ADAPTIVE_RENDERING               0000
+[SG] COMPLETE_PHASE_AUX               0000
+[ G] demo_route_advance               0383
+[ G] demo_route_advanced              0385
+[ G] demo_route_aligned               0326
+[ G] demo_route_done                  0385
+[ G] demo_route_held                  038E
+[ G] demo_route_hold                  0386
+[ G] demo_route_new_cell              033E
+[ G] demo_route_reasserted            030A
+[ G] demo_route_wait_entrance         0312
+[ G] demo_runtime_end                 038F
+[ G] demo_runtime_tick                0300
+[ G] DIR_E                            0001
+[ G] DIR_N                            0000
+[ G] DIR_NONE                         00FF
+[ G] DIR_S                            0002
+[ G] DIR_W                            0003
+[ G] FB_BACK_ID                       0090
+[ G] FB_PENDING                       0091
+[ G] FB_RENDER_ACTIVE                 0098
+[ G] FRAMES                           0002
+[SG] HIGHSCORE_PHASE_HELPER           0000
+[SG] HIGHSCORE_PHASE_HELPER_ADDRESS   AC40
+[SG] HIGHSCORE_PHASE_HELPER_RESUME    AD00
+[SG] HIGHSCORE_TEST_PROFILE           0000
+[ G] JOY_DIR                          0005
+[ G] MAP_ENTER_HIGH_SCORE             0005
+[ G] MAP_HIGH_SCORE                   0003
+[ G] MENU_SCAN                        B086
+[ G] MENU_TICK                        B089
+[ G] MODE_GAMEOVER                    0007
+[ G] MODE_LOAD                        0001
+[ G] MODE_NAME                        0008
+[ G] PAR1                             FFA1
+[ G] PAR2                             FFA2
+[ G] PAR3                             FFA3
+[ G] PAR4                             FFA4
+[ G] PAR5                             FFA5
+[ G] PLAYER_ANIM                      004F
+[ G] PLAYER_ANIM_TIMER                0050
+[ G] PLAYER_CELL_X                    0009
+[ G] PLAYER_CELL_Y                    000A
+[ G] PLAYER_DIR                       0006
+[ G] PLAYER_FACE                      0007
+[ G] PLAYER_FB                        000B
+[ G] PLAYER_MANUAL                    0018
+[ G] PLAYER_STEP                      0008
+[ G] PLAYER_WANT                      000F
+[ G] PRES_CURSOR_SAVE_A               A590
+[ G] PRES_CURSOR_SAVE_B               A610
+[ G] PRES_DEMO_DIR                    00DD
+[ G] PRES_DEMO_LAST_X                 00DB
+[ G] PRES_DEMO_LAST_Y                 00DC
+[ G] PRES_DEMO_ROUTE                  00DA
+[ G] PRES_HIGHSCORE_ALIAS             8F84
+[ G] PRES_HIGHSCORE_BASE              AF84
+[ G] PRES_HOLD_FINAL                  0081
+[ G] PRES_HOLD_STATE                  00D4
+[ G] PRES_HS_BLACK                    0089
+[ G] PRES_HS_READY                    00E7
+[ G] PRES_IN                          00B5
+[ G] PRES_INSERT                      00C9
+[ G] PRES_MAIN_BLIT_TILE              D5E8
+[ G] PRES_MAIN_CAN_MOVE               CD4F
+[ G] PRES_MAIN_DEATH                  D322
+[ G] PRES_MAIN_DYNAMIC_TEXT           FC7E
+[ G] PRES_MAIN_ENEMY                  D520
+[ G] PRES_MAIN_ENEMY_TICK             D523
+[ G] PRES_MAIN_ENTITIES               C5EB
+[ G] PRES_MAIN_FB_CAPTURE             0E79
+[ G] PRES_MAIN_FB_FINISH              0E68
+[ G] PRES_MAIN_FB_PREPARE             0DFE
+[ G] PRES_MAIN_FB_PUBLISH             0E6E
+[ G] PRES_MAIN_GATES                  CAC7
+[ G] PRES_MAIN_INIT                   C27D
+[ G] PRES_MAIN_INSTALL_PHASE_TILES    DF2A
+[ G] PRES_MAIN_KEY_SERVICE            DF5F
+[ G] PRES_MAIN_MAP_STREAM_OFFSETS     F5C8
+[ G] PRES_MAIN_MAZE                   C5D8
+[ G] PRES_MAIN_NAME_LATE_TURN         DF72
+[ G] PRES_MAIN_NEXT_STAGE             C2D7
+[ G] PRES_MAIN_PAGE24_RESUME          DF56
+[ G] PRES_MAIN_PLAYER                 CB07
+[ G] PRES_MAIN_PLAYER_DRAW            0812
+[ G] PRES_MAIN_PLAYER_TICK            CBA6
+[ G] PRES_MAIN_READ_JOY               CB24
+[ G] PRES_MAIN_READ_STAGE_LETTERS     DF43
+[ G] PRES_MAIN_RENDER                 D4F6
+[ G] PRES_MAIN_RESTORE_PLAYER         D5A2
+[ G] PRES_MAIN_SAVE_PLAYER            D579
+[ G] PRES_MAIN_SCAN_BITS              F5E6
+[ G] PRES_MAIN_SCAN_DRIVES            F5E3
+[ G] PRES_MAIN_SCREEN_MODES           F5DA
+[ G] PRES_MAIN_SHARED_MASK            FBBC
+[ G] PRES_MAIN_STATIC_TEXT            FBA3
+[ G] PRES_MAIN_TOP_HUD                FCAF
+[ G] PRES_MODE                        00A5
+[ G] PRES_MODULE_COLD_PTR             1B7E
+[ G] PRES_MODULE_COLOUR_SURFACE       1D57
+[ G] PRES_MODULE_COLOUR_TILE          1D31
+[ G] PRES_MODULE_DRAW                 0821
+[ G] PRES_MODULE_DRAW_ACTOR           1D14
+[ G] PRES_MODULE_DRAW_RAW_TILE        1B77
+[ G] PRES_MODULE_DRAW_SCORE           1D97
+[ G] PRES_MODULE_DRAW_TILE            FC7E
+[ G] PRES_MODULE_MAP_BACK             1BA3
+[ G] PRES_MODULE_START_SCREEN         19C8
+[ G] PRES_NAME_CL                     00FE
+[ G] PRES_NAME_COL                    00E0
+[ G] PRES_NAME_DIR                    00E6
+[ G] PRES_NAME_END                    00FD
+[ G] PRES_NAME_FLAGS                  00E2
+[ G] PRES_NAME_LAST_DIR               00E2
+[ G] PRES_NAME_LEN                    00CB
+[ G] PRES_NAME_OWNER                  00E3
+[ G] PRES_NAME_PTR                    00E4
+[ G] PRES_NAME_PTR_A                  00DA
+[ G] PRES_NAME_PTR_B                  00DC
+[ G] PRES_NAME_REPEAT                 00E1
+[ G] PRES_NAME_ROW                    00DF
+[ G] PRES_NAME_STEPS                  00DE
+[ G] PRES_NAME_TILE                   00E6
+[ G] PRES_NAME_TIMER_BOX              00E9
+[ G] PRES_NAME_TIMER_PHASE            00E8
+[ G] PRES_OUT                         00B7
+[ G] PRES_PENDING_NAME                AFDE
+[ G] PRES_PENDING_NAME_ALIAS          8FDE
+[ G] PRES_SCORE_H                     00BF
+[ G] PRES_SCORE_L                     00C1
+[ G] PRES_SCORE_M                     00C0
+[ G] PRES_SCREEN                      00A6
+[ G] PRES_STAGE_SLICE                 B083
+[ G] PRES_TICK_PHASE                  00E1
+[ G] PRES_TIMER                       00B0
+[ G] PRES_TMP_H                       00C2
+[ G] PRES_TMP_L                       00C4
+[ G] PRES_TMP_M                       00C3
+[ G] PRESENTATION_ATTRACT_BUNDLE_ADDRESS B720
+[ G] PRESENTATION_ATTRACT_BUNDLE_PAGE 003B
+[ G] PRESENTATION_ATTRACT_DESTINATION_ADDRESS BE00
+[ G] PRESENTATION_ATTRACT_PHASE_POINTER_ADDRESS BE28
+[ G] PRESENTATION_ATTRACT_SURFACE_ADDRESS A000
+[ G] PRESENTATION_ATTRACT_SURFACE_BYTES 1E00
+[ G] PRESENTATION_ATTRACT_SURFACE_PAGE 003C
+[ G] PRESENTATION_COLD_ONLY_TILE_COUNT 0089
+[ G] PRESENTATION_COLD_PAGE           003A
+[ G] PRESENTATION_COLD_PAGE_COUNT     0004
+[ G] PRESENTATION_COLD_SIZE           3720
+[ G] PRESENTATION_DEMO_ROUTE_ACTIONS  008F
+[ G] PRESENTATION_DEMO_ROUTE_OFFSET   2A1A
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_BYTES 0024
+[ G] PRESENTATION_GAMEPLAY_LOOKUP_OFFSET 1120
+[ G] PRESENTATION_GAMEPLAY_TILE_BASE  0089
+[ G] PRESENTATION_GAMEPLAY_TILES      E3D0
+[ G] PRESENTATION_GLYPH_0             002A
+[ G] PRESENTATION_GLYPH_1             0052
+[ G] PRESENTATION_GLYPH_10            0058
+[ G] PRESENTATION_GLYPH_11            005D
+[ G] PRESENTATION_GLYPH_12            0029
+[ G] PRESENTATION_GLYPH_13            00A4
+[ G] PRESENTATION_GLYPH_14            005B
+[ G] PRESENTATION_GLYPH_15            006D
+[ G] PRESENTATION_GLYPH_16            005E
+[ G] PRESENTATION_GLYPH_17            005A
+[ G] PRESENTATION_GLYPH_18            0024
+[ G] PRESENTATION_GLYPH_19            006E
+[ G] PRESENTATION_GLYPH_2             00A3
+[ G] PRESENTATION_GLYPH_20            006F
+[ G] PRESENTATION_GLYPH_21            005C
+[ G] PRESENTATION_GLYPH_22            0070
+[ G] PRESENTATION_GLYPH_23            009D
+[ G] PRESENTATION_GLYPH_24            002A
+[ G] PRESENTATION_GLYPH_25            0053
+[ G] PRESENTATION_GLYPH_26            0071
+[ G] PRESENTATION_GLYPH_27            0027
+[ G] PRESENTATION_GLYPH_28            0025
+[ G] PRESENTATION_GLYPH_29            0026
+[ G] PRESENTATION_GLYPH_3             0061
+[ G] PRESENTATION_GLYPH_30            0028
+[ G] PRESENTATION_GLYPH_31            0072
+[ G] PRESENTATION_GLYPH_32            0073
+[ G] PRESENTATION_GLYPH_33            0074
+[ G] PRESENTATION_GLYPH_34            0059
+[ G] PRESENTATION_GLYPH_35            0075
+[ G] PRESENTATION_GLYPH_36            0078
+[ G] PRESENTATION_GLYPH_4             0063
+[ G] PRESENTATION_GLYPH_5             0065
+[ G] PRESENTATION_GLYPH_6             0064
+[ G] PRESENTATION_GLYPH_7             0062
+[ G] PRESENTATION_GLYPH_8             0060
+[ G] PRESENTATION_GLYPH_9             005F
+[ G] PRESENTATION_HIGHSCORE_BASE      AF84
+[ G] PRESENTATION_HIGHSCORE_COUNT     0009
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_0 005C
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_1 0058
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_2 00A4
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_3 0059
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_4 005D
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_5 0028
+[ G] PRESENTATION_HIGHSCORE_DEFAULT_NAME_6 005E
+[ G] PRESENTATION_HIGHSCORE_DISPLAY_ROWS 0009
+[ G] PRESENTATION_HIGHSCORE_ENTRY_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_ENTRY_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_NAME_BYTES 0007
+[ G] PRESENTATION_HIGHSCORE_RANK_01_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_RANK_01_SCORE_DST 3460
+[ G] PRESENTATION_HIGHSCORE_RANK_02_NAME_DST 3E3C
+[ G] PRESENTATION_HIGHSCORE_RANK_02_SCORE_DST 3E60
+[ G] PRESENTATION_HIGHSCORE_RANK_03_NAME_DST 433C
+[ G] PRESENTATION_HIGHSCORE_RANK_03_SCORE_DST 4360
+[ G] PRESENTATION_HIGHSCORE_RANK_04_NAME_DST 483C
+[ G] PRESENTATION_HIGHSCORE_RANK_04_SCORE_DST 4860
+[ G] PRESENTATION_HIGHSCORE_RANK_05_NAME_DST 4D3C
+[ G] PRESENTATION_HIGHSCORE_RANK_05_SCORE_DST 4D60
+[ G] PRESENTATION_HIGHSCORE_RANK_06_NAME_DST 523C
+[ G] PRESENTATION_HIGHSCORE_RANK_06_SCORE_DST 5260
+[ G] PRESENTATION_HIGHSCORE_RANK_07_NAME_DST 573C
+[ G] PRESENTATION_HIGHSCORE_RANK_07_SCORE_DST 5760
+[ G] PRESENTATION_HIGHSCORE_RANK_08_NAME_DST 5C3C
+[ G] PRESENTATION_HIGHSCORE_RANK_08_SCORE_DST 5C60
+[ G] PRESENTATION_HIGHSCORE_RANK_09_NAME_DST 613C
+[ G] PRESENTATION_HIGHSCORE_RANK_09_SCORE_DST 6160
+[ G] PRESENTATION_HIGHSCORE_RECORD_BYTES 000A
+[ G] PRESENTATION_HIGHSCORE_ROW_STRIDE 0500
+[ G] PRESENTATION_HIGHSCORE_SCORE_BYTES 0003
+[ G] PRESENTATION_HIGHSCORE_SCORE_NAME_DELTA 0024
+[ G] PRESENTATION_HIGHSCORE_TOP_NAME_DST 343C
+[ G] PRESENTATION_HIGHSCORE_TOP_SCORE_DST 3460
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_0 4328
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_1 5228
+[ G] PRESENTATION_INSTRUCTION_ANCHOR_2 6128
+[ G] PRESENTATION_INSTRUCTION_ANGEL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_ANGEL_TICK 0667
+[ G] PRESENTATION_INSTRUCTION_BLACK_TILE 0089
+[ G] PRESENTATION_INSTRUCTION_COIN_0  007E
+[ G] PRESENTATION_INSTRUCTION_COIN_1  007F
+[ G] PRESENTATION_INSTRUCTION_COIN_2  0080
+[ G] PRESENTATION_INSTRUCTION_COIN_3  0081
+[ G] PRESENTATION_INSTRUCTION_COIN_DST 5270
+[ G] PRESENTATION_INSTRUCTION_COLOUR_DWELL 0020
+[ G] PRESENTATION_INSTRUCTION_COLOUR_POINTERS 20C0
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_DST 2A84
+[ G] PRESENTATION_INSTRUCTION_CUCUMBER_STREAM 24EE
+[ G] PRESENTATION_INSTRUCTION_DEATH_COUNT 000F
+[ G] PRESENTATION_INSTRUCTION_DEATH_POINTERS 253F
+[ G] PRESENTATION_INSTRUCTION_DEATH_TICK 0608
+[ G] PRESENTATION_INSTRUCTION_EVENT_BYTES 000C
+[ G] PRESENTATION_INSTRUCTION_EVENT_COUNT 0010
+[ G] PRESENTATION_INSTRUCTION_EVENT_OFFSET 2000
+[ G] PRESENTATION_INSTRUCTION_EXTRA_SPAN 4334
+[ G] PRESENTATION_INSTRUCTION_HEART_SPAN 6134
+[ G] PRESENTATION_INSTRUCTION_ICON_SPAN 7F34
+[ G] PRESENTATION_INSTRUCTION_LIFE_0  00A9
+[ G] PRESENTATION_INSTRUCTION_LIFE_1  00AA
+[ G] PRESENTATION_INSTRUCTION_LIFE_2  00AB
+[ G] PRESENTATION_INSTRUCTION_LIFE_3  00AC
+[ G] PRESENTATION_INSTRUCTION_LIFE_DST 4370
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_0 756C
+[ G] PRESENTATION_INSTRUCTION_MULTIPLIER_1 846C
+[ G] PRESENTATION_INSTRUCTION_NEXT_TICK 06A8
+[ G] PRESENTATION_INSTRUCTION_SKULL_DST 6170
+[ G] PRESENTATION_INSTRUCTION_SPECIAL_SPAN 5234
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_0 0052
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_BLUE_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_DST 8440
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_0 0060
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_RED_2 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_0 0061
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_1 002A
+[ G] PRESENTATION_INSTRUCTION_VALUE_YELLOW_2 002A
+[ G] PRESENTATION_INSTRUCTION_X2_0    002B
+[ G] PRESENTATION_INSTRUCTION_X2_1    002C
+[ G] PRESENTATION_INSTRUCTION_X3_0    002B
+[ G] PRESENTATION_INSTRUCTION_X3_1    002D
+[ G] PRESENTATION_INSTRUCTION_X5_0    002B
+[ G] PRESENTATION_INSTRUCTION_X5_1    002E
+[ G] PRESENTATION_MAP_ATTRACT         0000
+[ G] PRESENTATION_MAP_BYTES           03C0
+[ G] PRESENTATION_MAP_COUNT           0009
+[ G] PRESENTATION_MAP_CREDITS         0007
+[ G] PRESENTATION_MAP_ENTER_HIGH_SCORE 0005
+[ G] PRESENTATION_MAP_GAME_OVER       0004
+[ G] PRESENTATION_MAP_HIGH_SCORE      0003
+[ G] PRESENTATION_MAP_INSTRUCTIONS    0001
+[ G] PRESENTATION_MAP_KEYBIND_OPTIONS 0008
+[ G] PRESENTATION_MAP_LEVEL_START     0002
+[ G] PRESENTATION_MAP_OPTIONS         0006
+[ G] PRESENTATION_MAP_OUTPUT_OFFSET   4000
+[ G] PRESENTATION_MAP_STREAM_0        0F20
+[ G] PRESENTATION_MAP_STREAM_0_BYTES  00F9
+[ G] PRESENTATION_MAP_STREAM_1        1019
+[ G] PRESENTATION_MAP_STREAM_1_BYTES  029D
+[ G] PRESENTATION_MAP_STREAM_2        12B6
+[ G] PRESENTATION_MAP_STREAM_2_BYTES  01E6
+[ G] PRESENTATION_MAP_STREAM_3        149C
+[ G] PRESENTATION_MAP_STREAM_3_BYTES  0254
+[ G] PRESENTATION_MAP_STREAM_4        16F0
+[ G] PRESENTATION_MAP_STREAM_4_BYTES  00B9
+[ G] PRESENTATION_MAP_STREAM_5        17A9
+[ G] PRESENTATION_MAP_STREAM_5_BYTES  03A4
+[ G] PRESENTATION_MAP_STREAM_6        1B4D
+[ G] PRESENTATION_MAP_STREAM_6_BYTES  0096
+[ G] PRESENTATION_MAP_STREAM_7        1BE3
+[ G] PRESENTATION_MAP_STREAM_7_BYTES  0128
+[ G] PRESENTATION_MAP_STREAM_8        1D0B
+[ G] PRESENTATION_MAP_STREAM_8_BYTES  010E
+[ G] PRESENTATION_NAME_ENTRY_ACTION_BYTES 0087
+[ G] PRESENTATION_NAME_ENTRY_ACTION_TABLE 2F87
+[ G] PRESENTATION_NAME_ENTRY_BLACK_TILE 0089
+[ G] PRESENTATION_NAME_ENTRY_CL_COUNT 0003
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_BYTES 0081
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_CODE 0005
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_DST 894C
+[ G] PRESENTATION_NAME_ENTRY_CURSOR_OFFSET 2999
+[SG] PRESENTATION_NAME_ENTRY_DATA     0000
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_BYTES 002D
+[ G] PRESENTATION_NAME_ENTRY_EDGE_MASK_TABLE 2D1A
+[ G] PRESENTATION_NAME_ENTRY_END_COUNT 0001
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_BYTES 0240
+[ G] PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE 2D47
+[ G] PRESENTATION_NAME_ENTRY_GRID_CELLS 0000
+[ G] PRESENTATION_NAME_ENTRY_GRID_COUNT 0026
+[ G] PRESENTATION_NAME_ENTRY_GRID_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_NAME_DST 7F04
+[ G] PRESENTATION_NAME_ENTRY_NODE_TILES 0000
+[ G] PRESENTATION_NAME_ENTRY_SCORE_DST 2A84
+[ G] PRESENTATION_NAME_ENTRY_TIMER_COUNT 005C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_FRAMES 003C
+[ G] PRESENTATION_NAME_ENTRY_TIMER_RECORD_BYTES 0004
+[ G] PRESENTATION_NAME_ENTRY_TIMER_TABLE 2BAA
+[ G] PRESENTATION_NAME_ENTRY_TOP_DST  6104
+[ G] PRESENTATION_NAME_ENTRY_TOP_NAME_DST 5C84
+[ G] PRESENTATION_NAME_ENTRY_TOP_RIGHT_DST 3E84
+[ G] PRESENTATION_PART_VEGETABLE_DST  2A84
+[ G] PRESENTATION_PHASE_TILE_OVERLAY_ENABLED 0001
+[ G] PRESENTATION_PHASE_TILE_SLOT_0   002B
+[ G] PRESENTATION_PHASE_TILE_SLOT_1   002F
+[ G] PRESENTATION_STAGE_PANEL_ENABLED 0001
+[ G] PRESENTATION_TILE_ATLAS_COMPRESSED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_EXPANDED_BYTES 1120
+[ G] PRESENTATION_TILE_ATLAS_OFFSET   0000
+[ G] PRESENTATION_TILE_ATLAS_SOURCE_OFFSET 0000
+[ G] PRESENTATION_TILE_BYTES          0020
+[ G] PRESENTATION_TILE_COUNT          00AD
+[ G] PRESENTATION_TILE_OFFSET         0000
+[ G] SHARED_TEXT_BASE                 00AE
+[ G] SHARED_TEXT_ENABLED              0001

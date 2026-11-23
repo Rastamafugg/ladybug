@@ -1,0 +1,90 @@
+{
+  "ticket": "FEAT-013",
+  "evidence_date": "2026-11-21",
+  "source": {
+    "branch": "codex/feat013-shared-hud",
+    "revision": "660d46dabce9f2f885613d1537bc1a565e3e1d35",
+    "worktree_clean_at_build": true,
+    "commits": [
+      "d8b50c39",
+      "4dfcbbc9",
+      "660d46da"
+    ]
+  },
+  "candidate": {
+    "profile": "complete",
+    "input": "keyboard",
+    "adaptive": true,
+    "cpu": "6809",
+    "rom_path": "C:\\Users\\19029\\.codex\\worktrees\\feat013-shared-hud\\ladybug\\build\\ladybug.rom",
+    "rom_bytes": 65536,
+    "rom_sha256": "ff2ed93fa1c07cb865b75a56c1a1acc4dc4c4f0ec63425b865bd17651416c454",
+    "main_listing_sha256": "35f236b2118162e0079d0a7485694fab46c1bbc4b9ac0532dc64d364c5db78d5",
+    "receipt_sha256": "2038c2fba001a58ae3836a05e31bbec87ec3f71fb4fa1dfcc377268c823e71b6",
+    "helper": {
+      "address": "$BF00",
+      "bytes": 146,
+      "exclusive_end": "$BF92",
+      "slot_limit_bytes": 256,
+      "binary_sha256": "2478697320d65c2d16dd7e7f6cb7c72130da3f4b3f0efc4a020bbf2f9f762820",
+      "listing_sha256": "19b2f920bea39c9facd704d3aaf7d9d30ccabdf8234e94a7ac57cdea024ee269",
+      "map_sha256": "1621f0150de9a2be5f5ddee5f968b9354dbb34092020a2348fef80497719fe18"
+    }
+  },
+  "build": {
+    "command": "wsl -d Ubuntu -- bash -lc 'cd /mnt/c/Users/19029/.codex/worktrees/feat013-shared-hud/ladybug && LADYBUG_PROFILE=complete LADYBUG_INPUT=keyboard LADYBUG_ADAPTIVE=1 LADYBUG_CPU=6809 scripts/build.sh build'",
+    "result": "pass",
+    "source_reference_audit": "passed after assembly: 17 modules, 332/332 routines, 6762/6762 labels",
+    "rejected_prior": "The build on 4dfcbbc9 was rejected after review found incorrect helper stack offsets; it is not the ROM identified here."
+  },
+  "capacity": {
+    "resident": "8191/8192 B; 1 B free",
+    "presentation_runtime": "1272/1280 B; 8 B free",
+    "active_helper": "331/334 B; 3 B free",
+    "adaptive_banked": "696/698 B; 2 B free",
+    "audio": "6668 B; $A000-$BA0B",
+    "keybinding": "1164 B; $BA0C-$BE97; independent 1536 B cap",
+    "helper_page3d": "146 B; $BF00-$BF91; 256 B slot",
+    "page3d_total": "7978/8192 B of module payloads; 214 B overall unused: 104 B gap plus 110 B tail",
+    "no_overlap": true
+  },
+  "verifiers": [
+    {
+      "name": "complete-profile build/capacity/source-reference gates",
+      "result": "pass"
+    },
+    {
+      "name": "verify_audio_runtime.py --rom build/ladybug.rom",
+      "result": "pass",
+      "summary": "18 cue descriptors and 18 isolated cues verified; ROM hash matched candidate"
+    },
+    {
+      "name": "verify_presentation_flow.py",
+      "result": "pass",
+      "summary": "complete flow, generated maps, instruction choreography, atomic surface copy; combined 15384/17664 B"
+    },
+    {
+      "name": "candidate-side G3 source/listing review",
+      "result": "pass",
+      "summary": "generated $BF00 entry, PAR5 save/map/restore, corrected stack arguments, shared dispatcher, one-column/full-word selection, caller routes"
+    }
+  ],
+  "g3_negative_control": {
+    "required_revision": "98b4bad9558b1574323df703981e7034228fff26",
+    "source_review": "Exact source commit confirms the old draw_word_progress_hud path repaints both SPECIAL and EXTRA rows.",
+    "matching_receipt_listing_retained": false,
+    "search": "No exact-revision receipt was found in 123 saved receipts under searched evidence folders or in direct worktree build outputs.",
+    "result": "incomplete: the approved G3 card requires the exact emitted listing as negative control."
+  },
+  "manual_M1": {
+    "owner": "user",
+    "result": "pending on this exact ROM",
+    "deadline": "none",
+    "launched_by_agent": false
+  },
+  "performance_G4": {
+    "result": "deferred by user",
+    "target": "27000-cycle maximum remains required before Done"
+  },
+  "independent_review": "Sol 6.2 high reviewed the corrected stack handling and routes; no additional candidate-side product blocker was reported."
+}

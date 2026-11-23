@@ -1,0 +1,52 @@
+{
+  "schema": 1,
+  "ticket": "FEAT-012",
+  "record_type": "wake helper byte comparison and follow-up sizing bound",
+  "date": "2026-11-16",
+  "comparison": {
+    "profile": "complete keyboard/adaptive",
+    "input": "keyboard",
+    "adaptive": true,
+    "assembler": "lwasm 4.24",
+    "baseline_revision": "cb9a2173913fe7e09f6719cac456381e07f15f23",
+    "candidate_revision": "ee79fe6af79755d76ffe7d571c15e2c16e6086e7",
+    "helper_start": "$AC40",
+    "baseline_helper_end": "$B855",
+    "baseline_helper_bytes": 3093,
+    "candidate_helper_end": "$B8BE",
+    "candidate_helper_bytes": 3198,
+    "measured_wake_path_growth_bytes": 105,
+    "helper_boundary": "$B880",
+    "available_helper_bytes": 3136,
+    "candidate_over_bytes": 62,
+    "minimum_reduction_for_observed_profile_bytes": 62,
+    "target_helper_bytes": 3136,
+    "guard": "INSTRUCTION_RUNTIME_ADDRESS + len(aux_runtime_stage) > 0xB880",
+    "exact_boundary_passes_guard": true,
+    "slack_at_minimum_fit_bytes": 0
+  },
+  "artifacts": {
+    "baseline_listing": {
+      "path": "E:/projects/ladybug/repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/source/build/ladybug-highscore-helper.lst",
+      "sha256": "2bb0c651c3f3add19e4cf05daae0ec5ec82c16817f160462f71f35e45b2faee76"
+    },
+    "baseline_helper_binary": {
+      "path": "E:/projects/ladybug/repro/feat012-profile-signoff-20261108-02/build-runs/20261108T230414Z-keyboard-adaptive-dfbb2f299657/source/build/ladybug-highscore-helper.bin",
+      "sha256": "63147e3b57f8cf487cf54d08a6b9aa0034f93bd309befca5f0c1e3a83a8608f5"
+    },
+    "candidate_listing": {
+      "path": "C:/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug/build/ladybug-highscore-helper.lst",
+      "sha256": "ec17d8ede6801de495e1f68084b183f52c6fe96ec7434e412ab9fb3f3a6895b1"
+    },
+    "candidate_helper_binary": {
+      "path": "C:/Users/19029/.codex/worktrees/feat012-wake-repair-ready/ladybug/build/ladybug-highscore-helper.bin",
+      "sha256": "5d64344f542b073fa1b816bf89ea824fc399f7747bab9bb2fdd5caaf1822ae52"
+    }
+  },
+  "limits": {
+    "other_profiles_measured": false,
+    "static_flow_after_failed_build": false,
+    "runtime_or_game_launch": false,
+    "proposed_assignment_authorized": false
+  }
+}

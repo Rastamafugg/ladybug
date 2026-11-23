@@ -17,8 +17,8 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal &middot; research and design</p>
-      <h1>RSCH-018 - Shared HUD data-provider contract <span class="wiki-badge">Proposed</span></h1>
-      <p class="wiki-meta">Created 2026-11-02 &middot; P2 / unassigned &middot; no implementation authority</p>
+      <h1>RSCH-018 - Shared HUD data-provider contract <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">Created 2026-11-02 &middot; P2 &middot; design completed 2026-11-17 &middot; implementation separate</p>
     </header>
 
     <section id="objective">
@@ -40,8 +40,8 @@
     </section>
 
     <section id="scope">
-      <h2>Proposed scope</h2>
-      <p><strong>In:</strong> inventory each HUD field by screen, data owner, source writer, map cell, format, color, and refresh event; define a compact, read-only provider/view contract; define when gameplay and ranking publish data; define the life-marker refresh around the existing award animation; define the single layout source and map-sync/build handoff; and account for mapping, framebuffer, code-size, and active-worklist timing constraints.</p>
+      <h2>Approved design scope</h2>
+      <p><strong>In:</strong> inventory each HUD field by screen, data owner, source writer, map cell, format, color, initial state, and refresh event; define a compact, read-only provider/view contract; define when gameplay and ranking publish data; define the life-marker refresh around the existing award animation; evaluate a named-object layer in the shared Tiled template and the map-specific High Score and name-entry layouts; and account for mapping, framebuffer, code-size, and active-worklist timing constraints.</p>
       <p><strong>Out:</strong> changing score, ranking, or gameplay ownership; adding a numeric above-12 life counter in 1.0; changing the adopted EXTRA/SPECIAL rewards; implementing the shared renderer or provider in this ticket; changing Tiled art outside the agreed template-sync process; and building, testing, or running the game as part of this design ticket.</p>
     </section>
 
@@ -111,9 +111,9 @@
 
     <section id="assignment-boundary">
       <h2>Assignment boundary and verification</h2>
-      <p>This is a source-and-documentation design step. Read-only inputs are <code>src/main.s</code>, <code>src/presentation_runtime.s</code>, <code>src/shared_text_stage.inc</code>, <code>scripts/build_presentation.py</code>, the seven synchronized Tiled maps, <code>tiled/coco-template.tmx</code>, the memory map, and the routine catalog. No source, map, generator, build script, or generated runtime artifact may be changed.</p>
-      <p>Review evidence is the completed field/owner matrix, contract sketch, mapping/capacity analysis, and exact proposed implementation boundary. No tests, builds, emulator commands, runtime checks, commits, or ticket-state changes are authorized by this ticket.</p>
-      <p><strong>Relationship:</strong> this design study does not block the approved FEAT-010 or FEAT-011 1.0 implementation and acceptance gates. The timing and scope of any shared-HUD implementation remain a separate product decision; implementation requires its own approved and Ready assignment.</p>
+      <p>This approved assignment was a read-only source-and-documentation design step. Inputs were <code>src/main.s</code>, <code>src/presentation_runtime.s</code>, <code>src/shared_text_stage.inc</code>, <code>src/instruction_runtime.s</code>, <code>scripts/build_presentation.py</code>, <code>scripts/shared_text.py</code>, the shared template and seven synchronized Tiled maps, the memory map, and the routine catalog. No production source, map, generator, build script, or generated runtime artifact was changed.</p>
+      <p>The review retained a field/owner matrix, provider contract, mapping/capacity analysis, and implementation boundary. Documentation checks validate the authored ticket and evidence only; no game build, test suite, emulator command, or runtime check was run for this design.</p>
+      <p><strong>Relationship:</strong> this design does not block FEAT-010 or FEAT-011 acceptance. It closes only the design assignment. Implementation remains separate and requires its own proposed, approved, and Ready ticket with a DOC-014 test card and qualified gates.</p>
     </section>
 
     <section id="decision-log">
@@ -122,7 +122,120 @@
         <li>2026-11-02 - Drafted Proposed shared HUD provider/rendering design from current source observations and explicit user direction. No implementation authority granted.</li>
         <li>2026-11-02 - Recorded the proposed 32-byte low-RAM snapshot range <code>$02A0-$02BF</code>, existing BACK-buffer damage/publication handoff, and generated Tiled color-preview approach. The address remains unallocated pending a live-ownership audit; preview metadata and output format remain design proposals. Status remains Proposed; no implementation or checks authorized.</li>
         <li>2026-11-02 - Read-only ownership audit found no declared/direct shipped-game owner in <code>$02A0-$02BF</code>, between active rate state at <code>$029B-$029F</code> and audio storage beginning at <code>$02C0</code>. The non-shipped ROM probe can write there after 40 earlier mismatch records. The range is a plausible game-runtime gap, not allocation-cleared; indirect-access/lifetime review and stale-comment correction remain. No address was allocated.</li>
+        <li>2026-11-17 &mdash; User approved the read-only RSCH-018 design assignment and kept production implementation separate. The design scope includes named common HUD fields, screen-specific High Score/name-entry extensions, and explicit Instructions multiplier initial-state semantics.</li>
+        <li>2026-11-17 &mdash; Completed the source-backed field matrix, template/object-layer recommendation, provider/lifetime contract, framebuffer/capacity constraints, and least-cost future verification outline. Current receipt-bound boot copy ranges, runtime owners, mapping, and stack do not overlap <code>$02A0-$02BF</code>; the range remains unallocated pending a separate implementation owner and zero-init. The instruction screen's three multiplier indicators begin inactive gray and turn blue only after the matching heart event; active blue multiplier values remain required. RSCH-018 is Done as design only; implementation is not assigned or authorized.</li>
       </ul>
+    </section>
+
+    <section id="current-source-review-20261117">
+<h2>2026-11-17 &mdash; Current-source review of the proposed snapshot range</h2>
+<p>The current clean source worktree is commit <code>3f1277de302e18ad319ba9986a4aa62c9c4caffe</code>. Its retained build receipt binds the complete keyboard/adaptive 6809 profile and the listing used below. This is a read-only source review; no build was run for it.</p>
+<p><strong>Keybindings correction:</strong> The 2026-11-02 audit was performed on a different dirty worktree and described the capture store as unguarded. In the current source, <code>KB_ACTION_COUNT=5</code>; <code>key_capture</code> compares the shared selection index from <code>$E0</code> with five and branches to reject at or above five before <code>STA B,X</code>. The matching listing emits that check at <code>$BBE1-$BBE3</code> before the store at <code>$BBE8</code>. Thus valid indices 0-4 write only <code>$0287-$028B</code>; this store cannot reach <code>$02A0-$02BF</code>. The older unguarded-write concern does not apply to this source/build revision. <a href="evidence/rsch018-current-source-audit-20261117.json">Hashes and emitted-byte evidence</a>.</p>
+<p><strong>Address and capacity limits:</strong> The current fixed low-RAM owners are keybindings at <code>$0287-$029A</code>, rate state at <code>$029B-$029F</code>, and audio state beginning at <code>$02C0</code>; bootstrap scratch is at <code>$0280-$0287</code> and <code>$02F0-$02FE</code>. The receipt-bound generated loader table places its own 96-byte copy table at <code>$0200-$025F</code>; its low-RAM copy destinations are <code>$06B0-$07FC</code> and <code>$1900-$1DEB</code>, while the compressed destinations use pages <code>$23</code>, <code>$24</code>, <code>$34</code>, <code>$35-$3B</code>, and <code>$3D</code>, not PAR0 page <code>$38</code>. The table is retired at <code>boot_streams_retired</code>. The stack is separately reserved at <code>$1E00-$1FFF</code>. No declared current source owner or generated boot destination overlaps <code>$02A0-$02BF</code>; this corrects the old “Boot tables end at <code>$02BF</code>” comment in <code>src/audio_runtime.s</code>. The range remains unallocated: any implementation must assign its ownership, initialize it after boot-table retirement and before the first HUD read, and keep PAR0 at <code>$38</code>. The current presentation module measures <code>1260/1280</code> bytes, with 20 bytes free; implementation fit is unknown. RSCH-018's 27,000-cycle value remains a target, not a measured cost for this design.</p>
+<p><strong>Disposition at this review:</strong> The 32-byte snapshot remains a candidate, not an allocation. The current map, loader table, owner declarations, stack window, and initialization order support its use as a future runtime bridge, subject to a named owner and explicit zero-initialization. The source review does not prove future revisions or external probes cannot use the range. The read-only RSCH-018 assignment is now complete; implementation still requires a separate approved and Ready assignment. No source, map, script, build output, or game runtime was changed. <a href="../implementation/memory-map.html">Memory map</a>; <a href="evidence/rsch018-current-source-audit-20261117.json">current-source audit receipt</a>.</p>
+    </section>
+
+    <section id="approved-design-result-20261117">
+      <h2>2026-11-17 &mdash; Approved read-only HUD design completed</h2>
+      <p>The user approved the source-and-documentation design assignment and kept implementation separate. I reviewed clean source commit <code>3f1277de302e18ad319ba9986a4aa62c9c4caffe</code>, its retained complete-profile ROM and listings, the seven template-linked maps, the separate High Score and name-entry maps, and the existing ticket decisions. The source-backed matrix and hash-bound observations are in <a href="evidence/rsch018-hud-field-design-20261117.json">the design evidence receipt</a>.</p>
+
+      <h3>Field and owner matrix</h3>
+      <p>Matrix terms: screen names identify the Tiled file or runtime screen. Map cells use zero-based <code>(column,row)</code> coordinates on the 40&times;24 grid of 8&times;8-pixel tiles; High Score object rectangles use pixel coordinates and sizes. “Owner / writer” separates the authoritative value owner from the code that draws it. “Current layout / color” reports this source revision; “entry / refresh” distinguishes the current path from the requested initial state. Palette numbers are six-bit CoCo palette-register indices; the current generated multiplier index 3 is blue, while the requested inactive indicator color is gray. The 1,280-byte module ceiling and 27,000-cycle active-work target are limits recorded by this ticket; the 1,260-byte size is a single measurement from the retained build, and design-time cycle cost is unknown.</p>
+      <table class="wiki-table">
+        <thead>
+          <tr><th>Screen</th><th>HUD labels and values</th><th>Owner / current writer</th><th>Layout / color source</th><th>Entry and refresh</th></tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Gameplay and demo</td>
+            <td>Score; TOP record name and score; PART/stage; vegetable image and value; reserve-life markers; EXTRA/SPECIAL letters; multiplier marker.</td>
+            <td>Gameplay owns score, stage, vegetable progress, lives, letter bits, and multiplier. Ranking owns the TOP record. <code>draw_hud</code>, <code>draw_vegetable_hud</code>, <code>draw_lives</code>, <code>draw_word_progress_hud</code>, <code>draw_multiplier_hud</code>, and <code>asset_draw_top_hud</code> draw these fields.</td>
+            <td><code>coco-screen.tmx</code> <code>HUD Placeholders</code> and the shared text/palette inputs. Current examples: score value at cells x=33&ndash;38,y=6; TOP name x=33&ndash;39,y=12 and score x=33&ndash;38,y=13; PART value starts x=37,y=1; vegetable value x=36&ndash;39,y=3. Life slots are placed by <code>life_marker_position</code>.</td>
+            <td>Gameplay fields publish after their state changes through existing render intents. TOP is read at gameplay/demo HUD updates and after its owning ranking flow changes the record. The HUD shows at most 12 life markers while the reserve count remains 0&ndash;255.</td>
+          </tr>
+          <tr>
+            <td>Instructions</td>
+            <td>EXTRA/SPECIAL progress; three left-side &times;2, &times;3, &times;5 bonus indicators; color-cycle points; and two right-side point-row multiplier values.</td>
+            <td>The instruction event runtime owns the demonstration state. It consumes letters/hearts and publishes the two right-side values. The shared-text compiler currently applies <code>instruction_multiplier</code> to the left-side labels.</td>
+            <td><code>coco-instructions-screen.tmx</code> <code>CoCo Side HUD</code> plus generated choreography. The left-side indicator cells are (2,7), (4,7), and (6,7). Current generated output colors all three blue because <code>text-colours.json</code> sets <code>instruction_multiplier=3</code>.</td>
+            <td>On each screen entry, all three left-side indicators must begin unset/inactive and gray like EXTRA/SPECIAL. Each heart activates only its matching indicator; the same committed instruction update publishes the matching blue X2/X3/X5 value to both right-side rows. The page-load blue appearance is a confirmed current-source mismatch, not a runtime test result.</td>
+          </tr>
+          <tr>
+            <td>Level Start</td>
+            <td>Stage preview labels and values; TOP record name and score; common side-HUD fields.</td>
+            <td>The stage-panel presentation records own preview values; ranking owns TOP. <code>stage_panel_slice</code> and <code>top_panel_draw</code> dispatch their current writers.</td>
+            <td><code>coco-level-start-screen.tmx</code> panel and <code>CoCo Side HUD</code> layers, with common side-HUD geometry copied from the template.</td>
+            <td>Initialize from the selected stage and current ranking record before publishing the first screen frame. Do not carry score or multiplier state from the screen that returned.</td>
+          </tr>
+          <tr>
+            <td>Game Over</td>
+            <td>Final score and TOP record name/score; common side-HUD fields still shown by the map.</td>
+            <td>Gameplay owns the final score; ranking owns records. <code>highscore_gameover_tick</code> and the presentation panel path manage the current handoff.</td>
+            <td><code>coco-game-over-screen.tmx</code> overlay and <code>CoCo Side HUD</code> layers.</td>
+            <td>Read the final gameplay value for the game-over result; refresh TOP only after a committed record change.</td>
+          </tr>
+          <tr>
+            <td>Enter High Score</td>
+            <td>Shared side-HUD fields plus candidate rank, pending seven-character name, score, keypad choices, and cursor.</td>
+            <td>Ranking/name-entry owns the candidate and pending name. The input renderer owns cursor movement; the common HUD must not take ownership of those values.</td>
+            <td><code>coco-enter-high-score-screen.tmx</code> has its own overlay and sprite marker. Current keypad, name, and score destinations are partly encoded in <code>build_presentation.py</code> constants and generated records.</td>
+            <td>Initialize the pending row/name from the ranking decision; update only on accepted input or record commit. Keep keypad and cursor layout screen-local.</td>
+          </tr>
+          <tr>
+            <td>High Score</td>
+            <td>Nine ranked name/score pairs; title and animated logo are screen artwork, not shared HUD fields.</td>
+            <td>Ranking owns all nine records. The existing High Score writer parses named layout rectangles and builds row destinations.</td>
+            <td><code>coco-high-score-screen.tmx</code> already has a screen-specific <code>High Score Data Layout</code> object layer with 18 name/score rectangles, each 56&times;8 pixels. The current color rules also use <code>text-colours.json</code> and <code>presentation_pen_map</code>.</td>
+            <td>Populate from the current ranking table on entry and refresh after a committed record change. Keep the nine rows out of the common template.</td>
+          </tr>
+          <tr>
+            <td>Attract title, Options, Credits, and Keybindings</td>
+            <td>No live shared gameplay HUD fields. The demo gameplay phase uses the Gameplay row above.</td>
+            <td>Attract/menu presentation owns its prompts and selections; gameplay and ranking retain their data owners.</td>
+            <td>Separate title/menu maps, not the common side-HUD object layer.</td>
+            <td>On return to gameplay, reload current values from their owners. The existing FEAT-012 screen-return/HUD checks remain open and are not waived by this design.</td>
+          </tr>
+          <tr>
+            <td>EXTRA and SPECIAL map files</td>
+            <td>They share the side-HUD placeholder geometry, but are not names in the current active presentation <code>MAP_NAMES</code> list.</td>
+            <td>No new runtime owner is proposed for these maps.</td>
+            <td><code>coco-extra-screen.tmx</code> and <code>coco-special-screen.tmx</code> remain synchronized map inputs, not new runtime routes.</td>
+            <td>Keep their common geometry validated; do not expand runtime dispatch just to support the template schema.</td>
+          </tr>
+        </tbody>
+      </table>
+      <p>All seven synchronized side-HUD maps have the same 960 tile cells and 162 nonblank placeholder cells as the template; the compared GIDs match at every cell. The six presentation-side maps are Instructions, Level Start, Game Over, Enter High Score, EXTRA, and SPECIAL; the seventh is the gameplay screen. The comparison is source-only and retained in the design receipt.</p>
+
+      <h3>Template and screen-specific layout decision</h3>
+      <p><strong>Recommendation:</strong> add a named <code>HUD Field Definitions</code> object layer to <code>coco-template.tmx</code> in the separate implementation ticket. Use one rectangle object for each semantic label, value, or indicator group, with stable <code>field_id</code> and <code>role</code> properties; add a format property only where width cannot define it. Use named color-state roles such as <code>inactive</code> and <code>active</code>, resolved by one palette source. Geometry and semantic identity belong in Tiled; data ownership and refresh cadence remain in code. Extend the existing <code>build_presentation.py</code>/<code>shared_text.py</code> path to generate field descriptors and validate the seven existing map copies. Do not create a second sync tool or renderer.</p>
+      <p>Keep unique layouts in their owning maps. Reuse High Score's existing 18-object <code>High Score Data Layout</code> and extend its semantic properties if needed. For Enter High Score, use a map-local name-entry layout object layer if that screen's hardcoded rectangles are brought into Tiled. Shared concepts such as score or ranking name can reuse field IDs, but the nine rank rows, pending name, keypad, and cursor do not belong in the common template.</p>
+      <p>The template currently has no object layer, and the build scripts do not read <code>coco-template.tmx</code>. The existing High Score parser is the closest precedent: it rejects missing/duplicate fields, off-grid or incorrect-size rectangles, out-of-bounds fields, and overlap, then generates runtime destinations. The common layer must become an actual input to the existing generator before it can replace code coordinates.</p>
+
+      <h3>Provider, state, and drawing contract</h3>
+      <ul>
+        <li>Gameplay remains the only writer of current score, reserve lives, stage, vegetable progress, EXTRA/SPECIAL bits, and active game multiplier. Ranking remains the only writer of record names/scores and pending name-entry state. Presentation reads values and publishes pixels; it does not mutate those owners.</li>
+        <li>Publish gameplay values after their state changes, using the existing HUD/life render intents. Publish ranking data at game/Attract initialization and after a committed record change; do not poll the record table on every gameplay tick. A by-value view may cross PAR5 changes; it must not retain a pointer into a remappable page.</li>
+        <li>Keep the 32-byte <code>$02A0-$02BF</code> copy area as the preferred candidate only after the implementation ticket assigns ownership. Clear it after <code>boot_streams_retired</code> and before the first HUD read. Missing/invalid fields resolve to authored neutral placeholders and never inherit a prior screen's value.</li>
+        <li>The life-award animation remains owned by existing gameplay/event flow. Gameplay commits the reserve-life increment once at animation completion; the HUD then redraws <code>min(reserve_lives,12)</code> static markers. The reserve count remains 0&ndash;255, and no above-12 numeric counter is added.</li>
+        <li>For persistent A/B rendering, add HUD work to the existing render-intent transaction, paint only the selected BACK surface, queue the required damage for the other surface, and let the existing completion/Vbord handoff publish it. Never draw directly to FRONT.</li>
+      </ul>
+
+      <h3>Instruction bonus initial state</h3>
+      <p>The instruction label colors need separate inactive and active states. Current generated screen data puts blue pen index 3 on the left-side &times;2/&times;3/&times;5 cells at (2,7), (4,7), and (6,7) before the first heart event. FEAT-010 recorded the expected entry state as gray like EXTRA/SPECIAL, and the user reaffirmed that these fields must start unset. BUG-011's natural choreography requires each collected heart to light the matching left-side indicator and publish the corresponding blue multiplier to both right-side point rows; BUG-065's blue active multiplier result remains intact. The future implementation must therefore replace the initial-static-blue rule for these three instruction indicators while preserving blue for earned values. No production color or runtime state was changed here. See the earlier <a href="feat-010-attract-menu-free-start.html#feat010-final-integrated-manual-result-20261105">FEAT-010 observation</a>, <a href="bug-011-instruction-choreography.html">BUG-011 sequence contract</a>, and <a href="bug-065-instruction-multiplier-number-colour.html">BUG-065 active multiplier contract</a>.</p>
+
+      <h3>Separate implementation boundary and least-cost verification</h3>
+      <p>Future production candidates are <code>src/main.s</code>, <code>src/shared_text_stage.inc</code>, <code>src/shared_text_runtime.inc</code>, and <code>src/instruction_runtime.s</code>. Authoring/build inputs are <code>tiled/coco-template.tmx</code>, the High Score and Enter High Score map-local layouts, <code>scripts/build_presentation.py</code>, <code>scripts/shared_text.py</code>, and only the overlapping HUD entries in <code>assets/arcade/text-colours.json</code>. Generated assembly and descriptors remain build outputs. Exact writable files belong in the separate implementation ticket. Do not transfer score/ranking ownership, add a new renderer, alter EXTRA/SPECIAL rewards, add the 1.0 numeric life counter, or change menu behavior.</p>
+      <ol>
+        <li>Qualify the existing generator path on the current seven-map baseline. Check that the matching template fields generate the current geometry; a deliberately missing, duplicate, overlapping, or off-grid object must fail. Reuse the existing builder and keep this as a focused parser/data check.</li>
+        <li>For runtime state, verify a cold Instructions entry begins with three inactive gray indicators and no right-side multiplier value; then follow the approved natural heart sequence and check X2, X3, X5 activation in order with both right-side rows updated together. Check both persistent framebuffer owners through the existing qualified path. Use one DOC-014 card with a manual visible split; the user's manual session has no deadline.</li>
+        <li>Preserve FEAT-012's existing HUD-VALUES checks for PART 99/100/255, TOP crossing 99, current score overtaking TOP, row-3 vegetable value, and correct redraw after screen return. Retain High Score row 1/row 9 and Enter High Score name-entry layout checks only where the object-layer change affects those destinations.</li>
+        <li>Run one complete build that includes the changed runtime path, then the existing focused presentation/shared-text verifier and capacity guards after qualifying their current baseline. Measure the affected active worklist against the 27,000-cycle target; do not claim capacity or timing success from this design review. Add another profile only if a conditional path changed by the implementation creates an independent risk.</li>
+      </ol>
+      <p>This future implementation is High-risk because it crosses runtime ownership, bank mappings, persistent framebuffer publication, and hard code/timing limits. The least-cost set above covers those named risks without a full mode/owner/screen cross-product. Any new or materially changed gate needs an approved DOC-014 card and baseline qualification before the ticket is Ready.</p>
+
+      <h3>Design verification and lifecycle</h3>
+      <p>Read-only checks completed: current source/tree identity, matching retained ROM/listing receipt, map-cell equality across all seven template copies, current instruction multiplier output, current generator inputs, High Score object parser precedent, boot copy ranges and lifetimes, stack/PAR mapping, and the existing framebuffer handoff. HTML structure, JSON syntax, links/anchors, and scoped diff hygiene were checked after documentation edits. No build, test, emulator, game input, source edit, or map edit was performed.</p>
+      <p><strong>Result:</strong> RSCH-018 is Done as a design-only ticket. The common named template layer is recommended; High Score and Enter High Score unique field geometry stays screen-local. The instruction multiplier indicators must start inactive gray and become active only through the matching event. Implementation remains unassigned and unauthorized until its separate ticket is approved and Ready.</p>
     </section>
   </main>
 </div>

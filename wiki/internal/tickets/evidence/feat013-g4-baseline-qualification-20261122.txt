@@ -1,0 +1,126 @@
+FEAT-013 G4 timing setup and baseline qualification
+Date: 2026-11-22
+Status: three-case worklist plan approved; one valid initial snapshot captured, but capture/parser baseline qualification remains incomplete; no G4 timing result.
+
+Approved G4 target and workload
+The canonical FEAT-013 ticket requires measuring the complete-profile adaptive gameplay HUD worklist against a maximum of 27,000 active CPU cycles. The named work includes the shared snapshot refresh, field painter, persistent damage replay, and completed-frame publication for score/stage, lives, multiplier, SPECIAL/EXTRA progress, and vegetable value. The target is a maximum, not a baseline measurement.
+
+Artifacts
+Baseline source: 3f1277de302e18ad319ba9986a4aa62c9c4caffe, complete profile, keyboard input, adaptive rendering, 6809 CPU.
+Baseline ROM SHA-256: 9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d
+Baseline receipt SHA-256: 87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd
+Baseline listing SHA-256: aa76831860172b171032a28b95bb9e663c10b9c858067b392e14199ca1e056ac
+Candidate source/ROM: 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6
+Candidate ROM SHA-256: b9277dd4bfc7777c91729bf8059d501774b302603fbdd913baefb17fd90ab347
+Candidate receipt SHA-256: 46fd8713fb55de9b643b6e23d0fcbb6ce26945b9c03f9c4d92e94d42d52c029f
+
+Capture-tool correction
+Commit e4ba856d39e7b1b433aff36b9cc00eb2eaf49325 changes only scripts/capture_performance_baseline.py. main_render is a local label, absent from ladybug.map; the capture script now resolves it from build/ladybug.lst and requires one match. The baseline and candidate listings were independently matched to their build receipts. The baseline listing has one match at $C175; the candidate listing has one at $C180. The corrected script SHA-256 is EACBCFF0E75C5F651BD5E123634FD9EECACF0BDDE35E48A8F5F089DA36B4C3E6. `git diff --check` and `python -m py_compile` passed. These static checks do not qualify an XRoar capture.
+
+Attempted baseline qualification
+The approved baseline checkout was temporarily given the corrected capture script, then restored. The one bounded WSL command was:
+
+timeout --signal=TERM --kill-after=2 60s bash -c 'cd /mnt/c/Users/19029/.codex/worktrees/feat012-visible-input-r5/ladybug && python3 scripts/capture_performance_baseline.py --skip-build --gate-only && python3 scripts/verify_gate_performance.py > /dev/null'
+
+XRoar 1.10 was present. The command did not produce build/perf-baseline.sna, either perf-gate raw trace, or build/gate-performance.json. build/perf-baseline.log exists and is empty. The verifier was not reached. The command wrapper did not retain its final exit code, so the exact stop reason is unknown. The baseline capture script was restored to its prior SHA-256 FF1AD905F0634B8890A54392CD704FAC4A8D3DB1EACF3A5AF472FB1740DC3966; the baseline worktree is clean.
+
+Offline capture-failure review
+The first checkpoint selected by capture_performance_baseline.py is frame_render_impl at $09D4, inside copied low RAM $0800-$17FF. The XRoar wiki warns that trap snapshots taken inside this copied module can serialize that page incorrectly and directs saved renderer captures to resident main_render. This makes $09D4 unsuitable as a retained snapshot point, but does not explain why the file was absent.
+
+The script's run_xroar uses subprocess.run without a host-side timeout or child-process cleanup. The first outer 60-second cap wrapped bash/python; its exit status was not retained and build/perf-baseline.log is empty. This explains the weak failure record, not the missing snapshot. The second direct $C175 attempt did not include -ram-init 0, which the script uses for cold capture, so it was not a controlled comparison.
+
+Baseline-only startup diagnosis
+Command, from the exact baseline worktree:
+
+timeout --signal=TERM --kill-after=2 60s python3 scripts/verify_gmc_boot.py --rom build/ladybug.rom --map build/ladybug.map --manifest build/ladybug-sparse-layout.json --startup-only --loader-timeout 10 --resident-timeout 10
+
+Exit code 0. The command returned in about 3.4 seconds and reported STARTUP_BOOT_COMPLETE, STARTUP_LOADER_HANDOFF, STARTUP_RESIDENT_ENTRY, STARTUP_RESIDENT_STARTUP_COMPLETE, STARTUP_BANK1_RAM_EXACT, and STARTUP_AUDIO_PAGE_EXACT. GDB printed a warning that no executable was specified, but the startup and byte-comparison checks completed. This proves cold autorun reached resident startup and the checked resident/audio data matched. It does not prove the later Attract-to-demo route reached gameplay rendering.
+
+Corrected resident marker attempt
+Command, from the exact baseline worktree:
+
+timeout --signal=TERM --kill-after=2 60s xroar -ui null -ao null -machine coco3 -machine-cpu 6809 -ram 512 -cart-type gmc -cart-rom build/ladybug.rom -ram-init 0 -cart-autorun -no-ratelimit -trap pc=0xC175 -trap-range 1 -trap-snap build/feat013-g4-main-render.sna -trap-timeout 1
+
+XRoar returned exit code 1 before the 60-second cap. The command returned no console text and wrote no snapshot. The retained result cannot establish whether the trap fired or why XRoar exited. No further emulator probe ran after this result.
+
+The approved three-case G4 binding is: (1) completing SPECIAL, covering its full word redraw plus awarded score/shared HUD; (2) completing EXTRA with reserve-life capacity, covering its full word redraw and lives; and (3) a multiplier pickup. Each is measured as a complete active frame including the shared snapshot refresh and damage replay. All three must be at or below 27,000 active CPU cycles; report each and the maximum, not an average. Use the timing rule in wiki/internal/platform/timing.html: discard the first XRoar event delta, divide subsequent deltas by 8, and exclude only identified SYNC wait. The 60-second limit covers the entire automated phase.
+
+G4 remains unqualified. Exact controlled snapshots, a complete-frame capture command, and parser-oracle binding remain incomplete. The next setup change should stay in the existing capture runner: use a resident checkpoint, preserve the same -ram-init 0 startup flags, add a host-side whole-phase deadline and child cleanup, and retain XRoar output and exit status. Reuse the existing cleanup pattern in verify_gmc_boot.py; do not add a new harness. Baseline capture/parser qualification must pass before candidate timing. No candidate build, candidate timing run, or visible XRoar launch occurred.
+
+Corrected runner and one baseline qualification attempt (2026-11-22)
+Runner commit: d0b4523e71718a4771337cfecc3d5bb47035ce9c; source SHA-256: 1fe91c7f6db6a4f056796ccf685fbe86043ba2dc0cf43d2ecad72bedf5586697. Only scripts/capture_performance_baseline.py changed. It now applies a shared 55-second host deadline across XRoar launches, terminates the process group on timeout, logs each XRoar invocation, starts snapshots at the receipt-matched resident main_render label, removes an old snapshot before capture, and rejects a missing or invalid RAM snapshot. The approved outer phase cap is 60 seconds. `git diff --check` and `python -m py_compile` passed. An isolated WSL timeout probe using a fake parent/child process group passed at 0.25 seconds; both PIDs were gone after timeout cleanup.
+
+The exact baseline was rechecked before the attempt: revision 3f1277de302e18ad319ba9986a4aa62c9c4caffe, ROM SHA-256 9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d, receipt SHA-256 87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd, and listing SHA-256 aa76831860172b171032a28b95bb9e663c10b9c858067b392e14199ca1e056ac. The listing resolves main_render to $C175. The runner was copied in temporarily and restored afterward.
+
+Exact WSL command:
+`timeout --signal=TERM --kill-after=2 60s sh -c "python3 scripts/capture_performance_baseline.py --skip-build --gate-only && python3 scripts/verify_gate_performance.py > build/gate-performance-qualification.txt"`
+
+Result: exit code 1 from the runner after its 55-second internal capture deadline expired in the first cold XRoar invocation. `build/perf-baseline.log` is 0 bytes (SHA-256 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855); `build/perf-baseline.sna` is absent. No other capture or verifier ran. The outer 60-second limit did not expire. No XRoar process remained after cleanup. The baseline script was restored to SHA-256 ff1ad905f0634b8890a54392cd704fac4a8d3db1eacf3a5af472fb1740dc3966, and the baseline Git worktree is clean.
+
+Disposition: setup/observer failure only. The run does not distinguish an unreachable main_render route from an XRoar trap/snapshot issue. It is not a product failure or timing result, and neither baseline capture/parser qualification nor candidate timing passes. Stop emulator retries; the next step is offline analysis of how the existing baseline startup route reaches the first active gameplay/demo render and whether an already-qualified startup checkpoint can feed the existing runner without adding a new harness.
+
+
+Cleanup hardening after the failed XRoar attempt
+Commit: ba6df9357f1a5ea975c213c7161d3d79ee6f734b; final runner SHA-256: a99e056afab3fbb1933459d6b77fe4bcf5f94cbdeaa5373ff44ba286c89e522e. The timeout handler now kills the complete POSIX process group, matching the existing verify_gmc_boot.py process cleanup. The 0.25-second fake parent/child timeout probe passed after this change and found both PIDs reaped. No second XRoar attempt ran; the cleanup-only change does not alter the trap address or cold-start route used in the failed capture.
+
+Offline route calculation
+The receipt-matched complete-profile source/listing routes cold Attract through 558 presentation ticks, then the 180-tick Level Start interval, then installs the demo runtime before main_render can be reached. This is 738 game ticks, or about 12.3 simulated seconds at 60-Hz ticks by calculation; wall-clock emulator rate was not measured. The 55-second timeout captured no PC or mode, so it cannot establish where the route stopped or whether the trap/snapshot boundary failed.
+
+
+Offline root-cause review and corrected active marker (2026-11-22)
+The baseline listing contains the active adaptive mainloop at $C116 and ad_dispatch_work at $C14F, where the emitted instruction is JSR AD_WORK_EXEC (BD 03 8F). main_render at $C175 is printed from the excluded non-adaptive branch with no instruction bytes. The emitted initial_entry_tick begins at the same $C175 with LDA INITIAL_ENTRY_STATE (96 A0). The adaptive demo path does not set INITIAL_ENTRY_STATE; live_begin does. Starting RAM is zero in the capture command, so the demo path skips this live-only initializer. The old trap target therefore cannot serve as a repeating demo-frame marker. This explains the no-snapshot result without showing whether the timed-out run itself reached demo.
+Correction: source commit 4f5fd30fb94ab0096d42abf8e1588b35a2e28344, final runner SHA-256 ed2c2e2805099ff854c1fc730f1571bd5d21ed3d1f4094cca149a7a33e4db884, resolves the emitted resident ad_dispatch_work from ladybug.map for snapshot and trace boundaries. Static binding resolves baseline C14F and candidate C15A; each listing shows the expected call to AD_WORK_EXEC. py_compile and diff checks passed. No XRoar, build, or timing run occurred. Baseline capture/parser qualification remains pending.
+
+Corrected active-marker one-shot capture (2026-11-22)
+The user approved one run under a 60-second whole-phase cap. Before the run, the exact baseline identity remained source 3f1277de302e18ad319ba9986a4aa62c9c4caffe, ROM SHA-256 9c6df4fed561a3c5aa035a81b79121f46735fad7ef5b48789c407964dcea703d, receipt SHA-256 87ff4e00fdecb82b89d5d4bc3e14d27df7051ce5d792d51f31c9a54ca36acdfd, and listing SHA-256 aa76831860172b171032a28b95bb9e663c10b9c858067b392e14199ca1e056ac. The corrected runner from source commit 4f5fd30fb94ab0096d42abf8e1588b35a2e28344 was copied in temporarily and restored to the original SHA-256 FF1AD905F0634B8890A54392CD704FAC4A8D3DB1EACF3A5AF472FB1740DC3966.
+
+Exact WSL command:
+`timeout --signal=TERM --kill-after=2 60s sh -c "python3 scripts/capture_performance_baseline.py --skip-build --gate-only && python3 scripts/verify_gate_performance.py > build/gate-performance-qualification.txt"`
+
+The command exited 1 after about 4.5 seconds, well inside the approved cap and before the runner's 55-second internal deadline. The corrected resident marker at $C14F fired and the runner saved and validated `build/perf-baseline.sna` (525,591 bytes; SHA-256 82AD4EF40F4FFE39C28829B0A5B82DC44BC034144955B54B89EA832A162B3E25). This proves the marker is reachable and the RAM snapshot is usable, but does not identify its worklist or qualify timing. The runner then stopped while constructing the static fixture: `FileNotFoundError` for `/mnt/c/Users/19029/.codex/worktrees/feat012-visible-input-r5/ladybug/build/four-enemy-delta-enemy-table.bin`. Even with `--gate-only`, the script constructs static and hydrated four-enemy snapshots before reaching the gate-only branch. The verifier requires this enemy table to contain 32 bytes, and the capture runner reads it to populate the four-enemy table at $A470. The retained XRoar log is 502 bytes, SHA-256 279A54C24A4143FDC0375149F8BC59F073C2C2EB0B9D1003D331FF561A098BA1. No hydrated/gate snapshot or trace was created; the parser was not reached.
+
+The initial prerequisite search covered the active C: worktrees and E:\projects\ladybug; it found this filename only as an input to the capture runner, four-enemy verifier, and hot-path benchmark, with no producer in those scripts or the wiki. That search scope missed legacy D:\retro worktrees; its absence conclusion is corrected below. This is a missing setup fixture, not a product assertion failure and not evidence that the baseline timing target passes or fails. The baseline runner was restored, its original SHA-256 was confirmed, the baseline Git worktree is clean, and no XRoar process remained. No build, retry, candidate timing, or visible launch occurred. FEAT-013 remains in Verification; baseline capture/parser qualification and all candidate G4 timing cases remain pending.
+
+Offline identification of the intended fixture source (2026-11-22)
+The exact 32-byte fixture is present as a historical Git artifact: `build/four-enemy-delta-enemy-table.bin` at commit `bf1929dcb1229a4b9d6475664deb4df2a7461595` (added 2026-07-26). Git history shows it was removed from tracking at `2dec35d98642b39adf31c9492ce74fc413635d8e` (2026-09-10), with other ignored build output. The historical blob SHA-256 is `00260d1286a1a9b1a62ddfc66bd23bcc598a1e3b07f0570d72e9cbbbdc9c43b5`; it is byte-identical to copies found in 36 registered legacy worktree build directories. The original generating procedure was not found; the retained binary itself is the authoritative fixture source identified by this review.
+
+The artifact is four 8-byte enemy records. Its slot pointers and directions match the current verifier's expected `(2FCE, 2FEE, 6FCA, 6FEA)` and `(1, 1, 3, 3)`. The adjacent historical `build/four-enemy-delta-profile.json` report records frames `(5, 5, 13, 13)` and movement east/east/west/west. The `$A470` bytes in the newly captured cold baseline snapshot are all zero, so that snapshot is not a substitute for this controlled fixture. Restoring the historical blob into the baseline build directory would only prepare the legacy `--gate-only` diagnostic; it does not cover FEAT-013's three approved HUD worklists. This is an offline recommendation only: no file was restored, no build ran, and no second capture was authorized or attempted.
+
+Offline QA review of the capture/parser boundary (2026-11-22)
+The exact baseline listing/map confirm the corrected capture boundary: resident `ad_dispatch_work` is at `$C14F` and calls `AD_WORK_EXEC` at `$038F`. In the active adaptive listing, `$038F` jumps to `adaptive_work`, which calls `adaptive_render` directly. The enemy-runtime listing maps `frame_render_impl` to `$09D4`, emitted as a stub jump to `AD_RENDER_EXEC` at `$039E`; the adaptive path bypasses this stub.
+
+The existing `verify_gate_performance.py` still calls `sections(..., enemy["frame_render_impl"])` for both traces. `sections` returns no groups when `$09D4` is absent. Its caller uses `zip` without checking that two intervals were found, so empty report lists are possible; `all([])` evaluates true, which can incorrectly set `target_met` true without any measured intervals when the other preconditions pass. Fewer-than-two sections can be omitted, and the last section is accepted through end-of-file without a closing marker. This is a static verifier risk, not a recorded false pass: the approved one-shot stopped before traces or parser were produced. The runner's trace comment also still describes the former `$09D4`/`main_render` boundary.
+
+Disposition: do not use this legacy parser for baseline qualification until its active boundary and fail-closed interval/cardinality checks are corrected and statically reviewed. The legacy gate-only diagnostic is separate from FEAT-013's approved SPECIAL, EXTRA, and multiplier worklists; those still require their own controlled predecessors, complete-frame oracle, exact command, and baseline qualification. No verifier, runner, game source, or fixture was changed; no build, parser, or emulator run occurred.
+
+
+Approved offline trace-mechanics assignment (2026-11-22)
+
+Scope: scripts/capture_performance_baseline.py and scripts/verify_gate_performance.py only. No game source, build, ROM, fixture, XRoar process, or timing capture changed or ran.
+
+Static source basis: local XRoar source commit 66f010efb6b8521b000f00e75afd6a06f7d1599b; mc6809.c SHA-256 EFD72C4A65173AD609D38F49342FAAFC7836BAC5F7978F1E9C37CB0860E1A5D; mc6809_trace.c SHA-256 642D9EEDDE438B84E3A4E541990E6173686AAC7ADF63BB074F837201E8A568E2; xroar.c SHA-256 AFDD5D8708AC5582B8F0AFE2B37D3437EE264BBD88F155CAD6B1378F01AB3AC2. XRoar prints the dispatch JSR at its instruction posthook. A trap on the called helper entry runs before the helper opcode and after that JSR row is printed. The finite trap-range action is on the named occurrence, so stop on helper-entry hit three to retain three marker rows and two closed intervals. This is source-derived only.
+
+Opening delta: the verifier no longer rewrites a first PC of $0000. It requires the opening row at the resident ad_dispatch_work address, checks the current listing's JSR AD_WORK_EXEC bytes against the resident AD_WORK_EXEC map entry, and substitutes the known 8-cycle extended-JSR cost for only the invalid first timestamp. Current receipt-bound candidate artifact is source 9fbde1eb34b8a9e8545b4ceb00f183ce9dc3bce6; receipt SHA-256 46fd8713fb55de9b643b6e23d0fcbb6ce26945b9c03f9c4d92e94d42d52c029f; listing SHA-256 3fb3537ee4ef2e28338be33d142c9138595c502f1d7c37e9032660ff2906713a. Static listing/map values are ad_dispatch_work=$C15A, AD_WORK_EXEC=$038F, and emitted bytes BD038F. This candidate identity is not the retained baseline identity and supplies no baseline timing sample.
+
+SYNC accounting: reference and emulator source support a four-cycle minimum active SYNC instruction plus repeated one-cycle waits. Under the established fast-clock event_ticks/8 conversion, a valid SYNC event of n cycles retains 4 and reports n-4 excluded wait cycles. Vector rows remain included. Malformed PC-prefixed rows, nonnumeric or missing dt, malformed bytes/names, later negative/fractional-cycle deltas, unexpected opening bytes/PC, missing closure, and rows after closure fail closed.
+
+Offline results: py_compile passed for both changed scripts; git diff --check passed; current listing binding resolved correctly. Synthetic positive control: two closed intervals, first delta reconstructed as 8 cycles, IRQ vector included, SYNC 10-cycle event split into 4 active + 6 wait. Seven negative controls rejected: bad opening PC, bad opening bytes, malformed CPU dt, malformed vector dt, later negative dt, missing closing marker, and an extra event after closure. No captured baseline trace exists from this correction; baseline capture/parser qualification remains incomplete. G4 case setup/oracles remain unbound, and candidate timing was not run.
+
+
+Fixed-width trace-row parser correction (2026-11-22)
+An offline replay built instruction and vector records using the exact fixed-width printf layout from the reviewed XRoar source. The first source-shaped replay exposed that the parser's non-greedy split removed the padded mnemonic/operand columns before `dt`, so the format-faithful positive trace was rejected. The row split was changed to preserve those columns. The corrected positive control then passed: three marker JSR rows formed two closed intervals; the invalid first timestamp was replaced by the listing-bound eight-cycle JSR cost; the IRQ vector remained counted; and a 10-cycle SYNC row retained 4 active cycles while excluding 6 wait cycles. A separate positive control confirmed the expanded eight-byte opcode field keeps the mnemonic column aligned. The original seven negative controls and two focused malformed-byte/name controls were all rejected (9/9). `python -m py_compile` and current listing binding passed. No XRoar, game build, or real trace ran; this is parser-mechanics evidence only.
+
+Three G4 HUD state oracles bound (2026-11-22)
+Source review used both pinned complete-profile revisions named above. The independent oracle reads game-owned state and the active entity table, never the shared HUD snapshot or painted output. Common fields: player cell $0009/$000A, player step $0008 and direction $0006, score BCD $001D-$001F, lives $0023, stage pending $0026, bonus color $002F, bonus count $0033, multiplier $003B, SPECIAL bits $003C, EXTRA bits $003D, pickup multiplier $0053, and four-byte entity records at $A380 (x,y,type,variant). Frame completion uses FRONT $008F, BACK $0090, and commit sequence $0092.
+
+SPECIAL completion: normal live one-player predecessor, exactly one active final red ENTITY_LETTER in the next cell; variant bit is the sole missing bit of $7F; multiplier 1; DOTS_LEFT>0; stage not pending; valid BCD headroom. The next-cell item is reached by the stored direction from PLAYER_STEP=3. Expected: entity removed, bonus count -1, SPECIAL bits 0, score +100,800 (red letter +800 and completion +100,000), special-word reset and score draw, then one completed publication.
+
+EXTRA completion: equivalent predecessor for exactly one active final yellow ENTITY_LETTER; variant bit is the sole missing bit of $1F; multiplier 1; reserve lives below 12; DOTS_LEFT>0; stage not pending; valid BCD headroom. Expected: entity removed, bonus count -1, EXTRA bits 0, lives +1, score +300, EXTRA-word reset, lives/score draw, then one completed publication.
+
+Multiplier pickup: exactly one active blue ENTITY_HEART in the next cell; multiplier 1; DOTS_LEFT>0; stage not pending. Expected: entity removed, bonus count -1, PICKUP_MULTIPLIER=1, multiplier 2, SPECIAL/EXTRA/lives unchanged, score +100, multiplier/score draw, then one completed publication.
+
+Source-legal movement setup correction: at the dispatch boundary, require PLAYER_MANUAL=1, PLAYER_STEP=3, stored PLAYER_DIR toward the next cell, and exactly one matching active entity there. The positive sample must include the same direction key as PLAYER_DIR. Source review disproved the earlier no-key assumption: with manual movement enabled, neutral JOY_DIR returns from pt_alive before movement, even when PLAYER_DIR is stored. The shared negative control uses that same pre-state with neutral input and must not pick up the item or pass a case oracle. Preflight the preserved adaptive scheduler from the pinned artifact's own source/listing: next batch must pass its due check, accumulated debt after current FRAMES-AD_LAST must be nonzero, any barrier must be clearable by the changed commit sequence, and AD_SIM low byte must be even so the first logic tick schedules player movement. If those checks fail, reject the fixture before timing capture. The existing runner uses XRoar -ui null and has no direction-key injection; the deferred monitor path has not been reactivated.
+
+The captured trace must bind each call by that artifact's own map/listing. Baseline painter calls are revision-specific; candidate must use the shared HUD route and correct group. A successful sample requires one FB_COMMIT_SEQ increment with FRONT/BACK exchanged once. Candidate passes the approved performance target only at <=27,000 active cycles; baseline is reference evidence, not a pass/fail limit.
+
+The expected semantics and source-state/scheduler conditions are bound, but the input channel, fixture and execution setup are not Ready. Source-legal predecessor snapshots for both ROMs are absent. The current runner has no HUD-case selector, direction-key input, or post-state RAM capture; no executable per-case command exists. The deferred XRoar monitor input path is not approved for this task. No baseline capture, build, or XRoar launch occurred. Do not restore or patch the unrelated four-enemy fixture for these cases.
