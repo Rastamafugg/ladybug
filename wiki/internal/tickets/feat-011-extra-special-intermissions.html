@@ -17,13 +17,30 @@
   </nav>
   <main class="wiki-main">
     <header class="wiki-header">
-      <p class="wiki-eyebrow">Internal · feature · verification</p>
-      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">Verification</span></h1>
-      <p class="wiki-meta">Implementation complete on branch <code>feat/feat011-intermissions</code>; automated gates <code>F11-01</code>, <code>F11-02</code>, and Option 2 compile-only fit checks completed (2026-11-23). Status advances <code>In Progress</code> &rarr; <code>Verification</code> awaiting user-owned <code>F11-03</code> manual XRoar RGB playtest.</p>
+      <p class="wiki-eyebrow">Internal · feature · done</p>
+      <h1>FEAT-011 — EXTRA and SPECIAL intermissions <span class="wiki-badge">Done</span></h1>
+      <p class="wiki-meta">Completed on branch <code>feat/feat011-intermissions</code> (commits <code>8df42ee0..968b9d81</code>, 2026-11-23). Automated gates <code>F11-01</code> and <code>F11-02</code> passed and user confirmed <code>F11-03</code> manual XRoar RGB playtest across SPECIAL, EXTRA, primary ROM, and 13+ reserve-life departure.</p>
     </header>
 
+    <section id="feat011-done-20261123">
+      <h2>2026-11-23 &mdash; QA closeout &amp; Done verdict</h2>
+      <p><strong>Verdict:</strong> <strong>Done</strong> on branch <code>feat/feat011-intermissions</code> (final implementation commit <code>968b9d81</code>; awaiting explicit user direction before merging to <code>main</code> or pushing).</p>
+      <ul>
+        <li><strong>Verified criteria:</strong>
+          <ul>
+            <li><code>F11-01</code> (PASS): EXTRA connector check/tests (7/7), EVD1 compiler 4/4 marker negative controls, <code>verify_sparse_sprites.py</code> exact page <code>$25&ndash;$26</code> round-trip and <code>$2A84</code> Part Vegetable destinations.</li>
+            <li><code>F11-02</code> (PASS): Complete-profile primary build passes all fixed caps (resident <code>8,161/8,192 B</code>, assets <code>7,668/7,680 B</code>, presentation <code>1,273/1,280 B</code>, active <code>704/777 B</code>, intermission stage <code>21/32 B</code> + runtime <code>910/938 B</code> on page <code>$24 &rarr; $0300</code>, EVD1 <code>8,998/16,384 B</code> across pages <code>$25&ndash;$26</code>, <code>9/9</code> LZSS streams, <code>5,384 B</code> GMC spare), DOC-002 (<code>19</code> modules, <code>341/341</code> routines, <code>7,309/7,309</code> labels), <code>verify_audio_runtime.py</code>, <code>verify_presentation_flow.py</code>, <code>verify_gmc_overflow.py</code>, <code>verify_presentation_sparse.py</code>, <code>verify_shared_text.py</code>, and 3/3 fixture-selector rejections.</li>
+            <li><code>F11-03</code> (PASS, user-confirmed in XRoar RGB): SPECIAL route, +100,000 award and coin despawn on overlap, EXTRA route, 255-saturating reserve award and slot replacement on arrival, Cue 10/11 onset synced to onscreen movement start, clean Level Start transition, and 13+ life walkout from zero-based <code>slot 11</code> (12th marker) leaving the 12th placeholder intact until reserves fall below 12.</li>
+          </ul>
+        </li>
+        <li><strong>Commits:</strong> <code>8df42ee0</code>, <code>b4c73e32</code>, <code>2305eb90</code>, <code>669e9ffe</code>, <code>904b03c4</code>, <code>1cf2de62</code>, <code>16cf8d88</code>, <code>ebdf7e9e</code>, <code>968b9d81</code>.</li>
+        <li><strong>Final ROM SHA-256 hashes:</strong> Primary <code>build/ladybug.rom</code> <code>9ca535c955fc429c759fa14129595fb41e7bd0a36457655ec00a24b9a53b0c4a</code>; <code>extra-e</code> fixture <code>53cd2d406d056d45a8f1caea1072490258fc52c2e421321288414d5fc3d7d065</code> (retained under <code>repro/feat011-fixtures/</code> for follow-on manual QA); <code>special-e</code> fixture <code>a6f824857994aa8076fc84e95a7de8c8694cc53a80d2f663fb5c923ff145e214</code>.</li>
+        <li><strong>Residual risk &amp; notes:</strong> Read-only boundaries preserved (<code>src/audio_runtime.s</code>, <code>src/shared_text_runtime.inc</code>, <code>src/gmc_bootstrap.s</code> untouched; <code>draw_recolored_map_tile</code> retained at <code>$FBA5</code>). Legacy compile-only Option 2 profiles (<code>joystick/adaptive</code> and <code>keyboard/nonadaptive</code>) retain their build switches but remain over the 8,192 B resident cap (not active release targets). Merge to <code>main</code> remains pending user instruction.</li>
+      </ul>
+    </section>
+
     <section id="feat011-verification-20261123">
-      <h2>2026-11-23 &mdash; Implementation complete; <code>F11-01</code> &amp; <code>F11-02</code> passed; awaiting user <code>F11-03</code> playtest</h2>
+      <h2>2026-11-23 &mdash; Implementation &amp; playtest verification record</h2>
       <p><strong>Execution note:</strong> After Sol 6.2 high (<code>gpt-6.2-sol</code>) completed EXTRA connector normalization (<code>b4c73e32</code>) and the 255-saturation reserve-life fix (<code>669e9ffe</code>) but declined to implement the arcade-adapted intermission scenes under model policy, the user approved direct implementation on branch <code>feat/feat011-intermissions</code>.</p>
       <p><strong>Implemented architecture:</strong></p>
       <ul>
@@ -67,10 +84,10 @@
             <li><strong>Pass 1 (<code>1cf2de62</code>):</strong> Moved <code>lda #$34 / sta PAR5</code> ahead of <code>im_fb_dst</code> in <code>im_draw_sprite</code> so register <code>A</code> is not clobbered before <code>std im_old_fb_a/b</code> (eliminated path smear and scanline 32&ndash;49 corruption).</li>
             <li><strong>Pass 2 (<code>16cf8d88</code>):</strong> Deferred SPECIAL +100,000 BCD award and 16&times;16 coin despawn to coin overlap <code>(80,16)</code> (<code>$2A28</code>), deferred EXTRA 255-saturating <code>LIVES</code> increment and 16&times;16 marker replacement to slot arrival, and called <code>PRES_MODULE_MAP_BACK</code> + <code>PAR5=$34</code> before <code>PRES_MAIN_NEXT_STAGE</code> so <code>erase_entity_footprints</code> writes only to hidden <code>BACK</code>.</li>
             <li><strong>Pass 3 (<code>ebdf7e9e</code>):</strong> Kept <code>SPECIAL_BITS</code>/<code>EXTRA_BITS</code> nonzero through the gameplay pickup popup so <code>audio_poll_gameplay</code> does not start Cue 11/10 before the intermission loads; cleared the completed word in <code>im_begin_intermission</code> (under <code>PRES_MODE=9</code>) and enqueued Cue 10/11 once via page-<code>$3D</code> <code>AUDIO_ENQUEUE_EXEC</code> (<code>$A006</code>) right when Lady Bug starts moving onscreen (<code>im_init_mask == 3</code> and <code>im_pos_y &ge; 0</code>).</li>
-            <li><strong>Pass 4:</strong> Clamped the post-decrement <code>LIVES</code> index passed to <code>life_marker_position</code> in <code>marker_entry_begin</code> (<code>src/main.s</code>) to <code>MAX_RESERVE_LIVES-1</code> (slot 11) so 13+ lives no longer index past the 12-entry <code>hud_life_marker_positions</code> table and instead walk off from the 12th position while <code>draw_lives</code> keeps the 12th placeholder marker intact until reserves drop below 12.</li>
+            <li><strong>Pass 4 (<code>968b9d81</code>):</strong> Clamped the post-decrement <code>LIVES</code> index passed to <code>life_marker_position</code> in <code>marker_entry_begin</code> (<code>src/main.s</code>) to <code>MAX_RESERVE_LIVES-1</code> (zero-based slot 11, the 12th marker) so 13+ lives no longer index past the 12-entry <code>hud_life_marker_positions</code> table and instead walk off from the 12th position while <code>draw_lives</code> keeps the 12th placeholder marker intact until reserves drop below 12.</li>
           </ul>
         </li>
-        <li><strong>F11-03 (PENDING — User-Owned):</strong> Manual XRoar RGB playtest of <code>special-e</code>, <code>extra-e</code>, and primary <code>build/ladybug.rom</code> (including the 12-starting-lives boundary check) must pass before advancing FEAT-011 to <code>Done</code>.</li>
+        <li><strong>F11-03 (PASS — User-Confirmed):</strong> User confirmed XRoar RGB playtest across <code>special-e</code>, <code>extra-e</code>, primary <code>build/ladybug.rom</code>, and the 13th-life / 12-marker departure boundary. FEAT-011 advances <code>Verification</code> &rarr; <code>Done</code>.</li>
       </ul>
     </section>
 
