@@ -563,6 +563,7 @@ load_done_dynamic_ready
 load_done_hold_plain
         lda     #$34
         sta     PAR5
+        clr     PLAYER_BG_VALID
         jsr     PRES_MAIN_FB_CAPTURE
 load_done_hold_owner
         tst     PRES_HOLD_OWNER
@@ -2287,6 +2288,7 @@ load_done_dynamic_ready
 load_done_hold_plain
         lda     #$34
         sta     PAR5
+        clr     PLAYER_BG_VALID
         jsr     PRES_MAIN_FB_CAPTURE
 load_done_hold_owner
         tst     PRES_HOLD_OWNER

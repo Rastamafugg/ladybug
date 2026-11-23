@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-130 — Stale player save-under restored onto Instructions Buffer B — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+<div class="wiki-shell">
+  <nav class="wiki-nav">
+    <a href="../../index.html">← Wiki home</a>
+    <a href="../index.html">Internal</a>
+    <a href="./index.html">Tickets</a>
+    <a href="./workflow.html">Workflow</a>
+  </nav>
+  <main class="wiki-main">
+    <header class="wiki-header">
+      <p class="wiki-eyebrow">Internal · work ticket · bug</p>
+      <h1>BUG-130 — Stale player save-under restored onto Instructions Buffer B <span class="wiki-badge">Verification</span></h1>
+      <p class="wiki-meta">Clear <code>PLAYER_BG_VALID</code> before <code>PRES_MAIN_FB_CAPTURE</code> in <code>load_done_hold_plain</code> so stale Demo/Instructions save-under metadata cannot survive into both A/B framebuffer ledgers and stamp old maze pixels onto Buffer B.</p>
+    </header>
+
+    <section id="status">
+      <h2>Ticket state</h2>
+      <ul>
+        <li><strong>Status:</strong> Verification (2026-11-23). Implemented on branch <code>fix/bug130-presentation-stale-underlay</code> off <code>main</code> commit <code>cb3f2fd4</code> (post-FEAT-011 merge). Automated gate <code>B130-01</code> passed; awaits user-owned manual XRoar RGB confirmation (<code>B130-02</code>) before <code>Done</code>.</li>
+        <li><strong>Created / updated:</strong> 2026-11-23 / 2026-11-23.</li>
+        <li><strong>Priority / order:</strong> P2 / immediately after FEAT-011 merge to <code>main</code>.</li>
+        <li><strong>Owner:</strong> parent agent implementing directly in <code>E:\projects\ladybug</code>.</li>
+        <li><strong>Bug risk class:</strong> <strong>Standard</strong> (confirmed single-instruction cause inside <code>src/presentation_runtime.s</code> with no protocol, loader, MMU, or resident ROM change; classified Standard rather than Compact because it updates persistent-framebuffer metadata capture during presentation hydration and sits 5 bytes below the 1,280-byte presentation module cap).</li>
+      </ul>
+    </section>
+
+    <section id="approval">
+      <h2>Approval brief &amp; root cause</h2>
+      <h3>Observed symptom</h3>
+      <p>While watching attract mode cycle in the <code>extra-e</code> ROM (<code>53cd2d40...</code>), two horizontal flickering lines briefly corrupted the flower point value (<code>10 POINTS</code>) on the Instructions screen for one cycle; the next cycle was clean.</p>
+
+      <h3>Confirmed source-traced cause</h3>
+      <ol>
+        <li>On Instructions (<code>tiled/coco-instructions-screen.tmx</code>), <code>10 POINTS</code> begins at tile <code>(17, 17)</code> = framebuffer address <code>$7544</code>. In <code>extra-e</code>, <code>init_entities</code> places the yellow <code>E</code> at cell <code>(10, 18)</code>, whose 16&times;16 sprite root is also <code>$7544</code>, flanked top and bottom by horizontal maze corridor walls in <code>PLAYER_BG_B</code>.</li>
+        <li>When Demo reaches <code>(10, 18)</code> in <code>extra-e</code> (or clears a stage on primary ROM), <code>STAGE_PENDING</code> becomes nonzero while Lady Bug is still alive (<code>PLAYER_BG_VALID = 1</code>, <code>PLAYER_FB = $7544</code>). <code>demo_tick</code> jumps immediately to <code>demo_death_done</code> &rarr; High Score without clearing <code>PLAYER_BG_VALID</code>. The same leak occurs on the primary ROM when a wake key returns to Attract during live Demo or mid-choreography Instructions.</li>
+        <li>In <code>src/presentation_runtime.s</code>, <code>load_done_hold_plain</code> called <code>PRES_MAIN_FB_CAPTURE</code> on both Buffer A and Buffer B <em>before</em> <code>load_done_normal</code> cleared <code>PLAYER_BG_VALID</code>, re-recording <code>FBM_PLAYER_VALID = 1</code> and stale <code>FBM_PLAYER_FB</code> into both <code>FB_META_A</code> and <code>FB_META_B</code> across High Score, Attract (<code>PRESENTATION_ATTRACT_OVERLAY</code>), and Instructions hydration.</li>
+        <li>On Frame 1 of Instructions (Buffer A), <code>irt_init</code> cleared <code>PLAYER_BG_VALID</code> for Buffer A only. On Frame 2 (Buffer B), <code>PRES_MAIN_FB_PREPARE</code> hydrated <code>PLAYER_BG_VALID = 1</code> and <code>PLAYER_OLD_FB = $7544</code>, causing <code>restore_actor</code> to stamp 16&times;16 stale corridor walls onto Buffer B at <code>$7544</code> (30 Hz flicker over <code>10 POINTS</code>). On cycles where Demo died to an enemy instead, <code>dt_blank</code> cleared <code>FBM_PLAYER_VALID = 0</code> on both buffers, leaving the next Instructions screen clean.</li>
+      </ol>
+
+      <h3>Approved scope &amp; fix</h3>
+      <ul>
+        <li><strong>In scope:</strong> Add <code>clr PLAYER_BG_VALID</code> (2 bytes) immediately before <code>jsr PRES_MAIN_FB_CAPTURE</code> at <code>load_done_hold_plain</code> in <code>src/presentation_runtime.s</code> so every held presentation screen (High Score, Instructions, Game Over, Enter High Score, Options, Credits, Keybind Options) captures <code>FBM_PLAYER_VALID = 0</code> into both <code>FB_META_A</code> and <code>FB_META_B</code>.</li>
+        <li><strong>Out of scope:</strong> Changes to <code>src/main.s</code>, <code>src/instruction_runtime.s</code>, <code>src/enemy_runtime.s</code>, <code>src/audio_runtime.s</code>, or attract actor animation.</li>
+      </ul>
+    </section>
+
+    <section id="verification">
+      <h2>Verification plan &amp; results</h2>
+      <ul>
+        <li><strong>B130-01 (PASS, 2026-11-23):</strong> Complete-profile primary build passed all caps — presentation module <code>1,275 / 1,280 B</code> (<code>+5 B</code> free), resident ROM unchanged at <code>8,161 / 8,192 B</code> (<code>+31 B</code> free), assets <code>7,668 / 7,680 B</code>, GMC spare <code>5,382 B</code>. DOC-002 passed (<code>19</code> modules, <code>341/341</code> routines, <code>7,309/7,309</code> labels); <code>verify_audio_runtime.py</code> passed (18 cues, 1,959 PSG bytes); <code>verify_presentation_flow.py</code>, <code>verify_sparse_sprites.py</code>, <code>verify_gmc_overflow.py</code>, <code>verify_presentation_sparse.py</code>, and <code>verify_shared_text.py</code> passed. Both <code>special-e</code> and <code>extra-e</code> fixtures rebuilt cleanly (resident <code>8,188 / 8,192 B</code>).</li>
+        <li><strong>Built ROM SHA-256 hashes:</strong>
+          <ul>
+            <li>Primary: <code>build/ladybug.rom</code> &mdash; <code>37cf472d69de95d39a520de50f4806b37459c0fb4fc26a52acba55d1fc8c064f</code></li>
+            <li>EXTRA fixture: <code>repro/feat011-fixtures/extra-e/ladybug.rom</code> &mdash; <code>786426766ad6f7e9df77eafe780fb988050557c684cab96c0df77d7d76251e36</code></li>
+            <li>SPECIAL fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>0edea7bee5cfa468413fa2e362eef8733da2f61c2c2955f67941edf7f0c629fa</code></li>
+          </ul>
+        </li>
+        <li><strong>B130-02 (PENDING — User-Owned):</strong> Wake from live Demo or mid-choreography Instructions back to Attract, let Attract idle into Instructions, and confirm zero flickering corruption on <code>10 POINTS</code> or at Lady Bug's prior location.</li>
+      </ul>
+    </section>
+
+    <section id="decisions">
+      <h2>Decision log</h2>
+      <ul>
+        <li>2026-11-23 — User approved merging <code>feat/feat011-intermissions</code> into <code>main</code> (fast-forwarded at <code>cb3f2fd4</code>), opening BUG-130, and applying the 2-byte <code>clr PLAYER_BG_VALID</code> fix in <code>load_done_hold_plain</code>.</li>
+      </ul>
+    </section>
+  </main>
+</div>
+</body>
+</html>
