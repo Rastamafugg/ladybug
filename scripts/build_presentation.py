@@ -26,6 +26,7 @@ from build_screen import (  # noqa: E402
     GREY,
     LIGHT_BLUE,
     LIGHT_GREEN,
+    MAGENTA,
     ORANGE,
     PART_VEGETABLE_MARKER,
     PINK,
@@ -34,6 +35,7 @@ from build_screen import (  # noqa: E402
     SCREEN_HEIGHT,
     SCREEN_WIDTH,
     TILE_SIZE,
+    VIOLET,
     WHITE,
     YELLOW,
     char_sheet_code,
@@ -85,10 +87,10 @@ TILE_BYTES = 32
 MAP_OUTPUT_OFFSET = 0x4000
 COLD_PAYLOAD_LIMIT = 10874
 ATTRACT_ACTOR_COLOURS = {
-    (11, 3): (WHITE, DARK_GREEN, PINK),
+    (11, 3): (WHITE, DARK_GREEN, MAGENTA),
     (20, 4): (YELLOW, LIGHT_GREEN, ORANGE),
     (35, 4): (WHITE, YELLOW, ORANGE),
-    (27, 5): (WHITE, DARK_GREEN, PURPLE),
+    (27, 5): (WHITE, DARK_GREEN, VIOLET),
     (3, 9): (WHITE, YELLOW, ORANGE),
     (10, 15): (YELLOW, DARK_GREEN, DARK_RED),
     (34, 13): (GREEN, DARK_GREEN, LIGHT_BLUE),

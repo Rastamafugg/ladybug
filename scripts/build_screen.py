@@ -30,11 +30,13 @@ DARK_GREEN = 10
 LIGHT_BLUE = 11
 DARK_RED = 12
 ORANGE = 13
+VIOLET = 14
+MAGENTA = 15
 
 # Canonical Universal RGB names expressed as CoCo 3 six-bit GIME values.
-# Slots 14 and 15 are reserved until later levels require more colours.
+# Slots 14 and 15 provide Violet and Magenta for arcade sprite palettes.
 PALETTE = (0x00, 0x26, 0x36, 0x19, 0x3D, 0x17, 0x3F, 0x38,
-           0x3A, 0x39, 0x12, 0x3B, 0x24, 0x34, 0x00, 0x00)
+           0x3A, 0x39, 0x12, 0x3B, 0x24, 0x34, 0x2B, 0x2C)
 PLAYER_PEN_MAP = (BLACK, DARK_RED, DARK_GREEN, YELLOW)
 LIFE_PEN_MAP = (BLACK, DARK_GREEN, DARK_RED, YELLOW)
 PART_VEGETABLE_MARKER = (33, 3)
