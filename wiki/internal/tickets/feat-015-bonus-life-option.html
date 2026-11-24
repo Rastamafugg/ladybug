@@ -17,7 +17,7 @@
     <table>
       <tbody>
         <tr><th>Ticket ID</th><td><code>FEAT-015</code></td></tr>
-        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat015-bonus-life-option</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Status</th><td><strong>Done</strong> (verified and merged into local <code>main</code> 2026-11-24)</td></tr>
         <tr><th>Type</th><td>Feature &mdash; Gameplay Options enhancement</td></tr>
         <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
       </tbody>
@@ -56,6 +56,7 @@
     <ul>
       <li><strong>2026-11-24:</strong> Disassembly of arcade Z80 ROM confirmed no score-based bonus life (EXTRA only). User approved adding optional repeating <code>BONUS LIFE</code> (<code>OFF</code> default, <code>10000</code>&ndash;<code>50000</code> in <code>10000</code> increments) in Options. Branched <code>feat/feat015-bonus-life-option</code> off <code>main</code> (<code>e099be3e</code>) and delegated implementation &amp; verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
       <li><strong>2026-11-24 (Verification):</strong> Source edits completed by <code>gpt-6.2-sol</code> before quota limit; parent QA fixed <code>MENU_BONUS_LIFE</code> overlap (<code>$02DD</code> &rarr; <code>$02D5</code>) and ran full primary + fixture builds and verifiers. Primary ROM <code>681195f78d53055c8f1cab375aab982e21a2b19fa9e90fadc4744834c3d8a0fa</code> (resident <code>7,984/8,192 B</code>, <code>+208 B</code> free), <code>extra-e</code> <code>68cd6de0...</code> and <code>special-e</code> <code>776d29f5...</code> (resident <code>8,011/8,192 B</code>, <code>+181 B</code> free), <code>highscore-helper.bin</code> <code>3,259/3,264 B</code>, <code>enemy_runtime.rom</code> <code>4,091/4,096 B</code>, <code>intermission_runtime</code> <code>920/938 B</code>, <code>adaptive-active</code> <code>707/777 B</code>, <code>$FBA5</code> intact, GMC spare <code>4,469 B</code>. DOC-002 (<code>19/352/7,417</code>, zero ownership overlaps), audio (18 cues), presentation flow, and 9/9 pixel-exact presentation maps passed. Awaits user XRoar RGB playtest.</li>
+      <li><strong>2026-11-24 (Done):</strong> User verified 10,000-point bonus-life award and usage in XRoar RGB and approved merging into <code>main</code> on primary ROM <code>681195f78d53055c8f1cab375aab982e21a2b19fa9e90fadc4744834c3d8a0fa</code>. Ticket closed as <strong>Done</strong>.</li>
     </ul>
   </section>
 </body>
