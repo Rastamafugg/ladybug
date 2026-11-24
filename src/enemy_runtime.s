@@ -69,7 +69,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_enemy_fb profile=render: Draw enemy fb.
 ; DOC-002 source-contract mirror contract draw_enemy_stage profile=render: Draw enemy stage.
 ; DOC-002 source-contract mirror contract draw_vegetable_stage profile=render: Draw vegetable stage.
-; DOC-002 source-contract mirror contract enemy_choose_direction profile=movement: Select a legal enemy direction from maze, gate, and target state.
+; DOC-002 source-contract mirror contract enemy_choose_direction profile=movement: Try an Arcade pursuit direction against live legality before falling back to the existing non-reversing random scan.
 ; DOC-002 source-contract mirror contract enemy_collect_impl profile=state: Resolve the vegetable collection transition and its enemy-state consequences.
 ; DOC-002 source-contract mirror contract enemy_direction_legal profile=movement: Test whether a proposed enemy direction is legal at the current semantic cell.
 ; DOC-002 source-contract mirror contract enemy_init_impl profile=state: Reset enemy lifecycle state and mark enemy composition dirty.
@@ -1607,14 +1607,14 @@ ec_score_done
 ec_done
         rts
 
-; Choose a pseudo-random legal direction at every aligned maze decision.
-; Avoid immediate reversal whenever another corridor exists. Gate-owned cells
-; are legal only when the current bar orientation exposes a parallel passage.
+; Try the resident Arcade pursuit candidate, then scan pseudo-random legal
+; directions. Reversal remains available only when other choices are blocked.
 enemy_choose_direction
-        stx     ENEMY_PTR
-        lda     7,x
-        eora    #2
-        sta     ENEMY_REVERSE
+        jsr     ai_chase_candidate
+        bcc     ecd_random
+        bsr     enemy_direction_legal
+        bcs     ecd_choose
+ecd_random
         lda     RNG_STATE+1
         adda    ENEMY_WORK
         anda    #3

@@ -603,15 +603,45 @@
           "reasons": []
         },
         {
+          "name": "ai_chase_candidate",
+          "profile": "movement",
+          "purpose": "Prepare a non-reversing Arcade flow direction for the bank-3 chooser's live legality check.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ai-chase-candidate"
+        },
+        {
+          "name": "ai_cell_index",
+          "profile": "movement",
+          "purpose": "Convert even maze coordinates to the row-major pursuit flow index.",
+          "reasons": [],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ai-cell-index"
+        },
+        {
+          "name": "ai_seed_coordinate",
+          "profile": "movement",
+          "purpose": "Round one player coordinate down to an even intersection and clamp it to the pursuit grid.",
+          "reasons": [],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ai-seed-coordinate"
+        },
+        {
+          "name": "ai_pursuit_tick",
+          "profile": "state",
+          "purpose": "Advance the live Arcade chase clocks and one bounded slice of the maze flow sweep.",
+          "reasons": [],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-ai-pursuit-tick"
+        },
+        {
           "name": "reload_box_timer",
           "profile": "state",
-          "purpose": "Reload box timer.",
+          "purpose": "Reload the gameplay perimeter timer from the selected difficulty curve or the Demo Easy curve.",
           "reasons": []
         },
         {
           "name": "reload_enemy_box_timer",
           "profile": "state",
-          "purpose": "Reload enemy box timer.",
+          "purpose": "Route enemy lifecycle timer reloads through the shared difficulty curve.",
           "reasons": []
         },
         {
@@ -629,7 +659,7 @@
         {
           "name": "reset_enemy_state",
           "profile": "state",
-          "purpose": "Reset enemy state.",
+          "purpose": "Reset the enemy lifecycle, pursuit clocks, and flow field.",
           "reasons": [
             "exported"
           ]
@@ -1015,6 +1045,16 @@
       ],
       "label_classifications": [
         {
+          "name": "ai_edges",
+          "kind": "data",
+          "reason": "Cardinal midpoint, flow delta, open gate parity and reverse direction records."
+        },
+        {
+          "name": "ai_edges_end",
+          "kind": "boundary",
+          "reason": "Exclusive cardinal pursuit record limit for the bounded neighbor scan."
+        },
+        {
           "name": "asset_end",
           "kind": "boundary",
           "reason": "Authored start, end, or publication boundary used for size or delivery assertions"
@@ -1389,6 +1429,7 @@
       "map": "ladybug-enemy-runtime.map",
       "binary": "ladybug-enemy-runtime.rom",
       "external_symbols": [
+        "ai_chase_candidate",
         "PERIMETER_RESET_HELPER",
         "PRES_MAIN_SHARED_HUD",
         "PRESENTATION_HUD_DRAW_ALL",
@@ -1504,7 +1545,7 @@
         {
           "name": "enemy_choose_direction",
           "profile": "movement",
-          "purpose": "Select a legal enemy direction from maze, gate, and target state.",
+          "purpose": "Try an Arcade pursuit direction against live legality before falling back to the existing non-reversing random scan.",
           "reasons": []
         },
         {

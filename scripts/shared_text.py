@@ -379,20 +379,25 @@ class SharedText:
                 assert self.p.raw_char_code(root,path,left[1])==43
                 assert self.p.raw_char_code(root,path,right[1])==44
                 pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
-        assert len(pairs)==2,('options',pairs)
+        assert len(pairs)==3,('options',pairs)
         menu_lines.append('menu_options_pairs')
         menu_lines.extend('        fdb $%04X,$%04X'%pair for pair in pairs)
+        menu_lines.append('menu_difficulty_values')
+        for value in ('ARCADE', 'EASY  '):
+            codes = [36 if char == ' ' else ord(char) - 55 for char in value]
+            menu_lines.append('        fcb '+','.join(map(str, codes)))
         root,flat,_=self.p.flatten_map(path)
         rows=[]
         for row in range(24):
             codes=[self.p.raw_char_code(root,path,gid) for gid in flat[row*40:(row+1)*40]]
             label=''.join(chr(c+55) if c is not None and 10<=c<=35 else ' ' for c in codes)
-            if 'LIVES' in label or 'STARTING LEVEL' in label or 'KEYBINDINGS' in label or 'BACK' in label:
+            if any(option in label for option in ('DIFFICULTY', 'LIVES', 'STARTING LEVEL', 'KEYBINDINGS', 'BACK')):
                 xs=[x for x,c in enumerate(codes) if c is not None and 0<=c<=35]
                 lo,hi=min(xs),max(xs)
+                if 'DIFFICULTY' in label:lo=min(lo,24);hi=max(hi,31)
                 if 'LIVES' in label or 'STARTING LEVEL' in label:lo=min(lo,26);hi=max(hi,29)
                 rows.append((row,lo,hi,[c if c is not None and 0<=c<=35 else 36 for c in codes[lo:hi+1]]))
-        assert len(rows)==4,rows
+        assert len(rows)==5,rows
         menu_lines.append('menu_option_rows')
         for row,lo,hi,codes in rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))

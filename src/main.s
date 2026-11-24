@@ -167,11 +167,15 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract queue_gate_render profile=state: Record the current gate as pending framebuffer work.
 ; DOC-002 source-contract mirror contract read_joystick profile=input: Sample joystick direction, suppressing player movement writes during wake-only samples.
 ; DOC-002 source-contract mirror contract refresh_enemy_zone_dot profile=state: Refresh enemy zone dot.
-; DOC-002 source-contract mirror contract reload_box_timer profile=state: Reload box timer.
-; DOC-002 source-contract mirror contract reload_enemy_box_timer profile=state: Reload enemy box timer.
+; DOC-002 source-contract mirror contract ai_chase_candidate profile=movement: Prepare a non-reversing Arcade flow direction for the bank-3 chooser's live legality check.
+; DOC-002 source-contract mirror contract ai_cell_index profile=movement: Convert even maze coordinates to the row-major pursuit flow index.
+; DOC-002 source-contract mirror contract ai_seed_coordinate profile=movement: Round one player coordinate down to an even intersection and clamp it to the pursuit grid.
+; DOC-002 source-contract mirror contract ai_pursuit_tick profile=state: Advance the live Arcade chase clocks and one bounded slice of the maze flow sweep.
+; DOC-002 source-contract mirror contract reload_box_timer profile=state: Reload the gameplay perimeter timer from the selected difficulty curve or the Demo Easy curve.
+; DOC-002 source-contract mirror contract reload_enemy_box_timer profile=state: Route enemy lifecycle timer reloads through the shared difficulty curve.
 ; DOC-002 source-contract mirror contract render_frame profile=render: Render frame.
 ; DOC-002 source-contract mirror contract replay_gate_entity_overlay profile=state: Replay gate entity overlay.
-; DOC-002 source-contract mirror contract reset_enemy_state profile=state: Reset enemy state.
+; DOC-002 source-contract mirror contract reset_enemy_state profile=state: Reset the enemy lifecycle, pursuit clocks, and flow field.
 ; DOC-002 source-contract mirror contract reset_perimeter_visual profile=state: Reset perimeter visual.
 ; DOC-002 source-contract mirror contract restore_entity_footprint profile=render: Restore entity footprint.
 ; DOC-002 source-contract mirror contract restore_gate_background profile=render: Restore gate background.
@@ -252,6 +256,8 @@ DRAW_TILE     equ $0017         ; tile ID for draw_cell_tile
 PLAYER_MANUAL equ $0018         ; nonzero after first directional input
 PRES_MODE     equ $00A5         ; presentation dispatcher mode
 MODE_DEMO     equ 4              ; autonomous demo owns joystick direction
+; @audit {"id":"menu-difficulty","kind":"scratch","symbol":"MENU_DIFFICULTY","reference_modules":["resident-runtime","highscore-helper"],"width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"Options difficulty selection","initialization":"Cold boot clears to Arcade","lifetime":"Boot session, including stage changes and new games","clobbers":"Options Left or Right toggles Arcade (0) and Easy (1)."}
+MENU_DIFFICULTY equ $029B
 GATE_ANIM_ID  equ $0019         ; rotating gate ID+1; zero when idle
 GATE_ANIM_STYLE equ $001A       ; 0=slash, 1=backslash
 BLIT_ROWS     equ $001B         ; transparent-blit row counter
@@ -338,6 +344,8 @@ VEG_STATE    equ $005A         ; 0=dormant enemy, 1=vegetable, 2=collected
 FREEZE_TIMER equ $005B         ; u16 enemy freeze countdown
 ENEMY_WORK   equ $005D         ; banked enemy loop scratch
 ENEMY_PTR    equ $005E         ; u16 banked enemy record pointer
+ENEMY_CANDIDATE equ $007C      ; banked enemy direction probe
+ENEMY_REVERSE equ $007D        ; banked enemy forbidden first choice
 ENEMY_NEST_DIRTY equ $0060
 ENEMY_MOVE   equ $0061
 ENEMY_DEATH_LATCH equ $0062    ; 0=alive, 1=reset pending, 2=reset published
@@ -471,6 +479,17 @@ FB_END     equ  $9800           ; one past last FB byte (192 rows × 160 B)
 FB_PHYS    equ  $30             ; physical page 0 of FB
 MAZE_STATE equ  $A000           ; writable 576-byte maze-cell copy (PAR5)
 GATE_STATE equ  $A240           ; rotation state N/W/S/E; parity selects H/V bar
+; @audit {"id":"enemy-pursuit","kind":"scratch","symbol":"AI_FLOW_FIELD","aliases":["AI_BFS_QUEUE","AI_BFS_HEAD","AI_BFS_TAIL","AI_CHASE_TIMER","AI_SEC_TICK","AI_RR_INDEX"],"width":169,"mapping":"physical-page-34","phases":["foreground"],"owner":"Resident Arcade enemy pursuit","initialization":"reset_enemy_state clears chase clocks and initializes all 121 cells to unvisited","lifetime":"One enemy lifecycle; low flow nibble remains readable during each sweep","clobbers":"Pursuit scheduler updates flow nibbles, bounded queue and chase clocks; gate rotation abandons the in-flight queue."}
+AI_FLOW_FIELD equ $A254
+AI_FLOW_NODES equ 121
+AI_NODES_PER_TICK equ 12
+AI_QUEUE_CAP  equ 40
+AI_BFS_QUEUE  equ AI_FLOW_FIELD+AI_FLOW_NODES
+AI_BFS_HEAD   equ AI_BFS_QUEUE+AI_QUEUE_CAP
+AI_BFS_TAIL   equ AI_BFS_HEAD+1
+AI_CHASE_TIMER equ AI_BFS_TAIL+1 ; four slot-indexed seconds
+AI_SEC_TICK   equ AI_CHASE_TIMER+4
+AI_RR_INDEX   equ AI_SEC_TICK+1
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 ENTITY_GATE_CACHE equ $B000     ; twelve 16x16 static overlays, 128 bytes each
@@ -676,6 +695,7 @@ startup_clear_complete
         ldd     #$1D0F
 startup_seed_ready
         std     RNG_STATE
+        clr     MENU_DIFFICULTY
 
         ; --- Presentation-safe framebuffer ownership ---
         ; Gameplay state is initialized by presentation_runtime when the level
@@ -2716,11 +2736,20 @@ ptt_draw
 ptt_done
         rts
 
-; The arcade program selects 9 frames on part 1, 6 on parts 2-4, and
-; 3 from part 5 onward (routine $35E3 in the original Z80 program).
+; Round Easy and Demo parts up after dividing by two, then use the arcade
+; $35E3 thresholds for both curves.
 reload_box_timer
-        ldb     #9
         lda     STAGE
+        ldb     PRES_MODE
+        cmpb    #MODE_DEMO
+        beq     rbt_easy
+        tst     MENU_DIFFICULTY
+        beq     rbt_curve
+rbt_easy
+        lsra
+        adca    #0
+rbt_curve
+        ldb     #9
         cmpa    #2
         blo     rbt_store
         subb    #3
@@ -3545,6 +3574,10 @@ cm_commit
         ldx     #GATE_STATE
         ldb     GATE_ID
         sta     b,x
+        ; Discard the working sweep. The chooser rechecks live legality
+        ; before using a direction from the last completed sweep.
+        clr     AI_BFS_HEAD
+        clr     AI_BFS_TAIL
         lda     GATE_ID
         inca
         sta     GATE_ANIM_ID
@@ -4831,6 +4864,7 @@ init_enemy
         jmp     $A469           ; approved rate reset shim tail-calls enemy init
 
 enemy_tick
+        lbsr    ai_pursuit_tick
         jsr     ENEMY_MODULE_TICK
         lda     ENEMY_DEATH_LATCH
         cmpa    #1
@@ -5128,20 +5162,304 @@ reset_enemy_clear
         clr     ,x+
         decb
         bne     reset_enemy_clear
+        ldx     #AI_BFS_HEAD
+        std     ,x++
+        std     ,x++
+        std     ,x++
+        std     ,x
+        ldx     #AI_FLOW_FIELD
+        ldd     #$FF00+AI_FLOW_NODES
+ai_reset_field
+        sta     ,x+
+        decb
+        bne     ai_reset_field
         rts
 
 reload_enemy_box_timer
-        ldb     #9
-        lda     STAGE
+        lbra    reload_box_timer
+
+; Bank-3 chooser entry. The caller retains X and the ENEMY_WORK countdown.
+; Return C set with ENEMY_CANDIDATE ready for the caller's live legality test.
+ai_chase_candidate
+        stx     ENEMY_PTR
+        lda     7,x
+        eora    #2
+        sta     ENEMY_REVERSE
+        tst     MENU_DIFFICULTY
+        bne     ai_no_chase
+        lda     PRES_MODE
+        cmpa    #MODE_DEMO
+        beq     ai_no_chase
+        ldy     #AI_CHASE_TIMER
+        ldb     #4
+        subb    ENEMY_WORK
+        tst     b,y
+        beq     ai_no_chase
+        ldd     4,x
+        bita    #1
+        bne     ai_no_chase
+        bitb    #1
+        bne     ai_no_chase
         cmpa    #2
-        blo     reload_enemy_box_store
-        subb    #3
-        cmpa    #5
-        blo     reload_enemy_box_store
-        subb    #3
-reload_enemy_box_store
-        stb     BOX_TIMER
+        blo     ai_no_chase
+        cmpa    #22
+        bhi     ai_no_chase
+        cmpb    #2
+        blo     ai_no_chase
+        cmpb    #22
+        bhi     ai_no_chase
+        bsr     ai_cell_index
+        ldy     #AI_FLOW_FIELD
+        lda     b,y
+        anda    #$0F
+        cmpa    #3
+        bhi     ai_no_chase
+        cmpa    ENEMY_REVERSE
+        beq     ai_no_chase
+        sta     ENEMY_CANDIDATE
+        orcc    #1
         rts
+ai_no_chase
+        andcc   #$FE
+        rts
+
+; D = even X,Y (2..22). B = row-major flow index.
+ai_cell_index
+        lsra
+        deca
+        pshs    a
+        lsrb
+        decb
+        tfr     b,a
+        ldb     #11
+        mul
+        addb    ,s+
+        rts
+
+; Both gameplay schedulers call through enemy_tick with page $34 mapped.
+ai_pursuit_tick
+        lda     PRES_MODE       ; zero is credited gameplay
+        ora     MENU_DIFFICULTY
+        ora     DEATH_STATE
+        ora     PICKUP_TIMER
+        ora     FREEZE_TIMER
+        ora     FREEZE_TIMER+1
+        beq     ai_clock
+        rts
+ai_clock
+        inc     AI_SEC_TICK
+        lda     AI_SEC_TICK
+        cmpa    #60
+        blo     ai_bfs_tick
+        clr     AI_SEC_TICK
+        ldx     #AI_CHASE_TIMER
+ai_chase_count
+        tst     ,x
+        beq     ai_chase_next
+        dec     ,x
+ai_chase_next
+        leax    1,x
+        cmpx    #AI_CHASE_TIMER+4
+        blo     ai_chase_count
+        ldb     AI_RR_INDEX
+        leax    b,x
+        leax    -4,x
+        lda     AI_RR_INDEX
+        inca
+        anda    #3
+        sta     AI_RR_INDEX
+        tst     ,x
+        bne     ai_bfs_tick
+        aslb
+        aslb
+        aslb
+        ldy     #ENEMY_TABLE
+        leay    b,y
+        tst     ,y
+        beq     ai_bfs_tick
+        ldd     4,y
+        cmpd    #$0C0B
+        beq     ai_bfs_tick
+        cmpd    #$0C0C
+        beq     ai_bfs_tick
+        lda     STAGE
+        deca
+        lsra
+        adda    #3
+        cmpa    #10
+        bls     ai_chase_store
+        lda     #10
+ai_chase_store
+        sta     ,x
+ai_bfs_tick
+        lda     AI_BFS_HEAD
+        cmpa    AI_BFS_TAIL
+        bne     ai_expand
+
+        ; Clear only the working nibble. Ties round toward the top/left.
+        ldx     #AI_FLOW_FIELD
+ai_clear_work
+        lda     ,x
+        ora     #$F0
+        sta     ,x+
+        cmpx    #AI_FLOW_FIELD+AI_FLOW_NODES
+        blo     ai_clear_work
+        lda     PLAYER_CELL_X
+        bsr     ai_seed_coordinate
+        pshs    a
+        lda     PLAYER_CELL_Y
+        bsr     ai_seed_coordinate
+        tfr     a,b
+        puls    a
+        cmpd    #$0C0C           ; never seed in the enclosed den
+        bne     ai_seed
+        ldb     #10
+ai_seed
+        lbsr    ai_cell_index
+        ldx     #AI_FLOW_FIELD
+        lda     b,x
+        anda    #$0F
+        ora     #$80             ; visited seed, no direction
+        sta     b,x
+        stb     AI_BFS_QUEUE
+        clr     AI_BFS_HEAD
+        lda     #1
+        sta     AI_BFS_TAIL
+        bra     ai_expand
+ai_seed_coordinate
+        anda    #$FE
+        cmpa    #2
+        bhs     ai_seed_high
+        lda     #2
+ai_seed_high
+        cmpa    #22
+        bls     ai_seed_done
+        lda     #22
+ai_seed_done
+        rts
+
+ai_expand
+        lda     #AI_NODES_PER_TICK
+        pshs    a
+ai_node
+        ldx     #AI_BFS_QUEUE
+        lda     AI_BFS_HEAD
+        ldb     a,x
+        inca
+        cmpa    #AI_QUEUE_CAP
+        blo     ai_head_ready
+        clra
+ai_head_ready
+        sta     AI_BFS_HEAD
+        ldx     #AI_FLOW_FIELD
+        leax    b,x
+        lda     #1
+ai_divide_row
+        subb    #11
+        blo     ai_node_offset
+        inca
+        bra     ai_divide_row
+ai_node_offset
+        addb    #12             ; column + 1 after the final borrow
+        aslb
+        pshs    b
+        ldb     #48             ; 2 cell rows, 24 cells each
+        mul
+        addb    ,s+
+        adca    #0
+        ldy     #maze_nav
+        leay    d,y
+        leau    ai_edges,pcr
+ai_edge
+        ; Even nodes are ungated. Each midpoint is a straight corridor,
+        ; turnstile endpoint, den entrance, or blocked.
+        ldd     ,u
+        lda     d,y
+        bita    #$20            ; the den entrance is never an edge
+        bne     ai_edge_next
+        bita    3,u
+        beq     ai_edge_next
+        ldb     2,u
+        lda     b,x
+        cmpa    #$F0
+        blo     ai_edge_next
+        ; The alternate gate endpoint can lack the navigation gate bit.
+        ; The owner table covers both orientations, as in enemy movement.
+        ldd     ,u
+        addd    #maze_gate_owner-maze_nav
+        lda     d,y
+        beq     ai_edge_open
+        deca
+        pshs    x
+        ldx     #GATE_STATE
+        lda     a,x
+        puls    x
+        eora    4,u
+        bita    #1
+        bne     ai_edge_next
+ai_edge_open
+        ldb     2,u
+        lda     AI_BFS_TAIL
+        inca
+        cmpa    #AI_QUEUE_CAP
+        blo     ai_tail_ready
+        clra
+ai_tail_ready
+        cmpa    AI_BFS_HEAD     ; reserve one empty slot
+        beq     ai_overflow
+        pshs    a,y
+        lda     b,x
+        anda    #$0F
+        ora     5,u             ; reverse edge into the working nibble
+        sta     b,x
+        tfr     x,d
+        addb    2,u
+        subb    #AI_FLOW_FIELD&$FF ; all flow bytes share one page
+        ldy     #AI_BFS_QUEUE
+        lda     AI_BFS_TAIL
+        stb     a,y
+        puls    a,y
+        sta     AI_BFS_TAIL
+ai_edge_next
+        leau    6,u
+        cmpu    #ai_edges_end
+        blo     ai_edge
+        lda     AI_BFS_HEAD
+        cmpa    AI_BFS_TAIL
+        beq     ai_publish
+        dec     ,s
+        lbne    ai_node
+        bra     ai_slice_done
+ai_overflow
+        ; Keep the last complete field and seed again on the next tick.
+        sta     AI_BFS_TAIL
+        bra     ai_slice_done
+ai_publish
+        ldx     #AI_FLOW_FIELD
+ai_publish_cell
+        lda     ,x
+        lsra
+        lsra
+        lsra
+        lsra
+        sta     ,x+
+        cmpx    #AI_FLOW_FIELD+AI_FLOW_NODES
+        blo     ai_publish_cell
+ai_slice_done
+        leas    1,s
+        rts
+
+ai_edges
+        ; Midpoint offset, node delta, nav bit, open parity, reverse nibble.
+        fdb     -24
+        fcb     -11,$01,1,$20
+        fdb     1
+        fcb     1,$02,0,$30
+        fdb     24
+        fcb     11,$04,1,$00
+        fdb     -1
+        fcb     -1,$08,0,$10
+ai_edges_end
 
 ;==============================================================================
 ; Data tables (read directly from cartridge ROM)

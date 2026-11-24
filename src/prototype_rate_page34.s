@@ -1,6 +1,6 @@
 ; Integrated BUG-087 page-$34 enemy-rate helper.
-; Called only while PAR5 maps physical page$34; low029B..029F belongs to
-; this clock only after bootstrap descriptor retirement.
+; Called only while PAR5 maps physical page $34. The timer lives just after
+; the resident pursuit state. Low RAM $029C-$029F holds the remaining clock.
 ; DOC-002 source-contract mirror profile state Inputs: Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller
 ; DOC-002 source-contract mirror profile state Outputs: Updated authoritative state and condition codes used by the immediate caller
 ; DOC-002 source-contract mirror profile state Clobbers: A, B, D, X, Y, U, and condition codes unless a narrower source-local header is present
@@ -16,7 +16,8 @@
 STAGE           equ     $0024
 FREEZE_TIMER    equ     $005B
 PICKUP_TIMER    equ     $0051
-RATE_TIMER      equ     $029B
+; @audit {"id":"enemy-rate-timer","kind":"scratch","symbol":"RATE_TIMER","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"BUG-087 enemy rate clock","initialization":"rate_reset loads 96 through the game and stage init shim","lifetime":"One part, including player death and pickup holds","clobbers":"rate_tick counts down or reloads to 60."}
+RATE_TIMER      equ     $A2FD
 RATE_BUCKET     equ     $029C
 RATE_FRAC       equ     $029D
 RATE_ADDEND     equ     $029E

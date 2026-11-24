@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-014: Arcade Enemy Pursuit AI &amp; Options Difficulty Selector — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>FEAT-014: Arcade Enemy Pursuit AI &amp; Options Difficulty Selector</h1>
+    <p class="subtitle">Phase 7 enemy pursuit AI, Options screen Difficulty toggle (<code>ARCADE</code> default / <code>EASY</code>), and paired perimeter timer acceleration</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>FEAT-014</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat014-arcade-enemy-ai</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type / Phase</th><td>Feature &mdash; Phase 7 (Enemy Pursuit AI &amp; Difficulty)</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria (2026-11-24)</h2>
+    <ol>
+      <li><strong>Options Screen Difficulty Selector (top option):</strong>
+        <ul>
+          <li>Add <code>DIFFICULTY</code> as the <strong>top option</strong> (<code>MENU_SELECT = 0</code>) in <code>tiled/coco-options-screen.tmx</code>, <code>scripts/shared_text.py</code>, and <code>src/shared_text_stage.inc</code>, shifting <code>LIVES</code> (1), <code>STARTING LEVEL</code> (2), <code>KEYBINDINGS</code> (3), and <code>BACK</code> (4) down one slot.</li>
+          <li>Two modes: <code>ARCADE</code> (<code>0</code>, default at cold boot) and <code>EASY</code> (<code>1</code>), stored in always-mapped low RAM at <code>$029B</code> (<code>MENU_DIFFICULTY</code>).</li>
+          <li>Left/Right on <code>DIFFICULTY</code> toggles <code>ARCADE</code> &harr; <code>EASY</code> cleanly on both A and B framebuffers with no trailing-character artifacts.</li>
+        </ul>
+      </li>
+      <li><strong>Enemy Pursuit AI (<code>ARCADE</code> vs <code>EASY</code>):</strong>
+        <ul>
+          <li><strong><code>ARCADE</code> (default):</strong> Faithfully implements the 1981 Universal arcade Z80 (<code>$4480&ndash;$4787</code>) enemy pursuit algorithm: time-sliced 11&times;11 BFS shortest-path flow field toward Lady Bug respecting live <code>GATE_STATE</code> (<code>$A240</code>), round-robin 1-second pursuit activation with stage-scaled chase durations (3 s on Part 1 scaling up to 10 s on later parts), and strict den safety via <code>enemy_direction_legal</code>.</li>
+          <li><strong><code>EASY</code>:</strong> Preserves the existing pseudo-random non-reversing <code>enemy_choose_direction</code> behavior.</li>
+          <li><strong>Unattended Demo Mode (<code>PRES_MODE == MODE_DEMO</code>):</strong> Always uses <code>EASY</code> AI and Part-1 timing so BUG-012&rsquo;s 147-action deterministic demo route remains unchanged.</li>
+        </ul>
+      </li>
+      <li><strong>Paired Level Timer Difficulty Algorithms:</strong>
+        <ul>
+          <li><strong><code>ARCADE</code>:</strong> Matches the exact 1981 arcade Z80 <code>$35E3</code> perimeter timer curve &mdash; Part 1: <code>9</code> frames/box; Parts 2&ndash;4: <code>6</code> frames/box; Part 5+: <code>3</code> frames/box.</li>
+          <li><strong><code>EASY</code>:</strong> Accelerates twice as slowly (double the stages per speed tier) &mdash; Parts 1&ndash;2: <code>9</code> frames/box; Parts 3&ndash;8: <code>6</code> frames/box; Part 9+: <code>3</code> frames/box.</li>
+        </ul>
+      </li>
+      <li><strong>Memory &amp; Verification Guards:</strong>
+        <ul>
+          <li>All fixed module caps pass (resident <code>&le; 8,192 B</code> on primary and both <code>extra-e</code>/<code>special-e</code> fixtures; <code>enemy_runtime.rom &le; 4,096 B</code>; <code>ladybug-highscore-helper.bin &le; 3,264 B</code>; page <code>$34</code> BFS state inside free gap <code>$A254&ndash;$A2FF</code>).</li>
+          <li><code>src/audio_runtime.s</code> and <code>src/shared_text_runtime.inc</code> remain untouched (<code>draw_recolored_map_tile = $FBA5</code>).</li>
+          <li>Automated build, DOC-002, audio, presentation-flow, and BFS/timer/options verification gates pass, followed by user XRoar RGB playtest confirmation before <code>Done</code>.</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-24:</strong> User approved FEAT-014 (Demo stays <code>EASY</code>; <code>ARCADE</code> 11&times;11 BFS + round-robin stage-scaled pursuit; paired <code>ARCADE</code> vs 2&times;-slower-accelerating <code>EASY</code> perimeter timer). Created branch <code>feat/feat014-arcade-enemy-ai</code> off <code>main</code> (<code>0a84118d</code>) and delegated implementation &amp; automated verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
+      <li><strong>2026-11-24 (Verification):</strong> Sol 6.2 High implementation and parent QA review completed. All three ROMs built and verified: primary <code>build/ladybug.rom</code> (<code>fce3a9ee37eb519be8cc22032bbcd3cfdb759af828e59972bdbd1f0399d51f28</code>, resident <code>7,856/8,192 B</code> = <code>+336 B</code> free), <code>extra-e</code> (<code>582fef1c...</code>, resident <code>7,883/8,192 B</code>), <code>special-e</code> (<code>f49faae1...</code>, resident <code>7,883/8,192 B</code>). <code>enemy_runtime.rom</code> <code>4,091/4,096 B</code>, <code>ladybug-highscore-helper.bin</code> <code>3,225/3,264 B</code>, <code>enemy-rate</code> helper <code>191/192 B</code>, <code>assets</code> <code>7,668/7,680 B</code> (<code>$FBA5</code> pin intact), page-<code>$34</code> <code>$A254&ndash;$A2FD</code> <code>170/172 B</code> (relocated BUG-087 <code>RATE_TIMER</code> to <code>$A2FD</code>, freeing <code>$029B</code> for <code>MENU_DIFFICULTY</code>). Standalone 6809 &amp; compiled-maze oracles passed across 1,047 gate configurations and all 121 starts (peak queue 25/39, all 363 sweeps &le;10 ticks, max slice 10,129 cycles); DOC-002 (<code>19/349/7,381</code>), audio (18 cues), presentation flow, shared-text (9/9 maps), and Demo (143 actions / 117 collectibles) passed. Awaits user XRoar RGB playtest before <code>Done</code>.</li>
+    </ul>
+  </section>
+</body>
+</html>

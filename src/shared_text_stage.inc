@@ -1027,6 +1027,7 @@ presentation_panel_done
 ; drawing uses the established resident font without remapping PAR5.
 MENU_LIVES equ $EA
 MENU_LEVEL equ $EB
+MENU_DIFFICULTY equ $029B
 MENU_SELECT equ $E0
 MENU_PREV equ $DF
 MENU_EVENT equ $D0
@@ -1214,21 +1215,22 @@ menu_horizontal
         ldb     PRES_SCREEN
         cmpb    #PRESENTATION_MAP_OPTIONS
         lbne    menu_idle
-        ldb     MENU_SELECT
-        cmpb    #2
-        lbhs    menu_idle
-        ldx     #MENU_LIVES
-        abx
         ldb     MENU_PREV
         andb    #12
         cmpb    #12
         lbeq    menu_idle
+        bita    #12
+        lbeq    menu_idle
+        ldb     MENU_SELECT
+        beq     menu_toggle_difficulty
+        cmpb    #3
+        lbhs    menu_idle
+        ldx     #MENU_LIVES-1
+        abx
         bita    #4
         bne     menu_decrease
-        bita    #8
-        beq     menu_idle
         lda     #12
-        tst     MENU_SELECT
+        cmpb    #1
         beq     menu_maximum
         lda     #99
 menu_maximum
@@ -1242,6 +1244,11 @@ menu_decrease
         bls     menu_idle
         dec     ,x
         bra     menu_redraw
+menu_toggle_difficulty
+        lda     MENU_DIFFICULTY
+        eora    #1
+        sta     MENU_DIFFICULTY
+        bra     menu_redraw
 menu_up
         tst     MENU_SELECT
         beq     menu_idle
@@ -1252,7 +1259,7 @@ menu_down
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         beq     menu_last
-        ldb     #3
+        ldb     #4
 menu_last
         cmpb    MENU_SELECT
         bls     menu_idle
@@ -1280,12 +1287,12 @@ menu_attract_options
         bra     menu_change
 menu_enter_option
         lda     MENU_SELECT
-        cmpa    #2
+        cmpa    #3
         bne     menu_enter_back
         lda     #8
         bra     menu_change
 menu_enter_back
-        cmpa    #3
+        cmpa    #4
         bne     menu_idle
 menu_back
         lda     #PRESENTATION_MAP_ATTRACT
@@ -1389,7 +1396,7 @@ menu_label_colour
         puls    b,pc
 menu_paint_options
         leay    menu_option_rows,pcr
-        ldb     #4
+        ldb     #5
         bsr     menu_paint_rows
         leay    menu_options_pairs,pcr
         clr     $D1
@@ -1403,7 +1410,9 @@ menu_value_colour
         sta     $29
         ldx     ,y
         leax    4,x
-        ldu     #MENU_LIVES
+        tstb
+        beq     menu_difficulty_text
+        ldu     #MENU_LIVES-1
         lda     b,u
         clrb
 menu_tens
@@ -1418,6 +1427,18 @@ menu_digits
         lbsr    stage_panel_char
         puls    a
         lbsr    stage_panel_char
+        bra     menu_value_select
+menu_difficulty_text
+        pshs    y
+        leay    menu_difficulty_values,pcr
+        tst     MENU_DIFFICULTY
+        beq     menu_difficulty_paint
+        leay    6,y
+menu_difficulty_paint
+        ldb     #6
+        lbsr    stage_panel_text
+        puls    y
+menu_value_select
         lda     $D1
         cmpa    MENU_SELECT
         bne     menu_value_next
@@ -1431,7 +1452,7 @@ menu_value_next
         leay    4,y
         inc     $D1
         lda     $D1
-        cmpa    #2
+        cmpa    #3
         blo     menu_value_row
         rts
         include "ladybug_menu_records.inc"
