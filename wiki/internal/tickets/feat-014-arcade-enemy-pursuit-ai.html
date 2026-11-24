@@ -17,7 +17,7 @@
     <table>
       <tbody>
         <tr><th>Ticket ID</th><td><code>FEAT-014</code></td></tr>
-        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat014-arcade-enemy-ai</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Status</th><td><strong>Done</strong> (verified and merged into local <code>main</code> 2026-11-24)</td></tr>
         <tr><th>Type / Phase</th><td>Feature &mdash; Phase 7 (Enemy Pursuit AI &amp; Difficulty)</td></tr>
         <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
       </tbody>
@@ -62,6 +62,7 @@
     <ul>
       <li><strong>2026-11-24:</strong> User approved FEAT-014 (Demo stays <code>EASY</code>; <code>ARCADE</code> 11&times;11 BFS + round-robin stage-scaled pursuit; paired <code>ARCADE</code> vs 2&times;-slower-accelerating <code>EASY</code> perimeter timer). Created branch <code>feat/feat014-arcade-enemy-ai</code> off <code>main</code> (<code>0a84118d</code>) and delegated implementation &amp; automated verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
       <li><strong>2026-11-24 (Verification):</strong> Sol 6.2 High implementation and parent QA review completed. All three ROMs built and verified: primary <code>build/ladybug.rom</code> (<code>fce3a9ee37eb519be8cc22032bbcd3cfdb759af828e59972bdbd1f0399d51f28</code>, resident <code>7,856/8,192 B</code> = <code>+336 B</code> free), <code>extra-e</code> (<code>582fef1c...</code>, resident <code>7,883/8,192 B</code>), <code>special-e</code> (<code>f49faae1...</code>, resident <code>7,883/8,192 B</code>). <code>enemy_runtime.rom</code> <code>4,091/4,096 B</code>, <code>ladybug-highscore-helper.bin</code> <code>3,225/3,264 B</code>, <code>enemy-rate</code> helper <code>191/192 B</code>, <code>assets</code> <code>7,668/7,680 B</code> (<code>$FBA5</code> pin intact), page-<code>$34</code> <code>$A254&ndash;$A2FD</code> <code>170/172 B</code> (relocated BUG-087 <code>RATE_TIMER</code> to <code>$A2FD</code>, freeing <code>$029B</code> for <code>MENU_DIFFICULTY</code>). Standalone 6809 &amp; compiled-maze oracles passed across 1,047 gate configurations and all 121 starts (peak queue 25/39, all 363 sweeps &le;10 ticks, max slice 10,129 cycles); DOC-002 (<code>19/349/7,381</code>), audio (18 cues), presentation flow, shared-text (9/9 maps), and Demo (143 actions / 117 collectibles) passed. Awaits user XRoar RGB playtest before <code>Done</code>.</li>
+      <li><strong>2026-11-24 (Done):</strong> User approved merging FEAT-014 and BUG-132 into local <code>main</code> on primary ROM <code>032c7cfbcb8a0e04774043bd9ad4c2ab04cc35c6faffd1e82abd870af1b7d625</code>. Ticket closed as <strong>Done</strong>.</li>
     </ul>
   </section>
 </body>

@@ -17,7 +17,7 @@
     <table>
       <tbody>
         <tr><th>Ticket ID</th><td><code>BUG-132</code></td></tr>
-        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat014-arcade-enemy-ai</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Status</th><td><strong>Done</strong> (verified and merged into local <code>main</code> 2026-11-24)</td></tr>
         <tr><th>Type</th><td>Bug &mdash; Gameplay collision fidelity</td></tr>
         <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
       </tbody>
@@ -46,6 +46,7 @@
     <ul>
       <li><strong>2026-11-24:</strong> User approved fixing <code>BUG-132</code> on branch <code>feat/feat014-arcade-enemy-ai</code> before closing FEAT-014. Delegated implementation and verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
       <li><strong>2026-11-24 (Verification):</strong> Sol 6.2 High implementation and parent QA review completed. Replaced coarse cell check in <code>enemy_player_contact</code> with 3-byte jump to resident <code>resident_enemy_player_contact</code> (31 B in <code>src/main.s</code>), matching the arcade <code>&le; 8 px</code> both-axis hitbox directly from live sprite origins (<code>PLAYER_FB</code> vs <code>1,x</code>), including diagonal late turns. Primary ROM <code>032c7cfbcb8a0e04774043bd9ad4c2ab04cc35c6faffd1e82abd870af1b7d625</code> (resident <code>7,889/8,192 B</code>, <code>+303 B</code> free), <code>extra-e</code> <code>0cb700e2...</code> and <code>special-e</code> <code>c3aec066...</code> (resident <code>7,916/8,192 B</code>, <code>+276 B</code> free), <code>draw_recolored_map_tile=$FBA5</code> intact. 60,944 assembled hitbox calls passed per ROM; DOC-002 (<code>350/350</code> routines, <code>7,386/7,386</code> labels), audio, presentation flow, and demo verifiers passed. Awaits user XRoar RGB playtest.</li>
+      <li><strong>2026-11-24 (Done):</strong> User approved merging BUG-132 and FEAT-014 into local <code>main</code> on primary ROM <code>032c7cfbcb8a0e04774043bd9ad4c2ab04cc35c6faffd1e82abd870af1b7d625</code>. Ticket closed as <strong>Done</strong>.</li>
     </ul>
   </section>
 </body>
