@@ -14,6 +14,9 @@ from build_screen import (
     compile_enemy_sprites,
     compile_player_sprites,
     compile_sprite_codes,
+    DEATH_CODES,
+    load_sprites,
+    rotate_ccw,
     VEGETABLE_CODES,
 )
 from build_event_asset_bundle import compile_dinosaur_asset, compile_event_asset
@@ -315,6 +318,117 @@ def parse_loader(path: Path) -> list[dict[str, int]]:
     return records
 
 
+def decode_death_payload(
+        payload: bytes, sprites_path: Path, origin: int
+) -> list[tuple[int, int]]:
+    """Independently decode all 14 right-aligned death streams (0..12 at 16x8, 13 at 16x9)."""
+    sprites = load_sprites(sprites_path)
+    index_bytes = len(DEATH_CODES) * 2
+    if len(payload) < index_bytes:
+        raise ValueError("death payload is shorter than its 28-byte index")
+    ranges: list[tuple[int, int]] = []
+    for frame_number, code in enumerate(DEATH_CODES):
+        address = (payload[frame_number * 2] << 8) | payload[frame_number * 2 + 1]
+        offset = address - origin
+        if offset < index_bytes or offset >= len(payload):
+            raise ValueError(f"death frame {frame_number} points outside payload")
+        width = 8 if frame_number < len(DEATH_CODES) - 1 else 9
+        total_bytes = 16 * width
+        cursor = offset
+        decoded = bytearray(total_bytes)
+        background = bytearray(
+            ((frame_number * 37 + index * 73 + 0x5A) & 0xFF)
+            for index in range(total_bytes)
+        )
+        blended = bytearray(background)
+        occupied = bytearray(total_bytes)
+        framebuffer_cursor = 0
+        while True:
+            if cursor >= len(payload):
+                raise ValueError(f"death frame {frame_number} stream is truncated")
+            token = payload[cursor]
+            cursor += 1
+            if token == 0xFF:
+                if cursor + 2 > len(payload):
+                    raise ValueError(f"death frame {frame_number} delta escape is truncated")
+                delta = (payload[cursor] << 8) | payload[cursor + 1]
+                cursor += 2
+                if delta == 0:
+                    break
+                if cursor >= len(payload):
+                    raise ValueError(f"death frame {frame_number} stage delta is truncated")
+                cursor += 1
+            else:
+                delta = token
+            framebuffer_cursor += delta
+            row, column = divmod(framebuffer_cursor, 160)
+            if row >= 16 or column >= width:
+                raise ValueError(f"death frame {frame_number} writes outside 16x{width} footprint")
+            if cursor >= len(payload):
+                raise ValueError(f"death frame {frame_number} command is truncated")
+            control = payload[cursor]
+            cursor += 1
+            partial = bool(control & 0x80)
+            length = control & 0x7F
+            if length == 0 or column + length > width:
+                raise ValueError(f"death frame {frame_number} has invalid command length")
+            stage_start = row * width + column
+            for target in range(stage_start, stage_start + length):
+                if occupied[target]:
+                    raise ValueError(f"death frame {frame_number} writes a byte twice")
+                occupied[target] = 1
+                if partial:
+                    if cursor + 2 > len(payload):
+                        raise ValueError(f"death frame {frame_number} partial command is truncated")
+                    mask, pixel = payload[cursor:cursor + 2]
+                    cursor += 2
+                    if mask not in (0x0F, 0xF0) or (pixel & mask):
+                        raise ValueError(f"death frame {frame_number} has invalid partial mask/pixel")
+                    decoded[target] = pixel
+                    blended[target] = (blended[target] & mask) | pixel
+                else:
+                    if cursor >= len(payload):
+                        raise ValueError(f"death frame {frame_number} opaque command is truncated")
+                    pixel = payload[cursor]
+                    cursor += 1
+                    if not (pixel & 0xF0) or not (pixel & 0x0F):
+                        raise ValueError(f"death frame {frame_number} opaque byte is transparent")
+                    decoded[target] = pixel
+                    blended[target] = pixel
+            framebuffer_cursor += length
+        raw_pixels = rotate_ccw(sprites[code])
+        colour = 1 if frame_number < 7 else 6
+        if frame_number < len(DEATH_CODES) - 1:
+            if any(row_px[15] != 0 for row_px in raw_pixels):
+                raise ValueError(f"death frame {frame_number} has opaque pixel in column 15")
+            shifted = [[0] + row_px[:15] for row_px in raw_pixels]
+            expected_width_px = 16
+        else:
+            if not any(row_px[15] != 0 for row_px in raw_pixels):
+                raise ValueError("death angel frame expected nonzero column 15 pixels")
+            shifted = [[0] + row_px + [0] for row_px in raw_pixels]
+            expected_width_px = 18
+        native = bytes(
+            ((colour if row_px[x] else 0) << 4) | (colour if row_px[x + 1] else 0)
+            for row_px in shifted
+            for x in range(0, expected_width_px, 2)
+        )
+        if bytes(decoded) != native:
+            raise ValueError(f"death frame {frame_number} does not decode pixel-exactly")
+        expected_blend = bytearray(background)
+        for index, pixel in enumerate(native):
+            mask = (0xF0 if not pixel & 0xF0 else 0) | (0x0F if not pixel & 0x0F else 0)
+            expected_blend[index] = (expected_blend[index] & mask) | pixel
+        if blended != expected_blend:
+            raise ValueError(f"death frame {frame_number} does not preserve transparent nibbles")
+        ranges.append((offset, cursor))
+    ordered = sorted(ranges)
+    for previous, current in zip(ordered, ordered[1:]):
+        if previous[1] > current[0]:
+            raise ValueError("death sparse streams overlap")
+    return ranges
+
+
 def sha256(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
@@ -443,6 +557,15 @@ def main() -> None:
             raise SystemExit("sparse proof: vegetable placement/palette/hash changed")
         decode_payload(vegetable_payload, compile_sprite_codes(args.sprites, VEGETABLE_CODES),
                        list(VEGETABLE_PEN_MAPS), 0x39, 0xAFB6)
+    death_payload = (args.manifest.parent / "ladybug-death-sparse.bin").read_bytes()
+    death = manifest.get("death", {})
+    expected_death_addr = 0xB676 if args.adaptive_helper else 0xAFB6
+    if (death.get("address") != expected_death_addr or death.get("page") != 0x39 or
+            death.get("frames") != 14 or death.get("index_bytes") != 28 or
+            death.get("sha256") != sha256(death_payload) or
+            death.get("bytes") != len(death_payload)):
+        raise SystemExit("sparse proof: death placement/index/hash changed")
+    decode_death_payload(death_payload, args.sprites, expected_death_addr)
     palette_families = manifest["enemy"].get("palette_families", [])
     expected_family_maps = [list(value) for value in GAMEPLAY_ENEMY_PEN_MAPS]
     if (
@@ -832,8 +955,8 @@ def main() -> None:
         name = stream["name"]
         if name == "page39":
             prefix = player_payload + gate_payload + presentation_payload
-            if raw != prefix + vegetable_payload or len(raw) > PAGE_BYTES:
-                raise SystemExit("sparse proof: page39 prefix/vegetable extension changed")
+            if raw != prefix + vegetable_payload + death_payload or len(raw) > PAGE_BYTES:
+                raise SystemExit("sparse proof: page39 prefix/vegetable/death extension changed")
             boundaries = (
                 ("player", 0, len(player_payload)),
                 ("gate", len(player_payload), len(player_payload) + len(gate_payload)),

@@ -1162,6 +1162,7 @@ actor_closure_restore
         ldd     PLAYER_OLD_FB
         std     PLAYER_FB
         bsr    restore_player_visible
+        jsr     restore_angel_col9
         puls    d
         std     PLAYER_FB
         lda     #1

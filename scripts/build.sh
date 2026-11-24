@@ -722,7 +722,7 @@ import sys
 source, output, complete = sys.argv[1:]
 complete = int(complete)
 wanted = {
-    'blit_packed_sprite', 'draw_vegetable_fb', 'restore_player',
+    'blit_packed_sprite', 'draw_vegetable_fb', 'restore_angel_col9', 'restore_player',
     'draw_death_frame', 'draw_entities', 'draw_maze_state_cell',
     'draw_perimeter_box', 'draw_player',
     'draw_recolored_map_tile', 'draw_score_popup', 'draw_screen',

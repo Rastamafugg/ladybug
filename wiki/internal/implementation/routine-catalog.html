@@ -171,7 +171,7 @@
           <tr id="routine-resident-runtime-draw-bcd-line"><td><code>draw_bcd_line</code></td><td>Draw bcd line.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-draw-cell-overlay"><td><code>draw_cell_overlay</code></td><td>Draw cell overlay.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-draw-cell-tile"><td><code>draw_cell_tile</code></td><td>Draw cell tile.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
-          <tr id="routine-resident-runtime-draw-death-frame"><td><code>draw_death_frame</code></td><td>Draw death frame.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-draw-death-frame"><td><code>draw_death_frame</code></td><td>Draw death frame using page-$39 right-aligned sparse streams, saving the 9th column for Angel.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-draw-entities"><td><code>draw_entities</code></td><td>Draw entities.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-draw-entity-object"><td><code>draw_entity_object</code></td><td>Draw entity object.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-draw-gate"><td><code>draw_gate</code></td><td>Draw gate.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
@@ -245,8 +245,10 @@
           <tr id="routine-resident-runtime-restore-entity-footprint"><td><code>restore_entity_footprint</code></td><td>Restore entity footprint.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-restore-gate-background"><td><code>restore_gate_background</code></td><td>Restore gate background.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-restore-gate-diagonal-dots"><td><code>restore_gate_diagonal_dots</code></td><td>Restore gate diagonal dots.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-restore-angel-col9"><td><code>restore_angel_col9</code></td><td>Restore the saved 9th byte column (rows 0..15 at PLAYER_OLD_FB+8) for the active BACK owner if valid, then clear its valid flag.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-restore-player"><td><code>restore_player</code></td><td>Restore player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-rng-next"><td><code>rng_next</code></td><td>Advance rng next and return its next value.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-save-angel-col9"><td><code>save_angel_col9</code></td><td>Save the 9th byte column (rows 0..15 at PLAYER_FB+8) into the active BACK owner ledger when drawing Angel.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-save-player"><td><code>save_player</code></td><td>Save player.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-test-cell-offset"><td><code>test_cell_offset</code></td><td>Test cell offset.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
         </tbody>

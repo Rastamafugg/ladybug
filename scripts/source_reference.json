@@ -156,7 +156,7 @@
         {
           "name": "draw_death_frame",
           "profile": "render",
-          "purpose": "Draw death frame.",
+          "purpose": "Draw death frame using page-$39 right-aligned sparse streams, saving the 9th column for Angel.",
           "reasons": [
             "exported"
           ]
@@ -657,6 +657,24 @@
           "profile": "render",
           "purpose": "Restore gate diagonal dots.",
           "reasons": []
+        },
+        {
+          "name": "save_angel_col9",
+          "profile": "render",
+          "purpose": "Save the 9th byte column (rows 0..15 at PLAYER_FB+8) into the active BACK owner ledger when drawing Angel.",
+          "reasons": [
+            "called"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-save-angel-col9"
+        },
+        {
+          "name": "restore_angel_col9",
+          "profile": "render",
+          "purpose": "Restore the saved 9th byte column (rows 0..15 at PLAYER_OLD_FB+8) for the active BACK owner if valid, then clear its valid flag.",
+          "reasons": [
+            "exported"
+          ],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-restore-angel-col9"
         },
         {
           "name": "restore_player",
@@ -1401,6 +1419,7 @@
         "restore_entity_footprint",
         "restore_gate_diagonal_dots",
         "perimeter_box_coordinates",
+        "restore_angel_col9",
         "restore_player",
         "save_player",
         "render_entity_colour",
@@ -6292,6 +6311,7 @@
       "cache-rebind-colour",
       "boot-stream-descriptors",
       "boot-audio-stream",
+      "death-sparse-index",
       "audio-mode-pending",
       "audio-service-gateway",
       "audio-bank-guard",

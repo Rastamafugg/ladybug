@@ -11,6 +11,7 @@ from pathlib import Path
 
 from build_screen import (
     compile_attract_extra_enemy_sprites,
+    compile_death_sparse_payload,
     compile_enemy_sprites,
     compile_player_sprites,
     compile_screen,
@@ -500,6 +501,7 @@ def pack_candidate_banks(
         rate_helper: bytes = b"",
         enemy_helper: bytes = b"",
         vegetable_payload: bytes = b"",
+        death_payload: bytes = b"",
         keybinding_runtime: bytes = b"",
         hud_word_helper: bytes = b"",
         intermission_stage: bytes = b"",
@@ -587,7 +589,10 @@ def pack_candidate_banks(
             raise ValueError("page-$34 enemy helper must be 87 bytes within $A8A0-$A8FC")
         targets += target_chunks("enemy_helper_page34", enemy_helper, 0x34, 0xA8A0)
 
-    page39_raw = player_payload + gate_payload + presentation_payload + vegetable_payload
+    page39_raw = (
+        player_payload + gate_payload + presentation_payload +
+        vegetable_payload + death_payload
+    )
     if len(page39_raw) > PAGE_BYTES:
         raise ValueError("page39 sprite payload exceeds existing page")
     stream_targets = [
@@ -906,6 +911,7 @@ def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
 
 
 # @audit-producer {"id":"vegetable-sparse","symbols":["VEGETABLE_SPARSE_INDEX"],"function":"main"}
+# @audit-producer {"id":"death-sparse","symbols":["DEATH_SPARSE_INDEX"],"function":"main"}
 def main() -> None:
     args = parse_args()
     event_asset = args.event_art_input.read_bytes()
@@ -964,6 +970,19 @@ def main() -> None:
             vegetable_index.append({"frame": ordinal, "page": PLAYER_PAGE_BASE, "address": address, "bytes": len(stream)})
             address += len(stream)
         vegetable_payload = bytes(index) + b"".join(streams)
+    death_index_address = (
+        WINDOW_BASE + len(player_payload) + len(gate_payload) +
+        len(presentation_payload) + len(vegetable_payload)
+    )
+    expected_death_address = 0xB676 if args.adaptive_helper else 0xAFB6
+    if death_index_address != expected_death_address:
+        raise SystemExit(
+            f"death sparse index moved to ${death_index_address:04X}; "
+            f"expected ${expected_death_address:04X}"
+        )
+    death_payload, death_index = compile_death_sparse_payload(
+        args.sprites, death_index_address
+    )
     screen_map, tiles, *_ = compile_screen(
         args.perimeter_map, args.perimeter_maze, args.perimeter_chars,
         args.sprites,
@@ -1041,6 +1060,7 @@ def main() -> None:
         rate_helper=args.rate_helper.read_bytes() if args.rate_helper else b"",
         enemy_helper=args.enemy_helper.read_bytes() if args.enemy_helper else b"",
         vegetable_payload=vegetable_payload,
+        death_payload=death_payload,
         keybinding_runtime=keybinding_runtime,
         hud_word_helper=hud_word_helper,
         intermission_stage=intermission_stage,
@@ -1062,6 +1082,7 @@ def main() -> None:
         path.write_bytes(data)
     if vegetable_payload:
         (args.manifest_output.parent / "ladybug-vegetable-sparse.bin").write_bytes(vegetable_payload)
+    (args.manifest_output.parent / "ladybug-death-sparse.bin").write_bytes(death_payload)
     write_loader_include(args.loader_output, segments, packed_streams)
 
     proof_bytes = len(BOOT_OVERFLOW_PROOF)
@@ -1353,6 +1374,15 @@ def main() -> None:
     }
     if vegetable_payload:
         manifest["vegetable"] = {"frames": len(vegetable_index), "bytes": len(vegetable_payload), "index_bytes": 3 * len(vegetable_index), "page": PLAYER_PAGE_BASE, "address": 0xAFB6, "pen_maps": [list(pm) for pm in VEGETABLE_PEN_MAPS], "index": vegetable_index, "sha256": digest(vegetable_payload)}
+    manifest["death"] = {
+        "frames": len(death_index),
+        "bytes": len(death_payload),
+        "index_bytes": 2 * len(death_index),
+        "page": PLAYER_PAGE_BASE,
+        "address": death_index_address,
+        "index": death_index,
+        "sha256": digest(death_payload),
+    }
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="ascii"

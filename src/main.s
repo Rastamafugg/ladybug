@@ -107,7 +107,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_bcd_line profile=render: Draw bcd line.
 ; DOC-002 source-contract mirror contract draw_cell_overlay profile=render: Draw cell overlay.
 ; DOC-002 source-contract mirror contract draw_cell_tile profile=render: Draw cell tile.
-; DOC-002 source-contract mirror contract draw_death_frame profile=render: Draw death frame.
+; DOC-002 source-contract mirror contract draw_death_frame profile=render: Draw death frame using page-$39 right-aligned sparse streams, saving the 9th column for Angel.
 ; DOC-002 source-contract mirror contract draw_entities profile=render: Draw entities.
 ; DOC-002 source-contract mirror contract draw_entity_object profile=render: Draw entity object.
 ; DOC-002 source-contract mirror contract draw_gate profile=render: Draw gate.
@@ -176,8 +176,10 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract restore_entity_footprint profile=render: Restore entity footprint.
 ; DOC-002 source-contract mirror contract restore_gate_background profile=render: Restore gate background.
 ; DOC-002 source-contract mirror contract restore_gate_diagonal_dots profile=render: Restore gate diagonal dots.
+; DOC-002 source-contract mirror contract restore_angel_col9 profile=render: Restore the saved 9th byte column (rows 0..15 at PLAYER_OLD_FB+8) for the active BACK owner if valid, then clear its valid flag.
 ; DOC-002 source-contract mirror contract restore_player profile=render: Restore player.
 ; DOC-002 source-contract mirror contract rng_next profile=state: Advance rng next and return its next value.
+; DOC-002 source-contract mirror contract save_angel_col9 profile=render: Save the 9th byte column (rows 0..15 at PLAYER_FB+8) into the active BACK owner ledger when drawing Angel.
 ; DOC-002 source-contract mirror contract save_player profile=render: Save player.
 ; DOC-002 source-contract mirror contract test_cell_offset profile=movement: Test cell offset.
 ; DOC-002 source-contract mirror ends.
@@ -495,6 +497,16 @@ FB_META_A   equ $A900          ; A framebuffer ownership ledger
 FB_META_B   equ $AA00          ; B framebuffer ownership ledger
 FBM_PLAYER_VALID equ 2
 FBM_PLAYER_RESERVED equ 3
+FBM_ANGEL_COL9_VALID equ 178    ; nonzero when active owner holds Angel 9th-col backup
+FBM_ANGEL_COL9_BG equ 179       ; 16-byte backup for rows 0..15 of PLAYER_FB+8
+; @audit {"id":"death-sparse-index","kind":"index","symbol":"DEATH_SPARSE_INDEX","requires_symbol":"DEATH_SPARSE_INDEX","producer":"death-sparse","domain":"Death frames 0..12 (16x16 right-aligned 1 px) and 13 (Angel 18x16 right-aligned 1 px)","encoding":"Fourteen 2-byte big-endian page-$39 stream addresses in boot-expanded page-$39 payload; sparse_blit_fb restores PAR5=$34","bounds":[40960,49151],"index_bytes":"DEATH_SPARSE_INDEX_BYTES","index_page":"DEATH_SPARSE_PAGE","stride":2}
+        ifne    ADAPTIVE_RENDERING
+DEATH_SPARSE_INDEX equ $B676
+        else
+DEATH_SPARSE_INDEX equ $AFB6
+        endc
+DEATH_SPARSE_INDEX_BYTES equ 28
+DEATH_SPARSE_PAGE equ $39
 
 ENEMY_MODULE_INIT    equ $0800
 ENEMY_MODULE_TICK    equ $0803
@@ -4519,6 +4531,8 @@ dt_finish_blank
         clr     PLAYER_BG_VALID
         clr     FB_META_A+FBM_PLAYER_VALID
         clr     FB_META_B+FBM_PLAYER_VALID
+        clr     FB_META_A+FBM_ANGEL_COL9_VALID
+        clr     FB_META_B+FBM_ANGEL_COL9_VALID
         ifeq    HIGHSCORE_TEST_PROFILE
         tst     AUDIO_MUSIC_PUBLISHED_BUSY
         beq     dt_entry_music_idle
@@ -4540,18 +4554,67 @@ dt_game_over
         sta     PLAYER_WANT
         clr     PLAYER_TICK_PENDING
         clr     PLAYER_BG_VALID
+        clr     FB_META_A+FBM_ANGEL_COL9_VALID
+        clr     FB_META_B+FBM_ANGEL_COL9_VALID
 dt_done
         rts
 
 draw_death_frame
         lbsr    save_player
         lda     DEATH_FRAME
+        cmpa    #DEATH_ANGEL_FRAME
+        bne     ddf_map
+        bsr     save_angel_col9
+        lda     DEATH_FRAME
+ddf_map
         lsla
-        leau    death_sparse_streams,pcr
-        leau    a,u
-        ldu     ,u
+; @audit-use {"id":"death-sparse-index","symbol":"DEATH_SPARSE_INDEX","requires_symbol":"DEATH_SPARSE_INDEX"}
+        ldu     #DEATH_SPARSE_INDEX
+        ldb     #PRESENTATION_PAYLOAD_PAGE
+        stb     GIME_PAR5
+        ldu     a,u
         ldx     PLAYER_FB
         jsr     PRESENTATION_MODULE_DRAW
+        rts
+
+save_angel_col9
+        ldu     #FB_META_A+FBM_ANGEL_COL9_VALID
+        tst     FB_BACK_ID
+        beq     sac_ready
+        ldu     #FB_META_B+FBM_ANGEL_COL9_VALID
+sac_ready
+        lda     #1
+        sta     ,u+
+        ldx     PLAYER_FB
+        leax    8,x
+        ldb     #16
+sac_row
+        lda     ,x
+        sta     ,u+
+        leax    160,x
+        decb
+        bne     sac_row
+        rts
+
+restore_angel_col9
+        ldu     #FB_META_A+FBM_ANGEL_COL9_VALID
+        tst     FB_BACK_ID
+        beq     rac_check
+        ldu     #FB_META_B+FBM_ANGEL_COL9_VALID
+rac_check
+        tst     ,u
+        beq     rac_done
+        clr     ,u+
+        ldx     PLAYER_FB
+        leax    8,x
+        ldb     #16
+rac_row
+        lda     ,u+
+        sta     ,x
+        leax    160,x
+        decb
+        bne     rac_row
+rac_done
         rts
 
 cep_next

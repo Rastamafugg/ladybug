@@ -3,13 +3,14 @@
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 
 from build_screen import (
-    BLACK, WHITE, MULTIPLIER_CHAR_CODES, SCORE_CODES,
-    compile_death_sprites, compile_sprite_codes, expand_sprite,
-    load_chars, pack_tile, recolor, rotate_ccw,
+    BLACK, WHITE, DEATH_CODES, MULTIPLIER_CHAR_CODES, SCORE_CODES,
+    compile_sprite_codes, expand_sprite,
+    load_chars, load_sprites, pack_tile, recolor, rotate_ccw,
 )
 
 
@@ -106,33 +107,49 @@ def main() -> None:
     if used != len(payload):
         raise SystemExit("presentation proof: unverified expansion payload remains")
 
-    death = compile_death_sprites(SPRITES)
-    death_expected = [
-        (expand_sprite(frame, (0, 1 if index < 7 else 6,
-                               1 if index < 7 else 6,
-                               1 if index < 7 else 6)), 16, 8)
-        for index, frame in enumerate(death)
-    ]
     sym = symbols()
-    rom = (BUILD / "ladybug-runtime.rom").read_bytes()
-    for index, expected in enumerate(death_expected):
-        start = sym[f"death_sparse_frame_{index}"] - 0xC000
-        decoded, _ = decode(rom[start:], 16, 8)
-        if decoded != expected_blend(expected[0]):
+    if "death_sparse_streams" in sym:
+        raise SystemExit("presentation proof: death_sparse_streams remains in resident RAM")
+    layout = json.loads((BUILD / "ladybug-sparse-layout.json").read_text(encoding="ascii"))
+    death_meta = layout["death"]
+    death_payload = (BUILD / "ladybug-death-sparse.bin").read_bytes()
+    death_origin = death_meta["address"]
+    sprites = load_sprites(SPRITES)
+    for index, code in enumerate(DEATH_CODES):
+        raw_pixels = rotate_ccw(sprites[code])
+        colour = 1 if index < 7 else 6
+        if index < len(DEATH_CODES) - 1:
+            if any(row[15] != 0 for row in raw_pixels):
+                raise SystemExit(f"presentation proof: death frame {index} truncates column 15")
+            shifted = [[0] + row[:15] for row in raw_pixels]
+            rows, width, px_width = 16, 8, 16
+        else:
+            shifted = [[0] + row + [0] for row in raw_pixels]
+            rows, width, px_width = 16, 9, 18
+        native = bytes(
+            ((colour if row[x] else 0) << 4) | (colour if row[x + 1] else 0)
+            for row in shifted
+            for x in range(0, px_width, 2)
+        )
+        stream_addr = (death_payload[index * 2] << 8) | death_payload[index * 2 + 1]
+        decoded, _ = decode(death_payload[stream_addr - death_origin:], rows, width)
+        if decoded != expected_blend(native):
             raise SystemExit(f"presentation proof: death frame {index} differs")
 
     source = (ROOT / "src/main.s").read_text(encoding="utf-8")
     runtime = (ROOT / "src/enemy_runtime.s").read_text(encoding="utf-8")
     for fragment in (
         "PRESENTATION_MODULE_DRAW equ $0821",
-        "lda     #PRESENTATION_PAYLOAD_PAGE",
+        "DEATH_SPARSE_INDEX",
+        "save_angel_col9",
+        "restore_angel_col9",
         "jsr     PRESENTATION_MODULE_DRAW",
     ):
         if fragment not in source:
             raise SystemExit("presentation proof: missing runtime contract: " + fragment)
     if "jmp     sparse_blit_fb" not in runtime.split("ENEMY_ANIM", 1)[0]:
         raise SystemExit("presentation proof: fixed sparse ABI entry is missing")
-    print("presentation proof: 9 colour/score, 3 multiplier, and 14 death streams blend pixel-exactly with PAR5-restoring sparse decode")
+    print("presentation proof: 9 colour/score, 3 multiplier, and 14 right-aligned page-$39 death streams blend pixel-exactly with PAR5-restoring sparse decode")
 
 
 if __name__ == "__main__":
