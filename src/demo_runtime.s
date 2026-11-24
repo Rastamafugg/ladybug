@@ -23,7 +23,14 @@
 ; DOC-002 source-contract mirror contract draw_score profile=presentation: Tail-call the shared presentation score painter for record and name-entry score fields.
 ; DOC-002 source-contract mirror contract init_scores profile=presentation: Initialize all nine ranking rows to 10,000 with the default name, once per runtime session.
 ; DOC-002 source-contract mirror contract name_advance profile=presentation: Name advance.
-; DOC-002 source-contract mirror contract name_can_move profile=presentation: Name can move.
+; DOC-002 source-contract mirror contract name_can_move profile=name-edge-probe: Return the requested name-entry edge and its full cell mask from probe coordinates.
+; DOC-002 source-contract mirror profile name-edge-probe Inputs: A is cardinal N/E/S/W (0 through 3); TEST_X/Y hold a screen-space name-entry anchor
+; DOC-002 source-contract mirror profile name-edge-probe Outputs: A is zero for a closed edge and nonzero for an open edge; B is the full cell mask, and Z reflects A
+; DOC-002 source-contract mirror profile name-edge-probe Clobbers: A, B, X and condition codes
+; DOC-002 source-contract mirror profile name-edge-probe Reads: TEST_X/Y and one byte of the cold name-entry edge and hazard table
+; DOC-002 source-contract mirror profile name-edge-probe Writes: PRES_NAME_TILE scratch and PAR5
+; DOC-002 source-contract mirror profile name-edge-probe Side effects: Temporarily maps the cold payload and returns with PAR5=$34
+; DOC-002 source-contract mirror profile name-edge-probe Invariants: The low nibble gives cardinal edges and the high nibble gives six-pixel sweep hazards; probe and live coordinates are preserved
 ; DOC-002 source-contract mirror contract name_cell_arrival profile=presentation: Name cell arrival.
 ; DOC-002 source-contract mirror contract name_tick profile=presentation: Name tick.
 ; DOC-002 source-contract mirror contract restore_cursor profile=presentation: Restore cursor.

@@ -6,6 +6,8 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import re
+from functools import lru_cache
 from pathlib import Path
 import xml.etree.ElementTree as ET
 
@@ -39,7 +41,6 @@ from build_presentation import (
     parse_attract_actors,
     parse_enter_high_score_contract,
     enter_high_score_edge_masks,
-    enter_high_score_full_edge_masks,
     parse_instruction_contract,
     perimeter_box_cells,
     pack_tile,
@@ -48,25 +49,246 @@ from build_presentation import (
     rotate_ccw,
     title_framebuffer,
 )
+from build_screen import (
+    FLIP_D, FLIP_H, FLIP_V, GID_MASK, char_sheet_code, compile_player_sprites,
+    parse_csv, transform,
+)
+
+
+ROOT = Path(__file__).resolve().parents[1]
 
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--tiled-dir", type=Path, required=True)
-    parser.add_argument("--chars", type=Path, required=True)
-    parser.add_argument("--gameplay-map", type=Path, required=True)
-    parser.add_argument("--gameplay-maze", type=Path, required=True)
-    parser.add_argument("--gameplay-chars", type=Path, required=True)
-    parser.add_argument("--gameplay-sprites", type=Path, required=True)
-    parser.add_argument("--demo-route", type=Path, required=True)
-    parser.add_argument("--demo-walk", type=Path, required=True)
-    parser.add_argument("--payload", type=Path, required=True)
-    parser.add_argument("--manifest", type=Path, required=True)
-    parser.add_argument("--tile-patches", type=Path, required=True)
+    parser.add_argument("--name-entry-static", action="store_true",
+                        help="verify the built name-entry graph and sprite clearance")
+    parser.add_argument("--tiled-dir", type=Path, default=ROOT / "tiled")
+    parser.add_argument("--chars", type=Path, default=ROOT / "assets/arcade/chars.json")
+    parser.add_argument("--gameplay-map", type=Path, default=ROOT / "tiled/coco-screen.tmx")
+    parser.add_argument("--gameplay-maze", type=Path, default=ROOT / "assets/arcade/maze.json")
+    parser.add_argument("--gameplay-chars", type=Path, default=ROOT / "assets/arcade/chars.json")
+    parser.add_argument("--gameplay-sprites", type=Path, default=ROOT / "assets/arcade/sprites.json")
+    parser.add_argument("--demo-route", type=Path, default=ROOT / "assets/arcade/demo_route.json")
+    parser.add_argument("--demo-walk", type=Path, default=ROOT / "assets/arcade/demo_walk.json")
+    parser.add_argument("--payload", type=Path, default=ROOT / "build/ladybug-presentation-cold.bin")
+    parser.add_argument("--manifest", type=Path, default=ROOT / "build/ladybug-presentation.json")
+    parser.add_argument("--tile-patches", type=Path,
+                        default=ROOT / "build/ladybug-presentation-tile-patches.bin")
+    parser.add_argument("--include", type=Path, help="generated presentation assembly constants")
     parser.add_argument("--development-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--complete-profile", type=int, choices=(0, 1), default=0)
     parser.add_argument("--highscore-test-profile", type=int, choices=(0, 1), default=0)
     return parser.parse_args()
+
+
+def check_name_entry_table(actual: bytes, expected: bytes) -> None:
+    if len(actual) != 576:
+        raise ValueError(f"edge table has {len(actual)} bytes, expected 576")
+    for index, (given, wanted) in enumerate(zip(actual, expected)):
+        if given != wanted:
+            field = "cardinal edge" if (given ^ wanted) & 0x0F else "six-pixel hazard"
+            raise ValueError(
+                f"{field} mismatch at ({index % 24}, {index // 24}), "
+                f"got ${given:02X}, expected ${wanted:02X}"
+            )
+
+
+def verify_name_entry_geometry(
+    map_path: Path, chars_path: Path, sprites_path: Path,
+    name: dict, payload: bytes, generated_include: Path,
+) -> bytes:
+    """Reconstruct the graph and trace the cursor against authored wall pixels."""
+    def require(condition: bool, detail: str) -> None:
+        if not condition:
+            raise SystemExit(f"name-entry static proof: {detail}")
+
+    start = (11, 22)
+    actions = (
+        {(x, 4) for x in (3, 8, 12, 16, 19)}
+        | {(x, y) for x in (4, 8, 12, 16, 20) for y in range(6, 19, 2)}
+        | {(x, 20) for x in (3, 7, 11, 15, 19)}
+    )
+    dirs = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    pairs = ((0, 1, 0x10), (1, 2, 0x20), (2, 3, 0x40), (3, 0, 0x80))
+
+    def index(cell: tuple[int, int]) -> int:
+        x, y = cell
+        return y * 24 + x
+
+    def origin(cell: tuple[int, int]) -> tuple[int, int]:
+        x, y = cell
+        return x * 8, (y - 1) * 8 + 1
+
+    def destination(cell: tuple[int, int]) -> int:
+        x, y = origin(cell)
+        return 0x2000 + y * 160 + (x + 64) // 2
+
+    require(name.get("emitted"), "build has no name-entry payload")
+    require(name.get("cursor_cell") == [start[0] + 8, start[1]] and
+            name.get("cursor_destination") == destination(start),
+            "cursor origin is not one scanline below its former destination")
+    nodes = [(x - 8, y) for x, y in name["node_cells"]]
+    require(len(nodes) == len(actions) and set(nodes) == actions and
+            name["node_destinations"] == [destination(cell) for cell in nodes],
+            "action node coordinates or one-scanline destination shift differ")
+    table_offset = name["full_edge_mask_table_offset"]
+    action_offset = name["action_table_offset"]
+    action_data = payload[action_offset:action_offset + name["action_table_bytes"]]
+    require(len(action_data) == 45 * 3 and
+            {(x, y) for x, y in zip(action_data[0::3], action_data[1::3])} == actions and
+            list(action_data) == name["action_table"],
+            "payload action coordinates differ from the 45 authored positions")
+    constants = {
+        key: int(value[1:], 16) if value.startswith("$") else int(value)
+        for key, value in re.findall(
+            r"^PRESENTATION_NAME_ENTRY_(\w+) equ (\$[0-9A-F]+|[0-9]+)$",
+            generated_include.read_text(encoding="ascii"), re.MULTILINE,
+        )
+    }
+    require(constants.get("CURSOR_DST") == destination(start) and
+            constants.get("FULL_EDGE_MASK_TABLE") == table_offset and
+            constants.get("FULL_EDGE_MASK_BYTES") == 576 and
+            constants.get("ACTION_TABLE") == action_offset and
+            constants.get("ACTION_BYTES") == len(action_data),
+            "assembly constants differ from the verified cursor and table locations")
+
+    root = ET.parse(map_path).getroot()
+    first_char = int(next(ts for ts in root.findall("tileset")
+                          if ts.get("source") == "chars_raw2bpp.tsx").get("firstgid"))
+    chars = [rotate_ccw(tile) for tile in load_chars(chars_path)]
+    inner = set()
+    walls = set()
+    for layer_name in ("Enter High Score Overlay", "Arcade Maze Border"):
+        layer = next(layer for layer in root.findall("layer") if layer.get("name") == layer_name)
+        gids = parse_csv(layer.find("data"), layer_name)
+        for cell, gid in enumerate(gids):
+            y, screen_x = divmod(cell, 40)
+            if not (8 <= screen_x < 32 and gid & GID_MASK):
+                continue
+            x = screen_x - 8
+            row, column = divmod((gid & GID_MASK) - first_char, 16)
+            code = char_sheet_code(row, column)
+            if layer_name == "Enter High Score Overlay":
+                if code != 49:
+                    continue
+                inner.add((x, y))
+            require(not gid & FLIP_D, f"wall uses a diagonal tile flip at {(x, y)}")
+            tile = transform(chars[code], bool(gid & FLIP_H), bool(gid & FLIP_V))
+            walls.update((x * 8 + dx, y * 8 + dy)
+                         for dy, pixels in enumerate(tile)
+                         for dx, pixel in enumerate(pixels) if pixel)
+
+    # Construct each undirected link once, with an independent interior test.
+    open_anchors = {(x, y) for y in range(2, 23) for x in range(1, 22)
+                    if (x, y) not in inner and (x + 1, y) not in inner}
+    expected = bytearray(576)
+    neighbors = {cell: [] for cell in open_anchors}
+    for x, y in sorted(open_anchors):
+        for direction, other in ((1, (x + 1, y)), (2, (x, y + 1))):
+            if other in open_anchors:
+                expected[index((x, y))] |= 1 << direction
+                expected[index(other)] |= 1 << (direction ^ 2)
+                neighbors[x, y].append(other)
+                neighbors[other].append((x, y))
+    reachable = {start}
+    pending = [start]
+    while pending:
+        for cell in neighbors[pending.pop()]:
+            if cell not in reachable:
+                reachable.add(cell)
+                pending.append(cell)
+    active = {cell for cell, links in neighbors.items() if links}
+    require(len(reachable) == 291 and reachable == active and
+            len(actions & reachable) == 45,
+            "expected 291 connected cells and all 45 actions reachable")
+
+    frames = compile_player_sprites(sprites_path)
+    require(len(frames) == 16 and all(len(frame) == 64 for frame in frames),
+            "expected four compiled frames for each cardinal facing")
+    footprints = [
+        [(x, y) for y in range(16) for x in range(16)
+         if frame[y * 4 + x // 4] & (0xC0 >> (2 * (x % 4)))]
+        for frame in frames
+    ]
+
+    @lru_cache(maxsize=None)
+    def intersections(px: int, py: int) -> int:
+        return sum(any((px + x, py + y) in walls for x, y in footprint)
+                   for footprint in footprints)
+
+    stationary = straight = turn = 0
+    admitted_intersections = 0
+    sweeps = {offset: 0 for offset in (2, 4, 6)}
+    unsafe_sweeps = 0
+    for cell in sorted(reachable):
+        px, py = origin(cell)
+        mask = expected[index(cell)]
+        stationary += len(frames)
+        admitted_intersections += intersections(px, py)
+        for direction, (dx, dy) in enumerate(dirs):
+            if mask & (1 << direction):
+                for offset in (0, 2, 4, 6, 8):
+                    straight += len(frames)
+                    admitted_intersections += intersections(px + offset * dx, py + offset * dy)
+        for old, want, hazard in pairs:
+            if not (mask & (1 << old) and mask & (1 << want)):
+                continue
+            dx, dy = dirs[old]
+            wx, wy = dirs[want]
+            for offset in sweeps:
+                sweeps[offset] += 1
+                x, y = px + offset * dx, py + offset * dy
+                # The swapped direction visits the same poses in reverse.
+                collision = intersections(x, y)
+                for _ in range(offset // 2):
+                    x += 2 * (wx - dx)
+                    y += 2 * (wy - dy)
+                    collision += intersections(x, y)
+                if offset == 6 and collision:
+                    expected[index(cell)] |= hazard
+                    unsafe_sweeps += 1
+                else:
+                    turn += (offset // 2) * len(frames)
+                    admitted_intersections += collision
+
+    require((stationary, straight, turn) == (4656, 54400, 14400) and
+            list(sweeps.values()) == [200, 200, 200] and unsafe_sweeps == 100 and
+            admitted_intersections == 0,
+            f"pose coverage or clearance differs: stationary={stationary}, "
+            f"straight={straight}, turn={turn}, sweeps={sweeps}, "
+            f"unsafe={unsafe_sweeps}, intersections={admitted_intersections}")
+
+    actual = payload[table_offset:table_offset + name["full_edge_mask_table_bytes"]]
+    try:
+        check_name_entry_table(actual, expected)
+        check_name_entry_table(bytes(name["full_edge_masks"]), expected)
+    except ValueError as exc:
+        raise SystemExit(f"name-entry static proof: {exc}") from exc
+
+    false_edge = bytearray(actual)
+    false_edge[index(start)] |= 0x04  # South of the starting cell is the perimeter.
+    missing_hazard = bytearray(actual)
+    flagged_index = next(i for i, value in enumerate(expected) if value & 0xF0)
+    flagged_bit = (expected[flagged_index] & 0xF0)
+    flagged_bit &= -flagged_bit
+    missing_hazard[flagged_index] ^= flagged_bit
+    for broken, field in ((false_edge, "cardinal edge"), (missing_hazard, "six-pixel hazard")):
+        try:
+            check_name_entry_table(broken, expected)
+        except ValueError as exc:
+            require(str(exc).startswith(field), f"wrong negative-control failure: {exc}")
+        else:
+            require(False, f"accepted a deliberately broken {field}")
+    print(
+        f"name-entry static proof: {len(actual)} exact reciprocal bytes, "
+        f"{len(reachable)} reachable cells, {len(actions & reachable)}/45 actions, "
+        f"+160 bytes at cursor and all nodes, {stationary} stationary, "
+        f"{straight} straight and {turn} admitted turn poses over 16 frames, "
+        f"{sweeps[6] - unsafe_sweeps} safe / {unsafe_sweeps} unsafe six-pixel sweeps "
+        f"(either order), {admitted_intersections} intersections in admitted poses, "
+        "both negative controls rejected"
+    )
+    return bytes(expected)
 
 
 def read_tiled_logo_layout(tiled_dir: Path, screen: str):
@@ -144,6 +366,15 @@ def main() -> None:
     complete_profile = bool(args.complete_profile)
     highscore_test_profile = bool(args.highscore_test_profile)
     manifest = json.loads(args.manifest.read_text(encoding="ascii"))
+    payload = args.payload.read_bytes()
+    name_manifest = manifest.get("high_score_name_entry", {})
+    generated_include = args.include or args.manifest.with_name("ladybug_presentation.inc")
+    if args.name_entry_static:
+        verify_name_entry_geometry(
+            args.tiled_dir / "coco-enter-high-score-screen.tmx", args.chars,
+            args.gameplay_sprites, name_manifest, payload, generated_include,
+        )
+        return
     colour_config = load_text_colours()
     high_score_layout = parse_high_score_layout(
         args.tiled_dir / MAP_FILES["high-score"], colour_config
@@ -194,7 +425,6 @@ def main() -> None:
     demo_walk, demo_walk_manifest = load_demo_walk(
         args.demo_walk, arcade_route_manifest
     )
-    payload = args.payload.read_bytes()
     if name_entry["grid_tile_ids"]:
         enter_map = maps[MAP_NAMES.index("enter-high-score")]
         base_ids = []
@@ -425,8 +655,9 @@ def main() -> None:
     expected.extend(edge_masks)
     full_edge_mask_offset = len(expected)
     full_edge_masks = (
-        enter_high_score_full_edge_masks(
-            args.tiled_dir / MAP_FILES["enter-high-score"]
+        verify_name_entry_geometry(
+            args.tiled_dir / "coco-enter-high-score-screen.tmx", args.chars,
+            args.gameplay_sprites, name_manifest, payload, generated_include,
         ) if name_entry["grid_tile_ids"] else b""
     )
     expected.extend(full_edge_masks)
@@ -547,7 +778,6 @@ def main() -> None:
         raise SystemExit("presentation proof: complete profile differs")
     if manifest.get("highscore_test_profile") != highscore_test_profile:
         raise SystemExit("presentation proof: high-score test profile differs")
-    name_manifest = manifest.get("high_score_name_entry", {})
     if (
         name_manifest.get("emitted") != bool(name_entry["grid_tile_ids"]) or
         name_manifest.get("cursor_stream_offset") != name_entry_cursor_offset or

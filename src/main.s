@@ -5211,8 +5211,8 @@ presentation_key_service
         include "ladybug_presentation_resident.inc"
         endc
 
-; Name-entry uses the same late-turn geometry as gameplay, with its own
-; remaining-step counter at $DE. X is its wall-only can_move routine.
+; Name entry uses its own remaining-step counter at $DE. X is the
+; wall-only callback, returning the requested edge in A and full mask in B.
         ifne    COMPLETE_PROFILE
 name_late_turn
         tst     TURN_SNAP
@@ -5224,11 +5224,43 @@ name_late_turn
         beq     nlt_no
         eora    #2
         cmpa    PLAYER_DIR
-        beq     nlt_no
+        bne     nlt_turn
+nlt_no
+        clra
+        rts
+nlt_turn
         lda     PLAYER_WANT
+        pshs    x
         jsr     ,x
+        puls    x
         tsta
-        beq     nlt_no
+        beq     nlt_assist
+        lda     $DE
+        cmpa    #1              ; One step remaining means six pixels moved.
+        bne     nlt_begin
+        lda     PLAYER_DIR
+        inca
+        anda    #3
+        cmpa    PLAYER_WANT
+        beq     nlt_pair_old
+        lda     PLAYER_WANT
+        bra     nlt_pair_bit
+nlt_pair_old
+        lda     PLAYER_DIR
+nlt_pair_bit
+        ; Select the first direction in NE, ES, SW, WN order. Convert the
+        ; existing entry bit back to an exit bit, then shift to the high nibble.
+        eora    #2
+        ldu     #cm_entry_masks
+        lda     a,u
+        lsla
+        lsla
+        lsla
+        lsla
+        pshs    b
+        bita    ,s+
+        bne     nlt_assist
+nlt_begin
         lda     PLAYER_DIR
         sta     TURN_OLD
         lda     #4
@@ -5240,6 +5272,24 @@ name_late_turn
         sta     PLAYER_DIR
         sta     PLAYER_FACE
         bra     nlt_yes
+nlt_assist
+        ; Look ahead only if the current cell still admits the old axis.
+        lda     PLAYER_DIR
+        sta     TEST_DIR
+        eora    #2
+        ldu     #cm_entry_masks
+        lda     a,u
+        pshs    b
+        bita    ,s+
+        beq     nlt_yes
+        lbsr    cm_step_test
+        lda     PLAYER_WANT
+        pshs    x
+        jsr     ,x
+        puls    x
+        tsta
+        bne     nlt_no          ; The next center admits the requested straight exit.
+        bra     nlt_yes         ; Hold pose, movement state and the attempted facing.
 nlt_snap
         ldb     TURN_OLD
         eorb    #2
@@ -5254,9 +5304,6 @@ nlt_snap
         dec     TURN_SNAP
 nlt_yes
         lda     #1
-        rts
-nlt_no
-        clra
         rts
 nlt_delta
         lslb
@@ -5406,6 +5453,14 @@ asset_end
 ; DOC-002 source-contract mirror contract cm_admit_from_test profile=movement-admission: Classify one candidate cell against ordinary navigation or current gate state without committing gameplay or render state.
 ; DOC-002 source-contract mirror contract cm_commit profile=state: Commit the deferred gate-state action, animation metadata, and existing gate redraw.
 ; DOC-002 source-contract mirror contract cm_step_test profile=movement-step: Advance the probe origin by one cardinal cell using TEST_DIR without reading world state.
+; DOC-002 source-contract mirror contract name_late_turn profile=name-late-turn: Admit a safe name-entry snap, advance toward a legal next-center exit, or hold the cursor.
+; DOC-002 source-contract mirror profile name-late-turn Inputs: X points to the name-edge probe; TEST_X/Y hold the current name-entry anchor; PLAYER_WANT holds the active cardinal request
+; DOC-002 source-contract mirror profile name-late-turn Outputs: A=1 handles a snap or hold; A=0 lets the caller start, advance, or reverse
+; DOC-002 source-contract mirror profile name-late-turn Clobbers: A, B, U and condition codes; X is preserved
+; DOC-002 source-contract mirror profile name-late-turn Reads: PLAYER_WANT, PLAYER_DIR, PLAYER_FB, TURN_OLD, TURN_SNAP, remaining name steps, and the name-edge probe result
+; DOC-002 source-contract mirror profile name-late-turn Writes: Probe scratch and, on snap admission or continuation, name movement state
+; DOC-002 source-contract mirror profile name-late-turn Side effects: Tests the current edge and six-pixel hazard; a rejected request may probe a straight exit at the next center
+; DOC-002 source-contract mirror profile name-late-turn Invariants: Lookahead leaves live coordinates, pose, remaining steps, snap state and attempted facing intact; stack and callback X are preserved
 ; DOC-002 source-contract mirror profile movement-step Inputs: TEST_X/Y origin coordinates and cardinal TEST_DIR
 ; DOC-002 source-contract mirror profile movement-step Outputs: TEST_X/Y advanced by one cell along TEST_DIR
 ; DOC-002 source-contract mirror profile movement-step Clobbers: B and condition codes; A, X, Y, and U are preserved

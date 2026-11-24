@@ -22,6 +22,8 @@ PLAYER_STEP equ $0008
 PLAYER_FB equ $000B
 PLAYER_CELL_X equ $0009
 PLAYER_CELL_Y equ $000A
+TEST_X        equ $0010
+TEST_Y        equ $0011
 PLAYER_WANT equ $000F
 PLAYER_MANUAL equ $0018
 PRES_DEMO_ROUTE equ $00DA
@@ -845,6 +847,8 @@ name_joy_ready
         lda     FRAMES+1
         lsra
         bcs     name_idle
+        ldd     PLAYER_CELL_X
+        std     TEST_X
         ldx     #name_can_move
         jsr     PRES_MAIN_NAME_LATE_TURN
         tsta
@@ -967,29 +971,28 @@ move_end
 
 name_can_move
         sta     PRES_NAME_TILE
-        lda     PLAYER_CELL_Y
+        lda     TEST_Y
         ldb     #24
         mul
-        addb    PLAYER_CELL_X
+        addb    TEST_X
         adca    #0
-        subd    #8
-        addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE
+        addd    #PRESENTATION_NAME_ENTRY_FULL_EDGE_MASK_TABLE-8
         jsr     PRES_MODULE_COLD_PTR
         ldb     ,x
         lda     #$34
         sta     PAR5
-        ; Callers consume only zero/nonzero. Preserve the edge mask on
-        ; stack while selecting the requested cardinal direction bit.
-        pshs b
-        lda #1
-        ldb PRES_NAME_TILE
-        beq name_mask_ready
+        ; A reports the requested edge. B retains the full table byte.
+        pshs    b
+        lda     #1
+        ldb     PRES_NAME_TILE
+        beq     name_mask_ready
 name_mask_rotate
         lsla
         decb
-        bne name_mask_rotate
+        bne     name_mask_rotate
 name_mask_ready
-        anda ,s+
+        anda    ,s
+        puls    b
         rts
 
 name_cell_arrival

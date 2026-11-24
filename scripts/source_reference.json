@@ -964,6 +964,13 @@
           "reasons": []
         },
         {
+          "name": "name_late_turn",
+          "profile": "name-late-turn",
+          "purpose": "Admit a safe name-entry snap, advance toward a legal next-center exit, or hold the cursor.",
+          "reasons": [],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-name-late-turn"
+        },
+        {
           "name": "HUD_WORD_EXEC",
           "profile": "render",
           "purpose": "Generated page-$3D address of the shared word painter at $BF00.",
@@ -1307,11 +1314,6 @@
         },
         {
           "name": "dynamic_index",
-          "routine": null,
-          "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
-        },
-        {
-          "name": "name_late_turn",
           "routine": null,
           "purpose": "Fall-through or indirect entry in current assembled source; inspect adjacent instructions."
         },
@@ -3777,10 +3779,10 @@
         },
         {
           "name": "name_can_move",
-          "profile": "presentation",
-          "purpose": "Name can move.",
+          "profile": "name-edge-probe",
+          "purpose": "Return the requested name-entry edge and its full cell mask from probe coordinates.",
           "reasons": [],
-          "semantic_id": "routines.html#routine-highscore-runtime-name-can-move"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-highscore-runtime-name-can-move"
         },
         {
           "name": "name_cell_arrival",
@@ -6275,6 +6277,24 @@
       "writes": "Only the selected TEST_X or TEST_Y probe coordinate",
       "side_effects": "Advances the probe coordinate without reading maze, gate, actor, or rendering state",
       "invariants": "Exactly one cardinal coordinate changes by one cell; authoritative actor coordinates, gate state, and rendering remain untouched"
+    },
+    "name-late-turn": {
+      "inputs": "X points to the name-edge probe; TEST_X/Y hold the current name-entry anchor; PLAYER_WANT holds the active cardinal request",
+      "outputs": "A=1 handles a snap or hold; A=0 lets the caller start, advance, or reverse",
+      "clobbers": "A, B, U and condition codes; X is preserved",
+      "reads": "PLAYER_WANT, PLAYER_DIR, PLAYER_FB, TURN_OLD, TURN_SNAP, remaining name steps, and the name-edge probe result",
+      "writes": "Probe scratch and, on snap admission or continuation, name movement state",
+      "side_effects": "Tests the current edge and six-pixel hazard; a rejected request may probe a straight exit at the next center",
+      "invariants": "Lookahead leaves live coordinates, pose, remaining steps, snap state and attempted facing intact; stack and callback X are preserved"
+    },
+    "name-edge-probe": {
+      "inputs": "A is cardinal N/E/S/W (0 through 3); TEST_X/Y hold a screen-space name-entry anchor",
+      "outputs": "A is zero for a closed edge and nonzero for an open edge; B is the full cell mask, and Z reflects A",
+      "clobbers": "A, B, X and condition codes",
+      "reads": "TEST_X/Y and one byte of the cold name-entry edge and hazard table",
+      "writes": "PRES_NAME_TILE scratch and PAR5",
+      "side_effects": "Temporarily maps the cold payload and returns with PAR5=$34",
+      "invariants": "The low nibble gives cardinal edges and the high nibble gives six-pixel sweep hazards; probe and live coordinates are preserved"
     },
     "movement-admission": {
       "inputs": "TEST_X/Y origin coordinates, cardinal TEST_DIR, maze navigation and gate tables, and current GATE_STATE",

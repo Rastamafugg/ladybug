@@ -40,6 +40,7 @@ from build_screen import (  # noqa: E402
     YELLOW,
     char_sheet_code,
     compile_death_sprites,
+    compile_player_sprites,
     compile_screen,
     encode_sparse_native,
     expand_sprite,
@@ -150,6 +151,7 @@ ENTER_HIGH_SCORE_GRID_ROWS = (
 ENTER_HIGH_SCORE_CL_CELLS = ((11, 4), (27, 4), (11, 20))
 ENTER_HIGH_SCORE_END_CELLS = ((27, 20),)
 ENTER_HIGH_SCORE_INNER_WALL_CODE = 49
+ENTER_HIGH_SCORE_CURSOR_Y_OFFSET = -7 * 160
 ENTER_HIGH_SCORE_TIMER_FRAMES = 60
 ENTER_HIGH_SCORE_TIMER_COUNT = 92
 ENTER_HIGH_SCORE_PENDING_NAME_CELLS = tuple((1 + index, 19) for index in range(7))
@@ -656,73 +658,83 @@ def enter_high_score_edge_masks() -> bytes:
     return bytes(masks)
 
 
-def enter_high_score_full_edge_masks(path: Path) -> bytes:
-    """Encode passable N/E/S/W edges for the authored 24x24 maze window."""
+def enter_high_score_full_edge_masks(
+    path: Path, chars: list[list[list[int]]], player_frames: list[bytes],
+) -> bytes:
+    """Encode cardinal edges and six-pixel turn hazards for the 24x24 window."""
     root = ET.parse(path).getroot()
-    overlay = next(
-        layer for layer in root.findall("layer")
-        if layer.get("name") == "Enter High Score Overlay"
-    )
+    layers = {layer.get("name"): layer for layer in root.findall("layer")}
+    overlay = layers["Enter High Score Overlay"]
     cells = parse_csv(overlay.find("data"), overlay.get("name", ""))
-    wall_cells = {
-        (x - 8, y)
-        for y in range(SCREEN_HEIGHT)
-        for x in range(8, 32)
-        if cells[y * SCREEN_WIDTH + x] and
-        raw_char_code(root, path, cells[y * SCREEN_WIDTH + x])
+    inner_walls = {
+        (x, y): cells[y * SCREEN_WIDTH + x + 8]
+        for y in range(24)
+        for x in range(24)
+        if cells[y * SCREEN_WIDTH + x + 8] & GID_MASK and
+        raw_char_code(root, path, cells[y * SCREEN_WIDTH + x + 8] & GID_MASK)
         == ENTER_HIGH_SCORE_INNER_WALL_CODE
     }
-    # Each authored wall glyph occupies two adjacent cells.  The blank
-    # intervals between glyphs are deliberate vertical corridors used to
-    # reach the character columns; do not convert those corridors to walls.
-    wall_cells.update(
+    # The sprite extends above and to the right of its logical anchor tile.
+    blocked = set(inner_walls) | {
+        (x - 1, y) for x, y in inner_walls if 0 < x < 23 and 0 < y < 23
+    } | {
         (x, y)
         for y in range(24)
         for x in range(24)
-        if x in (0, 23) or y in (0, 23)
-    )
-    masks = bytearray([0x0F] * (24 * 24))
-
-    def index(x: int, y: int) -> int:
-        return y * 24 + x
-
-    for y in range(24):
-        for x in range(24):
-            mask = 0 if (x, y) in wall_cells else 0x0F
-            if x == 0:
-                mask &= ~0x08
-            if y == 0:
-                mask &= ~0x01
-            if x == 23:
-                mask &= ~0x02
-            if y == 23:
-                mask &= ~0x04
-            masks[index(x, y)] = mask
-
-    # PLAYER_FB is the 16x16 sprite's top-left address while PLAYER_CELL is
-    # anchored one tile below that address.  The sprite therefore extends one
-    # logical tile right of PLAYER_CELL and one tile above it.  Exclude the
-    # otherwise-open top/right anchor lanes so opaque player pixels cannot
-    # overlap the authored perimeter.
-    blocked_cells = wall_cells | {
-        (x, y)
-        for y in range(24)
-        for x in range(24)
-        if x == 22 or y == 1
+        if x in (0, 22, 23) or y in (0, 1, 23)
     }
 
-    # A blocked cell is not a corridor. Clear both sides of every edge touching
-    # it so movement cannot enter, leave, or cross the blocked tile.
-    for wall_x, wall_y in blocked_cells:
-        for dx, dy, bit, opposite in (
-            (0, -1, 0x01, 0x04), (1, 0, 0x02, 0x08),
-            (0, 1, 0x04, 0x01), (-1, 0, 0x08, 0x02),
-        ):
-            other_x = wall_x + dx
-            other_y = wall_y + dy
-            if 0 <= other_x < 24 and 0 <= other_y < 24:
-                masks[index(other_x, other_y)] &= ~opposite
-        masks[index(wall_x, wall_y)] = 0
+    border = layers["Arcade Maze Border"]
+    border_cells = parse_csv(border.find("data"), border.get("name", ""))
+    wall_gids = {
+        (x, y): border_cells[y * SCREEN_WIDTH + x + 8]
+        for y in range(24)
+        for x in range(24)
+        if border_cells[y * SCREEN_WIDTH + x + 8] & GID_MASK
+    }
+    wall_gids.update(inner_walls)
+    wall_pixels = set()
+    for (x, y), gid in wall_gids.items():
+        tile = instruction_char_tile(
+            root, path, gid, (x + 8, y), chars, (BLACK, WHITE, WHITE, WHITE),
+        )
+        for py in range(8):
+            for px in range(8):
+                shift = 4 * (1 - px % 2)
+                if (tile[py * 4 + px // 2] >> shift) & 0xF:
+                    wall_pixels.add((x * 8 + px, y * 8 + py))
+    # Union the opaque pixels of all animation frames in all four facings.
+    opaque = {
+        (x, y) for frame in player_frames for y in range(16) for x in range(16)
+        if (frame[y * 4 + x // 4] >> (6 - 2 * (x % 4))) & 3
+    }
+    directions = ((0, -1), (1, 0), (0, 1), (-1, 0))
+    masks = bytearray(24 * 24)
+    for y in range(2, 23):
+        for x in range(1, 22):
+            if (x, y) in blocked:
+                continue
+            # Both endpoints must be open, so every edge is reciprocal.
+            mask = sum(
+                1 << direction for direction, (dx, dy) in enumerate(directions)
+                if (x + dx, y + dy) not in blocked
+            )
+            origin_x = x * 8
+            origin_y = y * 8 + ENTER_HIGH_SCORE_CURSOR_Y_OFFSET // 160
+            for first, (dx, dy) in enumerate(directions):
+                second = (first + 1) % 4
+                if not (mask & (1 << first) and mask & (1 << second)):
+                    continue
+                turn_x, turn_y = directions[second]
+                # Each tick trades two pixels on the old axis for two on the
+                # new axis. Swapping directions traverses these poses in reverse.
+                if any(
+                    (origin_x + (6 - step) * dx + step * turn_x + px,
+                     origin_y + (6 - step) * dy + step * turn_y + py) in wall_pixels
+                    for step in (0, 2, 4, 6) for px, py in opaque
+                ):
+                    mask |= 0x10 << first
+            masks[y * 24 + x] = mask
     return bytes(masks)
 
 
@@ -1853,7 +1865,7 @@ def parse_enter_high_score_contract(
     return {
         "cursor_stream": cursor_stream,
         "cursor_source_code": cursor_code,
-        "cursor_destination": framebuffer_destination((19, 22)) - 1280,
+        "cursor_destination": framebuffer_destination((19, 22)) + ENTER_HIGH_SCORE_CURSOR_Y_OFFSET,
         "cursor_cell": (19, 22),
         "grid_cells": grid_cells,
         "grid_tile_ids": grid_tiles,
@@ -1865,7 +1877,8 @@ def parse_enter_high_score_contract(
         "default_name_tile_ids": pending_name_tile_ids,
         "top_name_tile_ids": top_name_tile_ids,
         "node_destinations": [
-            framebuffer_destination(cell) - 1280 for cell in node_cells
+            framebuffer_destination(cell) + ENTER_HIGH_SCORE_CURSOR_Y_OFFSET
+            for cell in node_cells
         ],
         "cl_cells": list(ENTER_HIGH_SCORE_CL_CELLS),
         "end_cells": list(ENTER_HIGH_SCORE_END_CELLS),
@@ -2719,7 +2732,10 @@ def main() -> None:
     name_entry["edge_mask_table_bytes"] = len(edge_masks)
     name_entry["edge_masks"] = list(edge_masks)
     full_edge_masks = (
-        enter_high_score_full_edge_masks(args.tiled_dir / MAP_FILES["enter-high-score"])
+        enter_high_score_full_edge_masks(
+            args.tiled_dir / MAP_FILES["enter-high-score"],
+            chars, compile_player_sprites(args.gameplay_sprites),
+        )
         if name_entry["grid_tile_ids"] else b""
     )
     name_entry_full_edge_mask_offset = len(cold_payload)
