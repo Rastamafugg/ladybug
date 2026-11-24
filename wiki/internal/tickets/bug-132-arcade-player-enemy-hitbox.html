@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-132: Arcade Pixel-Exact Player-Enemy Hitbox — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>BUG-132: Arcade Pixel-Exact Player-Enemy Hitbox</h1>
+    <p class="subtitle">Align CoCo 3 <code>enemy_player_contact</code> to the 1981 arcade Z80 <code>$07B5&ndash;$07EB</code> pixel hitbox (<code>|dx| &le; 8 px</code> and <code>|dy| &le; 8 px</code>)</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>BUG-132</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat014-arcade-enemy-ai</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type</th><td>Bug &mdash; Gameplay collision fidelity</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="root-cause">
+    <h2>Root Cause &amp; Arcade Reference</h2>
+    <ul>
+      <li><strong>1981 Arcade Z80 ROM (<code>$07B5&ndash;$07EB</code>):</strong> Compares pixel coordinates of Lady Bug (<code>$6027/$6028</code>) against each active enemy (<code>HL+1/HL+2</code>) and registers a hit if and only if <code>|player_X &minus; enemy_X| &lt; 9</code> (<code>&le; 8 px</code>) and <code>|player_Y &minus; enemy_Y| &lt; 9</code> (<code>&le; 8 px</code>).</li>
+      <li><strong>Current CoCo 3 (<code>src/enemy_runtime.s:1800&ndash;1819</code>):</strong> <code>enemy_player_contact</code> compares only coarse 8-pixel cell indices (<code>|PLAYER_CELL_X &minus; enemy_x| &le; 1</code> and <code>|PLAYER_CELL_Y &minus; enemy_y| &le; 1</code>), ignoring sub-cell step offsets (<code>PLAYER_STEP</code>, enemy <code>3,x</code>, and movement directions). This allows contact at up to 14 px separation when actors move apart or diagonally near corners.</li>
+    </ul>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria</h2>
+    <ol>
+      <li>Replace the coarse cell check in <code>enemy_player_contact</code> with exact 2-pixel coordinate comparison (<code>|player_x_2px &minus; enemy_x_2px| &le; 4</code> and <code>|player_y_2px &minus; enemy_y_2px| &le; 4</code>, equivalent to <code>&le; 8 px</code> on both axes, matching Z80 <code>CP $09</code>), accounting for sub-cell step offsets and any active diagonal late-turn offset.</li>
+      <li>Place the resident helper in <code>src/main.s</code> and call/jump from <code>enemy_player_contact</code> in <code>src/enemy_runtime.s</code> so all fixed module caps remain satisfied (including primary and <code>extra-e</code>/<code>special-e</code> fixtures; <code>draw_recolored_map_tile</code> stays at <code>$FBA5</code>).</li>
+      <li>Pass DOC-002, audio, presentation-flow, and standalone 6809 hitbox boundary verification, followed by user XRoar RGB playtest confirmation.</li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-24:</strong> User approved fixing <code>BUG-132</code> on branch <code>feat/feat014-arcade-enemy-ai</code> before closing FEAT-014. Delegated implementation and verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
+      <li><strong>2026-11-24 (Verification):</strong> Sol 6.2 High implementation and parent QA review completed. Replaced coarse cell check in <code>enemy_player_contact</code> with 3-byte jump to resident <code>resident_enemy_player_contact</code> (31 B in <code>src/main.s</code>), matching the arcade <code>&le; 8 px</code> both-axis hitbox directly from live sprite origins (<code>PLAYER_FB</code> vs <code>1,x</code>), including diagonal late turns. Primary ROM <code>032c7cfbcb8a0e04774043bd9ad4c2ab04cc35c6faffd1e82abd870af1b7d625</code> (resident <code>7,889/8,192 B</code>, <code>+303 B</code> free), <code>extra-e</code> <code>0cb700e2...</code> and <code>special-e</code> <code>c3aec066...</code> (resident <code>7,916/8,192 B</code>, <code>+276 B</code> free), <code>draw_recolored_map_tile=$FBA5</code> intact. 60,944 assembled hitbox calls passed per ROM; DOC-002 (<code>350/350</code> routines, <code>7,386/7,386</code> labels), audio, presentation flow, and demo verifiers passed. Awaits user XRoar RGB playtest.</li>
+    </ul>
+  </section>
+</body>
+</html>

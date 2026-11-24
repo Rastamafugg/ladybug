@@ -5678,6 +5678,37 @@ hud_snapshot_capture_player
         rts
         endc
 
+; DOC-002 source-contract mirror contract resident_enemy_player_contact profile=actor-contact: Test the arcade eight-pixel player-enemy hitbox using the current sprite origins.
+; DOC-002 source-contract mirror profile actor-contact Inputs: X points to an active enemy record; both sprite origins use the gameplay framebuffer layout
+; DOC-002 source-contract mirror profile actor-contact Outputs: C set when both axis separations are at most eight pixels; C clear otherwise
+; DOC-002 source-contract mirror profile actor-contact Clobbers: A, B, D, and condition codes except interrupt mask bits
+; DOC-002 source-contract mirror profile actor-contact Reads: PLAYER_FB and the enemy framebuffer pointer at 1,X
+; DOC-002 source-contract mirror profile actor-contact Writes: None
+; DOC-002 source-contract mirror profile actor-contact Side effects: None
+; DOC-002 source-contract mirror profile actor-contact Invariants: X is preserved; both origins share two-pixel row parity and are within the same 160-byte-wide logical framebuffer
+;
+; The two-pixel strides are 1 byte horizontally and 320 bytes vertically.
+; Contact windows span four bytes either side of 0, 320, 640, 960 and
+; 1280; the row width prevents horizontal deltas aliasing a vertical step.
+resident_enemy_player_contact
+        ldd     PLAYER_FB
+        subd    1,x
+        bcc     repc_bound
+        ldd     1,x
+        subd    PLAYER_FB
+repc_bound
+        cmpd    #1285
+        bhs     repc_done
+        addd    #4
+repc_row
+        cmpd    #9
+        blo     repc_done
+        subd    #320
+        bcc     repc_row
+        andcc   #$FE
+repc_done
+        rts
+
 ; PERF-008 helper contract mirrors for keyed pickup background repair.
 ; DOC-002 source-contract mirror contract pickup_prepare_removed profile=state: Resolve removed keyed entity and restore its four-cell footprint.
 ; DOC-002 source-contract mirror contract pickup_prepare_nest profile=state: Return the frozen keyed cell and its nest-column predicate.

@@ -576,6 +576,13 @@
           "reasons": []
         },
         {
+          "name": "resident_enemy_player_contact",
+          "profile": "actor-contact",
+          "purpose": "Test the arcade eight-pixel player-enemy hitbox using the current sprite origins.",
+          "reasons": ["exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-resident-enemy-player-contact"
+        },
+        {
           "name": "queue_gate_render",
           "profile": "state",
           "purpose": "Record the current gate as pending framebuffer work.",
@@ -1221,6 +1228,9 @@
         }
       ],
       "basic_blocks": [
+        {"name": "repc_bound", "routine": "resident_enemy_player_contact", "purpose": "Reject address separations beyond the last contact window, then bias toward its lower edge."},
+        {"name": "repc_row", "routine": "resident_enemy_player_contact", "purpose": "Test the current two-pixel vertical offset and advance to the next window without accepting an unsigned underflow."},
+        {"name": "repc_done", "routine": "resident_enemy_player_contact", "purpose": "Return the carry result from the window test or either miss path."},
         {"name": "rj_gameplay_request", "routine": "read_joystick", "purpose": "Continue normal player input only when the wake-only sampling flag is clear."},
         {
           "name": "ads_copy_high",
@@ -1430,6 +1440,7 @@
       "binary": "ladybug-enemy-runtime.rom",
       "external_symbols": [
         "ai_chase_candidate",
+        "resident_enemy_player_contact",
         "PERIMETER_RESET_HELPER",
         "PRES_MAIN_SHARED_HUD",
         "PRESENTATION_HUD_DRAW_ALL",
@@ -1572,8 +1583,8 @@
         },
         {
           "name": "enemy_player_contact",
-          "profile": "movement",
-          "purpose": "Test and resolve contact between an active enemy and the player.",
+          "profile": "actor-contact",
+          "purpose": "Tail-call the resident arcade hitbox check for the active enemy and player.",
           "reasons": []
         },
         {
@@ -6336,6 +6347,15 @@
       "writes": "PRES_NAME_TILE scratch and PAR5",
       "side_effects": "Temporarily maps the cold payload and returns with PAR5=$34",
       "invariants": "The low nibble gives cardinal edges and the high nibble gives six-pixel sweep hazards; probe and live coordinates are preserved"
+    },
+    "actor-contact": {
+      "inputs": "X points to an active enemy record; both sprite origins use the gameplay framebuffer layout",
+      "outputs": "C set when both axis separations are at most eight pixels; C clear otherwise",
+      "clobbers": "A, B, D, and condition codes except interrupt mask bits",
+      "reads": "PLAYER_FB and the enemy framebuffer pointer at 1,X",
+      "writes": "None",
+      "side_effects": "None",
+      "invariants": "X is preserved; both origins share two-pixel row parity and are within the same 160-byte-wide logical framebuffer"
     },
     "movement-admission": {
       "inputs": "TEST_X/Y origin coordinates, cardinal TEST_DIR, maze navigation and gate tables, and current GATE_STATE",

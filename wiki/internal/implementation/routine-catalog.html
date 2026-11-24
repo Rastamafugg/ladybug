@@ -79,6 +79,12 @@
         <p><strong>Side effects:</strong> May change authoritative gameplay state and queue later composition.</p>
         <p><strong>Invariants:</strong> Movement remains on legal semantic cells and does not write framebuffer pixels directly.</p>
       </section>
+      <section id="profile-actor-contact">
+        <h3>Pixel-exact actor contact</h3>
+        <p><strong>Inputs:</strong> X points to an active enemy record. Both sprite origins use the same 160-byte-wide logical gameplay framebuffer and share two-pixel row parity.</p>
+        <p><strong>Outputs:</strong> Carry is set when both axis separations are at most eight pixels and clear otherwise. X is preserved; the accumulator and arithmetic flags are clobbered.</p>
+        <p><strong>Reads and writes:</strong> Reads <code>PLAYER_FB</code> and the enemy framebuffer pointer at <code>1,X</code>. No state is written. The pointers include the current two-pixel phase on both axes, even while the player is snapping diagonally during a late turn.</p>
+      </section>
       <section id="profile-movement-step">
         <h3>Movement probe-coordinate step</h3>
         <p><strong>Inputs:</strong> TEST_X/Y origin coordinates and cardinal TEST_DIR.</p>
@@ -251,6 +257,7 @@
           <tr id="routine-resident-runtime-player-animation-tick"><td><code>player_animation_tick</code></td><td>Advance player animation state for one scheduled tick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-player-cell-offset"><td><code>player_cell_offset</code></td><td>Convert the player&#x27;s semantic cell coordinates into a row-major maze offset.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-player-tick"><td><code>player_tick</code></td><td>Advance player state for one scheduled tick.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-resident-enemy-player-contact"><td><code>resident_enemy_player_contact</code></td><td>Test the arcade eight-pixel player-enemy hitbox using the current sprite origins.</td><td><a href="#profile-actor-contact">Pixel-exact actor contact</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-queue-gate-render"><td><code>queue_gate_render</code></td><td>Record the current gate as pending framebuffer work.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-read-joystick"><td><code>read_joystick</code></td><td>Sample joystick direction, suppressing player movement writes during wake-only samples.</td><td><a href="#profile-input">PIA input sampling</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-read-stage-letter-variants"><td><code>read_stage_letter_variants</code></td><td>Copy the final three active entity variant bytes through the caller-mapped page-$34 alias into presentation scratch and return U=$C2, B=3.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>exported</td></tr>
@@ -301,7 +308,7 @@
           <tr id="routine-enemy-runtime-enemy-direction-legal"><td><code>enemy_direction_legal</code></td><td>Test whether a proposed enemy direction is legal at the current semantic cell.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-enemy-frame-number"><td><code>enemy_frame_number</code></td><td>Resolve the animation frame number for the current enemy state and direction.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-enemy-init-impl"><td><code>enemy_init_impl</code></td><td>Reset enemy lifecycle state and mark enemy composition dirty.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
-          <tr id="routine-enemy-runtime-enemy-player-contact"><td><code>enemy_player_contact</code></td><td>Test and resolve contact between an active enemy and the player.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-enemy-player-contact"><td><code>enemy_player_contact</code></td><td>Tail-call the resident arcade hitbox check for the active enemy and player.</td><td><a href="#profile-actor-contact">Pixel-exact actor contact</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-enemy-release-impl"><td><code>enemy_release_impl</code></td><td>Release an eligible enemy from the nest into authoritative gameplay state.</td><td><a href="#profile-movement">Movement and collision</a></td><td>exported</td></tr>
           <tr id="routine-enemy-runtime-enemy-render-impl"><td><code>enemy_render_impl</code></td><td>Compose current enemy actors and their owner-local background history.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-enemy-skull-test"><td><code>enemy_skull_test</code></td><td>Test whether the current enemy position triggers the skull interaction.</td><td><a href="#profile-movement">Movement and collision</a></td><td>called</td></tr>

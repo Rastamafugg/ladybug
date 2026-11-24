@@ -73,7 +73,14 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract enemy_collect_impl profile=state: Resolve the vegetable collection transition and its enemy-state consequences.
 ; DOC-002 source-contract mirror contract enemy_direction_legal profile=movement: Test whether a proposed enemy direction is legal at the current semantic cell.
 ; DOC-002 source-contract mirror contract enemy_init_impl profile=state: Reset enemy lifecycle state and mark enemy composition dirty.
-; DOC-002 source-contract mirror contract enemy_player_contact profile=movement: Test and resolve contact between an active enemy and the player.
+; DOC-002 source-contract mirror contract enemy_player_contact profile=actor-contact: Tail-call the resident arcade hitbox check for the active enemy and player.
+; DOC-002 source-contract mirror profile actor-contact Inputs: X points to an active enemy record; both sprite origins use the gameplay framebuffer layout
+; DOC-002 source-contract mirror profile actor-contact Outputs: C set when both axis separations are at most eight pixels; C clear otherwise
+; DOC-002 source-contract mirror profile actor-contact Clobbers: A, B, D, and condition codes except interrupt mask bits
+; DOC-002 source-contract mirror profile actor-contact Reads: PLAYER_FB and the enemy framebuffer pointer at 1,X
+; DOC-002 source-contract mirror profile actor-contact Writes: None
+; DOC-002 source-contract mirror profile actor-contact Side effects: None
+; DOC-002 source-contract mirror profile actor-contact Invariants: X is preserved; both origins share two-pixel row parity and are within the same 160-byte-wide logical framebuffer
 ; DOC-002 source-contract mirror contract enemy_release_impl profile=movement: Release an eligible enemy from the nest into authoritative gameplay state.
 ; DOC-002 source-contract mirror contract enemy_render_impl profile=render: Compose current enemy actors and their owner-local background history.
 ; DOC-002 source-contract mirror contract enemy_skull_test profile=movement: Test whether the current enemy position triggers the skull interaction.
@@ -1795,28 +1802,8 @@ enemy_exit_masks
 enemy_target_offsets
         fcb     -24,1,24,-1
 
-; Compare semantic centres. Adjacent eight-pixel cells still overlap because
-; both actors have 16-by-16 footprints.
 enemy_player_contact
-        lda     PLAYER_CELL_X
-        suba    4,x
-        bpl     epc_x_positive
-        nega
-epc_x_positive
-        cmpa    #1
-        bhi     epc_clear
-        lda     PLAYER_CELL_Y
-        suba    5,x
-        bpl     epc_y_positive
-        nega
-epc_y_positive
-        cmpa    #1
-        bhi     epc_clear
-        orcc    #$01
-        rts
-epc_clear
-        andcc   #$FE
-        rts
+        jmp     resident_enemy_player_contact
 
 ; X points at the active record. Only the matching skull record is removed.
 enemy_skull_test
