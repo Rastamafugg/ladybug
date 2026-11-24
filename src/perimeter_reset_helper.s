@@ -214,10 +214,10 @@ pao_refresh_check
         lsra
 pao_phase_ready
         lsla
-        ldx     #$BE28
+        ldx     #$BFAA
         ldu     a,x
-        ldx     #$BE00
-        lda     #8              ; eight animated actor records
+        ldx     #$BF80
+        lda     #9              ; nine animated actor records
         sta     PRES_REMAIN
 pao_actor
         ldy     ,x++

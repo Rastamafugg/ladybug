@@ -85,13 +85,14 @@ TILE_BYTES = 32
 MAP_OUTPUT_OFFSET = 0x4000
 COLD_PAYLOAD_LIMIT = 10874
 ATTRACT_ACTOR_COLOURS = {
-    (11, 3): (WHITE, GREEN, PINK),
-    (20, 4): (YELLOW, GREEN, DARK_RED),
+    (11, 3): (WHITE, DARK_GREEN, PINK),
+    (20, 4): (YELLOW, LIGHT_GREEN, ORANGE),
     (35, 4): (WHITE, YELLOW, ORANGE),
-    (27, 5): (WHITE, GREEN, PURPLE),
+    (27, 5): (WHITE, DARK_GREEN, PURPLE),
     (3, 9): (WHITE, YELLOW, ORANGE),
-    (10, 15): (YELLOW, GREEN, RED),
-    (33, 19): (WHITE, LIGHT_GREEN, GREEN),
+    (10, 15): (YELLOW, DARK_GREEN, DARK_RED),
+    (34, 13): (GREEN, DARK_GREEN, LIGHT_BLUE),
+    (33, 19): (WHITE, LIGHT_GREEN, DARK_GREEN),
     (5, 20): (WHITE, YELLOW, ORANGE),
 }
 ATTRACT_ACTOR_EXPECTED_TILES = {
@@ -101,6 +102,7 @@ ATTRACT_ACTOR_EXPECTED_TILES = {
     (27, 5): 65,
     (3, 9): 68,
     (10, 15): 32,
+    (34, 13): 38,
     (33, 19): 35,
     (5, 20): 2,
 }
@@ -114,7 +116,7 @@ ATTRACT_ACTOR_SURFACE_PAGE = 0x3C
 ATTRACT_ACTOR_SURFACE_ADDRESS = 0xA000
 ATTRACT_ACTOR_BYTES = 128
 ATTRACT_ACTOR_PHASES = (0, 1, 2)
-ATTRACT_COPY_COUNT = 20  # eight actors and twelve authored logo rectangles
+ATTRACT_COPY_COUNT = 21  # nine actors and twelve authored logo rectangles
 ATTRACT_ACTOR_DESTINATION_ADDRESS = 0xA000 + 3 * ATTRACT_COPY_COUNT * 128
 ATTRACT_ACTOR_PHASE_POINTER_ADDRESS = ATTRACT_ACTOR_DESTINATION_ADDRESS + ATTRACT_COPY_COUNT * 2
 INSTRUCTION_REFERENCE = (
@@ -393,7 +395,7 @@ def parse_attract_actors(path: Path) -> list[dict[str, object]]:
             "colours": list(ATTRACT_ACTOR_COLOURS[(x, y)]),
         })
     if len(actors) != len(ATTRACT_ACTOR_COLOURS):
-        raise ValueError(f"{path}: expected eight Sprite Animations cells")
+        raise ValueError(f"{path}: expected nine Sprite Animations cells")
     rectangles = []
     for actor in actors:
         x, y = actor["cell"]
@@ -1459,7 +1461,7 @@ def parse_instruction_contract(
         root, path, cucumber_gid, sprites
     )
     cucumber_native = expand_sprite(
-        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, GREEN, YELLOW)
+        pack_sprite_2bpp(cucumber_pixels), (BLACK, DARK_RED, DARK_GREEN, YELLOW)
     )
     cucumber_root = (
         INSTRUCTION_CUCUMBER_MARKER[0], INSTRUCTION_CUCUMBER_MARKER[1] - 1

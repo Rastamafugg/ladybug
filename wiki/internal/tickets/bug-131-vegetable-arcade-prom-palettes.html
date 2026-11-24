@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>BUG-131 - Arcade PROM palettes for all 18 stage vegetables - Ladybug</title><link rel="stylesheet" href="../../shared/css/wiki.css"></head>
+<body><div class="wiki-shell"><nav class="wiki-nav"><a href="../../index.html">Wiki home</a> <a href="../index.html">Internal</a> <a href="./index.html">Tickets</a> <a href="./workflow.html">Workflow</a></nav><main class="wiki-main">
+<header class="wiki-header"><p class="wiki-eyebrow">Internal - work ticket - bug</p><h1>BUG-131 - Arcade PROM palettes for all 18 stage vegetables <span class="wiki-badge">Verification</span></h1><p class="wiki-meta">Companion to <a href="./bug-125-attract-enemy-palette-parity.html">BUG-125</a> on branch <code>fix/bug125-bug131-arcade-prom-palettes</code>; automated gate <code>B131-01</code> passed, awaiting user check <code>B131-02</code>.</p></header>
+<section><h2>Ticket state</h2><ul>
+<li><strong>Status:</strong> Verification (<code>B131-01</code> passed; awaiting user-owned XRoar RGB check <code>B131-02</code>).</li>
+<li><strong>Created / updated:</strong> 2026-11-23 / 2026-11-23.</li>
+<li><strong>Priority / order:</strong> P2 / active (paired with BUG-125).</li>
+<li><strong>Roadmap or source:</strong> User request (&ldquo;Same goes for vegetables&rdquo;) + arcade Z80 ROM table <code>$0C93&ndash;$0CA4</code> (read at <code>$1F80&ndash;$1FA4</code>) and colour PROMs (<code>palette.json</code>, <code>sprite_lookup_a.json</code>, <code>sprite_lookup_b.json</code>).</li>
+<li><strong>Owner:</strong> Parent coordinator (integration &amp; QA) with <code>gemini-4-hydrogen</code> implementation delegate.</li>
+<li><strong>Branch / baseline:</strong> <code>fix/bug125-bug131-arcade-prom-palettes</code> off local <code>main</code> (<code>15be76f3</code>).</li>
+<li><strong>Bug risk class:</strong> Standard (reuses existing page-<code>$39</code> vegetable sparse index <code>$AFB6</code> and <code>PRESENTATION_MODULE_DRAW</code> <code>$0821</code>; zero change to <code>asset_start</code> or <code>$FBA5</code>).</li>
+</ul></section>
+<section><h2>Approved scope &amp; architecture</h2>
+<p>Previously, all 18 stage vegetables used a single red/green/yellow palette (<code>LEGACY_ENEMY_PEN_MAP</code> on page <code>$39</code> and <code>sprite_attr0_pairs</code> via <code>blit_packed_sprite</code> on HUD/Level Start). This ticket applies all 18 exact arcade PROM palettes from Z80 ROM <code>$0C93&ndash;$0CA4</code> (using CoCo 3 exact <code>DARK_GREEN</code> <code>$12</code> for arcade <code>palette[12]</code>) and unifies every vegetable renderer onto the single page-<code>$39</code> sparse source:</p>
+<ul>
+<li><strong>Gameplay nest (<code>draw_vegetable_stage</code>):</strong> Automatically picks up all 18 arcade PROM palettes from page <code>$39</code> <code>VEGETABLE_SPARSE_INDEX</code> (<code>$AFB6</code>; <code>1,728 B</code>, <code>0 B</code> delta, page <code>$39</code> stays <code>5,750/8,192 B</code>).</li>
+<li><strong>Gameplay HUD, Instructions, Game Over, Level Start HUD, EXTRA &amp; SPECIAL intermissions (<code>draw_vegetable_hud</code>) + Level Start center vegetable (<code>stage_name_sprite_selected</code>):</strong> Routed through a single ~29-byte resident helper <code>draw_vegetable_fb</code> in <code>src/main.s</code> that saves <code>GIME_PAR5</code>, selects page <code>$39</code>, decodes via existing <code>PRESENTATION_MODULE_DRAW</code> (<code>$0821</code> &rarr; <code>sparse_blit_fb</code>), and restores caller <code>GIME_PAR5</code> (<code>$34</code> or <code>$24</code>). Zero change to <code>asset_start</code> (<code>$FBA5</code> pin preserved).</li>
+<li><strong>Instructions screen Cucumber stream:</strong> Updated in <code>scripts/build_presentation.py</code> to <code>(BLACK, DARK_RED, DARK_GREEN, YELLOW)</code> to match Vegetable 1 (<code>SetA attr0</code>).</li>
+</ul></section>
+<section><h2>Verification plan (DOC-014)</h2><ul>
+<li><strong>B131-01 (Automated build &amp; proofs):</strong> Complete adaptive build, DOC-002 source traceability (including new <code>draw_vegetable_fb</code> contract in <code>routine-catalog.html</code>), <code>verify_audio_runtime.py</code> (<code>$FBA5</code>), <code>verify_presentation_flow.py --complete-profile</code>, and updated <code>verify_sparse_sprites.py</code> verifying all 18 <code>VEGETABLE_PEN_MAPS</code> decode round-trips.</li>
+<li><strong>B131-02 (User-owned XRoar RGB inspection):</strong> Verify vegetable palettes on Level Start, HUD, gameplay nest, and EXTRA/SPECIAL intermissions using rebuilt primary ROM and <code>extra-e</code> / <code>special-e</code> fixtures (e.g., Part 1 Cucumber, Part 2 Eggplant purple, Part 3 Carrot orange, etc.).</li>
+</ul></section>
+<section><h2>Decision log</h2><ul>
+<li>2026-11-23 &mdash; Created and approved with <a href="./bug-125-attract-enemy-palette-parity.html">BUG-125</a> after user approved arcade PROM palettes for all 18 vegetables and <code>gemini-4-hydrogen</code> implementation delegation.</li>
+<li>2026-11-23 &mdash; Implementation &amp; automated gate <code>B131-01</code> passed (parent QA review clean). Page <code>$39</code> stays <code>5,750/8,192 B</code> (<code>1,728 B</code> vegetable sparse payload, <code>+0 B</code> delta); resident <code>draw_vegetable_fb</code> at <code>$C4FD</code> keeps primary resident at <code>8,162/8,192 B</code> (fixtures <code>8,189/8,192 B</code>) and <code>asset_start</code> untouched (<code>draw_recolored_map_tile=$FBA5</code>). Primary ROM SHA-256 <code>24d75e0a0df3c05b1ad12f9fb5f31a7bbe7a669ab69e01b0cac207b5ea72127b</code>; rebuilt <code>extra-e</code> (<code>dcca1c80...</code>) and <code>special-e</code> (<code>2238300b...</code>). Advanced to <strong>Verification</strong> awaiting user <code>B131-02</code>.</li>
+</ul></section>
+<footer class="wiki-footer"><p>Canonical ticket record. Update status to Verification after automated proofs pass and to Done after user XRoar RGB confirmation.</p></footer>
+</main></div></body></html>

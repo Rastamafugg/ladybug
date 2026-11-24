@@ -678,15 +678,8 @@ stage_finish_nonzero
         lda #18
 stage_finish_index
         deca
-        ldb #64
-        mul
-        addd #vegetable_sprites
-        tfr d,y
-        pshs y
-        ldu #sprite_attr0_pairs
         ldx #$3E40
-        jsr blit_packed_sprite
-        puls y
+        jsr draw_vegetable_fb
         lda PRES_SCREEN
         cmpa #PRESENTATION_MAP_LEVEL_START
         bne stage_name_pending_score

@@ -583,13 +583,13 @@ das_match_byte
         decb
         bne     das_match_byte
 das_next
-        cmpy    #$9E00          ; twenty surfaces per phase, three phases
+        cmpy    #$9F80          ; twenty-one surfaces per phase, three phases
         beq     das_done
         dec     BOOT_LZ_BITS
         bne     das_token
         bra     das_flags
 das_done
-        ldb     #46            ; twenty destinations and three phase pointers
+        ldb     #48            ; twenty-one destinations and three phase pointers
 das_metadata_byte
         lda     ,u+
         sta     ,y+

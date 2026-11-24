@@ -128,6 +128,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract draw_recolored_map_tile profile=render: Draw recolored map tile.
 ; DOC-002 source-contract mirror contract draw_score_popup profile=render: Draw score popup.
 ; DOC-002 source-contract mirror contract draw_screen profile=render: Draw screen.
+; DOC-002 source-contract mirror contract draw_vegetable_fb profile=render: Draw vegetable index 0..17 at BACK destination X using page-$39 sparse streams and restore caller PAR5.
 ; DOC-002 source-contract mirror contract draw_vegetable_hud profile=render: Draw vegetable hud.
 ; DOC-002 source-contract mirror contract draw_word_progress_hud profile=render: Save PAR5, map page $3D, call generated HUD_WORD_EXEC with A/B selection, and restore the exact caller mapping.
 ; DOC-002 source-contract mirror contract dwph_word profile=render: Draw one SPECIAL or EXTRA progress word by recoloring each generated letter tile from its progress bit.
@@ -696,15 +697,14 @@ startup_top_name
         jsr     hud_snapshot_init
         endc
         clr     PLAYER_BG_VALID
-        ldd     #$0000
+        clra
+        clrb
         std     PLAYER_FB
+        std     ENEMY_BG_RING
+        std     ENEMY_BG_RING+2
         ldd     #PLAYER_BG
         std     PLAYER_BG_PTR
         clr     ENEMY_OLD_VALID
-        clr     ENEMY_BG_RING
-        clr     ENEMY_BG_RING+1
-        clr     ENEMY_BG_RING+2
-        clr     ENEMY_BG_RING+3
 startup_fb_init_entry
         jsr     FB_MODULE_INIT
 startup_complete
@@ -719,11 +719,11 @@ startup_complete
         ldd     #irq_handler
         std     JT_IRQ+1
 
-        clr     FRAMES
-        clr     FRAMES+1
+        clra
+        clrb
+        std     FRAMES
         clr     LAST_FRAME
-        clr     RENDER_FLAGS
-        clr     RENDER_FLAGS2
+        std     RENDER_FLAGS
         clr     RENDER_GATE_ID
         clr     RENDER_GATE2_ID
         clr     ENEMY_RENDER_FLAGS
@@ -1049,15 +1049,15 @@ init_game_state
         clr     HUD_PLAYER_VALID
         endc
         clr     FB_INIT_STATE
-        clr     RENDER_FLAGS
-        clr     RENDER_FLAGS2
+        clra
+        clrb
+        std     RENDER_FLAGS
         clr     RENDER_GATE_ID
         clr     RENDER_GATE2_ID
         clr     ENEMY_RENDER_FLAGS
-        clra
-        clrb
         std     SCORE_BCD
         std     SCORE_BCD+2
+        std     SPECIAL_BITS
         ifeq    COMPLETE_PROFILE
         std     HIGH_BCD+1
         endc
@@ -1076,8 +1076,6 @@ igs_defaults
         sta     DOTS_LEFT
         clr     STAGE_PENDING
         clr     PRES_INTERMISSION
-        clr     SPECIAL_BITS
-        clr     EXTRA_BITS
         clr     DEATH_TIMER
         clr     DEATH_STATE
         clr     INITIAL_ENTRY_STATE
@@ -1637,6 +1635,10 @@ draw_vegetable_hud
 dvh_stage_ok
         deca
         sta     ENTITY_WORK
+        ifne ADAPTIVE_RENDERING
+        ldx     #PRESENTATION_HUD_VEGETABLE_ICON_DST
+        bsr     draw_vegetable_fb
+        else
         ldb     #PACKED_SPRITE_SIZE
         mul
         leay    vegetable_sprites,pcr
@@ -1644,6 +1646,7 @@ dvh_stage_ok
         ldx     #PRESENTATION_HUD_VEGETABLE_ICON_DST
         leau    sprite_attr0_pairs,pcr
         lbsr    blit_packed_sprite
+        endc
 
         ifne COMPLETE_PROFILE
         lda     ENTITY_WORK
@@ -1673,6 +1676,25 @@ vegetable_values
         fdb     $1000,$1500,$2000,$2500,$3000,$3500
         fdb     $4000,$4500,$5000,$5500,$6000,$6500
         fdb     $7000,$7500,$8000,$8500,$9000,$9500
+
+VEGETABLE_SPARSE_INDEX equ $AFB6
+; Inputs: A = 0..17 vegetable index, X = BACK framebuffer destination.
+; Preserves caller GIME_PAR5 across the temporary page-$39 sparse decode.
+draw_vegetable_fb
+        ldb     GIME_PAR5
+        pshs    b
+        ldb     #3
+        mul
+; @audit-use {"id":"vegetable-stage-index","symbol":"VEGETABLE_SPARSE_INDEX","requires_symbol":"VEGETABLE_SPARSE_INDEX"}
+        ldu     #VEGETABLE_SPARSE_INDEX
+        leau    d,u
+        lda     #PRESENTATION_PAYLOAD_PAGE
+        sta     GIME_PAR5
+        ldu     1,u
+        jsr     PRESENTATION_MODULE_DRAW
+        puls    a
+        sta     GIME_PAR5
+        rts
 
         ifeq COMPLETE_PROFILE
 draw_bcd_line
@@ -4760,8 +4782,7 @@ enemy_release
         jmp     ENEMY_MODULE_RELEASE
 
 enemy_collect
-        jsr     ENEMY_MODULE_COLLECT
-        rts
+        jmp     ENEMY_MODULE_COLLECT
 
 ; Expand one 16x16 native 2bpp sprite. U selects a 16-byte table mapping
 ; each two-pixel source nibble to one packed GIME 4bpp destination byte.

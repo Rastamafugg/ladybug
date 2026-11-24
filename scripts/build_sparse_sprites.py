@@ -35,19 +35,39 @@ ENEMY_RUNTIME_OFFSET = 0x0800
 ENEMY_RUNTIME_RESERVED = 0x1000
 SIGNATURE_OFFSET = 0x0010
 LEGACY_ENEMY_PEN_MAP = (0x0, 0xC, 0x5, 0x2)
-PART_ONE_ENEMY_PEN_MAP = (0x0, 0x9, 0x5, 0x6)
+PART_ONE_ENEMY_PEN_MAP = (0x0, 0x9, 0xA, 0x6)
 GAMEPLAY_ENEMY_PEN_MAPS = (
-    PART_ONE_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
-    LEGACY_ENEMY_PEN_MAP,
+    PART_ONE_ENEMY_PEN_MAP,  # Fam 0 (Part 1, SetA attr1)
+    (0x0, 0x4, 0xA, 0x6),    # Fam 1 (Part 2, SetA attr2)
+    (0x0, 0xA, 0x8, 0x6),    # Fam 2 (Part 3, SetA attr4)
+    (0x0, 0xD, 0x2, 0x6),    # Fam 3 (Part 4, SetA attr3)
+    (0x0, 0xD, 0x2, 0x6),    # Fam 4 (Part 5, SetA attr5)
+    (0x0, 0xD, 0x8, 0x2),    # Fam 5 (Part 6, SetA attr6)
+    (0x0, 0xD, 0x2, 0x6),    # Fam 6 (Part 7, SetA attr7)
+    (0x0, 0xB, 0xA, 0x5),    # Fam 7 (Part 8, SetB attr0)
 )
 ATTRACT_EXTRA_ENEMY_PEN_MAP = LEGACY_ENEMY_PEN_MAP
-PLAYER_PEN_MAP = LEGACY_ENEMY_PEN_MAP
+PLAYER_PEN_MAP = (0x0, 0xC, 0xA, 0x2)
+VEGETABLE_PEN_MAPS = (
+    (0x0, 0xC, 0xA, 0x2),
+    (0x0, 0x9, 0xA, 0x6),
+    (0x0, 0xD, 0xA, 0x9),
+    (0x0, 0xC, 0xA, 0x6),
+    (0x0, 0xC, 0xA, 0x2),
+    (0x0, 0xC, 0xA, 0x6),
+    (0x0, 0xD, 0x2, 0x6),
+    (0x0, 0xD, 0x2, 0x6),
+    (0x0, 0xA, 0x8, 0x6),
+    (0x0, 0xD, 0x2, 0x6),
+    (0x0, 0xD, 0x2, 0x6),
+    (0x0, 0xD, 0x8, 0x2),
+    (0x0, 0x6, 0x8, 0x2),
+    (0x0, 0xA, 0x8, 0x6),
+    (0x0, 0xC, 0xA, 0x2),
+    (0x0, 0xA, 0x8, 0x6),
+    (0x0, 0x4, 0xA, 0x6),
+    (0x0, 0xA, 0x8, 0x6),
+)
 EXPECTED_ENEMY_BYTES = 23_005
 EXPECTED_PLAYER_BYTES = 2_294
 EXPECTED_GATE_BYTES = 832
@@ -842,6 +862,18 @@ def digest(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+FAMILY_MAP_SOURCES = (
+    "arcade PROM 10-2 SetA attr1 (Part 1)",
+    "arcade PROM 10-2 SetA attr2 (Part 2)",
+    "arcade PROM 10-2 SetA attr4 (Part 3)",
+    "arcade PROM 10-2 SetA attr3 (Part 4)",
+    "arcade PROM 10-2 SetA attr5 (Part 5)",
+    "arcade PROM 10-2 SetA attr6 (Part 6)",
+    "arcade PROM 10-2 SetA attr7 (Part 7)",
+    "arcade PROM 10-2 SetB attr0 (Part 8)",
+)
+
+
 def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
     families = []
     for family, pen_map in enumerate(GAMEPLAY_ENEMY_PEN_MAPS, start=1):
@@ -855,10 +887,7 @@ def family_manifest(frames: list[bytes]) -> list[dict[str, object]]:
             "frame_first": first,
             "frame_last": first + 15,
             "pen_map": list(pen_map),
-            "map_source": (
-                "BUG-010 upper-right-purple attract actor"
-                if family == 1 else "retained pre-BUG-018 gameplay mapping"
-            ),
+            "map_source": FAMILY_MAP_SOURCES[family - 1],
             "stream_sha256": digest(streams),
         })
     extra_streams = b"".join(
@@ -924,7 +953,10 @@ def main() -> None:
         if index_address != 0xAFB6:
             raise SystemExit("vegetable sparse index moved; review runtime selector")
         frames = compile_sprite_codes(args.sprites, VEGETABLE_CODES)
-        streams = [encode_sparse_frame(frame, LEGACY_ENEMY_PEN_MAP) for frame in frames]
+        streams = [
+            encode_sparse_frame(frame, pen_map)
+            for frame, pen_map in zip(frames, VEGETABLE_PEN_MAPS)
+        ]
         address = index_address + 3 * len(frames)
         index = bytearray()
         for ordinal, stream in enumerate(streams):
@@ -1320,7 +1352,7 @@ def main() -> None:
         "details": event_details,
     }
     if vegetable_payload:
-        manifest["vegetable"] = {"frames": len(vegetable_index), "bytes": len(vegetable_payload), "index_bytes": 3 * len(vegetable_index), "page": PLAYER_PAGE_BASE, "address": 0xAFB6, "pen_map": list(LEGACY_ENEMY_PEN_MAP), "index": vegetable_index, "sha256": digest(vegetable_payload)}
+        manifest["vegetable"] = {"frames": len(vegetable_index), "bytes": len(vegetable_payload), "index_bytes": 3 * len(vegetable_index), "page": PLAYER_PAGE_BASE, "address": 0xAFB6, "pen_maps": [list(pm) for pm in VEGETABLE_PEN_MAPS], "index": vegetable_index, "sha256": digest(vegetable_payload)}
     args.manifest_output.parent.mkdir(parents=True, exist_ok=True)
     args.manifest_output.write_text(
         json.dumps(manifest, indent=2) + "\n", encoding="ascii"
