@@ -17,14 +17,14 @@
   <main class="wiki-main">
     <header class="wiki-header">
       <p class="wiki-eyebrow">Internal · work ticket · bug</p>
-      <h1>BUG-130 — Stale player save-under restored onto Instructions Buffer B <span class="wiki-badge">Verification</span></h1>
+      <h1>BUG-130 — Stale player save-under restored onto Instructions Buffer B <span class="wiki-badge">Done</span></h1>
       <p class="wiki-meta">Clear <code>PLAYER_BG_VALID</code> before <code>PRES_MAIN_FB_CAPTURE</code> in <code>load_done_hold_plain</code> so stale Demo/Instructions save-under metadata cannot survive into both A/B framebuffer ledgers and stamp old maze pixels onto Buffer B.</p>
     </header>
 
     <section id="status">
       <h2>Ticket state</h2>
       <ul>
-        <li><strong>Status:</strong> Verification (2026-11-23). Implemented on branch <code>fix/bug130-presentation-stale-underlay</code> off <code>main</code> commit <code>cb3f2fd4</code> (post-FEAT-011 merge). Automated gate <code>B130-01</code> passed; awaits user-owned manual XRoar RGB confirmation (<code>B130-02</code>) before <code>Done</code>.</li>
+        <li><strong>Status:</strong> Done (2026-11-23). Implemented on branch <code>fix/bug130-presentation-stale-underlay</code> (commit <code>47d3cfd0</code>) and fast-forward merged into <code>main</code>. Automated gate <code>B130-01</code> passed and user confirmed manual XRoar RGB check <code>B130-02</code> (“looks clean”).</li>
         <li><strong>Created / updated:</strong> 2026-11-23 / 2026-11-23.</li>
         <li><strong>Priority / order:</strong> P2 / immediately after FEAT-011 merge to <code>main</code>.</li>
         <li><strong>Owner:</strong> parent agent implementing directly in <code>E:\projects\ladybug</code>.</li>
@@ -63,8 +63,9 @@
             <li>SPECIAL fixture: <code>repro/feat011-fixtures/special-e/ladybug.rom</code> &mdash; <code>0edea7bee5cfa468413fa2e362eef8733da2f61c2c2955f67941edf7f0c629fa</code></li>
           </ul>
         </li>
-        <li><strong>B130-02 (PENDING — User-Owned):</strong> Wake from live Demo or mid-choreography Instructions back to Attract, let Attract idle into Instructions, and confirm zero flickering corruption on <code>10 POINTS</code> or at Lady Bug's prior location.</li>
+        <li><strong>B130-02 (PASS — User-Confirmed, 2026-11-23):</strong> User confirmed clean rendering on the rebuilt ROM (“looks clean”) with zero flickering corruption on <code>10 POINTS</code> or at Lady Bug's prior location.</li>
       </ul>
+      <p><strong>QA verdict:</strong> <strong>Done</strong>. Both automated (<code>B130-01</code>) and user-owned manual (<code>B130-02</code>) gates passed on commit <code>47d3cfd0</code> with <code>+5 B</code> free in the 1,280-byte presentation module, zero resident/asset ROM growth, and no regressions.</p>
     </section>
 
     <section id="decisions">
