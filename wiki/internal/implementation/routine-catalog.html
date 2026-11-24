@@ -49,6 +49,16 @@
         <p><strong>Side effects:</strong> May enqueue rendering work but does not publish FRONT.</p>
         <p><strong>Invariants:</strong> Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned.</p>
       </section>
+      <section id="profile-score-bonus-life">
+        <h3>Repeating score bonus lives</h3>
+        <p><strong>Inputs:</strong> PAR5 maps page $34; the SPECIAL entry is called only when exiting a live SPECIAL intermission after the reward and its audio drain.</p>
+        <p><strong>Outputs:</strong> Up to 255 reserve lives, next packed BCD threshold or zero, and RF_LIVES for normal HUD redraw when a threshold is crossed.</p>
+        <p><strong>Clobbers:</strong> A, B, D, X, and condition codes except interrupt mask bits.</p>
+        <p><strong>Reads:</strong> PRES_MODE, DEATH_STATE, SCORE_BCD, MENU_BONUS_LIFE, NEXT_BONUS_BCD, LIVES, and RENDER_FLAGS.</p>
+        <p><strong>Writes:</strong> NEXT_BONUS_BCD, LIVES, RENDER_FLAGS, and the mapped audio queue.</p>
+        <p><strong>Side effects:</strong> Requests dedicated extra-life Cue 14 for each crossing; the audio queue coalesces duplicate requests. No intermission is requested.</p>
+        <p><strong>Invariants:</strong> Restores PAR5 to $34; zero interval or threshold makes no awards; an increment beyond $99 disables further awards for this game.</p>
+      </section>
       <section id="profile-render">
         <h3>BACK and staging rendering</h3>
         <p><strong>Inputs:</strong> Current render intent, selected actor or tile state, and a valid BACK or staging destination.</p>
@@ -238,7 +248,9 @@
           <tr id="routine-resident-runtime-gate-render-hidden"><td><code>gate_render_hidden</code></td><td>Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>exported</td></tr>
           <tr id="routine-resident-runtime-init-enemy"><td><code>init_enemy</code></td><td>Initialize enemy.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-init-entities"><td><code>init_entities</code></td><td>Initialize entities.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
-          <tr id="routine-resident-runtime-init-game-state"><td><code>init_game_state</code></td><td>Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-init-game-state"><td><code>init_game_state</code></td><td>Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress, reset multiplier, and seed the repeating score threshold.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>exported</td></tr>
+          <tr id="routine-resident-runtime-check-bonus-life"><td><code>check_bonus_life</code></td><td>Award every reached score threshold during credited, living gameplay.</td><td><a href="#profile-score-bonus-life">Repeating score bonus lives</a></td><td>called</td></tr>
+          <tr id="routine-resident-runtime-check-special-bonus-life"><td><code>check_special_bonus_life</code></td><td>Award reached thresholds after the live SPECIAL route and Cue 11 finish, including thresholds crossed before six-digit rollover.</td><td><a href="#profile-score-bonus-life">Repeating score bonus lives</a></td><td>called, exported</td></tr>
           <tr id="routine-resident-runtime-init-gate-state"><td><code>init_gate_state</code></td><td>Initialize gate state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-init-joystick"><td><code>init_joystick</code></td><td>Initialize joystick.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>
           <tr id="routine-resident-runtime-init-maze-state"><td><code>init_maze_state</code></td><td>Initialize maze state.</td><td><a href="#profile-state">Authoritative state mutation</a></td><td>called</td></tr>

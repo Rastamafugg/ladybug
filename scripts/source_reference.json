@@ -455,7 +455,7 @@
         {
           "name": "init_game_state",
           "profile": "state",
-          "purpose": "Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.",
+          "purpose": "Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress, reset multiplier, and seed the repeating score threshold.",
           "reasons": [
             "exported"
           ]
@@ -763,6 +763,20 @@
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-hud-snapshot-capture-player"
         },
         {
+          "name": "check_bonus_life",
+          "profile": "score-bonus-life",
+          "purpose": "Award every reached score threshold during credited, living gameplay.",
+          "reasons": ["called"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-check-bonus-life"
+        },
+        {
+          "name": "check_special_bonus_life",
+          "profile": "score-bonus-life",
+          "purpose": "Award reached thresholds after the live SPECIAL route and Cue 11 finish, including thresholds crossed before six-digit rollover.",
+          "reasons": ["called", "exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-check-special-bonus-life"
+        },
+        {
           "name": "hud_snapshot_refresh_top",
           "profile": "copy",
           "purpose": "Copy the committed ten-byte row-one score and name into the shared TOP snapshot.",
@@ -1044,6 +1058,7 @@
         "PLAYER_MODULE_DRAW",
         "PRESENTATION_MODULE_DRAW",
         "AUDIO_ENGINE_EXEC",
+        "AUDIO_ENQUEUE_EXEC",
         "KEY_SERVICE_EXEC",
         "HUD_WORD_EXEC",
         "PRES_MODULE_DRAW_SCORE",
@@ -4180,12 +4195,17 @@
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         },
         {
+          "name": "menu_bonus_off_value",
+          "kind": "data",
+          "reason": "FEAT-015 five-glyph OFF value, padded to clear prior score digits on both buffers."
+        },
+        {
           "name": "menu_option_rows",
           "kind": "data",
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         },
         {
-          "name": "menu_options_pairs",
+          "name": "menu_options_left",
           "kind": "data",
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         },
@@ -5380,6 +5400,7 @@
       "external_symbols": [
         "PRES_MAIN_NEXT_STAGE",
         "PRES_MAIN_HUD_CAPTURE_PLAYER",
+        "PRES_MAIN_CHECK_SPECIAL_BONUS_LIFE",
         "PRES_MAIN_SHARED_HUD",
         "PRES_MAIN_FB_PREPARE",
         "PRES_MAIN_FB_FINISH",
@@ -6231,6 +6252,15 @@
       "side_effects": "May change mapping, interrupt, rendering, or lifecycle ownership as stated by the routine purpose",
       "invariants": "The stack remains balanced and every temporary PAR mapping is restored or deliberately handed off before return"
     },
+    "score-bonus-life": {
+      "inputs": "PAR5 maps page $34; the SPECIAL entry is called only when exiting a live SPECIAL intermission after the reward and its audio drain.",
+      "outputs": "Up to 255 reserve lives, next packed BCD threshold or zero, and RF_LIVES for normal HUD redraw when a threshold is crossed.",
+      "clobbers": "A, B, D, X, and condition codes except interrupt mask bits.",
+      "reads": "PRES_MODE, DEATH_STATE, SCORE_BCD, MENU_BONUS_LIFE, NEXT_BONUS_BCD, LIVES, and RENDER_FLAGS.",
+      "writes": "NEXT_BONUS_BCD, LIVES, RENDER_FLAGS, and the mapped audio queue.",
+      "side_effects": "Requests dedicated extra-life Cue 14 for each crossing; the audio queue coalesces duplicate requests. No intermission is requested.",
+      "invariants": "Restores PAR5 to $34; zero interval or threshold makes no awards; an increment beyond $99 disables further awards for this game."
+    },
     "state": {
       "inputs": "Current authoritative gameplay or presentation state; register arguments are named by the routine label and immediate caller",
       "outputs": "Updated authoritative state and condition codes used by the immediate caller",
@@ -6369,6 +6399,8 @@
   },
   "ownership_audit": {
     "required": [
+      "menu-bonus-life",
+      "next-bonus-bcd",
       "multiplier-x",
       "sprite-index",
       "ring-base",

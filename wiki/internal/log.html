@@ -4140,4 +4140,8 @@
   <h3>2026-11-24 &middot; ingest &mdash; BUG-132 sprite-origin contact</h3>
   <p><code>player_tick</code> and <code>et_update_loop</code> advance the same logical framebuffer pointers used for rendering. The player also updates that pointer on both axes during a late-turn snap. The <a href="implementation/routine-catalog.html#profile-actor-contact">resident contact check</a> uses those pointers so the collision scan does not need to reconstruct positions from movement phases. The enemy entry tail-jumps to it without changing the scan schedule.</p>
 </section>
+<section id="feat015-repeating-score-bonus-20261124-log">
+  <h3>2026-11-24 &middot; FEAT-015 score bonus implementation</h3>
+  <p>The CoCo Options screen adds an off-by-default repeating score bonus life without changing arcade <code>EXTRA</code>. The <a href="./implementation/routine-catalog.html#profile-score-bonus-life">resident score-bonus contract</a> covers live simulation and the <code>SPECIAL</code> intermission exit, with the existing second-buffer redraw and Cue 14 queue. RGB playtest acceptance is pending.</p>
+</section>
 </html>

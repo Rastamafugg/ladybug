@@ -1028,6 +1028,7 @@ presentation_panel_done
 MENU_LIVES equ $EA
 MENU_LEVEL equ $EB
 MENU_DIFFICULTY equ $029B
+MENU_BONUS_LIFE equ $02D5
 MENU_SELECT equ $E0
 MENU_PREV equ $DF
 MENU_EVENT equ $D0
@@ -1201,7 +1202,7 @@ menu_event_ready
         lbra    menu_hold
 menu_interactive
         bita    #16
-        bne     menu_enter
+        lbne    menu_enter
         ; Opposing held inputs cancel, including a newly pressed opposite.
         ldb     MENU_PREV
         andb    #3
@@ -1223,26 +1224,35 @@ menu_horizontal
         lbeq    menu_idle
         ldb     MENU_SELECT
         beq     menu_toggle_difficulty
-        cmpb    #3
+        cmpb    #4
         lbhs    menu_idle
-        ldx     #MENU_LIVES-1
-        abx
+        cmpb    #2
+        beq     menu_bonus_adjust
+        ldx     #MENU_LEVEL
+        ldb     #99
+        bhs     menu_maximum
+        leax    -1,x
+        ldb     #12
+        bra     menu_maximum
+menu_bonus_adjust
+        ldx     #MENU_BONUS_LIFE
+        ldb     #5
+menu_maximum
         bita    #4
         bne     menu_decrease
-        lda     #12
-        cmpb    #1
-        beq     menu_maximum
-        lda     #99
-menu_maximum
-        cmpa    ,x
+        cmpb    ,x
         bls     menu_idle
         inc     ,x
         bra     menu_redraw
 menu_decrease
         lda     ,x
-        cmpa    #1
-        bls     menu_idle
-        dec     ,x
+        beq     menu_idle
+        deca
+        bne     menu_store
+        cmpb    #5
+        bne     menu_idle
+menu_store
+        sta     ,x
         bra     menu_redraw
 menu_toggle_difficulty
         lda     MENU_DIFFICULTY
@@ -1259,7 +1269,7 @@ menu_down
         lda     PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         beq     menu_last
-        ldb     #4
+        ldb     #5
 menu_last
         cmpb    MENU_SELECT
         bls     menu_idle
@@ -1287,12 +1297,12 @@ menu_attract_options
         bra     menu_change
 menu_enter_option
         lda     MENU_SELECT
-        cmpa    #3
+        cmpa    #4
         bne     menu_enter_back
         lda     #8
         bra     menu_change
 menu_enter_back
-        cmpa    #4
+        cmpa    #5
         bne     menu_idle
 menu_back
         lda     #PRESENTATION_MAP_ATTRACT
@@ -1396,9 +1406,9 @@ menu_label_colour
         puls    b,pc
 menu_paint_options
         leay    menu_option_rows,pcr
-        ldb     #5
+        ldb     #6
         bsr     menu_paint_rows
-        leay    menu_options_pairs,pcr
+        leay    menu_options_left,pcr
         clr     $D1
 menu_value_row
         ldb     $D1
@@ -1412,7 +1422,10 @@ menu_value_colour
         leax    4,x
         tstb
         beq     menu_difficulty_text
-        ldu     #MENU_LIVES-1
+        cmpb    #2
+        beq     menu_bonus_text
+        lsrb
+        ldu     #MENU_LIVES
         lda     b,u
         clrb
 menu_tens
@@ -1436,24 +1449,45 @@ menu_difficulty_text
         leay    6,y
 menu_difficulty_paint
         ldb     #6
+menu_value_text
         lbsr    stage_panel_text
         puls    y
-menu_value_select
-        lda     $D1
-        cmpa    MENU_SELECT
-        bne     menu_value_next
-        lda     #43
-        ldx     ,y
+        bra     menu_value_select
+menu_bonus_text
+        lda     MENU_BONUS_LIFE
+        beq     menu_bonus_off
         lbsr    stage_panel_char
+        ldb     #4
+menu_bonus_zeros
+        clra
+        lbsr    stage_panel_char
+        decb
+        bne     menu_bonus_zeros
+        bra     menu_value_select
+menu_bonus_off
+        pshs    y
+        leay    menu_bonus_off_value,pcr
+        ldb     #5
+        bra     menu_value_text
+menu_value_select
+        ldb     $D1
+        lda     #36
+        cmpb    MENU_SELECT
+        bne     menu_right_marker
         lda     #44
-        ldx     2,y
+menu_right_marker
+        lbsr    stage_panel_char
+        cmpa    #44
+        bne     menu_left_marker
+        deca
+menu_left_marker
+        ldx     ,y++
         lbsr    stage_panel_char
 menu_value_next
-        leay    4,y
         inc     $D1
         lda     $D1
-        cmpa    #3
-        blo     menu_value_row
+        cmpa    #4
+        lblo    menu_value_row
         rts
         include "ladybug_menu_records.inc"
 highscore_phase_helper_end

@@ -183,6 +183,11 @@ im_wait_audio
         jsr     PRES_MODULE_MAP_BACK
         lda     #$34
         sta     PAR5
+        lda     im_kind
+        cmpa    #2
+        bne     im_next_stage
+        jsr     PRES_MAIN_CHECK_SPECIAL_BONUS_LIFE
+im_next_stage
         clr     <PRES_INTERMISSION
         clr     <PRES_EVENT
         lda     #$FF

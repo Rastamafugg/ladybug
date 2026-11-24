@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-015: Configurable Score Bonus Life Option — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>FEAT-015: Configurable Score Bonus Life Option</h1>
+    <p class="subtitle">Optional repeating score-based bonus life in Options (<code>OFF</code> default / arcade EXTRA only, or every <code>10000</code>&ndash;<code>50000</code> points)</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>FEAT-015</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>feat/feat015-bonus-life-option</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type</th><td>Feature &mdash; Gameplay Options enhancement</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria (2026-11-24)</h2>
+    <ol>
+      <li><strong>Options Screen Entry (<code>BONUS LIFE</code>):</strong>
+        <ul>
+          <li>Add <code>BONUS LIFE</code> to the Options menu (<code>tiled/coco-options-screen.tmx</code>, <code>scripts/shared_text.py</code>, <code>src/shared_text_stage.inc</code>) below <code>LIVES</code>: <code>0=DIFFICULTY</code>, <code>1=LIVES</code>, <code>2=BONUS LIFE</code>, <code>3=STARTING LEVEL</code>, <code>4=KEYBINDINGS</code>, <code>5=BACK</code>.</li>
+          <li>Selectable values via Left/Right: <code>OFF</code> (<code>0</code>, default at cold boot &mdash; arcade <code>EXTRA</code> life only), <code>10000</code> (<code>1</code>), <code>20000</code> (<code>2</code>), <code>30000</code> (<code>3</code>), <code>40000</code> (<code>4</code>), <code>50000</code> (<code>5</code>).</li>
+          <li>Cleanly repaint <code>OFF  </code> vs <code>10000</code>..<code>50000</code> on both A and B framebuffers with no stray trailing characters.</li>
+        </ul>
+      </li>
+      <li><strong>Repeating Score Bonus-Life Award:</strong>
+        <ul>
+          <li>When <code>MENU_BONUS_LIFE == 0</code> (<code>OFF</code>) or during unattended Demo mode (<code>PRES_MODE == MODE_DEMO</code>), no score-based bonus life is awarded (arcade <code>EXTRA</code> life only).</li>
+          <li>When <code>MENU_BONUS_LIFE</code> is <code>1..5</code> (<code>10000</code>..<code>50000</code>), crossing each repeating multiple of the configured threshold awards +1 reserve life (255-saturating, displaying up to 12 reserve HUD markers via <code>RF_LIVES</code>) and enqueues the extra-life audio cue (without an intermission).</li>
+          <li>Covers all live score additions (dots, bonuses, vegetables, and SPECIAL +100,000), including multi-threshold jumps (e.g. +100,000 on SPECIAL with a 10k&ndash;50k threshold awards the appropriate multiple of lives or advances the threshold cleanly without losing future awards).</li>
+        </ul>
+      </li>
+      <li><strong>Memory, Docs &amp; Verification Guards:</strong>
+        <ul>
+          <li>All fixed module caps pass (primary &amp; <code>extra-e</code>/<code>special-e</code> fixtures resident <code>&le; 8,192 B</code>, <code>ladybug-highscore-helper.bin &le; 3,264 B</code>, <code>enemy_runtime.rom &le; 4,096 B</code>, <code>draw_recolored_map_tile = $FBA5</code>).</li>
+          <li>Update <code>wiki/internal/game/overview.html</code> and <code>wiki/internal/implementation/roadmap.html</code> to document that the 1981 arcade ROM has no score-based bonus life (EXTRA only) and CoCo provides this as an optional <code>OFF</code>-by-default setting.</li>
+          <li>Pass DOC-002, audio, presentation-flow, demo, and standalone 6809 bonus-life/options verification, followed by user XRoar RGB playtest.</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-24:</strong> Disassembly of arcade Z80 ROM confirmed no score-based bonus life (EXTRA only). User approved adding optional repeating <code>BONUS LIFE</code> (<code>OFF</code> default, <code>10000</code>&ndash;<code>50000</code> in <code>10000</code> increments) in Options. Branched <code>feat/feat015-bonus-life-option</code> off <code>main</code> (<code>e099be3e</code>) and delegated implementation &amp; verification to <code>gpt-6.2-sol</code> (high reasoning).</li>
+      <li><strong>2026-11-24 (Verification):</strong> Source edits completed by <code>gpt-6.2-sol</code> before quota limit; parent QA fixed <code>MENU_BONUS_LIFE</code> overlap (<code>$02DD</code> &rarr; <code>$02D5</code>) and ran full primary + fixture builds and verifiers. Primary ROM <code>681195f78d53055c8f1cab375aab982e21a2b19fa9e90fadc4744834c3d8a0fa</code> (resident <code>7,984/8,192 B</code>, <code>+208 B</code> free), <code>extra-e</code> <code>68cd6de0...</code> and <code>special-e</code> <code>776d29f5...</code> (resident <code>8,011/8,192 B</code>, <code>+181 B</code> free), <code>highscore-helper.bin</code> <code>3,259/3,264 B</code>, <code>enemy_runtime.rom</code> <code>4,091/4,096 B</code>, <code>intermission_runtime</code> <code>920/938 B</code>, <code>adaptive-active</code> <code>707/777 B</code>, <code>$FBA5</code> intact, GMC spare <code>4,469 B</code>. DOC-002 (<code>19/352/7,417</code>, zero ownership overlaps), audio (18 cues), presentation flow, and 9/9 pixel-exact presentation maps passed. Awaits user XRoar RGB playtest.</li>
+    </ul>
+  </section>
+</body>
+</html>

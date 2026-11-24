@@ -228,6 +228,7 @@
         <li><strong>Done 2026-11-23 (<a href="../tickets/feat-011-extra-special-intermissions.html#feat011-done-20261123">FEAT-011</a>):</strong> EXTRA completion triggers the non-skippable EXTRA intermission with Cue 10, awards +1 reserve life (saturating at 255, displaying 12 markers) on slot arrival with no completion points, resets EXTRA progress, and hands off cleanly to Level Start.</li>
       </ol>
       <p><strong>Exit criterion:</strong> the right HUD panel cycles correctly; collecting at the right colour advances the right target; all three reward paths trigger.</p>
+      <p><strong>CoCo option (<a href="../tickets/feat-015-bonus-life-option.html">FEAT-015</a>):</strong> <code>BONUS LIFE</code> is off by default, matching the arcade ROM's <code>EXTRA</code>-only rule. With a score interval selected, each reached multiple adds a reserve life and requests Cue 14, the dedicated extra-life chime. Cue 10 stays with the <code>EXTRA</code> intermission. A <code>SPECIAL</code> score jump counts at its intermission exit after Cue 11 drains, without starting a second intermission. The setting lasts until power-off; the next threshold lasts until game end and stops before six-digit rollover.</p>
       <p><strong>Ordering decision:</strong> complete this non-enemy phase before enemy actors so scoring, stage completion, and collectible behavior can be tested independently.</p>
     </section>
 

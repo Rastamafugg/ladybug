@@ -793,6 +793,7 @@ if int(complete):
         'shared_mask': 'PRES_MAIN_SHARED_MASK',
         'draw_shared_hud': 'PRES_MAIN_SHARED_HUD',
         'hud_snapshot_capture_player': 'PRES_MAIN_HUD_CAPTURE_PLAYER',
+        'check_special_bonus_life': 'PRES_MAIN_CHECK_SPECIAL_BONUS_LIFE',
         'HUD_P1_STAGE': 'HUD_P1_STAGE',
         'HUD_PLAYER_VALID': 'HUD_PLAYER_VALID',
         'PRESENTATION_HUD_DRAW_PRIMARY': 'PRESENTATION_HUD_DRAW_PRIMARY',

@@ -190,6 +190,7 @@ atb_no_popup
         jsr player_tick
         jsr enemy_collect
 atb_after_player
+        jsr check_bonus_life
         tst DEATH_STATE
         bne atb_after_timers
         tst BONUS_LEFT

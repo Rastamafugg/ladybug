@@ -15,6 +15,15 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract asset_draw_top_hud profile=render: Draw the shared player score on every screen except demo, where its authored zero remains visible, then draw the committed TOP name and score.
 ; DOC-002 source-contract mirror contract hud_snapshot_init profile=copy: Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.
 ; DOC-002 source-contract mirror contract hud_snapshot_capture_player profile=copy: Copy the current player-owned score, stage, lives, multiplier, and SPECIAL/EXTRA progress into the shared snapshot before HUD drawing.
+; DOC-002 source-contract mirror contract check_bonus_life profile=score-bonus-life: Award every reached score threshold during credited, living gameplay.
+; DOC-002 source-contract mirror contract check_special_bonus_life profile=score-bonus-life: Award reached thresholds after the live SPECIAL route and Cue 11 finish, including thresholds crossed before six-digit rollover.
+; DOC-002 source-contract mirror profile score-bonus-life Inputs: PAR5 maps page $34; the SPECIAL entry is called only when exiting a live SPECIAL intermission after the reward and its audio drain.
+; DOC-002 source-contract mirror profile score-bonus-life Outputs: Up to 255 reserve lives, next packed BCD threshold or zero, and RF_LIVES for normal HUD redraw when a threshold is crossed.
+; DOC-002 source-contract mirror profile score-bonus-life Clobbers: A, B, D, X, and condition codes except interrupt mask bits.
+; DOC-002 source-contract mirror profile score-bonus-life Reads: PRES_MODE, DEATH_STATE, SCORE_BCD, MENU_BONUS_LIFE, NEXT_BONUS_BCD, LIVES, and RENDER_FLAGS.
+; DOC-002 source-contract mirror profile score-bonus-life Writes: NEXT_BONUS_BCD, LIVES, RENDER_FLAGS, and the mapped audio queue.
+; DOC-002 source-contract mirror profile score-bonus-life Side effects: Requests dedicated extra-life Cue 14 for each crossing; the audio queue coalesces duplicate requests. No intermission is requested.
+; DOC-002 source-contract mirror profile score-bonus-life Invariants: Restores PAR5 to $34; zero interval or threshold makes no awards; an increment beyond $99 disables further awards for this game.
 ; DOC-002 source-contract mirror contract hud_snapshot_refresh_top profile=copy: Copy the committed ten-byte row-one score and name into the shared TOP snapshot.
 ; DOC-002 source-contract mirror contract draw_shared_hud profile=render: Shared entry alias to draw_hud; Instructions uses nonzero B for its event descriptor, selected word groups use B=0 for a full row or B=1..7 for one column.
 ; DOC-002 source-contract mirror contract HUD_WORD_EXEC profile=render: Generated page-$3D address of the shared word painter at $BF00.
@@ -144,7 +153,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract gate_render_hidden profile=render: Recompose a gate mutation on the mapped hidden framebuffer without changing visible ownership.
 ; DOC-002 source-contract mirror contract init_enemy profile=state: Initialize enemy.
 ; DOC-002 source-contract mirror contract init_entities profile=state: Initialize entities.
-; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress and reset multiplier.
+; DOC-002 source-contract mirror contract init_game_state profile=state: Initialize score, lives, stage, bonus, death, pickup, and render-protocol state for an Attract preview or fresh game; clear SPECIAL/EXTRA progress, reset multiplier, and seed the repeating score threshold.
 ; DOC-002 source-contract mirror contract init_gate_state profile=state: Initialize gate state.
 ; DOC-002 source-contract mirror contract init_joystick profile=state: Initialize joystick.
 ; DOC-002 source-contract mirror contract init_maze_state profile=state: Initialize maze state.
@@ -224,11 +233,12 @@ INPUT_JOYSTICK equ 0            ; direct CoCo arrows unless explicitly selected
 
         ifne COMPLETE_PROFILE
 AUDIO_ENGINE_EXEC   equ $02E4
+AUDIO_ENQUEUE_EXEC  equ $A006
         else
 AUDIO_ENGINE_EXEC   equ $0300
+AUDIO_ENQUEUE_EXEC  equ $0306
         endc
 AUDIO_INIT_EXEC     equ $0303
-AUDIO_ENQUEUE_EXEC  equ $0306
 PRES_NAME_PTR       equ $00E4
 
 LAST_FRAME    equ $0000         ; last processed Vbord counter low byte
@@ -258,6 +268,8 @@ PRES_MODE     equ $00A5         ; presentation dispatcher mode
 MODE_DEMO     equ 4              ; autonomous demo owns joystick direction
 ; @audit {"id":"menu-difficulty","kind":"scratch","symbol":"MENU_DIFFICULTY","reference_modules":["resident-runtime","highscore-helper"],"width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"Options difficulty selection","initialization":"Cold boot clears to Arcade","lifetime":"Boot session, including stage changes and new games","clobbers":"Options Left or Right toggles Arcade (0) and Easy (1)."}
 MENU_DIFFICULTY equ $029B
+; @audit {"id":"menu-bonus-life","kind":"scratch","symbol":"MENU_BONUS_LIFE","reference_modules":["resident-runtime","highscore-helper"],"width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"Options bonus-life selection","initialization":"Cold boot clears to Off","lifetime":"Boot session, including stage changes and new games","clobbers":"Options Left and Right step between Off (0) and 10000 through 50000 (1 through 5)."}
+MENU_BONUS_LIFE equ $02D5
 GATE_ANIM_ID  equ $0019         ; rotating gate ID+1; zero when idle
 GATE_ANIM_STYLE equ $001A       ; 0=slash, 1=backslash
 BLIT_ROWS     equ $001B         ; transparent-blit row counter
@@ -490,6 +502,8 @@ AI_BFS_TAIL   equ AI_BFS_HEAD+1
 AI_CHASE_TIMER equ AI_BFS_TAIL+1 ; four slot-indexed seconds
 AI_SEC_TICK   equ AI_CHASE_TIMER+4
 AI_RR_INDEX   equ AI_SEC_TICK+1
+; @audit {"id":"next-bonus-bcd","kind":"scratch","symbol":"NEXT_BONUS_BCD","width":1,"mapping":"physical-page-34","phases":["foreground"],"owner":"Repeating score bonus lives","initialization":"init_game_state copies MENU_BONUS_LIFE","lifetime":"One game, including stage changes and intermissions","clobbers":"Score bonus processing advances the packed BCD threshold in units of 10000; zero disables further awards."}
+NEXT_BONUS_BCD equ $A2FE
 PLAYER_BG  equ  $A300           ; 128-byte saved background under player
 ENTITY_TABLE equ $A380          ; twelve x/y/type/variant records
 ENTITY_GATE_CACHE equ $B000     ; twelve 16x16 static overlays, 128 bytes each
@@ -696,6 +710,7 @@ startup_clear_complete
 startup_seed_ready
         std     RNG_STATE
         clr     MENU_DIFFICULTY
+        clr     MENU_BONUS_LIFE
 
         ; --- Presentation-safe framebuffer ownership ---
         ; Gameplay state is initialized by presentation_runtime when the level
@@ -881,6 +896,9 @@ main_no_popup
         lbsr    player_tick
         lbsr    enemy_collect
 main_after_player
+        ifne COMPLETE_PROFILE
+        lbsr    check_bonus_life
+        endc
         lda     DEATH_STATE
         bne     main_after_timers
         tst     BONUS_LEFT
@@ -1101,6 +1119,10 @@ init_game_state
         lda     $EA
         ldb     $EB
 igs_defaults
+        pshs    a
+        lda     MENU_BONUS_LIFE
+        sta     NEXT_BONUS_BCD
+        puls    a
         endc
         sta     LIVES
         stb     STAGE
@@ -5675,6 +5697,54 @@ hud_snapshot_capture_player
         sta     ,x
         lda     #1
         sta     HUD_PLAYER_VALID
+        rts
+
+check_bonus_life
+        lda     PRES_MODE
+        ora     DEATH_STATE
+        bne     cbl_done
+        lda     <SCORE_BCD
+        bra     cbl_apply
+check_special_bonus_life
+        lda     <SCORE_BCD
+        cmpa    #$10
+        bhs     cbl_apply
+        lda     #$99
+cbl_apply
+        tst     MENU_BONUS_LIFE
+        beq     cbl_done
+        ldb     NEXT_BONUS_BCD
+        beq     cbl_done
+        pshs    a
+cbl_loop
+        cmpb    ,s
+        bhi     cbl_return
+        inc     <LIVES
+        bne     cbl_render
+        dec     <LIVES
+cbl_render
+        lda     <RENDER_FLAGS
+        ora     #RF_LIVES
+        sta     <RENDER_FLAGS
+        tfr     b,a
+        adda    MENU_BONUS_LIFE
+        daa
+        bcc     cbl_store
+        clra
+cbl_store
+        sta     NEXT_BONUS_BCD
+        lda     #AUDIO_RUNTIME_PAGE
+        sta     PAR_EXEC+5
+        lda     #14
+        clrb
+        jsr     AUDIO_ENQUEUE_EXEC
+        lda     #$34
+        sta     PAR_EXEC+5
+        ldb     NEXT_BONUS_BCD
+        bne     cbl_loop
+cbl_return
+        leas    1,s
+cbl_done
         rts
         endc
 
