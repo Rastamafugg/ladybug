@@ -17,7 +17,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract audio_music_busy profile=audio: Audio music busy.
 ; DOC-002 source-contract mirror contract audio_music_dispatch profile=audio: Audio music dispatch.
 ; DOC-002 source-contract mirror contract audio_poll_enqueue profile=audio: Audio poll enqueue.
-; DOC-002 source-contract mirror contract audio_poll_gameplay profile=audio: Audio poll gameplay.
+; DOC-002 source-contract mirror contract audio_poll_gameplay profile=audio: Admit live gameplay cues on state edges and retire Cue 5 when its enemy is released.
 ; DOC-002 source-contract mirror contract audio_poll_name profile=audio: Audio poll name.
 ; DOC-002 source-contract mirror contract audio_priority_for_id profile=audio: Audio priority for id.
 ; DOC-002 source-contract mirror contract audio_process_queue profile=audio: Audio process queue.
@@ -42,7 +42,7 @@ ADAPTIVE_RENDERING equ 0
 
 PAR5        equ $FFA5
 GIME_INIT0  equ $FF90
-SND_DATA    equ $FF51
+SND_DATA    equ $FF41
 PIA1_CRA    equ $FF01
 PIA1_CRB    equ $FF03
 PIA2_CRB    equ $FF23
@@ -508,6 +508,7 @@ AUDIO_GAME_EXTRA    equ $003D
 AUDIO_GAME_BOX      equ $004B
 AUDIO_GAME_DEATH    equ $004D
 AUDIO_GAME_GATE     equ $0019
+AUDIO_GAME_ACTIVE   equ $0058
 AUDIO_GAME_RELEASE  equ $0059
 AUDIO_GAME_VEG      equ $005A
 
@@ -562,6 +563,15 @@ audio_poll_bonus_saved
         bne     audio_poll_box_saved
         lda     #4
         jsr     audio_poll_enqueue
+        ; The wrap from box 91 to 0 releases the waiting enemy.
+        lda     AUDIO_GAME_BOX
+        cmpa    #81
+        bne     audio_poll_box_saved
+        lda     AUDIO_GAME_ACTIVE
+        cmpa    #4
+        bhs     audio_poll_box_saved
+        lda     #5
+        jsr     audio_poll_enqueue
 audio_poll_box_saved
         lda     AUDIO_GAME_BOX
         sta     audio_poll_box
@@ -591,8 +601,21 @@ audio_poll_veg_saved
         lda     AUDIO_GAME_RELEASE
         cmpa    audio_poll_release
         bls     audio_poll_release_saved
-        lda     #5
-        jsr     audio_poll_enqueue
+        ; Prior admissions have drained the FIFO. Retire only Cue 5's
+        ; active effect slots so the next mix publishes the release.
+        ldx     #audio_slot_base_table+2
+        ldb     #3
+audio_poll_release_slot
+        ldy     ,x++
+        lda     ,y
+        cmpa    #5
+        bne     audio_poll_release_next
+        lda     #$FF
+        sta     ,y
+audio_poll_release_next
+        decb
+        bne     audio_poll_release_slot
+        lda     AUDIO_GAME_RELEASE
 audio_poll_release_saved
         lda     AUDIO_GAME_RELEASE
         sta     audio_poll_release

@@ -55,13 +55,13 @@
       ]
     },
     {
-      "event": "enemy_release",
+      "event": "enemy_release_warning",
       "cue_id": 5,
-      "source_routine": "enemy_release_impl",
-      "state_transition": "ENEMY_RELEASED increments after an enemy record becomes active",
-      "fire_once": "one enqueue per newly active release; timer-box changes alone emit nothing",
+      "source_routine": "audio_poll_gameplay",
+      "state_transition": "BOX_INDEX enters 81 during credited, living play with ENEMY_ACTIVE below four",
+      "fire_once": "one enqueue per edge into box 81; an increase in ENEMY_RELEASED retires the active warning",
       "parameter": 0,
-      "verification": "forced_enemy_release"
+      "verification": "forced_enemy_release_warning"
     },
     {
       "event": "level_start",

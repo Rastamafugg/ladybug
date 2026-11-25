@@ -9,6 +9,8 @@
 ; DOC-002 source-contract mirror profile render Invariants: The routine never selects the visible FRONT surface; temporary PAR5 mappings expire or restore before return
 ; DOC-002 source-contract mirror contract hud_word_paint profile=render: Paint the selected SPECIAL/EXTRA row fully or repaint one changed letter column.
 ; DOC-002 source-contract mirror contract dwph_paint_word profile=render: Recolor one generated word row from its owner bits, using the requested column when nonzero.
+; DOC-002 source-contract mirror contract hud_entry_score_paint profile=render: Recolor the selected BACK player label and score using the ink pen in B.
+; DOC-002 source-contract mirror contract repaint_entry_score_rows profile=render: Set the ink pen in eight rows of a BACK HUD field while preserving its glyph pixels.
 ; DOC-002 source-contract mirror ends.
 
         pragma  nodollarlocal,6809
@@ -18,6 +20,10 @@
         include "ladybug_text_colours.inc"
 
 PRES_SCREEN equ $00A6
+RENDER_FLAGS equ $007F
+FB_BACK_ID equ $0090
+RF_HUD equ $02
+RF_STAGE equ $40
 HUD_P1_SPECIAL_BITS equ $02A6
 HUD_P1_EXTRA_BITS equ $02A7
 HUD_X equ $0027
@@ -30,8 +36,13 @@ HUD_BCD_COUNT equ $002E
 
         org     $0000
 
-; Runtime entry is fixed at $BF00 in the page-$3D loader stream.
+; Fixed page-$3D entries at $BF00 and $BF02.
 hud_word_paint
+        bra     hwp_begin
+hud_entry_score_paint
+        lbra    hesp_begin
+
+hwp_begin
         pshs    a,b
         lda     ,s              ; PSHS A,B leaves A (the group mask) at 0,S
         bita    #PRESENTATION_HUD_DRAW_SPECIAL
@@ -121,6 +132,64 @@ dwph_full_paint
         dec     HUD_COUNT
         bne     dwph_full_loop
 dwph_paint_done
+        rts
+
+; B is the selected pen. A stage/score repaint can invalidate the last pen
+; even within the same flash phase.
+hesp_begin
+        ldx     #HUD_ENTRY_SCORE_PENS
+        lda     FB_BACK_ID
+        leax    a,x
+        cmpb    ,x
+        bne     hesp_repaint
+        lda     RENDER_FLAGS
+        bita    #RF_STAGE|RF_HUD
+        beq     hesp_done
+hesp_repaint
+        stb     ,x
+        stb     HUD_COLOR
+        lda     #$11
+        mul
+        stb     HUD_BYTE
+        ldx     #PRESENTATION_HUD_P1_LABEL_DST
+        ldb     #PRESENTATION_HUD_P1_LABEL_WIDTH*4
+        bsr     repaint_entry_score_rows
+        ldx     #PRESENTATION_HUD_P1_SCORE_DST
+        ldb     #PRESENTATION_HUD_P1_SCORE_WIDTH*4
+        bra     repaint_entry_score_rows
+hesp_done
+        rts
+
+; X is the field start, B its row width in bytes. Zero nibbles are blank.
+repaint_entry_score_rows
+        ldy     #8
+resr_row
+        pshs    b,x
+resr_byte
+        lda     ,x
+        beq     resr_next
+        bita    #$F0
+        beq     resr_low
+        bita    #$0F
+        beq     resr_high
+        lda     HUD_BYTE
+        bra     resr_store
+resr_high
+        lda     HUD_BYTE
+        anda    #$F0
+        bra     resr_store
+resr_low
+        lda     HUD_COLOR
+resr_store
+        sta     ,x
+resr_next
+        leax    1,x
+        decb
+        bne     resr_byte
+        puls    b,x
+        leax    160,x
+        leay    -1,y
+        bne     resr_row
         rts
 
 hud_word_paint_end

@@ -77,13 +77,13 @@ boot_entry
         ; foreground runtime is installed.  These are attenuation writes,
         ; not frequency changes, so no stale tone can remain audible.
         lda     #$9F
-        sta     $FF51
+        sta     $FF41
         lda     #$BF
-        sta     $FF51
+        sta     $FF41
         lda     #$DF
-        sta     $FF51
+        sta     $FF41
         lda     #$FF
-        sta     $FF51
+        sta     $FF41
         sta     SAM_FAST        ; run the boot copy at the normal 1.78 MHz rate
         sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
         leax    loader_start,pcr

@@ -159,7 +159,8 @@ def symbols(path: Path) -> dict[str, int]:
     found: dict[str, int] = {}
     pattern = re.compile(
         r"^Symbol: (audio_engine_start|audio_engine_end|audio_install_page|audio_mix_write|"
-        r"gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|audio_guard_end|key_service) .* = ([0-9A-Fa-f]+)$"
+        r"audio_write|gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|"
+        r"audio_guard_end|key_service) .* = ([0-9A-Fa-f]+)$"
     )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
@@ -191,7 +192,7 @@ def main() -> None:
         audio_map = args.map
     located = symbols(audio_map)
     required_symbols = {
-        "audio_engine_start", "audio_engine_end", "audio_install_page", "audio_mix_write",
+        "audio_engine_start", "audio_engine_end", "audio_install_page", "audio_mix_write", "audio_write",
         "gmc_cue_descriptors", "gmc_sound_data_end",
     }
     if not required_symbols.issubset(located):
@@ -312,13 +313,15 @@ def main() -> None:
         helper_symbols = {
             name: int(value, 16)
             for name, value in re.findall(
-                r"^Symbol: (hud_word_paint|hud_word_paint_end|draw_recolored_map_tile) .* = ([0-9A-Fa-f]+)$",
+                r"^Symbol: (hud_word_paint|hud_word_paint_end|hud_entry_score_paint|"
+                r"draw_recolored_map_tile) .* = ([0-9A-Fa-f]+)$",
                 helper_map.read_text(encoding="ascii"),
                 re.MULTILINE,
             )
         }
         if (
             helper_symbols.get("hud_word_paint") != 0 or
+            helper_symbols.get("hud_entry_score_paint") != 2 or
             helper_symbols.get("hud_word_paint_end") != len(hud_word_helper) or
             helper_symbols.get("draw_recolored_map_tile") != 0xFBA5
         ):
@@ -446,6 +449,9 @@ def main() -> None:
         raise SystemExit("audio proof: PSG writer does not enforce the 32-clock spacing contract")
     if "stb     SND_DATA" in writer_source or writer_source.count("sta     SND_DATA") != 1:
         raise SystemExit("audio proof: direct PSG writes bypass the spaced writer")
+    writer_offset = located["audio_write"] - WINDOW_BASE
+    if runtime[writer_offset:writer_offset + 3] != bytes.fromhex("B7 FF 41"):
+        raise SystemExit("audio proof: assembled PSG writer must store to GMC port $FF41")
     if ((0x80 | (0x0356 & 0x0F)), ((0x0356 >> 4) & 0x3F)) != (0x86, 0x35):
         raise SystemExit("audio proof: independent SN76489 period-packing oracle failed")
     write_sites = writer_source.count("bsr     audio_write")

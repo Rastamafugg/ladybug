@@ -57,7 +57,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror profile state Writes: Only the owned state fields and render intents required by the operation
 ; DOC-002 source-contract mirror profile state Side effects: May enqueue rendering work but does not publish FRONT
 ; DOC-002 source-contract mirror profile state Invariants: Authoritative state changes precede their render intents; framebuffer publication remains IRQ-owned
-; DOC-002 source-contract mirror contract actor_closure_draw profile=render: Draw the actors selected by the current damage closure.
+; DOC-002 source-contract mirror contract actor_closure_draw profile=render: Paint the entry score flash and draw the actors selected by the current BACK damage closure.
 ; DOC-002 source-contract mirror contract actor_closure_restore profile=render: Restore background for the actors selected by the current damage closure.
 ; DOC-002 source-contract mirror contract blit_stage_sprite profile=render: Blit stage sprite.
 ; DOC-002 source-contract mirror contract build_enemy_nest_cache profile=copy: Build enemy nest cache.
@@ -1201,7 +1201,11 @@ acr_done
 ; Capture every current roaming destination from actor-free BACK, then draw
 ; enemies and the player presentation in stable painter order.
 actor_closure_draw
+        ifne    COMPLETE_PROFILE
+        jsr     draw_entry_score_flash
+        else
         lda     INITIAL_ENTRY_STATE
+        endc
         cmpa    #ENTRY_WAIT_STAGE
         lbeq    acd_done
         cmpa    #ENTRY_OFFSCREEN

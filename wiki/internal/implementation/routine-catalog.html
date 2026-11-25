@@ -303,7 +303,7 @@
       <table>
         <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
         <tbody>
-          <tr id="routine-enemy-runtime-actor-closure-draw"><td><code>actor_closure_draw</code></td><td>Draw the actors selected by the current damage closure.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
+          <tr id="routine-enemy-runtime-actor-closure-draw"><td><code>actor_closure_draw</code></td><td>Paint the entry score flash and draw the actors selected by the current BACK damage closure.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-actor-closure-restore"><td><code>actor_closure_restore</code></td><td>Restore background for the actors selected by the current damage closure.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-blit-stage-sprite"><td><code>blit_stage_sprite</code></td><td>Blit stage sprite.</td><td><a href="#profile-render">BACK and staging rendering</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-build-enemy-nest-cache"><td><code>build_enemy_nest_cache</code></td><td>Build enemy nest cache.</td><td><a href="#profile-copy">Bounded copy, cache, and address transformation</a></td><td>called</td></tr>
@@ -534,6 +534,28 @@
   <li id="routine-intermission-runtime-im-draw-sprite"><code>im_draw_sprite</code>: Save owner-local underlay in <code>PLAYER_BG</code>/<code>PLAYER_BG_B</code> and draw the animated Lady Bug sparse sprite via <code>PRESENTATION_MODULE_DRAW</code>, restoring <code>PAR5=$34</code>. Profile: <a href="#profile-render">render</a>. Source: <code>src/intermission_runtime.s</code>.</li>
   <li id="routine-intermission-runtime-im-load-segment"><code>im_load_segment</code>: Read the next <code>(dir, steps)</code> route segment from page <code>$26</code>, chaining from the EXTRA shared route into the selected reserve-slot connector, and restore <code>PAR5=$34</code>. Profile: <a href="#profile-presentation">presentation</a>. Source: <code>src/intermission_runtime.s</code>.</li>
 </ul></section>
+    <section id="routine-resident-runtime-draw-entry-score-flash">
+      <h2><code>draw_entry_score_flash</code></h2>
+      <p>The arcade entry loop at <code>$0621–$065F</code> waits for vertical blank through <code>$1FC7</code> and toggles the palette every 15 iterations. <code>$1E4C</code> changes ten attribute cells on the active row, including the player label and six score digits identified by <code>$1DD1–$1E4B</code> and <code>$4931–$4942</code>. The character palette starts gray (3), switches to light green (4), and selects light green before control.</p>
+      <p>In credited CoCo entry, count each BACK composition. Select gray (pen 7) for 15 publications, then light green (pen 8) for 15, repeating until entry finishes. Call the existing page-$3D HUD helper with the selected pen, restore the caller's PAR5 mapping, and return <code>INITIAL_ENTRY_STATE</code> in A for actor closure. The entry dispatcher enables control after both owners have painted green.</p>
+    </section>
+    <section id="routine-resident-runtime-hud-entry-score-exec">
+      <h2><code>HUD_ENTRY_SCORE_EXEC</code></h2>
+      <p>The build emits this alias for the page-$3D score painter entry at <code>$BF02</code>. B contains the selected ink pen. The existing word painter entry remains at <code>$BF00</code>.</p>
+    </section>
+    <section id="routine-hud-word-helper-hud-entry-score-paint">
+      <h2><code>hud_entry_score_paint</code></h2>
+      <p>Recolor the active player label and score on the prepared BACK framebuffer. Skip the repaint when the selected owner already has the desired pen and there is no stage or score redraw. Record the pen in the HUD snapshot for the entry handoff. The painter preserves the current address mapping.</p>
+    </section>
+    <section id="routine-hud-word-helper-repaint-entry-score-rows">
+      <h2><code>repaint_entry_score_rows</code></h2>
+      <p>X points to the start of a label or score field in BACK and B contains its row width in packed bytes. Recolor nonzero pixel nibbles using the pen in <code>HUD_COLOR</code> and its repeated-nibble value in <code>HUD_BYTE</code>. The eight rows retain the existing digit shapes, leading blanks and label. The function writes the mapped BACK only and clobbers A, B, X, Y and condition codes.</p>
+    </section>
+    <section id="routine-audio-runtime-audio-poll-gameplay">
+      <h2><code>audio_poll_gameplay</code></h2>
+      <p>In the arcade machine, <code>$3A30–$3A47</code> requests sound bit 5 when a dormant enemy is present. The sound dispatcher at <code>$17E5</code> selects the stream at <code>$14C7</code>, which ends at <code>$156F</code> after 84 one-tick notes. The release branch at <code>$3A15–$3A2E</code> changes the enemy flags without clearing the sound slot.</p>
+      <p>The CoCo polling path enqueues Cue 5 at the edge into box 81 during credited, living gameplay with fewer than four active enemies. That leaves eleven box steps until the release wrap. To honor the CoCo release cutoff, an increase in <code>ENEMY_RELEASED</code> retires any remaining Cue 5 effect slots before the next mix. A cue that has already ended needs no action.</p>
+    </section>
   </main>
 </div>
 </body>

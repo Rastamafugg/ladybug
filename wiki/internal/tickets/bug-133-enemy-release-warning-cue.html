@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-133: Enemy-Release Warning Music Timing (Cue 5) — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>BUG-133: Enemy-Release Warning Music Timing (Cue 5)</h1>
+    <p class="subtitle">Trigger Cue 5 (84-frame rising warning siren) 11 perimeter boxes before enemy release (arcade Z80 <code>$3A08&ndash;$3A48</code>) when a dormant enemy is waiting in the den</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>BUG-133</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-24 on branch <code>fix/bug113-bug127-bug133-gmc-audio-flash</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type</th><td>Bug &mdash; Audio timing fidelity</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high reasoning)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="root-cause">
+    <h2>Root Cause &amp; Arcade Reference</h2>
+    <ul>
+      <li><strong>Current CoCo 3 (<code>src/audio_runtime.s:591&ndash;598</code>):</strong> Cue 5 (<code>enemy-release</code>, 84 ticks / 1.4 s rising warning siren) is enqueued when <code>ENEMY_RELEASED</code> increments, so it starts after the enemy has already been released.</li>
+      <li><strong>1981 Arcade Z80 ROM (<code>$3A08&ndash;$3A48</code>):</strong> On the top-left perimeter approach (<code>$6060 == 0, $6061 == 1</code>, 11 boxes before release at <code>$6061 == 12</code>), if any dormant enemy is waiting in the den, bit 5 of <code>$6000</code> is set to trigger Cue 5 as a pre-release warning.</li>
+    </ul>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria</h2>
+    <ol>
+      <li>Trigger Cue 5 when the 92-box perimeter sweep transitions into <code>BOX_INDEX == 81</code> (11 boxes before wrap <code>92 &rarr; 0</code>) while <code>ENEMY_ACTIVE &lt; 4</code> and <code>DEATH_STATE == 0</code> (and not Demo), instead of on <code>ENEMY_RELEASED</code> increment.</li>
+      <li>Do not trigger Cue 5 when all 4 enemies are already active (vegetable phase) or during player death.</li>
+      <li>Pass all build, DOC-002, audio, presentation-flow, and standalone verification checks, followed by user XRoar RGB playtest.</li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-24:</strong> User approved bundling <code>BUG-133</code> with <code>BUG-113</code> and <code>BUG-127</code> on branch <code>fix/bug113-bug127-bug133-gmc-audio-flash</code>. Delegated to <code>gpt-6.2-sol</code> (high reasoning).</li>
+    </ul>
+  </section>
+</body>
+</html>

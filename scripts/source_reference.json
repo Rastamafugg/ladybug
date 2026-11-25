@@ -745,6 +745,20 @@
           "semantic_id": "routines.html#routine-resident-runtime-asset-draw-top-hud"
         },
         {
+          "name": "draw_entry_score_flash",
+          "profile": "entry-score-flash",
+          "purpose": "Advance the credited entry flash and repaint the selected BACK score and label.",
+          "reasons": ["exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-draw-entry-score-flash"
+        },
+        {
+          "name": "HUD_ENTRY_SCORE_EXEC",
+          "profile": "entry-score-flash",
+          "purpose": "Generated page-$3D address of the entry score painter with the selected pen in B.",
+          "reasons": ["called"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-hud-entry-score-exec"
+        },
+        {
           "name": "hud_snapshot_init",
           "profile": "copy",
           "purpose": "Clear the shared HUD snapshot after boot streams retire, seed PART to the first stage, and copy TOP from the current table leader.",
@@ -1061,6 +1075,7 @@
         "AUDIO_ENQUEUE_EXEC",
         "KEY_SERVICE_EXEC",
         "HUD_WORD_EXEC",
+        "HUD_ENTRY_SCORE_EXEC",
         "PRES_MODULE_DRAW_SCORE",
         "PRES_MODULE_DRAW_SCORE_SHORT",
         "SHARED_COLD_PTR"
@@ -1463,6 +1478,7 @@
         "draw_all_gates",
         "draw_death_frame",
         "draw_entities",
+        "draw_entry_score_flash",
         "draw_gate",
         "draw_gate_diagonal",
         "draw_gate_entities",
@@ -1499,7 +1515,7 @@
         {
           "name": "actor_closure_draw",
           "profile": "render",
-          "purpose": "Draw the actors selected by the current damage closure.",
+          "purpose": "Paint the entry score flash and draw the actors selected by the current BACK damage closure.",
           "reasons": []
         },
         {
@@ -3291,9 +3307,9 @@
         {
           "name": "audio_poll_gameplay",
           "profile": "audio",
-          "purpose": "Audio poll gameplay.",
+          "purpose": "Admit live gameplay cues on state edges and retire Cue 5 when its enemy is released.",
           "reasons": [],
-          "semantic_id": "routines.html#routine-audio-runtime-audio-poll-gameplay"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-audio-runtime-audio-poll-gameplay"
         },
         {
           "name": "audio_poll_name",
@@ -5057,7 +5073,7 @@
     },
     {
       "id": "hud-word-helper",
-      "title": "Page-$3D shared HUD word painter",
+      "title": "Page-$3D shared HUD painters",
       "source": "src/hud_word_runtime.s",
       "listing": "ladybug-hud-word-helper.lst",
       "map": "ladybug-hud-word-helper.map",
@@ -5087,6 +5103,20 @@
             "called"
           ],
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-dwph-paint-word"
+        },
+        {
+          "name": "hud_entry_score_paint",
+          "profile": "render",
+          "purpose": "Recolor the selected BACK player label and score using the ink pen in B.",
+          "reasons": ["exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-hud-entry-score-paint"
+        },
+        {
+          "name": "repaint_entry_score_rows",
+          "profile": "render",
+          "purpose": "Set the ink pen in eight rows of a BACK HUD field while preserving its glyph pixels.",
+          "reasons": ["called"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-hud-word-helper-repaint-entry-score-rows"
         }
       ],
       "relocations": [
@@ -5116,6 +5146,11 @@
       ],
       "external_symbols": [
         "draw_recolored_map_tile",
+        "HUD_ENTRY_SCORE_PENS",
+        "PRESENTATION_HUD_P1_LABEL_DST",
+        "PRESENTATION_HUD_P1_LABEL_WIDTH",
+        "PRESENTATION_HUD_P1_SCORE_DST",
+        "PRESENTATION_HUD_P1_SCORE_WIDTH",
         "PRESENTATION_MAP_INSTRUCTIONS",
         "PRESENTATION_HUD_DRAW_SPECIAL",
         "PRESENTATION_HUD_DRAW_EXTRA",
@@ -6243,6 +6278,15 @@
   ],
   "routine_catalog": "../../wiki/internal/implementation/routine-catalog.html",
   "contract_profiles": {
+    "entry-score-flash": {
+      "inputs": "Mapped BACK after background repair. The banked entry takes the selected pen in B and requires PAR5 to map page $3D.",
+      "outputs": "Selected fields use the current flash pen with their digit and label shapes intact. The flash entry returns INITIAL_ENTRY_STATE in A.",
+      "clobbers": "A, B, X, Y and condition codes.",
+      "reads": "PRES_MODE, INITIAL_ENTRY_STATE, RENDER_FLAGS, FB_BACK_ID, the HUD entry phase and pen bytes, and selected BACK field pixels.",
+      "writes": "HUD entry phase and selected owner pen, HUD_COLOR, HUD_BYTE, and the selected BACK active-player label and score.",
+      "side_effects": "None outside the declared display state and BACK pixels.",
+      "invariants": "No FRONT writes, score-value changes or Demo painting. Restore the caller's PAR5 mapping. Final entry publication uses green."
+    },
     "root": {
       "inputs": "Entry-specific machine state and the shared direct-page protocol named by the routine purpose",
       "outputs": "Control transfers or status values defined by the routine purpose",

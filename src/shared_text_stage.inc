@@ -118,7 +118,7 @@ PLAYER_ANIM_TIMER equ $0050
 ; Page-$23 high-score helper.  It remains mapped only while the low-RAM
 ; high-score owner calls it.  All calls that may change PAR5 return through
 ; presentation_page24_resume in resident code.
-SND_DATA equ $FF51
+SND_DATA equ $FF41
 
         org     HIGHSCORE_PHASE_HELPER_ADDRESS
 

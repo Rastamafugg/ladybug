@@ -282,7 +282,7 @@ PRES_INTERMISSION equ $00A8     ; 0=none, 1=EXTRA, 2=SPECIAL (FEAT-011)
 PRES_TMP_H equ $00C2
 PRES_HIGHSCORE_BASE equ $AF84
 ; FEAT-013 shared snapshot; boot streams have retired before initialization.
-; @audit {"id":"hud-shared-snapshot","kind":"scratch","symbol":"HUD_SHARED_BASE","width":32,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident HUD provider","lifetime":"Gameplay values are refreshed before their selected BACK draw; TOP persists from boot seed through committed ranking changes.","initialization":"hud_snapshot_init after boot-stream retirement; hud_snapshot_capture_player sets HUD_PLAYER_VALID after all player-one bytes are copied","clobbers":"The provider exclusively owns $02A0-$02BF; player two is reserved and zero while one-player mode is active."}
+; @audit {"id":"hud-shared-snapshot","kind":"scratch","symbol":"HUD_SHARED_BASE","width":32,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident HUD provider","lifetime":"Gameplay values are refreshed before their selected BACK draw; TOP persists from boot seed through committed ranking changes; flash phase and owner pens are live through the entry handoff.","initialization":"hud_snapshot_init after boot-stream retirement; hud_snapshot_capture_player sets HUD_PLAYER_VALID after all player-one bytes are copied; init_game_state and entry completion reset flash state","clobbers":"The provider exclusively owns $02A0-$02BF; player two is reserved and zero while one-player mode is active.","aliases":["HUD_ENTRY_SCORE_PHASE","HUD_ENTRY_SCORE_PENS"],"reference_modules":["resident-runtime","hud-word-helper"]}
 HUD_SHARED_BASE equ $02A0
 HUD_P1_SCORE equ HUD_SHARED_BASE
 HUD_P1_STAGE equ HUD_SHARED_BASE+3
@@ -299,6 +299,11 @@ HUD_P2_EXTRA_BITS equ HUD_SHARED_BASE+15
 HUD_TOP_SCORE equ HUD_SHARED_BASE+16
 HUD_TOP_NAME equ HUD_SHARED_BASE+19
 HUD_PLAYER_VALID equ HUD_SHARED_BASE+26
+; Entry-only display state in the reserved tail of the HUD snapshot.
+; Phase 0..29 counts publications; 30 holds green through control handoff.
+; The two pen bytes describe the last entry paint for owners A and B.
+HUD_ENTRY_SCORE_PHASE equ HUD_SHARED_BASE+27
+HUD_ENTRY_SCORE_PENS equ HUD_SHARED_BASE+28
 LIVES         equ $0023         ; reserve lives after the active player enters
 MAX_RESERVE_LIVES equ 12        ; active life is additional to these HUD markers
 STAGE         equ $0024         ; current stage, 1..255
@@ -437,6 +442,7 @@ COLOR_BLUE        equ 3
 COLOR_PINK        equ 4
 COLOR_GREEN       equ 5
 COLOR_WHITE       equ 6
+COLOR_GRAY        equ 7
 
 ENTITY_NONE       equ 0
 ENTITY_SKULL      equ 1
@@ -1080,14 +1086,30 @@ iet_maze_render
         lda     RENDER_FLAGS
         ora     #RF_PLAYER
         sta     RENDER_FLAGS
+iet_done
         rts
 iet_final_wait
         ; The mainloop's FB_RENDER_PENDING gate permits this callback only
         ; after the final RF_PLAYER pose has been committed by the IRQ.
         tst     AUDIO_MUSIC_PUBLISHED_BUSY
         bne     iet_done
+        ifne    COMPLETE_PROFILE
+        tst     PRES_MODE
+        bne     iet_enable_input
+        ldd     HUD_ENTRY_SCORE_PENS
+        cmpd    #COLOR_LIGHT_GREEN*$0101
+        beq     iet_enable_input
+        ; Let BACK publication settle both owners before gameplay can run.
+        lda     #30
+        sta     HUD_ENTRY_SCORE_PHASE
+        rts
+iet_enable_input
+        clr     HUD_ENTRY_SCORE_PHASE
+        clra
+        clrb
+        std     HUD_ENTRY_SCORE_PENS
+        endc
         clr     INITIAL_ENTRY_STATE
-iet_done
         rts
         endc
 
@@ -1097,6 +1119,9 @@ iet_done
 init_game_state
         ifne COMPLETE_PROFILE
         clr     HUD_PLAYER_VALID
+        clr     HUD_ENTRY_SCORE_PHASE
+        clr     HUD_ENTRY_SCORE_PENS
+        clr     HUD_ENTRY_SCORE_PENS+1
         endc
         clr     FB_INIT_STATE
         clra
@@ -5655,6 +5680,46 @@ nlt_deltas
         endc
 
         ifne COMPLETE_PROFILE
+; DOC-002 source-contract mirror contract draw_entry_score_flash profile=entry-score-flash: Advance the credited entry flash and repaint the selected BACK score and label.
+; DOC-002 source-contract mirror contract HUD_ENTRY_SCORE_EXEC profile=entry-score-flash: Generated page-$3D address of the entry score painter with the selected pen in B.
+; DOC-002 source-contract mirror profile entry-score-flash Inputs: Mapped BACK after background repair. The banked entry takes the selected pen in B and requires PAR5 to map page $3D.
+; DOC-002 source-contract mirror profile entry-score-flash Outputs: Selected fields use the current flash pen with their digit and label shapes intact. The flash entry returns INITIAL_ENTRY_STATE in A.
+; DOC-002 source-contract mirror profile entry-score-flash Clobbers: A, B, X, Y and condition codes.
+; DOC-002 source-contract mirror profile entry-score-flash Reads: PRES_MODE, INITIAL_ENTRY_STATE, RENDER_FLAGS, FB_BACK_ID, the HUD entry phase and pen bytes, and selected BACK field pixels.
+; DOC-002 source-contract mirror profile entry-score-flash Writes: HUD entry phase and selected owner pen, HUD_COLOR, HUD_BYTE, and the selected BACK active-player label and score.
+; DOC-002 source-contract mirror profile entry-score-flash Side effects: None outside the declared display state and BACK pixels.
+; DOC-002 source-contract mirror profile entry-score-flash Invariants: No FRONT writes, score-value changes or Demo painting. Restore the caller's PAR5 mapping. Final entry publication uses green.
+draw_entry_score_flash
+        tst     INITIAL_ENTRY_STATE
+        beq     desf_done
+        tst     PRES_MODE
+        bne     desf_done
+        ldb     #COLOR_LIGHT_GREEN
+        lda     HUD_ENTRY_SCORE_PHASE
+        cmpa    #30
+        bhs     desf_pen
+        cmpa    #15
+        bhs     desf_step
+        ldb     #COLOR_GRAY
+desf_step
+        inca
+        cmpa    #30
+        blo     desf_save
+        clra
+desf_save
+        sta     HUD_ENTRY_SCORE_PHASE
+desf_pen
+        lda     GIME_PAR5
+        pshs    a
+        lda     #AUDIO_RUNTIME_PAGE
+        sta     GIME_PAR5
+        jsr     HUD_ENTRY_SCORE_EXEC
+        puls    a
+        sta     GIME_PAR5
+desf_done
+        lda     INITIAL_ENTRY_STATE
+        rts
+
 ; Clear the shared snapshot after boot descriptors are retired. The boot path
 ; has already seeded table row one and passes its mapped ten-byte record.
 hud_snapshot_init

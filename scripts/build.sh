@@ -667,6 +667,7 @@ with open(output_path, "w", encoding="ascii") as handle:
     handle.write(f"AUDIO_INSTALL_EXEC equ ${symbols['audio_install_page']:04X}\n")
     handle.write(f"KEY_SERVICE_EXEC equ ${key_service_exec:04X}\n")
     handle.write("HUD_WORD_EXEC equ $BF00\n")
+    handle.write("HUD_ENTRY_SCORE_EXEC equ $BF02\n")
 PY
 
     if [[ "$ADAPTIVE_RENDERING" == 1 ]]; then
@@ -742,6 +743,8 @@ wanted = {
 }
 if not complete:
     wanted.update({'draw_hud', 'draw_lives', 'draw_multiplier_hud', 'draw_word_progress_hud'})
+else:
+    wanted.update({'draw_entry_score_flash', 'HUD_ENTRY_SCORE_PENS'})
 symbols = {}
 for line in open(source, encoding='utf-8'):
     match = re.match(r'^Symbol: (\w+) .* = ([0-9A-Fa-f]+)$', line.rstrip())
