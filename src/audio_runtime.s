@@ -17,7 +17,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract audio_music_busy profile=audio: Audio music busy.
 ; DOC-002 source-contract mirror contract audio_music_dispatch profile=audio: Audio music dispatch.
 ; DOC-002 source-contract mirror contract audio_poll_enqueue profile=audio: Audio poll enqueue.
-; DOC-002 source-contract mirror contract audio_poll_gameplay profile=audio: Admit live gameplay cues on state edges and retire Cue 5 when its enemy is released.
+; DOC-002 source-contract mirror contract audio_poll_gameplay profile=audio: Admit live gameplay cues on state edges; Cue 5 runs to natural completion across enemy release.
 ; DOC-002 source-contract mirror contract audio_poll_name profile=audio: Audio poll name.
 ; DOC-002 source-contract mirror contract audio_priority_for_id profile=audio: Audio priority for id.
 ; DOC-002 source-contract mirror contract audio_process_queue profile=audio: Audio process queue.
@@ -598,25 +598,6 @@ audio_poll_veg_saved
         lda     AUDIO_GAME_VEG
         sta     audio_poll_veg
 
-        lda     AUDIO_GAME_RELEASE
-        cmpa    audio_poll_release
-        bls     audio_poll_release_saved
-        ; Prior admissions have drained the FIFO. Retire only Cue 5's
-        ; active effect slots so the next mix publishes the release.
-        ldx     #audio_slot_base_table+2
-        ldb     #3
-audio_poll_release_slot
-        ldy     ,x++
-        lda     ,y
-        cmpa    #5
-        bne     audio_poll_release_next
-        lda     #$FF
-        sta     ,y
-audio_poll_release_next
-        decb
-        bne     audio_poll_release_slot
-        lda     AUDIO_GAME_RELEASE
-audio_poll_release_saved
         lda     AUDIO_GAME_RELEASE
         sta     audio_poll_release
 

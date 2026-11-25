@@ -554,7 +554,7 @@
     <section id="routine-audio-runtime-audio-poll-gameplay">
       <h2><code>audio_poll_gameplay</code></h2>
       <p>In the arcade machine, <code>$3A30–$3A47</code> requests sound bit 5 when a dormant enemy is present. The sound dispatcher at <code>$17E5</code> selects the stream at <code>$14C7</code>, which ends at <code>$156F</code> after 84 one-tick notes. The release branch at <code>$3A15–$3A2E</code> changes the enemy flags without clearing the sound slot.</p>
-      <p>The CoCo polling path enqueues Cue 5 at the edge into box 81 during credited, living gameplay with fewer than four active enemies. That leaves eleven box steps until the release wrap. To honor the CoCo release cutoff, an increase in <code>ENEMY_RELEASED</code> retires any remaining Cue 5 effect slots before the next mix. A cue that has already ended needs no action.</p>
+      <p>The CoCo polling path enqueues Cue 5 at the edge into box 81 during credited, living gameplay with fewer than four active enemies. That leaves eleven box steps until the release wrap. As in the arcade ROM, an increase in <code>ENEMY_RELEASED</code> does not clear the sound slot; Cue 5 continues to its natural 84-tick completion.</p>
     </section>
   </main>
 </div>
