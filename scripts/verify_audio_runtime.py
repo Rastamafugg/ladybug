@@ -323,7 +323,7 @@ def main() -> None:
             helper_symbols.get("hud_word_paint") != 0 or
             helper_symbols.get("hud_entry_score_paint") != 2 or
             helper_symbols.get("hud_word_paint_end") != len(hud_word_helper) or
-            helper_symbols.get("draw_recolored_map_tile") != 0xFBA5
+            helper_symbols.get("draw_recolored_map_tile") != 0xFBA3
         ):
             raise SystemExit("audio proof: HUD word helper entry, size, or resident painter target differs")
     audio_meta = layout.get("audio_runtime")

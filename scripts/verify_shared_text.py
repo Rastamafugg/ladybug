@@ -345,6 +345,7 @@ def main():
                     at=y*1280+x*4+row*160
                     expected[at:at+4]=bytes((colour if b>>4 else 0)*16+(colour if b&15 else 0) for b in expected[at:at+4])
         ptr=start;cell=0
+        green_boxes=0
         while cell<960:
             count,ident=cold[ptr:ptr+2];ptr+=2
             if ident==255:
@@ -360,14 +361,20 @@ def main():
             assert count and cell+count<=960
             for _ in range(count):
                 at=(cell//40)*1280+(cell%40)*4
-                preserved=name=='game-over' and (cell%40<=8 or cell%40>=31 or cell//40 in (0,23))
+                x,y=cell%40,cell//40
+                preserved=name=='game-over' and not 8<=x<=31
                 assert (tile is None)==preserved,('game-over no-write mask',cell,ident)
+                if name=='game-over' and 8<=x<=31 and (x in (8,31) or y in (0,23)):
+                    assert packed_colours(tile)-{p.BLACK}=={p.GREEN},('game-over perimeter colour',x,y)
+                    green_boxes+=1
                 for row in range(8):
                     if preserved:expected[at+row*160:at+row*160+4]=seed[at+row*160:at+row*160+4]
                     else:actual[at+row*160:at+row*160+4]=tile[row*4:row*4+4]
                 cell+=1
         differences=[i for i,(a,v) in enumerate(zip(actual,expected)) if a!=v]
-        if name!='game-over':
+        if name=='game-over':
+            assert green_boxes==92,('game-over perimeter box count',green_boxes)
+        else:
             assert hashlib.sha256(actual).hexdigest()==manifest['shared_static_frame_sha256'][p.MAP_NAMES.index(name)]
         cases.append(dict(screen=name,pixel_exact=not differences,differences=len(differences),first=differences[:12]))
     report=dict(status='pass' if all(c['pixel_exact'] for c in cases) else 'FAIL',cases=cases,font_bytes=len(font),graphics=shared['graphics'],cold_bytes=len(cold),sha256=hashlib.sha256(cold).hexdigest(),highscore_logo=highscore_logo)

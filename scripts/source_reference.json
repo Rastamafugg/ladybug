@@ -4080,6 +4080,13 @@
           "semantic_id": "routines.html#routine-highscore-helper-menu-paint-rows"
         },
         {
+          "name": "menu_paint_options",
+          "profile": "presentation",
+          "purpose": "Paint Options labels and replace all eight cells of each right-justified value field on the prepared framebuffer.",
+          "reasons": [],
+          "semantic_id": "routines.html#routine-highscore-helper-menu-paint-options"
+        },
+        {
           "name": "menu_updated",
           "profile": "presentation",
           "purpose": "Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.",
@@ -4225,7 +4232,7 @@
         {
           "name": "menu_bonus_off_value",
           "kind": "data",
-          "reason": "FEAT-015 five-glyph OFF value, padded to clear prior score digits on both buffers."
+          "reason": "FEAT-017 OFF glyphs in reverse order for the right-to-left Options field buffer."
         },
         {
           "name": "menu_option_rows",
@@ -4233,9 +4240,9 @@
           "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
         },
         {
-          "name": "menu_options_left",
+          "name": "menu_options_fields",
           "kind": "data",
-          "reason": "FEAT-005 bounded menu/HUD state, authored data or local execution boundary; see current menu assignment."
+          "reason": "FEAT-017 generated absolute first framebuffer destination for the four Options value rows; the verified two-row stride advances each eight-cell field."
         },
         {
           "name": "menu_tick_entry",
@@ -4400,6 +4407,11 @@
           "purpose": "FEAT-005 local branch boundary: menu horizontal."
         },
         {
+          "name": "menu_hundreds",
+          "routine": "menu_paint_options",
+          "purpose": "Separate hundreds from the Options byte value before dividing the remainder into tens and units."
+        },
+        {
           "name": "menu_idle",
           "purpose": "FEAT-005 local branch boundary: menu idle."
         },
@@ -4436,10 +4448,6 @@
           "purpose": "FEAT-005 local branch boundary: menu paint high."
         },
         {
-          "name": "menu_paint_options",
-          "purpose": "FEAT-005 local branch boundary: menu paint options."
-        },
-        {
           "name": "menu_redraw",
           "purpose": "FEAT-005 local branch boundary: menu redraw."
         },
@@ -4468,8 +4476,19 @@
           "purpose": "FEAT-005 local branch boundary: menu value colour."
         },
         {
-          "name": "menu_value_next",
-          "purpose": "FEAT-005 local branch boundary: menu value next."
+          "name": "menu_value_marker",
+          "routine": "menu_paint_options",
+          "purpose": "Insert the opening selector immediately before the first glyph of the selected value."
+        },
+        {
+          "name": "menu_value_paint",
+          "routine": "menu_paint_options",
+          "purpose": "Paint all eight stack-buffered glyphs at the generated field destination."
+        },
+        {
+          "name": "menu_value_tens",
+          "routine": "menu_paint_options",
+          "purpose": "Save the hundreds digit while splitting the remainder into tens and units."
         },
         {
           "name": "menu_value_row",

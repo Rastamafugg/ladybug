@@ -245,7 +245,8 @@ class SharedText:
         for name,mapping in zip(self.p.MAP_NAMES,self.visual_maps):
             items=[]
             for i,t in enumerate(mapping):
-                if name=='game-over' and (i%40<=8 or i%40>=31 or i//40==0 or i//40==23):
+                # Repaint the perimeter from the map while retaining the live side HUD.
+                if name=='game-over' and not 8<=i%40<=31:
                     items.append((255,0))
                     continue
                 r=self.cells.get((name,i))
@@ -365,8 +366,8 @@ class SharedText:
         for row,lo,codes in attract_rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
             menu_lines.append('        fcb '+','.join(str(code) for code in [len(codes),*codes]))
-        # Keep the Options screen's authored selector pairs. The no-parenthesis
-        # clarification applies only to the high-score screen.
+        # The authored selector pairs bound the preview values. Runtime always
+        # repaints the complete eight-cell field, including unused leading cells.
         path=self.args.tiled_dir/self.p.MAP_FILES['options']
         root=ET.parse(path).getroot()
         layer=next(l for l in root.findall('layer') if l.get('name')=='Selected Option')
@@ -374,21 +375,19 @@ class SharedText:
         pairs=[]
         for row in range(24):
             anchors=[(col,gid) for col,gid in enumerate(cells[row*40:(row+1)*40]) if gid]
-            for i in range(0,len(anchors),2):
-                left,right=anchors[i:i+2]
-                assert self.p.raw_char_code(root,path,left[1])==43
-                assert self.p.raw_char_code(root,path,right[1])==44
-                pairs.append((self.p.framebuffer_destination((left[0],row)),self.p.framebuffer_destination((right[0],row))))
-        assert len(pairs)==4,('options',pairs)
-        assert [right-left for left,right in pairs]==[28,12,24,12],('options',pairs)
-        menu_lines.append('menu_options_left')
-        menu_lines.extend('        fdb $%04X'%left for left,_ in pairs)
+            if anchors:
+                assert [self.p.raw_char_code(root,path,gid) for _,gid in anchors]==[43,44],('options',row,anchors)
+                pairs.append((row,*(col for col,_ in anchors)))
+        assert [(left,right) for _,left,right in pairs]==[(24,31),(28,31),(27,31),(28,31)],('options',pairs)
+        destinations=[self.p.framebuffer_destination((24,row)) for row,_,_ in pairs]
+        assert [right-left for left,right in zip(destinations,destinations[1:])]==[2560]*3,('options destinations',destinations)
+        menu_lines.append('menu_options_fields equ $%04X'%destinations[0])
         menu_lines.append('menu_difficulty_values')
-        for value in ('ARCADE', 'EASY  '):
-            codes = [36 if char == ' ' else ord(char) - 55 for char in value]
+        for value in ('ARCADE', 'EASY'):
+            codes = [ord(char) - 55 for char in reversed(value)]
             menu_lines.append('        fcb '+','.join(map(str, codes)))
         menu_lines.append('menu_bonus_off_value')
-        menu_lines.append('        fcb 24,15,15,36,36')
+        menu_lines.append('        fcb 15,15,24')
         root,flat,_=self.p.flatten_map(path)
         rows=[]
         found_options=[]
@@ -404,11 +403,13 @@ class SharedText:
                     found_options.append(option)
                     break
         assert tuple(found_options)==option_labels,('options',found_options)
-        assert [(left-0x2000)//1280 for left,_ in pairs]==[row for row,_,_,_ in rows[:4]],('options',pairs,rows)
+        assert [row for row,_,_ in pairs]==[row for row,_,_,_ in rows[:4]],('options',pairs,rows)
         menu_lines.append('menu_option_rows')
         for row,lo,hi,codes in rows:
             menu_lines.append('        fdb $%04X'%self.p.framebuffer_destination((lo,row)))
             menu_lines.append('        fcb '+','.join(str(c) for c in [len(codes),*codes]))
+        credit_text_offset=sum(3+len(codes) for _,_,_,codes in rows[:-1])+3
+        assert credit_text_offset==68,('credit BACK text offset',credit_text_offset)
         path=self.args.tiled_dir/self.p.MAP_FILES['credits']
         root,flat,_=self.p.flatten_map(path)
         back=[]
@@ -418,7 +419,7 @@ class SharedText:
                 if codes[col:col+4]==[11,10,12,20]:back.append((row,col))
         assert len(back)==1,back
         row,col=back[0]
-        menu_lines.extend(['menu_credit_back','        fdb $%04X'%self.p.framebuffer_destination((col,row)),'        fcb 4,11,10,12,20'])
+        menu_lines.append('menu_credit_back equ $%04X'%self.p.framebuffer_destination((col,row)))
         (self.args.output.parent/'ladybug_menu_records.inc').write_text('\n'.join(menu_lines)+'\n')
         keybindings = self.keybinding_records()
         manifest['menus']={'option_rows':[[row,lo,hi] for row,lo,hi,_ in rows], 'credit_back':[row,col],'selected_colour':10,'unselected_colour':7, 'keybindings': keybindings}

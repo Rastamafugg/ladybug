@@ -1,6 +1,7 @@
 ; DOC-002 source-contract mirror contract logo_tick profile=presentation: Advance the shared logo phase on Attract and High Score; High Score also advances its timer. When the phase changes, redraw changing logo tiles on BACK if publication is idle. Cache the active screen's generated Tiled root when the screen changes; add each shared root-relative offset to form a tile destination.
 ; DOC-002 source-contract mirror contract logo_vbord_clock profile=presentation: Advance the shared attract and high-score logo phase from an IRQ-atomic VBLANK sample.
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
+; DOC-002 source-contract mirror contract menu_paint_options profile=presentation: Paint Options labels and replace all eight cells of each right-justified value field on the prepared framebuffer.
 ; DOC-002 source-contract mirror contract menu_tick profile=presentation: Dispatch Attract input and both High Score returns; advance the shared 558-tick High Score interval after initial publication, consuming input without gameplay mutation.
 ; DOC-002 source-contract mirror contract menu_updated profile=presentation: Paint current menu fields on the prepared BACK owner, retire its dirty bit and publish through the existing framebuffer callback.
 ; DOC-002 source-contract mirror contract menu_scan profile=presentation: Scan input and route safe automatic-loop wake while preserving local menu edges.

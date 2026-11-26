@@ -1007,6 +1007,8 @@ def presentation_pen_map(
         return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "game-over":
         if source_layer == "Arcade Maze Border":
+            if (x, y) in perimeter_box_cells():
+                return (BLACK, GREEN, GREEN, GREEN)
             return (BLACK, PINK, PINK, PINK)
         if source_layer == "Game Over Overlay":
             return (BLACK, RED, RED, RED)

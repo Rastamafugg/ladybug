@@ -1,4 +1,5 @@
 ; DOC-002 source-contract mirror contract menu_paint_rows profile=presentation: Draw authored menu labels using green for the selected row and grey for remaining rows.
+; DOC-002 source-contract mirror contract menu_paint_options profile=presentation: Paint Options labels and replace all eight cells of each right-justified value field on the prepared framebuffer.
 ; DOC-002 source-contract mirror contract stage_panel_read_letters profile=copy: Preserve IRQ and PAR4 around the resident copy of the three active letter variants; return U=$C2 and B=3.
 ; BUG-012 release-profile demo route director, copied to low RAM $0300.
 ; DOC-002 source-contract mirror begins. Canonical definitions:
@@ -1229,7 +1230,7 @@ menu_horizontal
         cmpb    #2
         beq     menu_bonus_adjust
         ldx     #MENU_LEVEL
-        ldb     #99
+        ldb     #255
         bhs     menu_maximum
         leax    -1,x
         ldb     #12
@@ -1386,9 +1387,9 @@ menu_paint_attract
 menu_paint_credits
         lda     #10
         sta     $29
-        leay    menu_credit_back,pcr
-        ldx     ,y++
-        ldb     ,y+
+        leay    menu_option_rows+68,pcr
+        ldx     #menu_credit_back
+        ldb     #4
         lbra    stage_panel_text
 menu_paint_rows
         pshs    b
@@ -1413,25 +1414,41 @@ menu_paint_options
         leay    menu_option_rows,pcr
         ldb     #6
         bsr     menu_paint_rows
-        leay    menu_options_left,pcr
+        ldx     #menu_options_fields
         clr     $D1
 menu_value_row
-        ldb     $D1
+        ; Start with eight spaces and build the value from column 30 leftward.
+        pshs    x
+        ldd     #$2424
+        tfr     d,y
+        pshs    d,y
+        pshs    d,y
+        leau    7,s
         lda     #7
+        ldb     $D1
         cmpb    MENU_SELECT
         bne     menu_value_colour
+        lda     #44
+        sta     ,u
         lda     #10
 menu_value_colour
         sta     $29
-        ldx     ,y
-        leax    4,x
         tstb
         beq     menu_difficulty_text
         cmpb    #2
         beq     menu_bonus_text
         lsrb
-        ldu     #MENU_LIVES
-        lda     b,u
+        ldx     #MENU_LIVES
+        lda     b,x
+        clrb
+menu_hundreds
+        cmpa    #100
+        blo     menu_value_tens
+        suba    #100
+        incb
+        bra     menu_hundreds
+menu_value_tens
+        pshs    b
         clrb
 menu_tens
         cmpa    #10
@@ -1440,55 +1457,52 @@ menu_tens
         incb
         bra     menu_tens
 menu_digits
-        pshs    a
-        tfr     b,a
-        lbsr    stage_panel_char
+        sta     ,-u
+        stb     ,-u
         puls    a
-        lbsr    stage_panel_char
-        bra     menu_value_select
+        tsta
+        beq     menu_value_marker
+        sta     ,-u
+        bra     menu_value_marker
 menu_difficulty_text
-        pshs    y
-        leay    menu_difficulty_values,pcr
-        tst     MENU_DIFFICULTY
-        beq     menu_difficulty_paint
-        leay    6,y
-menu_difficulty_paint
+        leax    menu_difficulty_values,pcr
         ldb     #6
-menu_value_text
-        lbsr    stage_panel_text
-        puls    y
-        bra     menu_value_select
+        tst     MENU_DIFFICULTY
+        beq     menu_value_text
+        abx
+        ldb     #4
+        bra     menu_value_text
 menu_bonus_text
         lda     MENU_BONUS_LIFE
         beq     menu_bonus_off
-        lbsr    stage_panel_char
-        ldb     #4
-menu_bonus_zeros
-        clra
-        lbsr    stage_panel_char
-        decb
-        bne     menu_bonus_zeros
-        bra     menu_value_select
+        clr     ,-u
+        clr     ,-u
+        clr     ,-u
+        clr     ,-u
+        sta     ,-u
+        bra     menu_value_marker
 menu_bonus_off
-        pshs    y
-        leay    menu_bonus_off_value,pcr
-        ldb     #5
-        bra     menu_value_text
-menu_value_select
-        ldb     $D1
-        lda     #36
-        cmpb    MENU_SELECT
-        bne     menu_right_marker
-        lda     #44
-menu_right_marker
-        lbsr    stage_panel_char
+        leax    menu_bonus_off_value,pcr
+        incb
+menu_value_text
+        lda     ,x+
+        sta     ,-u
+        decb
+        bne     menu_value_text
+menu_value_marker
+        lda     7,s
         cmpa    #44
-        bne     menu_left_marker
+        bne     menu_value_paint
         deca
-menu_left_marker
-        ldx     ,y++
-        lbsr    stage_panel_char
-menu_value_next
+        sta     ,-u
+menu_value_paint
+        ldx     8,s
+        leay    ,s
+        ldb     #8
+        lbsr    stage_panel_text
+        leas    10,s
+        ; The four value rows are separated by two 40-cell rows (2560 bytes).
+        leax    2528,x
         inc     $D1
         lda     $D1
         cmpa    #4

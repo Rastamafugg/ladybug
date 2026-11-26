@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-017: Pre-1.0 Options Alignment, Level 1–255 &amp; Game Over Green Border — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>FEAT-017: Pre-1.0 Options Alignment, Level 1&ndash;255 &amp; Game Over Green Border</h1>
+    <p class="subtitle">Right-justified Options values with tightly-bounded <code>()</code>, <code>STARTING LEVEL</code> extended to <code>1..255</code>, and green perimeter boxes on Game Over</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>FEAT-017</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-26 on branch <code>feat/feat017-pre10-polish</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type</th><td>Feature &mdash; Pre-1.0 UI &amp; Options polish</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated to <code>gpt-6-luna</code> (high) / <code>gpt-6.2-sol</code> (high)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria (2026-11-26)</h2>
+    <ol>
+      <li><strong>Stage 1 &mdash; TMX Review:</strong> Update <code>tiled/coco-options-screen.tmx</code> (right-justified values with tightly-bounded <code>()</code>) and <code>tiled/coco-game-over-screen.tmx</code> (green perimeter border boxes) for user visual review before ROM build.</li>
+      <li><strong>Options Screen Runtime (<code>src/shared_text_stage.inc</code> &amp; <code>scripts/shared_text.py</code>):</strong>
+        <ul>
+          <li>Right-justify all four value rows (<code>DIFFICULTY</code>, <code>LIVES</code>, <code>BONUS LIFE</code>, <code>STARTING LEVEL</code>) to a common right column.</li>
+          <li>Place <code>(</code> and <code>)</code> tightly around the active value&rsquo;s exact width (<code>(ARCADE)</code> / <code>  (EASY)</code>, <code>    (01)</code>..<code>    (12)</code>, <code>   (OFF)</code> / <code> (10000)</code>..<code> (50000)</code>, <code>    (01)</code>..<code>    (99)</code>..<code>   (255)</code>), clearing leading cells to the left of <code>(</code> with spaces on both A and B framebuffers.</li>
+          <li>Extend <code>STARTING LEVEL</code> from <code>1..99</code> to <code>1..255</code> (2 digits for <code>01</code>&ndash;<code>99</code>, 3 digits for <code>100</code>&ndash;<code>255</code>).</li>
+          <li>Fit within <code>ladybug-highscore-helper.bin &le; 3,264 B</code> with zero resident RAM growth.</li>
+        </ul>
+      </li>
+      <li><strong>Game Over Green Perimeter:</strong> Replace white perimeter box tiles in <code>tiled/coco-game-over-screen.tmx</code> with green perimeter box tiles (0-byte runtime code delta).</li>
+      <li><strong>Verification:</strong> Pass all three ROM builds, DOC-002, audio, presentation-flow, 9/9 pixel-exact maps, and standalone 6809 Options checks, followed by user XRoar RGB playtest.</li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-26:</strong> User approved FEAT-017 and requested TMX updates first for visual review before building into the ROM. Branched <code>feat/feat017-pre10-polish</code> off <code>main</code> (<code>b9ad18fc</code>) and delegated Stage 1 TMX edits to <code>gpt-6-luna</code> (high).</li>
+      <li><strong>2026-11-26 (Verification):</strong> Stage 2 implemented by <code>gpt-6-luna</code> (high); parent QA fixed an <code>X</code>-register clobber in <code>menu_value_row</code>, updated <code>verify_audio_runtime.py</code> for the 2-byte asset reduction (<code>draw_recolored_map_tile = $FBA3</code>), and rebuilt/verified all three ROMs. Primary ROM <code>44cd9e529ff79c76f1845d5b26027e9e3f1756665e244c25d5adca9ec641be9c</code> (resident <code>8,162/8,192 B</code>, <code>+30 B</code> free), <code>extra-e</code> <code>e7d1b91e...</code> and <code>special-e</code> <code>ab24ed2b...</code> (resident <code>8,189/8,192 B</code>, <code>+3 B</code> free), <code>highscore-helper.bin</code> <code>3,264/3,264 B</code>, <code>assets</code> <code>7,666/7,680 B</code>, GMC spare <code>4,346 B</code>. DOC-002 (<code>358/358</code> routines, <code>7,470/7,470</code> labels), audio (18 cues), presentation flow, and 9/9 pixel-exact maps passed. Awaits user XRoar RGB playtest.</li>
+    </ul>
+  </section>
+</body>
+</html>
