@@ -3,7 +3,7 @@
 ; DOC-002 source-contract mirror contract key_scan profile=keybindings: Sample eight physical columns, latch fresh wake edges, and produce held actions and menu edges.
 ; DOC-002 source-contract mirror contract key_down profile=keybindings: Test one column-times-eight-plus-row physical switch while preserving caller indexes.
 ; DOC-002 source-contract mirror contract key_capture profile=keybindings: Reject conflicting or ambiguous keys and consume accepted or cancelled capture through release.
-; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK or begin waiting for a replacement switch.
+; DOC-002 source-contract mirror contract key_tick profile=keybindings: Navigate five gameplay actions and BACK with wrap-around, or begin waiting for a replacement switch.
 ; DOC-002 source-contract mirror contract key_paint profile=keybindings: Repaint all hydrated rows or only the previous and current selected rows for the prepared owner.
 ; DOC-002 source-contract mirror contract key_waiting profile=keybindings: Report whether the current row owns active capture parentheses.
 ; DOC-002 source-contract mirror contract key_name profile=keybindings: Resolve a physical switch to its single glyph or descriptive key name.
@@ -333,17 +333,21 @@ kt_arrow
         beq kt_done
         bita #1
         beq kt_down
-        tst $E0
-        beq kt_done
-        dec $E0
-        bra kt_redraw
+        lda $E0
+        deca
+        bpl kt_store
+        lda #KB_MENU_LAST
+        bra kt_store
 kt_down
         bita #2
         beq kt_done
         lda $E0
-        cmpa #KB_MENU_LAST
-        bhs kt_done
-        inc $E0
+        inca
+        cmpa #KB_MENU_LAST+1
+        blo kt_store
+        clra
+kt_store
+        sta $E0
 kt_redraw
         lda #3
         sta $E1

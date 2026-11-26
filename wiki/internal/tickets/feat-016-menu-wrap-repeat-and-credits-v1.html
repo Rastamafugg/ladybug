@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-016: Menu Wrap-Around, Ease-In Key Repeat &amp; Credits v1.0 — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>FEAT-016: Menu Wrap-Around, Ease-In Key Repeat &amp; Credits v1.0</h1>
+    <p class="subtitle">Rebuild with user-updated <code>coco-credits-screen.tmx</code> (v1.0 + background hole fix), add Up/Down wrap-around to all menus, and add ease-in held-key auto-repeat for menu navigation</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>FEAT-016</code></td></tr>
+        <tr><th>Status</th><td><strong>Verification</strong> (built &amp; automated checks passed 2026-11-25 on branch <code>feat/feat016-menu-wrap-repeat-v1</code>; awaiting user XRoar RGB playtest)</td></tr>
+        <tr><th>Type</th><td>Feature &mdash; Presentation &amp; Menu UX</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (QA, wiki, integration); delegated implementation to <code>gpt-6.2-sol</code> (high) / <code>gpt-6-luna</code> (high)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria (2026-11-25)</h2>
+    <ol>
+      <li><strong>Credits Screen v1.0:</strong> Preserve the user&rsquo;s edits in <code>tiled/coco-credits-screen.tmx</code> (Version 1.0 and background hole cleanup) and rebuild all presentation maps and ROMs.</li>
+      <li><strong>Up/Down Wrap-Around Across All Menus:</strong>
+        <ul>
+          <li>Pressing Up on the top item wraps to the bottom item, and pressing Down on the bottom item wraps to the top item, across Attract (<code>0..2</code>), Options (<code>0..5</code>), and Keybindings (<code>0..5</code> / all rows).</li>
+        </ul>
+      </li>
+      <li><strong>Held-Key Auto-Repeat with Ease-In Acceleration:</strong>
+        <ul>
+          <li>Holding a menu navigation direction (Up/Down in all menus, and Left/Right on adjustable Options rows) triggers an immediate press on edge, then repeats starting at a slow initial cadence and accelerating (ease-in) toward a fast maximum repeat speed while held.</li>
+          <li>Releasing the key or changing direction resets the repeat timer and speed curve; opposing held directions still cancel cleanly; Enter/Back never auto-repeat.</li>
+        </ul>
+      </li>
+      <li><strong>Capacity &amp; Verification Guards:</strong>
+        <ul>
+          <li>All fixed module caps pass (primary &amp; <code>extra-e</code>/<code>special-e</code> fixtures resident <code>&le; 8,192 B</code>, <code>ladybug-highscore-helper.bin &le; 3,264 B</code>, page <code>$3D</code> zero overlap, <code>draw_recolored_map_tile = $FBA5</code>).</li>
+          <li>DOC-002, audio, presentation-flow, 9/9 pixel-exact presentation maps, and standalone 6809 menu wrap/repeat checks pass, followed by user XRoar RGB playtest.</li>
+        </ul>
+      </li>
+    </ol>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-25:</strong> User updated <code>tiled/coco-credits-screen.tmx</code> (v1.0) and requested Up/Down wrap-around and ease-in held-key auto-repeat across all menus. Created branch <code>feat/feat016-menu-wrap-repeat-v1</code> off <code>main</code> (<code>d5a56592</code>) and delegated implementation to <code>gpt-6.2-sol</code> (high).</li>
+      <li><strong>2026-11-25 (Verification):</strong> Sol 6.2 High implementation and parent QA review completed. All three ROMs built and verified: primary <code>5cb42462d97b60c11329f03d199411589d65ea66719ffe8af247c8fb1282d96c</code> (resident <code>8,162/8,192 B</code>, <code>+30 B</code> free), <code>extra-e</code> <code>cf24fc19...</code> and <code>special-e</code> <code>a4667db9...</code> (resident <code>8,189/8,192 B</code>, <code>+3 B</code> free), <code>highscore-helper.bin</code> <code>3,264/3,264 B</code>, presentation <code>1,278/1,280 B</code>, page <code>$3D</code> zero overlap, <code>$FBA5</code> intact. Passed DOC-002 (<code>357/357</code> routines, <code>7,472/7,472</code> labels), audio, presentation flow, 9/9 pixel-exact maps including Credits v1.0, and 4,022 standalone 6809 menu wrap/repeat checks. Awaits user XRoar RGB playtest.</li>
+    </ul>
+  </section>
+</body>
+</html>

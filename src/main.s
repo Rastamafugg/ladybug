@@ -1,5 +1,6 @@
 ; DOC-002 source-contract mirror contract reset_bonus_colour profile=state: Initialize the existing collectible cycle red with thirty scheduled ticks and invalidate the existing entity colour cache at initial and next-stage boundaries.
-; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component while preserving the caller bank mapping.
+; DOC-002 source-contract mirror contract presentation_key_service profile=input: Call the bounded physical key component, restore the caller bank mapping, and advance directional menu repeat after a scan.
+; DOC-002 source-contract mirror contract menu_repeat profile=input: Add repeat pulses for one held menu direction after an accelerating scan delay; reset on release, chords, and capture.
 ; DOC-002 source-contract mirror contract KEY_SERVICE_EXEC profile=input: Generated page-$3D entry address for key_service, placed after the audio runtime with $BA00 as the minimum.
 ; DOC-002 source-contract mirror contract asset_draw_hud_digit profile=render: Draw one shared-font HUD digit.
 ; DOC-002 source-contract mirror contract asset_draw_two_digits profile=render: Draw a two-digit HUD value with a leading zero.
@@ -270,6 +271,11 @@ MODE_DEMO     equ 4              ; autonomous demo owns joystick direction
 MENU_DIFFICULTY equ $029B
 ; @audit {"id":"menu-bonus-life","kind":"scratch","symbol":"MENU_BONUS_LIFE","reference_modules":["resident-runtime","highscore-helper"],"width":1,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"Options bonus-life selection","initialization":"Cold boot clears to Off","lifetime":"Boot session, including stage changes and new games","clobbers":"Options Left and Right step between Off (0) and 10000 through 50000 (1 through 5)."}
 MENU_BONUS_LIFE equ $02D5
+; @audit {"id":"menu-direction-repeat","kind":"scratch","symbol":"MENU_REPEAT_DIR","width":3,"mapping":"unbanked-low-ram","phases":["foreground"],"owner":"resident menu direction repeat","initialization":"Startup clears the direction byte; arming a direction writes its countdown and interval step.","lifetime":"The direction is cleared on screen changes, capture, release and directional chords. Countdown and interval step are live only for a nonzero direction.","clobbers":"Resident repeat owns the three bytes; presentation start_screen also clears the direction.","reference_modules":["resident-runtime","presentation-runtime"]}
+MENU_REPEAT_DIR equ $02D6
+MENU_HELD equ $DF
+MENU_EVENT equ $D0
+KB_STATE equ $0298
 GATE_ANIM_ID  equ $0019         ; rotating gate ID+1; zero when idle
 GATE_ANIM_STYLE equ $001A       ; 0=slash, 1=backslash
 BLIT_ROWS     equ $001B         ; transparent-blit row counter
@@ -703,6 +709,7 @@ startup_clear_complete
         ; enters the first level or demo.
         lbsr    init_joystick
         ifne COMPLETE_PROFILE
+        clr     MENU_REPEAT_DIR
         ldb     #3
         lbsr    presentation_key_service
         endc
@@ -5563,13 +5570,62 @@ presentation_page24_resume
 ; Resident return path preserves the caller's PAR5, including audio/game owners.
 presentation_key_service
         lda     PAR_EXEC+5
-        pshs    a
+        pshs    a,b
         lda     #$3D
         sta     PAR_EXEC+5
         jsr     KEY_SERVICE_EXEC
         puls    a
         sta     PAR_EXEC+5
+        tst     ,s+
+        beq     menu_repeat
         rts
+
+menu_repeat
+        tst     KB_STATE
+        bne     menu_repeat_reset
+        lda     PRES_SCREEN
+        beq     menu_repeat_screen ; Attract map ID is zero.
+        cmpa    #PRESENTATION_MAP_OPTIONS
+        beq     menu_repeat_screen
+        cmpa    #PRESENTATION_MAP_KEYBIND_OPTIONS
+        bne     menu_repeat_reset
+menu_repeat_screen
+        lda     MENU_HELD
+        anda    #$0F
+        beq     menu_repeat_reset
+        ; A single set bit satisfies A & (A - 1) == 0.
+        pshs    a
+        deca
+        bita    ,s
+        puls    a
+        bne     menu_repeat_reset
+        ldx     #MENU_REPEAT_DIR
+        cmpa    ,x
+        bne     menu_repeat_arm
+        dec     1,x
+        bne     menu_repeat_done
+        ora     MENU_EVENT
+        sta     MENU_EVENT
+        ldu     #menu_repeat_delays
+        lda     2,x
+        lda     a,u
+        sta     1,x
+        cmpa    #3
+        beq     menu_repeat_done
+        inc     2,x
+menu_repeat_done
+        rts
+menu_repeat_arm
+        sta     ,x
+        lda     #26
+        sta     1,x
+        clr     2,x
+        rts
+menu_repeat_reset
+        clr     MENU_REPEAT_DIR
+        rts
+menu_repeat_delays
+        fcb     18,13,9,6,4,3
         endc
 
         ifne    HIGHSCORE_TEST_PROFILE

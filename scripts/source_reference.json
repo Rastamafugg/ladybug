@@ -950,8 +950,15 @@
         {
           "name": "presentation_key_service",
           "profile": "input",
-          "purpose": "Call the bounded physical key component while preserving the caller bank mapping.",
+          "purpose": "Call the bounded physical key component, restore the caller bank mapping, and advance directional menu repeat after a scan.",
           "reasons": []
+        },
+        {
+          "name": "menu_repeat",
+          "profile": "input",
+          "purpose": "Add repeat pulses for one held menu direction after an accelerating scan delay; reset on release, chords, and capture.",
+          "reasons": ["called"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-menu-repeat"
         },
         {
           "name": "KEY_SERVICE_EXEC",
@@ -1090,6 +1097,11 @@
           "name": "ai_edges_end",
           "kind": "boundary",
           "reason": "Exclusive cardinal pursuit record limit for the bounded neighbor scan."
+        },
+        {
+          "name": "menu_repeat_delays",
+          "kind": "data",
+          "reason": "Successive scan intervals for held-direction repeat, ending at the three-scan floor."
         },
         {
           "name": "asset_end",
@@ -2470,7 +2482,7 @@
         {
           "name": "start_screen",
           "profile": "presentation",
-          "purpose": "Load the requested screen; clear shared P1 validity on screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.",
+          "purpose": "Load the requested screen; clear menu repeat and shared P1 validity on complete-profile screen changes, initialize Instructions player fields to score zero, stage one, and no lives, multiplier, SPECIAL, or EXTRA progress before marking that snapshot ready; Level Start resets bonus state only for Attract preview or fresh-game context.",
           "reasons": []
         },
         {
@@ -4544,7 +4556,7 @@
         {
           "name": "key_tick",
           "profile": "keybindings",
-          "purpose": "Navigate five gameplay actions and BACK or begin waiting for a replacement switch.",
+          "purpose": "Navigate five gameplay actions and BACK with wrap-around, or begin waiting for a replacement switch.",
           "reasons": []
         },
         {

@@ -1260,20 +1260,25 @@ menu_toggle_difficulty
         sta     MENU_DIFFICULTY
         bra     menu_redraw
 menu_up
-        tst     MENU_SELECT
-        beq     menu_idle
-        dec     MENU_SELECT
-        bra     menu_redraw
+        ldb     #-1
+        bra     menu_step
 menu_down
-        ldb     #2
-        lda     PRES_SCREEN
-        cmpa    #PRESENTATION_MAP_ATTRACT
+        ldb     #1
+menu_step
+        addb    MENU_SELECT
+        lda     #2
+        tst     PRES_SCREEN     ; Attract map ID is zero.
         beq     menu_last
-        ldb     #5
+        lda     #5
 menu_last
-        cmpb    MENU_SELECT
-        bls     menu_idle
-        inc     MENU_SELECT
+        stb     MENU_SELECT
+        bmi     menu_select_wrap
+        pshs    b
+        cmpa    ,s+
+        bhs     menu_redraw
+        clra
+menu_select_wrap
+        sta     MENU_SELECT
 menu_redraw
         lda     #3
         sta     MENU_DIRTY
