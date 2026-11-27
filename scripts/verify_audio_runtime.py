@@ -160,7 +160,8 @@ def symbols(path: Path) -> dict[str, int]:
     pattern = re.compile(
         r"^Symbol: (audio_engine_start|audio_engine_end|audio_install_page|audio_mix_write|"
         r"audio_write|gmc_cue_descriptors|gmc_sound_data_end|audio_guard_bytes|"
-        r"audio_guard_end|key_service) .* = ([0-9A-Fa-f]+)$"
+        r"audio_guard_end|key_service|hud_word_paint|hud_word_paint_end|"
+        r"hud_entry_score_paint|draw_recolored_map_tile) .* = ([0-9A-Fa-f]+)$"
     )
     for line in path.read_text(encoding="utf-8").splitlines():
         match = pattern.match(line)
@@ -310,20 +311,16 @@ def main() -> None:
         helper_map = args.hud_word_helper.with_suffix(".map")
         if not helper_map.is_file():
             raise SystemExit("audio proof: HUD word helper map is missing")
-        helper_symbols = {
-            name: int(value, 16)
-            for name, value in re.findall(
-                r"^Symbol: (hud_word_paint|hud_word_paint_end|hud_entry_score_paint|"
-                r"draw_recolored_map_tile) .* = ([0-9A-Fa-f]+)$",
-                helper_map.read_text(encoding="ascii"),
-                re.MULTILINE,
-            )
-        }
+        resident_map = args.map if args.map is not None and args.map != audio_map else helper_map.with_name("ladybug.map")
+        if not resident_map.is_file():
+            raise SystemExit("audio proof: resident map is missing")
+        helper_symbols = symbols(helper_map)
+        painter = symbols(resident_map).get("draw_recolored_map_tile")
         if (
             helper_symbols.get("hud_word_paint") != 0 or
             helper_symbols.get("hud_entry_score_paint") != 2 or
             helper_symbols.get("hud_word_paint_end") != len(hud_word_helper) or
-            helper_symbols.get("draw_recolored_map_tile") != 0xFBA3
+            painter is None or helper_symbols.get("draw_recolored_map_tile") != painter
         ):
             raise SystemExit("audio proof: HUD word helper entry, size, or resident painter target differs")
     audio_meta = layout.get("audio_runtime")

@@ -84,6 +84,9 @@ def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None
                 calls.append("logo")
             elif target == symbols["PRESENTATION_ATTRACT_OVERLAY"]:
                 calls.append("actor")
+                if state.get("actor_due") and not memory[pending]:
+                    memory[pending] = 1
+                    calls.append("actor paint")
             else:
                 require(False, "unmodelled callback at $%04X" % target)
 
@@ -151,25 +154,73 @@ def verify_attract_menu_schedule(module: bytes, symbols: dict[str, int]) -> None
         state, calls = tick(dict(event=2, back=back))
         require(state["selection"] == 1 and state["dirty"] == 1 << (1-back)
                 and state["pending"] == 1, "fresh Down did not update one owner")
-        state.update(event=0, back=1-back, pending=0)  # Completed publication.
+        state.update(event=0, back=1-back, pending=0, actor_due=True)
         before = state["timer"]
         state, calls = tick(state)
         require(state["dirty"] == 0 and state["pending"] == 1
                 and state["timer"] == before+1, "idle replay/clock incomplete")
-        require(calls == ["clock", "actor", "menu", "paint"],
-                "queued repaint did not yield")
-        state.update(back=back, pending=0)
+        require(calls == ["clock", "menu", "paint"],
+                "idle highlight did not publish before the due actor refresh")
+        state.update(back=back, pending=0, actor_due=True)
+        state, calls = tick(state)
+        require(calls == ["clock", "actor", "actor paint"],
+                "deferred actor refresh did not publish after the menu")
+        state.update(back=1-back, pending=0, actor_due=False)
         state, calls = tick(state)
         require(calls == ["clock", "actor", "logo"], "clean tick lost animation")
     state, calls = tick(dict(dirty=2, back=1, pending=1))
     require(state["dirty"] == 2 and state["timer"] == 38
-            and calls == ["clock", "actor"], "queued frame overwritten or clock stalled")
+            and calls == ["clock", "menu"], "queued frame overwritten or clock stalled")
     state, calls = tick(dict(dirty=2, back=0))  # Dirty B is still FRONT.
     require(state["dirty"] == 2 and not state["pending"]
-            and calls == ["clock", "actor", "menu", "logo"],
+            and calls == ["clock", "menu", "actor", "logo"],
             "visible dirty owner blocked normal animation")
-    state, calls = tick(dict(dirty=2, back=1, timer=limit+5))
+    state, calls = tick(dict(dirty=2, back=0, actor_due=True))
+    require(state["dirty"] == 2 and state["pending"]
+            and calls == ["clock", "menu", "actor", "actor paint"],
+            "eligible actor refresh did not publish and yield before logo")
+    state, calls = tick(dict(dirty=2, back=1, timer=limit+5, actor_due=True))
     require(calls == ["clock", "expire"], "expired Attract painted outgoing screen")
+
+
+def verify_attract_actor_storage() -> None:
+    helper_path = ROOT / "build/ladybug-perimeter-reset-helper.bin"
+    helper = helper_path.read_bytes()
+    symbols = symbol_map(helper_path.with_suffix(".map").read_text(encoding="ascii"))
+    origin = symbols["PERIMETER_RESET_HELPER"]
+    at = symbols["pao_phase_change"] - origin
+    # A phase change stores the new phase and resets both owner refreshes.
+    # The next instruction must test the same byte before it can be used.
+    if (symbols["PRES_ACTOR_REFRESHES"] != 0xCE or helper[at:at+8] !=
+            bytes.fromhex("97 D3 86 02 97 CE 0D CE")):
+        raise SystemExit("presentation flow proof: actor refresh storage or initialization changed")
+
+    logo_path = ROOT / "build/ladybug-highscore-helper.bin"
+    logo = logo_path.read_bytes()
+    symbols = symbol_map(logo_path.with_suffix(".map").read_text(encoding="ascii"))
+    origin = symbols["highscore_phase_helper_end"] - len(logo)
+    start = symbols["highscore_logo_vbord"] - origin
+    end = symbols["highscore_logo_cache_ready"] - origin
+    if bytes.fromhex("8E 00 D2 96 90") not in logo[start:end]:
+        raise SystemExit("presentation flow proof: logo framebuffer-A phase cache changed")
+
+
+def verify_handoff_transactions(module: bytes, symbols: dict[str, int]) -> None:
+    origin = symbols["presentation_flow_tick"]
+    pc = symbols["normal_intermission"]
+    guard = module[pc-origin:pc-origin+6]
+    # LDA restore status, ORA active gate ID, BNE the gameplay release path.
+    if (guard[:5] != bytes.fromhex("96 51 9A 19 26") or
+            pc + 6 + int.from_bytes(guard[5:], "big", signed=True) != symbols["normal_game"]):
+        raise SystemExit("presentation flow proof: stage handoff can interrupt an active gate")
+
+    start = symbols["load_done_hold_second"] - origin
+    # Mask IRQ, swap FRONT/BACK, clear HOLD and ACTIVE, restore PAR5,
+    # and queue exactly one pending frame before unmasking IRQ.
+    transaction = bytes.fromhex("1A 10 FC 00 8F 1E 89 FD 00 8F 0F D4 0F 98 "
+                                "86 34 B7 FF A5 1A 10 86 01 97 91 1C EF")
+    if module[start:start+len(transaction)] != transaction:
+        raise SystemExit("presentation flow proof: hold finalization is not one masked publication")
 
 
 def main() -> None:
@@ -464,7 +515,15 @@ def main() -> None:
             "presentation flow proof: live Attract menu dispatch is absent"
         )
     if complete:
-        verify_attract_menu_schedule(MODULE.read_bytes(), symbols)
+        module = MODULE.read_bytes()
+        verify_attract_menu_schedule(module, symbols)
+        verify_attract_actor_storage()
+        verify_handoff_transactions(module, symbols)
+        hold_attract = source[source.index("\nload_done\n"):source.index("\nload_done_hold_plain\n")]
+        if not re.search(r"lda\s+#\$FF\s+sta\s+PRES_ACTOR_PHASE\s+"
+                         r"lda\s+#\$34\s+sta\s+PAR5\s+jsr\s+PRESENTATION_ATTRACT_OVERLAY",
+                         hold_attract):
+            raise SystemExit("presentation flow proof: Attract hydration does not reset actor refreshes")
     menu_source = (ROOT / "src/shared_text_stage.inc").read_text(encoding="ascii")
     if "menu_attract_rows" not in menu_source or "menu_start_free" not in menu_source:
         raise SystemExit(

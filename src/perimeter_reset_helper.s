@@ -67,9 +67,9 @@ PENDING equ $0091
 PRES_TIMER equ $00B0
 PRES_ACTOR_PHASE equ $00D3
 ; Presentation-only count: two BACK pages need the new actor phase.
-; $D2 is unused presentation scratch here and is instruction-runtime state
-; only while the mutually exclusive instructions mode owns the flow.
-PRES_ACTOR_REFRESHES equ $00D2
+; $CE is the actor frame scratch in the mutually exclusive Instructions mode.
+; Attract hydration forces a phase change before the first refresh check.
+PRES_ACTOR_REFRESHES equ $00CE
 PRES_HOLD_STATE equ $00D4
 PRES_HOLD_CHUNK equ $00D5
 PRES_HOLD_SAVED_FRONT equ $00D6

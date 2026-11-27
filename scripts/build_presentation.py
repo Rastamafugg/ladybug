@@ -226,6 +226,14 @@ INSTRUCTION_TARGETS = (
     (13, 13), (17, 13), (21, 13),
     (28, 13),
 )
+INSTRUCTION_PERSISTENT_X_ROOT = (13, 19)
+INSTRUCTION_INITIAL_TARGET_PENS = {
+    (x + dx, y + dy): (BLACK, RED, PURPLE, PINK) if 12 <= index < 15
+    else (BLACK, RED, RED, RED)
+    for index, (x, y) in enumerate((*INSTRUCTION_TARGETS[:15], INSTRUCTION_PERSISTENT_X_ROOT))
+    for dy in range(2)
+    for dx in range(2)
+}
 INSTRUCTION_EVENT_BYTES = 12
 INSTRUCTION_STOPS = (
     (13, 8), (15, 8), (17, 8), (19, 8), (21, 8),
@@ -923,6 +931,8 @@ def presentation_pen_map(
     if role == "high-score" and source_layer in HIGH_SCORE_LOGO_LAYERS:
         return (BLACK, WHITE, LIGHT_BLUE, LIGHT_BLUE)
     if role == "instructions":
+        if source_layer == "Instructions Overlay" and (x, y) in INSTRUCTION_INITIAL_TARGET_PENS:
+            return INSTRUCTION_INITIAL_TARGET_PENS[x, y]
         if hud_layout is None:
             inactive_cells = {(column, 7) for column in range(1, 7)}
         else:
@@ -1647,7 +1657,7 @@ def parse_instruction_contract(
                     root, path,
                     overlay_cells[(target[1] + dy) * SCREEN_WIDTH + target[0] + dx],
                     (target[0] + dx, target[1] + dy), chars,
-                    (BLACK, 1, 2, 3) if index >= 12 else None,
+                    (BLACK, 1, 2, 3),
                 ) for dx in range(2)]
                 for row in range(8):
                     packed_row = (row_tiles[0][row * 4:row * 4 + 4]
@@ -1677,10 +1687,11 @@ def parse_instruction_contract(
     # Last-row X is a persistent demonstration target, not a consumable event.
     operations = bytearray()
     cursor = count = 0
+    x_root, y_root = INSTRUCTION_PERSISTENT_X_ROOT
     for dy in range(2):
         pair = [instruction_char_tile(root, path,
-                    overlay_cells[(19 + dy) * SCREEN_WIDTH + 13 + dx],
-                    (13 + dx, 19 + dy), chars, (0, 1, 1, 1)) for dx in range(2)]
+                    overlay_cells[(y_root + dy) * SCREEN_WIDTH + x_root + dx],
+                    (x_root + dx, y_root + dy), chars, (0, 1, 1, 1)) for dx in range(2)]
         for row in range(8):
             packed = pair[0][row * 4:row * 4 + 4] + pair[1][row * 4:row * 4 + 4]
             for column, value in enumerate(packed):

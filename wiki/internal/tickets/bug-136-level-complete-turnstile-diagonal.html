@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BUG-136: Level Completion Turnstile Diagonal Pose Held During Level Start Load — Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>BUG-136: Level Completion Turnstile Diagonal Pose Held During Level Start Load</h1>
+    <p class="subtitle">Apply the <code>lda &lt;$51 / ora &lt;$19</code> state check in <code>normal_stage</code> to end the completion pose at the Level Start transition</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>BUG-136</code></td></tr>
+        <tr><th>Status</th><td><strong>In Review</strong> (implementation and automated verification passed; awaiting user visual XRoar playtest)</td></tr>
+        <tr><th>Type</th><td>Bug &mdash; Level transition presentation</td></tr>
+        <tr><th>Branch</th><td><code>fix/rc1-polish-bugs-134-137</code></td></tr>
+        <tr><th>Owner</th><td>Implementation and automated verification complete; user visual playtest pending</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="root-cause">
+    <h2>Root Cause</h2>
+    <p>The Level Completion turnstile diagonal pose remained held during the Level Start load. The fix applies the <code>lda &lt;$51 / ora &lt;$19</code> state check in <code>normal_stage</code> in <code>src/presentation_runtime.s</code>.</p>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Implemented Scope &amp; Acceptance Criteria</h2>
+    <ol>
+      <li>Apply the <code>lda &lt;$51 / ora &lt;$19</code> state check in <code>normal_stage</code> in <code>src/presentation_runtime.s</code>.</li>
+      <li>Do not hold the Level Completion turnstile diagonal pose through the Level Start load.</li>
+      <li>Pass the automated verification recorded below; complete user visual XRoar playtest before closing the ticket.</li>
+    </ol>
+  </section>
+
+  <section id="verification">
+    <h2>Build &amp; Automated Verification (2026-11-27)</h2>
+    <p>On branch <code>fix/rc1-polish-bugs-134-137</code>, <code>build/ladybug.rom</code> is 65,536 B with SHA-256 <code>2a763f1228db370bb8c2afacb8d086a502e5dd580664c082aaad5af130fb6460</code>. Capacity figures below are used bytes out of total bytes.</p>
+    <ul>
+      <li><code>presentation_runtime</code>: 1,274/1,280 B; <code>perimeter_reset_helper</code>: 331/334 B; <code>highscore-helper</code>: 3,264/3,264 B; resident bank: 8,162/8,192 B.</li>
+      <li><code>verify_presentation_flow.py</code> passed.</li>
+      <li><code>verify_shared_text.py</code> passed: 9/9 pixel-exact maps; Red index 1 on all 16 Instructions streams; Blue index 3 on Level Start preview letters.</li>
+      <li><code>verify_audio_runtime.py</code> passed: 18/18 cues.</li>
+      <li>DOC-002 passed: 19 modules, 358/358 routines, 7,462/7,462 labels.</li>
+    </ul>
+    <p>User visual XRoar playtest remains pending.</p>
+  </section>
+</body>
+</html>

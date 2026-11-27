@@ -321,7 +321,8 @@ normal_stage
         ifne    COMPLETE_PROFILE
 normal_intermission
         endc
-        tst     <$51            ; publish restored player before stage handoff
+        lda     <$51            ; publish restored player before stage handoff
+        ora     <$19            ; GATE_ANIM_ID: settle the turnstile first
         bne     normal_game
         ifne    COMPLETE_PROFILE
         lda     #$24
@@ -589,10 +590,9 @@ load_done_hold_second
         ldd     FB_FRONT_ID
         exg     a,b
         std     FB_FRONT_ID
-        andcc   #$EF
-        jsr     PRES_MAIN_FB_PUBLISH
-        lda     #PRES_HOLD_FINAL
-        sta     PRES_HOLD_STATE
+        ; Both owners are hydrated. Retire the hold before publishing BACK.
+        clr     <PRES_HOLD_STATE
+        clr     <ACTIVE
 load_done_publish
         lda     #$34
         sta     PAR5
@@ -722,17 +722,8 @@ attract_tick_ready
         endc
         cmpd    #PRESENTATION_ROTATION_TICKS
         bhs     attract_next
-        ifne    ATTRACT_OVERLAY_ENABLED
-        ; Refresh pending actor pixels before menu or logo work can publish BACK.
-        lda     #$34
-        sta     PAR5
-        jsr     PRESENTATION_ATTRACT_OVERLAY
-        tst     PENDING
-        bne     hold
-        endc
         ifne    COMPLETE_PROFILE
-        ; A fresh edge services only one BACK. Replay the other owner on idle
-        ; ticks after advancing the clock; never paint over a queued frame.
+        ; Replay the new highlight on BACK before an overlay can publish it.
         tst     <$E1
         beq     attract_tick_animation
         lbsr    menu_runtime_dispatch
@@ -741,6 +732,11 @@ attract_tick_ready
 attract_tick_animation
         endc
         ifne    ATTRACT_OVERLAY_ENABLED
+        lda     #$34
+        sta     PAR5
+        jsr     PRESENTATION_ATTRACT_OVERLAY
+        tst     PENDING
+        bne     hold
         ldd     #PRES_MAIN_HIGHSCORE_PHASE_ENTRY
         std     PRES_NAME_PTR
         jsr     PRES_MAIN_PAGE24_RESUME

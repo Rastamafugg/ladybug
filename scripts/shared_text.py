@@ -270,7 +270,8 @@ class SharedText:
         grouped=[]
         for index,offset in enumerate(inst['colour_stream_offsets']):
             ptr=offset+delta;count=payload[ptr];ptr+=1
-            destination=inst['events'][index]['target_destination'] if index<15 else 0x7F34
+            destination=(inst['events'][index]['target_destination'] if index<15
+                         else self.p.framebuffer_destination(self.p.INSTRUCTION_PERSISTENT_X_ROOT))
             groups={1:[],2:[],3:[]}
             for _ in range(count):
                 step=payload[ptr];ptr+=1

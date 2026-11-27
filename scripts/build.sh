@@ -897,7 +897,6 @@ wanted = {
     'framebuffer_prepare_back': 'PRES_MAIN_FB_PREPARE',
     'framebuffer_finish_back': 'PRES_MAIN_FB_FINISH',
     'framebuffer_capture_back': 'PRES_MAIN_FB_CAPTURE',
-    'fbf_ready': 'PRES_MAIN_FB_PUBLISH',
 }
 symbols = {}
 for line in open(source, encoding='utf-8'):

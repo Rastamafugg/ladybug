@@ -191,6 +191,32 @@ def verify_highscore_logo(root, manifest, cold, chars):
             'data_offset': data_offset, 'page_safe': True}
 
 
+def verify_first_instruction_frame(frame, cold, choreography):
+    """Read the compiled runtime selectors and check their initial map pixels."""
+    pointers = choreography['colour_pointer_offset']
+    streams = choreography['colour_stream_offsets']
+    assert len(streams) == 16, ('expected 15 targets and the persistent X', streams)
+    for index, offset in enumerate(streams):
+        pointer = pointers + index * 2
+        assert int.from_bytes(cold[pointer:pointer+2], 'big') == offset
+        pixels = 0
+        for selector in (1, 2, 3):
+            count = cold[offset]
+            offset += 1
+            for _ in range(count):
+                address = int.from_bytes(cold[offset:offset+2], 'big')
+                offset += 2
+                assert 0x2000 <= address < 0x2000 + len(frame)
+                value = frame[address - 0x2000]
+                if selector & 1:
+                    assert value & 15 == 1, ('Instructions initial low pixel must be Red', index, address, value)
+                    pixels += 1
+                if selector & 2:
+                    assert value >> 4 == 1, ('Instructions initial high pixel must be Red', index, address, value)
+                    pixels += 1
+        assert pixels, ('empty Instructions recolour stream', index)
+
+
 def main():
     parser=argparse.ArgumentParser();parser.add_argument('--build-dir',type=Path,required=True);args=parser.parse_args()
     root=Path(__file__).resolve().parents[1];folder=args.build_dir
@@ -372,6 +398,8 @@ def main():
                     if preserved:expected[at+row*160:at+row*160+4]=seed[at+row*160:at+row*160+4]
                     else:actual[at+row*160:at+row*160+4]=tile[row*4:row*4+4]
                 cell+=1
+        if name=='instructions':
+            verify_first_instruction_frame(actual, cold, manifest['instruction_choreography'])
         differences=[i for i,(a,v) in enumerate(zip(actual,expected)) if a!=v]
         if name=='game-over':
             assert green_boxes==92,('game-over perimeter box count',green_boxes)
