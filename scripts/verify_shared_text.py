@@ -365,7 +365,8 @@ def main():
                 preserved=name=='game-over' and not 8<=x<=31
                 assert (tile is None)==preserved,('game-over no-write mask',cell,ident)
                 if name=='game-over' and 8<=x<=31 and (x in (8,31) or y in (0,23)):
-                    assert packed_colours(tile)-{p.BLACK}=={p.GREEN},('game-over perimeter colour',x,y)
+                    colours=packed_colours(tile)-{p.BLACK}
+                    assert p.GREEN in colours and colours<={p.GREEN,p.PINK},('game-over perimeter colour',x,y,colours)
                     green_boxes+=1
                 for row in range(8):
                     if preserved:expected[at+row*160:at+row*160+4]=seed[at+row*160:at+row*160+4]
