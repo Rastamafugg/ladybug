@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import re
+import selectors
 import signal
 import shutil
 import socket
@@ -16,6 +17,11 @@ import tempfile
 import time
 from pathlib import Path
 
+from build_loading import compile_loading
+from build_presentation import (
+    compile_attract_surfaces, compile_map, load_chars, load_text_colours,
+    parse_attract_actors, title_framebuffer,
+)
 from gmc_lzss import decompress as lzss_decompress
 
 
@@ -24,6 +30,10 @@ RESIDENT_STARTUP_PHASE_SECONDS = 10
 NATURAL_PHASE_SECONDS = 10
 FORCED_GAMEPLAY_SECONDS = 20
 FORCED_DEMO_SECONDS = 10
+
+
+class LoadingFirstFrameError(SystemExit):
+    """The first native unblank did not occur at the loading draw boundary."""
 
 
 def map_symbol(map_text: str, name: str) -> str:
@@ -127,6 +137,210 @@ def auxiliary_runtime_mutable_fields(
     return fields
 
 
+def verify_loading_trace(
+    xroar: str, rom: Path, boot_map: str, enemy_map: str, asset: bytes, timeout: int,
+) -> None:
+    """Observe the cold cartridge and both hardware publication writes."""
+    def boot_pc(name: str) -> int:
+        return int(map_symbol(boot_map, name), 16)
+
+    def forced_ram_pc(name: str) -> int:
+        return 0xFE00 + boot_pc(name) - boot_pc("boot_loading_irq")
+
+    text_store = boot_pc("boot_loading_text_store")
+    unblank = boot_pc("boot_loading_unblank")
+    relocate = boot_pc("boot_copy")
+    scanout_a = boot_pc("boot_loading_scanout")
+    dot_store = forced_ram_pc("boot_loading_dot_store")
+    dot_store_bottom = forced_ram_pc("boot_loading_dot_store_bottom")
+    dot_clear = forced_ram_pc("boot_loading_dot_clear")
+    dot_clear_bottom = forced_ram_pc("boot_loading_dot_clear_bottom")
+    save_pars = forced_ram_pc("boot_loading_irq_save_pars")
+    restore_pars = forced_ram_pc("boot_loading_irq_restore_pars")
+    irq = forced_ram_pc("boot_loading_irq")
+    normal_vector = forced_ram_pc("boot_loading_hydrate_done")
+    publish = int(map_symbol(enemy_map, "fbiq_publish"), 16)
+    watched = {
+        f"{pc:04x}|".encode("ascii"): pc
+        for pc in (text_store, unblank, relocate, scanout_a, dot_store, dot_store_bottom,
+                   dot_clear, dot_clear_bottom, save_pars, restore_pars, irq, normal_vector, publish)
+    }
+    process = subprocess.Popen(
+        [xroar, "-ui", "null", "-ao", "null", "-machine", "coco3",
+         "-machine-cpu", "6809", "-ram", "512", "-ram-init", "random",
+         "-cart-type", "gmc", "-cart-rom", str(rom), "-cart-autorun",
+         "-no-ratelimit", "-trace"],
+        stdout=subprocess.PIPE, stderr=subprocess.STDOUT, start_new_session=True,
+    )
+    registers = re.compile(rb" a=([0-9a-f]{2}) b=([0-9a-f]{2}).* x=([0-9a-f]{4}) y=([0-9a-f]{4})")
+    blank = 0
+    text = []
+    dots = []
+    flips = []
+    transitions = []
+    saved_pars = None
+    cartridge_started = False
+    deadline = time.monotonic() + timeout
+    try:
+        with selectors.DefaultSelector() as selector:
+            selector.register(process.stdout, selectors.EVENT_READ)
+            tail = b""
+            while len(flips) < 2 and time.monotonic() < deadline:
+                if not selector.select(max(0, deadline - time.monotonic())):
+                    break
+                chunk = os.read(process.stdout.fileno(), 65536)
+                if not chunk:
+                    break
+                *lines, tail = (tail + chunk).split(b"\n")
+                for line in lines:
+                    if line.startswith(b"c002|"):
+                        cartridge_started = True
+                    if not cartridge_started:
+                        continue
+                    pc = watched.get(line[:5])
+                    video_write = line[6:12] == b"b7ff99"
+                    if pc is None and not video_write:
+                        continue
+                    match = registers.search(line)
+                    if not match:
+                        raise SystemExit(f"gmc loading proof: malformed trace row {line!r}")
+                    a, b, x, y = (int(value, 16) for value in match.groups())
+                    if video_write and pc != unblank:
+                        if a == 0x1E and "unblank" not in transitions:
+                            raise LoadingFirstFrameError(
+                                "gmc loading proof: first native unblank did not publish Loading"
+                            )
+                        if "unblank" in transitions:
+                            raise SystemExit("gmc loading proof: display mode changed during handoff")
+                    if pc == text_store:
+                        text.append((y - 2, a, b))
+                    elif pc == irq:
+                        blank += 1
+                    elif pc == dot_store or pc == dot_clear:
+                        dots.append((blank, x, a))
+                    elif pc == dot_store_bottom or pc == dot_clear_bottom:
+                        dots.append((blank, x + 160, b if pc == dot_store_bottom else a))
+                    elif pc == save_pars:
+                        saved_pars = blank, a, b
+                    elif pc == restore_pars:
+                        if saved_pars != (blank, a, b):
+                            raise SystemExit("gmc loading proof: dot IRQ changed the interrupted PAR2/PAR3")
+                        saved_pars = None
+                    elif pc == publish:
+                        flips.append((blank, a))
+                        transitions.append("publish")
+                        if len(flips) == 2:
+                            break
+                    elif pc == scanout_a:
+                        if (a, b) != (0xC0, 0):
+                            raise SystemExit("gmc loading proof: initial scanout is not A")
+                        transitions.append("scanout A")
+                    elif pc == unblank:
+                        if a != 0x1E:
+                            raise SystemExit("gmc loading proof: unexpected unblank mode")
+                        transitions.append("unblank")
+                    elif pc == relocate and "relocate" not in transitions:
+                        transitions.append("relocate")
+                    elif pc == normal_vector:
+                        transitions.append("retire IRQ")
+    finally:
+        stop_process(process)
+        process.wait()
+
+    expected_text = [
+        (0x57E0 + row * 160 + col, *asset[row * 28 + col:row * 28 + col + 2])
+        for row in range(6) for col in range(0, 28, 2)
+    ]
+    if text != expected_text:
+        raise LoadingFirstFrameError("gmc loading proof: initial Loading text writes differ")
+    if (transitions != ["scanout A", "unblank", "relocate", "publish", "retire IRQ", "publish"]
+            or [offset for _, offset in flips] != [0xB0, 0xC0]):
+        raise SystemExit(f"gmc loading proof: unexpected scanout handoff {transitions}, {flips}")
+    first_commit = flips[0][0]
+    expected_dots = []
+    for vb in range(15, first_commit, 15):
+        index = (vb // 15 - 1) % 8
+        columns = range(7) if index == 7 else (index,)
+        for col in columns:
+            root = 0x5F61 + col * 4
+            pens = (0, 0) if index == 7 else asset[168:170]
+            expected_dots.extend(((vb, root, pens[0]), (vb, root + 160, pens[1])))
+    if not expected_dots or dots != expected_dots:
+        raise SystemExit(f"gmc loading proof: dot writes differ from 15-VBORD cadence: {dots}")
+    print(f"gmc loading proof: direct A→B at VBORD {first_commit}; "
+          f"dot updates at {sorted({vb for vb, _, _ in dots})}; normal IRQ restored for A")
+
+
+def verify_loading_buffers(xroar: str, gdb: str, rom: Path, timeout: int) -> None:
+    """Read both prepared buffers at the cold hydration boundary."""
+    root = Path(__file__).resolve().parents[1]
+    tmx = root / "tiled/coco-attract-screen.tmx"
+    art = root / "assets/arcade"
+    tiles = []
+    cells, _ = compile_map(tmx, load_chars(art / "chars.json"), tiles, {},
+                           False, True, load_text_colours())
+    expected = title_framebuffer(cells, tiles)
+    actors = parse_attract_actors(tmx)
+    sprites = json.loads((art / "sprites.json").read_text())
+    surfaces = compile_attract_surfaces(cells, tiles, sprites, actors)
+    for actor_index, actor in enumerate(actors):
+        root_offset = actor["destination"] - 0x2000
+        for row in range(16):
+            target = root_offset + row * 160
+            source = actor_index * 128 + row * 8
+            expected[target:target + 8] = surfaces[source:source + 8]
+    # Cold hydration uses the authored base logo and the nine phase-zero
+    # actors. The normal Attract ticker starts logo animation after handoff.
+    for row, start, end, colour in ((15, 15, 25, 10), (17, 15, 22, 7), (19, 15, 22, 7)):
+        pens = bytes(((colour << 4 if b & 0xF0 else 0) |
+                      (colour if b & 0x0F else 0)) for b in range(256))
+        for raster in range(row * 8, row * 8 + 8):
+            first, last = raster * 160 + start * 4, raster * 160 + end * 4
+            expected[first:last] = expected[first:last].translate(pens)
+    expected_hash = hashlib.sha256(expected).hexdigest()
+
+    port = free_local_port()
+    process = start_xroar(
+        [xroar, "-ui", "null", "-ao", "null", "-machine", "coco3",
+         "-machine-cpu", "6809", "-ram", "512", "-ram-init", "random",
+         "-cart-type", "gmc", "-cart-rom", str(rom), "-cart-autorun",
+         "-gdb", "-gdb-ip", "127.0.0.1", "-gdb-port", str(port)],
+    )
+    deadline = time.monotonic() + timeout
+    try:
+        time.sleep(0.25)
+        with tempfile.TemporaryDirectory(prefix="ladybug-loading-") as temp:
+            a, b = Path(temp) / "a.bin", Path(temp) / "b.bin"
+            commands = ["set pagination off", "set confirm off", "set remote supported-packets-packet off",
+                        f"target remote :{port}", "break *0xfe60"]
+            for dump in (b, a):
+                commands.extend([
+                    "continue",
+                    'printf "LOADING_ACTIVE %d %d %d\\n", *(unsigned char*)0x008f, '
+                    '*(unsigned char*)0x0090, *(unsigned short*)0x00aa',
+                    f"dump binary memory {dump} 0x2000 0x9800",
+                ])
+            commands.extend(("detach", "quit"))
+            result = subprocess.run([gdb, "-q"], input="\n".join(commands) + "\n",
+                                    stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
+                                    text=True, timeout=max(0, deadline - time.monotonic()))
+            if re.findall(r"LOADING_ACTIVE (\d) (\d) (\d+)", result.stdout) != [
+                    ("0", "1", "960"), ("1", "0", "960")]:
+                raise SystemExit(f"gmc loading proof: missing distinct hydration owners\n{result.stdout}")
+            hashes = [hashlib.sha256(dump.read_bytes()).hexdigest() for dump in (b, a) if dump.exists()]
+            if hashes != [expected_hash, expected_hash]:
+                raise SystemExit(
+                    f"gmc loading proof: initial Attract pixels differ: {hashes}, expected {expected_hash}"
+                )
+    except subprocess.TimeoutExpired as exc:
+        activity = (exc.stdout or b"").decode(errors="replace")
+        raise SystemExit(f"gmc loading proof: timed out observing cold Attract buffers\n{activity}") from exc
+    finally:
+        stop_process(process)
+        process.wait()
+    print(f"gmc loading proof: both 960-cell Attract buffers are pixel-exact ({expected_hash})")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--xroar", default="/usr/local/bin/xroar")
@@ -137,10 +351,18 @@ def main() -> None:
         default=0,
         help="GDB stub port; choose a free local port when omitted",
     )
-    parser.add_argument("--rom", type=Path, required=True)
-    parser.add_argument("--map", type=Path, required=True)
-    parser.add_argument("--manifest", type=Path, required=True)
+    parser.add_argument("--rom", type=Path, default=Path("build/ladybug.rom"))
+    parser.add_argument("--map", type=Path, default=Path("build/ladybug.map"))
+    parser.add_argument("--manifest", type=Path, default=Path("build/ladybug-sparse-layout.json"))
     parser.add_argument("--identity-output", type=Path)
+    parser.add_argument(
+        "--loading-only", action="store_true",
+        help="check the complete-profile loading asset, dot cadence and Attract handoff",
+    )
+    parser.add_argument(
+        "--loading-baseline", type=Path,
+        help="confirm the pre-feature ROM fails the Loading-first assertion",
+    )
     parser.add_argument(
         "--loader-timeout", "--boot-timeout", dest="loader_timeout",
         type=int, default=BOOT_PHASE_SECONDS,
@@ -292,6 +514,40 @@ def main() -> None:
     development = runtime_role == "development"
     complete = runtime_role == "complete"
     highscore_test = runtime_role == "highscore-test"
+    boot_map = (args.rom.parent / "ladybug-gmc-boot.map").read_text(encoding="utf-8")
+    if args.loading_only or args.loading_baseline or complete:
+        if not complete:
+            parser.error("--loading-only requires the complete profile")
+        root = Path(__file__).resolve().parents[1]
+        expected = compile_loading(root / "tiled/coco-loading-screen.tmx",
+                                   root / "assets/arcade/chars.json")
+        start = int(map_symbol(boot_map, "boot_loading_asset"), 16) - 0xC000
+        end = int(map_symbol(boot_map, "boot_loading_asset_end"), 16) - 0xC000
+        def asset_matches(data: bytes) -> bool:
+            return len(data) == 186 and data == expected
+
+        saved = boot[start:end]
+        altered_palette = saved[:-1] + bytes((saved[-1] ^ 1,)) if saved else saved
+        if asset_matches(altered_palette) or asset_matches(saved[:-1]):
+            raise SystemExit("gmc loading proof: accepted a malformed asset fixture")
+        if not asset_matches(saved):
+            raise SystemExit("gmc loading proof: bank-0 asset does not match the TMX and palette")
+        print("gmc loading proof: exact 186-byte Bank 0 asset", flush=True)
+        if args.loading_baseline:
+            try:
+                verify_loading_trace(args.xroar, args.loading_baseline, boot_map, enemy_map,
+                                     expected, args.loader_timeout)
+            except LoadingFirstFrameError as exc:
+                if "first native unblank" not in str(exc):
+                    raise
+                baseline_hash = hashlib.sha256(args.loading_baseline.read_bytes()).hexdigest()
+                print(f"gmc loading proof: pre-feature ROM {baseline_hash} rejected at first unblank")
+            else:
+                raise SystemExit("gmc loading proof: pre-feature ROM passed the new first-frame check")
+        verify_loading_trace(args.xroar, args.rom, boot_map, enemy_map, expected, args.loader_timeout)
+        verify_loading_buffers(args.xroar, args.gdb, args.rom, args.resident_timeout)
+        if args.loading_only:
+            return
     presentation_symbols = {}
     if runtime_role == "release":
         for name in ("demo_force_death", "demo_force_enemy_death"):
@@ -344,7 +600,7 @@ def main() -> None:
         raise SystemExit("gmc proof: resident fast-clock selection missing")
     if "sta     SAM_FAST" not in loader_source or "SAM_FAST    equ $FFD9" not in loader_source:
         raise SystemExit("gmc proof: bootstrap fast-clock selection missing")
-    if "jmp     $C002" not in loader_source:
+    if not complete and "jmp     $C002" not in loader_source:
         raise SystemExit("gmc proof: relocated runtime handoff must skip the DK header")
     if "copy_enemy_sparse_index" in loader_source or "copy_player_sparse_index" in loader_source:
         raise SystemExit("gmc proof: sparse indexes must not overwrite the relocated loader")
@@ -418,8 +674,14 @@ def main() -> None:
     bank2_signature = relocated_pc(bytes((0xFC, 0xC0, 0x10)), 0)
     bank3_signature = relocated_pc(bytes((0xFC, 0xC0, 0x10)), 1)
     allram = relocated_pc(bytes((0xB7, 0xFF, 0xDF)))
-    handoff_offset = boot.find(bytes((0x7E, 0xC0, 0x02)), loader_start)
-    if handoff_offset < 0:
+    if complete:
+        handoff_offset = int(map_symbol(boot_map, "boot_runtime_handoff"), 16) - 0xC000
+        runtime_entry = int(map_symbol(map_text, "startup_gmc_entry"), 16)
+    else:
+        handoff_offset = boot.find(bytes((0x7E, 0xC0, 0x02)), loader_start)
+        runtime_entry = 0xC002
+    if handoff_offset < 0 or boot[handoff_offset:handoff_offset + 3] != (
+            b"\x7e" + runtime_entry.to_bytes(2, "big")):
         raise SystemExit("gmc proof: relocated runtime handoff opcode missing")
     handoff = f"{0x0300 + handoff_offset - loader_start:04x}"
     par5_positions = []

@@ -502,6 +502,13 @@
           ]
         },
         {
+          "name": "startup_gmc_entry",
+          "profile": "root",
+          "purpose": "Initialize resident state after GMC loading video is active and arm the temporary IRQ to delegate framebuffer commits.",
+          "reasons": ["exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-resident-runtime-startup-gmc-entry"
+        },
+        {
           "name": "joy_read_axis",
           "profile": "input",
           "purpose": "Sample and normalize one joystick axis through the PIA comparator.",
@@ -1713,7 +1720,7 @@
         {
           "name": "framebuffer_init_impl",
           "profile": "framebuffer",
-          "purpose": "Clone the initial surface and initialize persistent A/B owner metadata while display output is blanked.",
+          "purpose": "Initialize persistent A/B owner metadata and clone A pixels only for legacy startup.",
           "reasons": [
             "exported"
           ]
@@ -2515,9 +2522,16 @@
         {
           "name": "start_screen_no_instruction_install",
           "profile": "presentation",
-          "purpose": "Start screen no instruction install.",
+          "purpose": "Restart the selected map stream and map its BACK without reinstalling the Instructions runtime.",
           "reasons": [],
-          "semantic_id": "routines.html#routine-presentation-runtime-start-screen-no-instruction-install"
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-start-screen-no-instruction-install"
+        },
+        {
+          "name": "load_done_publish",
+          "profile": "presentation",
+          "purpose": "Queue the completed BACK for VBORD and enter the mode associated with the loaded screen.",
+          "reasons": ["exported"],
+          "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-presentation-runtime-load-done-publish"
         },
         {
           "name": "MENU_SCAN",
@@ -2595,6 +2609,7 @@
       ],
       "external_symbols": [
         "BLIT_TILE",
+        "BOOT_LOADING_HYDRATE",
         "DEMO_RUNTIME_TICK",
         "INSTRUCTION_RUNTIME_TICK",
         "PRESENTATION_ATTRACT_OVERLAY",
@@ -3116,16 +3131,40 @@
       "listing": "ladybug-gmc-boot.lst",
       "map": "ladybug-gmc-boot.map",
       "binary": "ladybug-gmc-boot.rom",
+      "external_symbols": [
+        "FB_MODULE_IRQ",
+        "GMC_RUNTIME_ENTRY",
+        "GMC_ATTRACT_RESTART",
+        "GMC_ATTRACT_PUBLISH"
+      ],
       "routines": [
         {
           "name": "boot_entry",
           "profile": "boot",
-          "purpose": "Establish bootstrap mappings and transfer control into the low-RAM loader.",
+          "purpose": "Establish bootstrap mappings, start the complete-profile loading display, and transfer control into the low-RAM loader.",
           "reasons": [
             "exported",
             "hardware-touching"
           ],
           "semantic_id": "../../wiki/internal/implementation/routine-catalog.html#routine-boot-entry"
+        },
+        {
+          "name": "boot_loading_video",
+          "profile": "boot",
+          "purpose": "Set up framebuffer A, draw the compiled loading asset, and unblank at VBORD before relocating the loader.",
+          "reasons": ["called", "hardware-touching"]
+        },
+        {
+          "name": "boot_loading_irq",
+          "profile": "boot",
+          "purpose": "Acknowledge VBORD before framebuffer initialization, then delegate publication and animate dots until B becomes FRONT.",
+          "reasons": ["exported", "hardware-touching"]
+        },
+        {
+          "name": "boot_loading_hydrate",
+          "profile": "boot",
+          "purpose": "Request the first Attract commit on B, then restore the normal vector after rendering Attract on A.",
+          "reasons": ["exported", "hardware-touching"]
         },
         {
           "name": "decompress_attract_surfaces",
@@ -3194,6 +3233,25 @@
         }
       ],
       "label_classifications": [
+        {"name": "boot_image_end", "kind": "boundary", "reason": "Bank-0 boot image capacity guard, including code and loading asset after the relocated loader."},
+        {"name": "boot_runtime_handoff", "kind": "boundary", "reason": "Final relocated-loader jump into the resident startup that preserves Loading."},
+        {"name": "boot_loading_scanout", "kind": "boundary", "reason": "Initial scanout selects physical framebuffer A."},
+        {"name": "boot_loading_unblank", "kind": "boundary", "reason": "Initial native unblank follows the observed vertical-blank status."},
+        {"name": "boot_loading_text_store", "kind": "boundary", "reason": "Packed Loading text word store observed by the boot verifier."},
+        {"name": "boot_loading_dot_store", "kind": "boundary", "reason": "Upper raster-row dot store in the relocated IRQ."},
+        {"name": "boot_loading_dot_store_bottom", "kind": "boundary", "reason": "Lower raster-row dot store in the relocated IRQ."},
+        {"name": "boot_loading_dot_clear_bottom", "kind": "boundary", "reason": "Lower raster-row clear store in the relocated IRQ."},
+        {"name": "boot_loading_irq_save_pars", "kind": "boundary", "reason": "Read the interrupted PAR2/PAR3 mapping before dot writes."},
+        {"name": "boot_loading_irq_restore_pars", "kind": "boundary", "reason": "Restore the interrupted PAR2/PAR3 mapping after dot writes."},
+        {"name": "boot_loading_asset", "kind": "data", "reason": "Start of the TMX-derived 186-byte loading asset."},
+        {"name": "boot_loading_dot", "kind": "data", "reason": "Two packed dot bytes for the two painted raster rows."},
+        {"name": "boot_loading_palette", "kind": "data", "reason": "Runtime palette shared by Loading and Attract."},
+        {"name": "boot_loading_asset_end", "kind": "boundary", "reason": "Extent of the generated loading asset."},
+        {"name": "boot_loading_irq_end", "kind": "boundary", "reason": "End of the code copied to forced RAM."},
+        {"name": "GMC_RUNTIME_ENTRY", "kind": "generated", "reason": "Imported resident startup_gmc_entry address from the final runtime map."},
+        {"name": "GMC_RUNTIME_IRQ", "kind": "generated", "reason": "Imported resident irq_handler address from the final runtime map."},
+        {"name": "GMC_ATTRACT_RESTART", "kind": "generated", "reason": "Imported start_screen_no_instruction_install address from the final presentation map."},
+        {"name": "GMC_ATTRACT_PUBLISH", "kind": "generated", "reason": "Imported load_done_publish address from the final presentation map."},
         {
           "name": "loader_end",
           "kind": "boundary",

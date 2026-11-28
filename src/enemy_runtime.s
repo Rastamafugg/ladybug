@@ -93,7 +93,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract framebuffer_capture_back profile=framebuffer: Capture current BACK owner metadata after composition.
 ; DOC-002 source-contract mirror contract framebuffer_finish_back profile=framebuffer: Finish the current BACK transaction and arm PENDING publication.
 ; DOC-002 source-contract mirror contract framebuffer_finish_fallback profile=framebuffer: Finish the fallback full-surface transaction.
-; DOC-002 source-contract mirror contract framebuffer_init_impl profile=framebuffer: Clone the initial surface and initialize persistent A/B owner metadata while display output is blanked.
+; DOC-002 source-contract mirror contract framebuffer_init_impl profile=framebuffer: Initialize persistent A/B owner metadata and clone A pixels only for legacy startup.
 ; DOC-002 source-contract mirror contract framebuffer_irq_impl profile=framebuffer: Publish a completed PENDING framebuffer at Vbord and maintain frame counters.
 ; DOC-002 source-contract mirror contract framebuffer_prepare_back profile=framebuffer: Prepare owner-local history and damage state for the selected BACK framebuffer.
 ; DOC-002 source-contract mirror contract framebuffer_project_damage profile=framebuffer: Project pending damage intents into the selected BACK worklist.
@@ -133,6 +133,9 @@ ADAPTIVE_RENDERING equ 0
         include "ladybug_runtime_symbols.inc"
         include "ladybug_presentation_symbols.inc"
         include "ladybug_shared_mode.inc"
+        ifne COMPLETE_PROFILE
+        include "gmc_loading.inc"
+        endc
         org     $0800
 
         ifndef  PERSISTENT_FB
@@ -1294,23 +1297,22 @@ acd_done
         rts
         endc
 
-; Phase-3 ownership bootstrap. While display output is still blanked, duplicate
-; the complete A image into physical pages $2C-$2F, then clone the current
-; restoration state and actor metadata. Display commits remain disabled.
+; Initialize owner state before enabling framebuffer commits. Legacy startup
+; clones A's pixels. Cold GMC startup will render both owners from the map.
 framebuffer_init_impl
-        clr     FB_FRONT_ID
-        lda     #1
-        sta     FB_BACK_ID
-        clr     FB_RENDER_PENDING
-        clr     FB_COMMIT_SEQ
-        clr     FB_COMMIT_SEQ+1
-        clr     FB_SIM_SEQ
-        clr     FB_SIM_SEQ+1
-        clr     FB_MISSED_COMMIT
-        clr     FB_MISSED_COMMIT+1
-        clr     FB_RENDER_ACTIVE
+        ldd     #1
+        std     FB_FRONT_ID
+        clrb
+        std     FB_RENDER_PENDING
+        std     FB_COMMIT_SEQ+1
+        std     FB_SIM_SEQ+1
+        std     FB_MISSED_COMMIT+1
         clr     FB_WRITE_FRONT_FAULT
 
+        ifne COMPLETE_PROFILE
+        tst     <BOOT_LOADING_OWNER
+        bmi     fbi_player_copy
+        endc
         lda     #FB_B_PAGE0
         pshs    a
         ldx     #$2000
@@ -1331,6 +1333,7 @@ fbi_page_word
         lda     #$34
         sta     GIME_PAR5
 
+fbi_player_copy
         ldx     #PLAYER_BG
         ldu     #PLAYER_BG_B
         ldy     #64

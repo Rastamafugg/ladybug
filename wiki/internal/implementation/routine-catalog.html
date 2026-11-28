@@ -333,7 +333,7 @@
           <tr id="routine-enemy-runtime-framebuffer-capture-back"><td><code>framebuffer_capture_back</code></td><td>Capture current BACK owner metadata after composition.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-framebuffer-finish-back"><td><code>framebuffer_finish_back</code></td><td>Finish the current BACK transaction and arm PENDING publication.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-framebuffer-finish-fallback"><td><code>framebuffer_finish_fallback</code></td><td>Finish the fallback full-surface transaction.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
-          <tr id="routine-enemy-runtime-framebuffer-init-impl"><td><code>framebuffer_init_impl</code></td><td>Clone the initial surface and initialize persistent A/B owner metadata while display output is blanked.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
+          <tr id="routine-enemy-runtime-framebuffer-init-impl"><td><code>framebuffer_init_impl</code></td><td>Initialize persistent A/B owner metadata and clone A pixels only for legacy startup.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
           <tr id="routine-enemy-runtime-framebuffer-irq-impl"><td><code>framebuffer_irq_impl</code></td><td>Publish a completed PENDING framebuffer at Vbord and maintain frame counters.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>exported</td></tr>
           <tr id="routine-enemy-runtime-framebuffer-prepare-back"><td><code>framebuffer_prepare_back</code></td><td>Prepare owner-local history and damage state for the selected BACK framebuffer.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
           <tr id="routine-enemy-runtime-framebuffer-project-damage"><td><code>framebuffer_project_damage</code></td><td>Project pending damage intents into the selected BACK worklist.</td><td><a href="#profile-framebuffer">Persistent framebuffer protocol</a></td><td>called</td></tr>
@@ -485,7 +485,10 @@
       <table>
         <thead><tr><th>Label</th><th>Purpose</th><th>Profile</th><th>Coverage reason</th></tr></thead>
         <tbody>
-          <tr id="routine-boot-entry"><td><code>boot_entry</code></td><td>Establish bootstrap mappings and transfer control into the low-RAM loader.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-boot-entry"><td><code>boot_entry</code></td><td>Establish bootstrap mappings, start the complete-profile loading display, and transfer control into the low-RAM loader.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-gmc-bootstrap-boot-loading-video"><td><code>boot_loading_video</code></td><td>Map and clear framebuffer A, load the runtime palette, draw six packed text rows, install the temporary IRQ and unblank on vertical blank.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called, hardware-touching</td></tr>
+          <tr id="routine-gmc-bootstrap-boot-loading-irq"><td><code>boot_loading_irq</code></td><td>Run from forced RAM at <code>$FE00</code>. Acknowledge vertical blank directly until resident framebuffer initialization completes, then delegate to <code>framebuffer_irq_impl</code>. Animate the dots on A every 15 blanks, preserving PAR2 and PAR3, and end updates at the first B commit.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>exported, hardware-touching</td></tr>
+          <tr id="routine-gmc-bootstrap-boot-loading-hydrate"><td><code>boot_loading_hydrate</code></td><td>Run from forced RAM at <code>$FE60</code> after the map and overlay render. After B is ready, restart the map on A and queue B for the first Attract commit. After A is ready, restore the normal IRQ vector and queue A.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>exported, hardware-touching</td></tr>
           <tr id="routine-gmc-bootstrap-decompress-attract-surfaces"><td><code>decompress_attract_surfaces</code></td><td>Decompress attract surfaces.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
           <tr id="routine-gmc-bootstrap-spr-byte-changed"><td><code>spr_byte_changed</code></td><td>Test whether synthesis changed the current perimeter-reset output byte.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
           <tr id="routine-gmc-bootstrap-synthesize-perimeter-reset"><td><code>synthesize_perimeter_reset</code></td><td>Synthesize perimeter reset.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
@@ -493,6 +496,14 @@
           <tr id="routine-gmc-bootstrap-copy-sparse-payload"><td><code>copy_sparse_payload</code></td><td>Copy one selected sparse descriptor payload and advance the caller-owned descriptor pointer.</td><td><a href="#profile-boot">Bootstrap and delivery</a></td><td>called</td></tr>
         </tbody>
       </table>
+    </section>
+
+    <section id="gmc-loading-handoff">
+      <h2>GMC loading handoff</h2>
+      <p id="routine-resident-runtime-startup-gmc-entry"><code>startup_gmc_entry</code> takes over after the GMC loader has staged the runtime. The loader hands off with direct page zero, framebuffer A mapped and visible, and the temporary vertical-blank IRQ active. Resident initialization preserves video state and enables delegation only after the owner records and counters are initialized.</p>
+      <p id="routine-presentation-runtime-start-screen-no-instruction-install"><code>start_screen_no_instruction_install</code> receives the map selector in A, resets the cell stream and maps BACK. During cold Attract hydration the boot helper enters here with A selected as the next BACK while setting up the first publication of B.</p>
+      <p id="routine-presentation-runtime-load-done-publish"><code>load_done_publish</code> queues the completed BACK with IRQ masked, restores page <code>$34</code> through PAR5, re-enables IRQ, and activates the mode associated with the loaded screen. The boot helper tail-calls it after restoring the normal vector.</p>
+      <p>The build joins the bootstrap to these entries and <code>irq_handler</code> using the final resident and presentation symbol maps. The loading asset is 186 bytes from the authored TMX and runtime palette. Its 168 text bytes precede the two dot-row bytes and 16 palette bytes.</p>
     </section>
 
     <footer class="wiki-footer"><p>DOC-002 routine coverage is fail-closed. Adding a required routine without an explicit purpose, complete profile, and unique semantic anchor fails verification.</p></footer>

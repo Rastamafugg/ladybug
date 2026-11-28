@@ -7,7 +7,8 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract install_demo_runtime profile=presentation: Install demo runtime.
 ; DOC-002 source-contract mirror contract install_highscore_runtime profile=presentation: Install highscore runtime.
 ; DOC-002 source-contract mirror contract install_instruction_runtime profile=presentation: Install instruction runtime.
-; DOC-002 source-contract mirror contract start_screen_no_instruction_install profile=presentation: Start screen no instruction install.
+; DOC-002 source-contract mirror contract start_screen_no_instruction_install profile=presentation: Restart the selected map stream and map its BACK without reinstalling the Instructions runtime.
+; DOC-002 source-contract mirror contract load_done_publish profile=presentation: Queue the completed BACK for VBORD and enter the mode associated with the loaded screen.
         include "ladybug_shared_mode.inc"
         ifne COMPLETE_PROFILE
 ; FEAT-002 low-RAM presentation flow, copied to $1900 during GMC boot.
@@ -66,6 +67,7 @@ ADAPTIVE_RENDERING equ 0
         include "ladybug_presentation.inc"
         include "ladybug_presentation_symbols.inc"
         include "ladybug_audio_symbols.inc"
+        include "gmc_loading.inc"
 
 PAR1    equ $FFA1
 PAR2    equ $FFA2
@@ -427,6 +429,8 @@ start_screen_done
 
 load_tick
         ifne COMPLETE_PROFILE
+        tst     <BOOT_LOADING_OWNER
+        bmi     menu_load_continue
         lda     <PRES_SCREEN
         cmpa    #PRESENTATION_MAP_ATTRACT
         beq     menu_load_event
@@ -571,9 +575,9 @@ load_done_hold_plain
         jsr     PRES_MAIN_FB_CAPTURE
 load_done_hold_owner
         tst     PRES_HOLD_OWNER
+        lbmi    BOOT_LOADING_HYDRATE
         bne     load_done_hold_second
-        lda     #1
-        sta     PRES_HOLD_OWNER
+        inc     PRES_HOLD_OWNER
         ldd     FB_FRONT_ID
         exg     a,b
         std     FB_FRONT_ID

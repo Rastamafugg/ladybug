@@ -15,7 +15,10 @@
 ; DOC-002 source-contract mirror profile boot Writes: Declared RAM destinations, PAR registers, boot scratch, and decompressed surfaces
 ; DOC-002 source-contract mirror profile boot Side effects: Changes MMU mappings and copies or synthesizes executable/data payloads
 ; DOC-002 source-contract mirror profile boot Invariants: Authored, staged, and destination byte identities remain distinct and every transfer obeys its generated size bound
-; DOC-002 source-contract mirror contract boot_entry profile=boot: Establish bootstrap mappings and transfer control into the low-RAM loader.
+; DOC-002 source-contract mirror contract boot_entry profile=boot: Establish bootstrap mappings, start the complete-profile loading display, and transfer control into the low-RAM loader.
+; DOC-002 source-contract mirror contract boot_loading_video profile=boot: Set up framebuffer A, draw the compiled loading asset, and unblank at VBORD before relocating the loader.
+; DOC-002 source-contract mirror contract boot_loading_irq profile=boot: Acknowledge VBORD before framebuffer initialization, then delegate publication and animate dots until B becomes FRONT.
+; DOC-002 source-contract mirror contract boot_loading_hydrate profile=boot: Request the first Attract commit on B, then restore the normal vector after rendering Attract on A.
 ; DOC-002 source-contract mirror contract decompress_attract_surfaces profile=boot: Decompress attract surfaces.
 ; DOC-002 source-contract mirror contract spr_byte_changed profile=boot: Test whether synthesis changed the current perimeter-reset output byte.
 ; DOC-002 source-contract mirror contract synthesize_perimeter_reset profile=boot: Synthesize perimeter reset.
@@ -24,7 +27,17 @@
 GMC_BANK    equ $FF40
 GIME_INIT0  equ $FF90
 GIME_MMU    equ $FF91
+GIME_IRQEN  equ $FF92
+GIME_FIRQEN equ $FF93
+GIME_VMODE  equ $FF98
+GIME_VRES   equ $FF99
+GIME_BORDER equ $FF9A
+GIME_VOFF1  equ $FF9D
+GIME_VOFF0  equ $FF9E
+GIME_HOFF   equ $FF9F
 PAR_EXEC    equ $FFA0
+PAL_BASE    equ $FFB0
+JT_IRQ      equ $FEF7
 SAM_FAST    equ $FFD9
 SAM_CART    equ $FFDE
 SAM_ALLRAM  equ $FFDF
@@ -56,12 +69,22 @@ AUXILIARY_STAGE_PAGE equ $24
 PRESENTATION_NAME_ENTRY_DATA equ 0
 
         include "ladybug_presentation.inc"
+        ifne COMPLETE_PROFILE
+        include "gmc_loading.inc"
+        include "ladybug-loading-symbols.inc"
+FB_MODULE_IRQ equ $081E
+        endc
 
         org $C000
         fcc "DK"
 
 boot_entry
         orcc    #$50
+        ifne COMPLETE_PROFILE
+        lda     #$1F
+        sta     GIME_VRES
+        clr     GIME_BORDER
+        endc
         lds     #$1FFE
         clr     GIME_MMU
         lda     #$38
@@ -86,6 +109,9 @@ boot_entry
         sta     $FF41
         sta     SAM_FAST        ; run the boot copy at the normal 1.78 MHz rate
         sta     SAM_CART        ; BASIC autorun may leave TY=1; expose GMC ROM
+        ifne COMPLETE_PROFILE
+        lbsr    boot_loading_video
+        endc
         leax    loader_start,pcr
         ldy     #LOADER_RAM
         ldu     #loader_end-loader_start
@@ -397,11 +423,22 @@ boot_streams_retired
 
         lda     #$A5
         sta     BOOT_FLAG
+        ifne COMPLETE_PROFILE
+        ldd     #$3334
+        std     PAR_EXEC+4
+        lda     #%01101000      ; runtime audio will enable SCS when it writes
+        sta     GIME_INIT0
+        clra
+        tfr     a,dp
+boot_runtime_handoff
+        jmp     GMC_RUNTIME_ENTRY
+        else
         lda     #$34
         sta     PAR_EXEC+5
         ; Skip the two-byte DK cartridge header when entering the
         ; relocated runtime.
         jmp     $C002
+        endc
 copy_late_sparse_segments
         ; Audio has consumed page $24's staged source. Execute only from low RAM
         ; while briefly restoring GMC ROM visibility for the delayed copies.
@@ -829,6 +866,187 @@ sparse_copy_table_end
         endc
         include "ladybug-perimeter-boot.inc"
 loader_end
+
+        ifne COMPLETE_PROFILE
+        setdp   $00
+boot_loading_video
+        ; Disable and acknowledge legacy PIA interrupts before enabling VBORD.
+        clr     $FF01
+        clr     $FF03
+        clr     $FF21
+        clr     $FF23
+        lda     $FF00
+        lda     $FF02
+        lda     $FF20
+        lda     $FF22
+        clr     GIME_FIRQEN
+
+        lda     #$80
+        sta     GIME_VMODE
+        ldd     #$C000
+boot_loading_scanout
+        std     GIME_VOFF1
+        clr     GIME_HOFF
+        ldd     #$3031
+        std     PAR_EXEC+1
+        ldd     #$3233
+        std     PAR_EXEC+3
+        ldx     #boot_loading_palette
+        ldy     #PAL_BASE
+boot_loading_palette_copy
+        lda     ,x+
+        sta     ,y+
+        cmpy    #PAL_BASE+16
+        blo     boot_loading_palette_copy
+
+        ldx     #$2000
+        ldd     #0
+boot_loading_clear
+        std     ,x++
+        cmpx    #$9800
+        blo     boot_loading_clear
+        ldx     #boot_loading_asset
+        ldy     #$57E0
+boot_loading_text_row
+        lda     #14
+        pshs    a
+boot_loading_text_word
+        ldd     ,x++
+boot_loading_text_store
+        std     ,y++
+        dec     ,s
+        bne     boot_loading_text_word
+        leas    1,s
+        cmpx    #boot_loading_dot
+        beq     boot_loading_install_irq
+        leay    132,y
+        bra     boot_loading_text_row
+
+boot_loading_install_irq
+        ldd     ,x              ; two stored dot bytes, one for each row
+        std     BOOT_LOADING_DOT
+        ldx     #boot_loading_irq
+        ldy     #BOOT_LOADING_IRQ
+boot_loading_irq_copy
+        lda     ,x+
+        sta     ,y+
+        cmpx    #boot_loading_irq_end
+        blo     boot_loading_irq_copy
+        ldd     #$000F          ; runtime IRQ readiness and initial 15-frame count
+        std     BOOT_LOADING_READY
+        clr     BOOT_LOADING_OFFSET
+        ldd     #$7EFE          ; JMP $FE00
+        std     JT_IRQ
+        clr     JT_IRQ+2
+        clra
+        tfr     a,dp
+        clrb
+        std     <$B0            ; PRES_TIMER starts at actor phase zero
+        lda     #3              ; PRES_HOLD_HYDRATE
+        sta     <$D4
+        lda     #$FF
+        sta     <$A6            ; ensure first Attract load initializes its menu
+        sta     <BOOT_LOADING_OWNER
+
+        lda     #8
+        sta     GIME_IRQEN
+        lda     GIME_IRQEN
+boot_loading_wait_vbord
+        lda     GIME_IRQEN
+        bita    #8
+        beq     boot_loading_wait_vbord
+        lda     #$1E
+boot_loading_unblank
+        sta     GIME_VRES
+        andcc   #$EF
+        rts
+
+; Copied verbatim to $FE00. Internal branches are position independent.
+boot_loading_irq
+        tst     BOOT_LOADING_READY
+        beq     boot_loading_ack
+        jsr     FB_MODULE_IRQ   ; acknowledges VBORD and commits PENDING
+        tst     <$8F            ; FRONT becomes B at the first Attract commit
+        bne     boot_loading_irq_done
+        bra     boot_loading_tick
+boot_loading_ack
+        lda     GIME_IRQEN
+boot_loading_tick
+        dec     BOOT_LOADING_TICKS
+        bne     boot_loading_irq_done
+        lda     #15
+        sta     BOOT_LOADING_TICKS
+boot_loading_irq_save_pars
+        ldd     PAR_EXEC+2
+        pshs    d
+        ldd     #$3132
+        std     PAR_EXEC+2
+        ldx     #$5F61
+        ldb     BOOT_LOADING_OFFSET
+        cmpb    #28
+        beq     boot_loading_dots_clear
+        abx
+        addb    #4
+        stb     BOOT_LOADING_OFFSET
+        ldd     BOOT_LOADING_DOT
+boot_loading_dot_store
+        sta     ,x
+boot_loading_dot_store_bottom
+        stb     160,x
+        bra     boot_loading_dots_done
+boot_loading_dots_clear
+        clr     BOOT_LOADING_OFFSET
+        clra
+boot_loading_dot_clear
+        sta     ,x
+boot_loading_dot_clear_bottom
+        sta     160,x
+        leax    4,x
+        cmpx    #$5F7D
+        blo     boot_loading_dot_clear
+boot_loading_dots_done
+        puls    d
+boot_loading_irq_restore_pars
+        std     PAR_EXEC+2
+boot_loading_irq_done
+        rti
+
+        zmb BOOT_LOADING_HYDRATE-BOOT_LOADING_IRQ-(*-boot_loading_irq)
+boot_loading_hydrate
+        tst     <$8F            ; A is still FRONT until the first commit
+        bne     boot_loading_hydrate_done
+        clr     <$90            ; prepare the next pass with A mapped
+        clra                    ; PRESENTATION_MAP_ATTRACT
+        jsr     GMC_ATTRACT_RESTART
+        orcc    #$10
+        lda     #1
+        sta     <$90            ; publish B before rendering the A pass
+        sta     <$91
+        andcc   #$EF
+        rts
+boot_loading_hydrate_done
+        orcc    #$10
+        ldd     #GMC_RUNTIME_IRQ
+        std     JT_IRQ+1
+        clr     <BOOT_LOADING_OWNER
+        clr     <$D4
+        clr     <$98
+        jmp     GMC_ATTRACT_PUBLISH
+boot_loading_irq_end
+        ifgt (boot_loading_irq_end-boot_loading_irq)-(BOOT_LOADING_READY-BOOT_LOADING_IRQ)
+        error "loading IRQ or hydration code overlaps loading state"
+        endc
+
+boot_loading_asset
+        includebin "ladybug-loading.bin"
+boot_loading_dot     equ boot_loading_asset+168
+boot_loading_palette equ boot_loading_dot+2
+boot_loading_asset_end
+        ifne boot_loading_asset_end-boot_loading_asset-186
+        error "loading asset must be 186 bytes"
+        endc
+        endc
+boot_image_end
 
         ifgt GMC_LZSS_STREAM_TABLE_BYTES-127
         error "boot descriptor table exceeds $1800-$187E"

@@ -147,6 +147,7 @@ ADAPTIVE_RENDERING equ 0
 ; DOC-002 source-contract mirror contract enemy_release profile=movement: Dispatch an enemy release request to the installed enemy runtime.
 ; DOC-002 source-contract mirror contract enemy_tick profile=movement: Advance enemy state for one scheduled tick.
 ; DOC-002 source-contract mirror contract entry profile=root: Enter and initialize the stable resident runtime.
+; DOC-002 source-contract mirror contract startup_gmc_entry profile=root: Initialize resident state after GMC loading video is active and arm the temporary IRQ to delegate framebuffer commits.
 ; DOC-002 source-contract mirror contract erase_entity_footprints profile=render: Restore authored cell pixels beneath every placed entity before runtime overlays are composed.
 ; DOC-002 source-contract mirror contract expose_player_background profile=render: Expose the background beneath the player for persistent redraw.
 ; DOC-002 source-contract mirror contract finish_gate_animation profile=state: Finish gate animation.
@@ -433,6 +434,9 @@ ENEMY_CAPTURE_DIRTY equ $009B  ; $FF all actors, otherwise per-slot bits
 ENTITY_CACHE_COLOR equ $A89C   ; 0 invalid; 1..3 means shared caches coherent
 PRES_MAGIC     equ $00A4       ; presentation state must be cold on cartridge boot
 BOOT_FLAG    equ $02F0         ; $A5 when GMC bootstrap relocated runtime to RAM
+        ifne COMPLETE_PROFILE
+        include "gmc_loading.inc"
+        endc
 
 DIR_NORTH     equ 0
 DIR_EAST      equ 1
@@ -703,6 +707,12 @@ clr_fb  std     ,x++
         cmpx    #FB_END
         blo     clr_fb
 startup_clear_complete
+        ifne COMPLETE_PROFILE
+        clr     BOOT_FLAG       ; plain-cart entry owns the legacy video path
+        clr     <$D4            ; PRES_HOLD_STATE
+        clr     <BOOT_LOADING_OWNER
+startup_gmc_entry
+        endc
 
         ; Configure the joystick and seed the gameplay LFSR without creating
         ; gameplay state. The seed survives until the presentation director
@@ -768,6 +778,10 @@ startup_top_name
 startup_fb_init_entry
         jsr     FB_MODULE_INIT
 startup_complete
+        ifne COMPLETE_PROFILE
+        tst     BOOT_FLAG
+        bne     startup_irq_state
+        endc
 
         ; --- Un-blank: 320×192×16 (CRES=10 + HRES=111 → 4bpp on this build) ---
         lda     #$1E
@@ -778,6 +792,9 @@ startup_complete
         sta     JT_IRQ
         ldd     #irq_handler
         std     JT_IRQ+1
+        ifne COMPLETE_PROFILE
+startup_irq_state
+        endc
 
         clra
         clrb
@@ -794,6 +811,13 @@ startup_complete
         sta AD_MODE_BYTE
         endc
 
+        ifne COMPLETE_PROFILE
+        tst     BOOT_FLAG
+        beq     startup_enable_vbord
+        inc     BOOT_LOADING_READY
+        bra     mainloop
+startup_enable_vbord
+        endc
         ; --- Enable Vbord ---
         lda     #%00001000
         sta     GIME_IRQEN

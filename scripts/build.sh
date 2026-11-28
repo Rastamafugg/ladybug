@@ -312,15 +312,15 @@ import re
 import sys
 path, limit = sys.argv[1], int(sys.argv[2], 0)
 text = open(path, encoding="utf-8").read()
-match = re.search(r"^Symbol: loader_end .* = ([0-9A-Fa-f]+)$", text, re.MULTILINE)
+match = re.search(r"^Symbol: boot_image_end .* = ([0-9A-Fa-f]+)$", text, re.MULTILINE)
 if not match:
-    raise SystemExit("build: boot map is missing loader_end")
+    raise SystemExit("build: boot map is missing boot_image_end")
 end = int(match.group(1), 16)
 if end > limit:
     raise SystemExit(
-        f"build: loader ends at ${end:04X}; bank-0 overflow starts at ${limit:04X}"
+        f"build: boot image ends at ${end:04X}; bank-0 overflow starts at ${limit:04X}"
     )
-print(f"build: boot loader ends at ${end:04X}; overflow starts at ${limit:04X}")
+print(f"build: boot image ends at ${end:04X}; overflow starts at ${limit:04X}")
 PY
 }
 
@@ -1349,10 +1349,40 @@ with open(output, "w", encoding="ascii") as handle:
     handle.write(f"PERIMETER_SCREEN_TILES equ ${symbols['screen_tiles']:04X}\n")
 PY
 
+    if [[ "$COMPLETE_PROFILE" == 1 ]]; then
+        python3 "$ROOT/scripts/build_loading.py" \
+            "$ROOT/tiled/coco-loading-screen.tmx" "$ROOT/assets/arcade/chars.json" \
+            "$BUILD_DIR/ladybug-loading.bin"
+        python3 - "$MAP" "$PRESENTATION_MODULE_MAP" "$BUILD_DIR/ladybug-loading-symbols.inc" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+resident, presentation, output = map(Path, sys.argv[1:])
+symbols = {
+    resident: {"startup_gmc_entry": "GMC_RUNTIME_ENTRY", "irq_handler": "GMC_RUNTIME_IRQ"},
+    presentation: {
+        "start_screen_no_instruction_install": "GMC_ATTRACT_RESTART",
+        "load_done_publish": "GMC_ATTRACT_PUBLISH",
+    },
+}
+lines = []
+for path, aliases in symbols.items():
+    listing = path.read_text(encoding="ascii")
+    for name, alias in aliases.items():
+        match = re.search(rf"^Symbol: {name} .* = ([0-9A-Fa-f]+)$", listing, re.M)
+        if match is None:
+            raise SystemExit(f"build: missing loading handoff symbol {name} in {path}")
+        lines.append(f"{alias} equ ${match[1]}\n")
+output.write_text("".join(lines), encoding="ascii")
+PY
+    fi
+
     local boot_rom_tmp="${BOOT_ROM}.tmp"
     local boot_lst_tmp="${BOOT_LST}.tmp"
     local boot_map_tmp="${BOOT_MAP}.tmp"
     lwasm -9 --format=raw \
+          -DCOMPLETE_PROFILE="$COMPLETE_PROFILE" \
           -DHIGHSCORE_TEST_PROFILE="$HIGHSCORE_TEST_PROFILE" \
           --output="$boot_rom_tmp" \
           --list="$boot_lst_tmp" \

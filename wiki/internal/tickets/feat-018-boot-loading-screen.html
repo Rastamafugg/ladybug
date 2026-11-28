@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>FEAT-018: Boot Loading Screen &amp; 15-Frame Dot Animation &mdash; Ladybug</title>
+  <link rel="stylesheet" href="../../shared/css/wiki.css">
+</head>
+<body>
+  <header>
+    <h1>FEAT-018: Boot Loading Screen &amp; 15-Frame Dot Animation</h1>
+    <p class="subtitle">Publish <code>LOADING</code> at cartridge entry, animate seven dots on Vbord, then flip directly to the complete Attract framebuffer.</p>
+  </header>
+
+  <section id="metadata">
+    <h2>Ticket Metadata</h2>
+    <table>
+      <tbody>
+        <tr><th>Ticket ID</th><td><code>FEAT-018</code></td></tr>
+        <tr><th>Status</th><td><strong>Ready</strong> (user approved 2026-11-28)</td></tr>
+        <tr><th>Type</th><td>Feature &mdash; GMC cartridge startup presentation</td></tr>
+        <tr><th>Owner</th><td>Parent coordinator (implementation, QA, wiki, and integration)</td></tr>
+        <tr><th>Cost / Risk Class</th><td>High-risk &mdash; boot-time GIME/IRQ ownership, the temporary handler in <code>$FE00-$FE8F</code> across <code>SAM_CART</code>/<code>SAM_ALLRAM</code>, and framebuffer A-to-B handoff into Attract</td></tr>
+        <tr><th>Dependencies</th><td><a href="bug-009-boot-publishes-wrong-screen.html">BUG-009</a> is Done; reuse its established first Attract publication path after Loading completes.</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="approved-scope">
+    <h2>Approved Scope &amp; Acceptance Criteria (2026-11-28)</h2>
+    <ol>
+      <li><strong>Loading asset (<code>tiled/coco-loading-screen.tmx</code>):</strong> compile the <code>Loading Text</code> layer containing <code>LOADING</code> and the seven-dot <code>Loading Animation</code> layer as a 186-byte Bank 0 asset. Use White palette index <code>6</code> on Black palette index <code>0</code>. The 186-byte value is the approved target; the candidate build must report the measured output and pass existing Bank 0 and ROM size guards.</li>
+      <li><strong>First visible output (<code>src/gmc_bootstrap.s</code>):</strong> at cartridge entry, initialize video and draw <code>LOADING</code> to framebuffer A before bulk copies or decompression begin. Loading replaces Attract as the first published cartridge frame; Attract remains the first normal presentation screen after boot completes.</li>
+      <li><strong>Temporary Vbord animation:</strong> place the temporary handler code within <code>$FE00-$FE8F</code>. Add one dot left-to-right every 15 Vbord frames. At Vbord frame 120, clear all seven dots. Keep handler execution and any accessed state valid across <code>SAM_CART</code> and <code>SAM_ALLRAM</code>, and retire its IRQ ownership at the boot handoff. The handler-code budget is 144 bytes, calculated from the approved address range.</li>
+      <li><strong>Direct framebuffer handoff:</strong> once loading finishes and the complete Attract image is ready in framebuffer B, publish B directly from Loading A. Do not expose a partial Attract frame or an extra blank/intermediate screen.</li>
+      <li><strong>Acceptance:</strong> the compiled asset has the specified layers, colours, and 186-byte target; the first complete visible frame is Loading before bulk copies/decompression; Vbord timing adds dots at the approved cadence and clears them at frame 120; the temporary handler remains valid through both SAM modes and leaves the normal runtime IRQ path available; the next published screen is the complete Attract image from B. The presentation-flow check accepts Loading as a boot-only screen and still proves natural Attract progression. Build size guards, DOC-002, the listed boot/presentation/shared-text/audio verifiers, and the user-owned XRoar or hardware visual check pass.</li>
+    </ol>
+  </section>
+
+  <section id="design-and-reuse">
+    <h2>Design, Reuse, and Boundaries</h2>
+    <p>The <a href="bug-009-boot-publishes-wrong-screen.html">BUG-009</a> path already establishes the authored Attract image as the first normal presentation frame and verifies GMC startup and natural Attract progression. FEAT-018 inserts the approved Loading frame before that existing path and retains its Attract handoff. The presentation-flow gate must continue checking the natural Attract sequence after Loading; it must not treat Attract as the first raw cartridge frame. FEAT-018 does not redesign Attract or create a second normal presentation owner.</p>
+    <p>The <a href="../implementation/memory-map.html">memory map</a> documents <code>$FE00-$FEFF</code> as forced to physical page <code>$3F</code>, independent of PAR7, and identifies the IRQ jump slot at <code>$FEF7</code>. The <a href="../../release/reference/coco3/gime.html">GIME reference</a> identifies Vbord as the 60 Hz source enabled at <code>$FF92</code> bit 3 and records the SAM cartridge/all-RAM transitions. The approved handler range does not overlap the IRQ jump slot. Before source edits, confirm the current bootstrap IRQ owner and preserve the existing IRQ enable state and handoff contract; do not introduce a general IRQ framework.</p>
+    <p>Keep handler code in the forced-RAM window. Any accessed state must use an explicitly assigned RAM location that remains valid across both SAM modes; do not fetch code or animation data from a banked source while all-RAM is selected. The 144-byte range is a hard handler-code limit, not a measured current fit. The build must prove the handler fit and retain existing bank, resident, asset, and payload limits. Any new or changed assembly routine, generated/exported symbol, or call boundary must follow <a href="doc-002-assembly-source-traceability.html">DOC-002</a>, including its source-reference record, primary-source contract mirror, routine-catalog entry where applicable, and post-generation audit.</p>
+    <p><strong>Out of scope:</strong> Attract artwork or choreography changes, gameplay/runtime IRQ redesign, unrelated boot payload changes, other screens, NitrOS-9 support, the deferred web app, and the patched XRoar monitor stack.</p>
+  </section>
+
+  <section id="test-cards">
+    <h2>Verification Plan &mdash; DOC-014 cards approved with this ticket</h2>
+    <ol>
+      <li><strong>F18-01 &mdash; Asset and capacity gate:</strong> Purpose/risk: catch TMX layer, palette, encoded-size, and Bank 0 capacity drift. Setup: complete-profile GMC build of the ticket candidate from a clean branch; source fixture is <code>tiled/coco-loading-screen.tmx</code>. Independent oracle: parse the authored TMX and compare its layer/cell/palette data with the compiled asset report; expected encoded length is exactly 186 bytes (zero-byte tolerance). All existing size guards must pass. The asset check must reject a deliberately altered palette or encoded length as a harness negative control. Command: <code>LADYBUG_PROFILE=complete bash scripts/build.sh build</code>. Retain build summary, asset identity/size, map/listing output, and measured command duration. No extra profile is added.</li>
+      <li><strong>F18-02 &mdash; Boot IRQ and handoff integration gate:</strong> Purpose/risk: prove first-frame order, 15-frame animation cadence, frame-120 clearing, execution across <code>SAM_CART</code>/<code>SAM_ALLRAM</code>, and the A-to-B Attract handoff. Setup: complete-profile GMC artifact, standard cold start with 512K RAM initialized randomly and no input; bind the pre-feature negative-control ROM and candidate ROM to source revisions and SHA-256 values, and confirm the selected <code>build/ladybug.rom</code> matches the recorded hash for each run. The extended <code>scripts/verify_gmc_boot.py</code> captures startup and framebuffer/IRQ markers. Independent oracle: authored TMX cell/palette data plus live framebuffer readback and the verifier's observed Vbord/framebuffer-owner sequence. Expected cadence is exact at each 15-frame boundary, with all seven dots clear at frame 120. The pre-feature ROM must fail the new first-frame assertion as a harness negative control; the candidate must pass. Command for each artifact: <code>python3 scripts/verify_gmc_boot.py --startup-only</code>; use its existing 10-second startup-phase bound, stop on timeout, and do not rerun until pass. Retain ROM hashes, frame/owner evidence, and verifier output.</li>
+      <li><strong>F18-03 &mdash; Existing regressions and manual visual acceptance:</strong> Purpose/risk: preserve presentation routing, shared text, audio startup, and visible behavior. Reuse the existing gates qualified in the 2026-11-27 ticket-index record: DOC-002/source audit, presentation flow, shared text, and audio runtime. Commands: <code>python3 scripts/verify_presentation_flow.py</code>, <code>python3 scripts/verify_shared_text.py</code>, and <code>python3 scripts/verify_audio_runtime.py</code>; the canonical complete build runs DOC-002 and capacity guards. User-owned visual check: <code>LADYBUG_PROFILE=complete bash scripts/build.sh run</code>, or CoCo 3/GMC hardware, and observe Loading first, the left-to-right dots and clear while boot continues, then a direct complete Attract image. No manual-session deadline or agent monitoring is imposed; this criterion remains pending until the user reports the result. Retain candidate ROM identity and user-reported observation separately from automated results.</li>
+    </ol>
+    <p>The automated command sequence has a shared 600-second host stop limit, including nested commands and waits. This is an estimated operational bound based on prior logged complete-profile builds of 337&ndash;386 seconds in <a href="feat-012-feat010-acceptance-closeout.html">FEAT-012</a>, with 214 seconds above the 386-second observation; it is not a product timing target. Record actual elapsed time and any existing callback cap if a verifier uses callbacks; do not raise either limit. Report product assertion failures, setup/observer failures, missing coverage, and manual-pending status separately. Manual-session timing is governed by DOC-014 and has no imposed deadline.</p>
+  </section>
+
+  <section id="ready-assignment">
+    <h2>Ready Assignment</h2>
+    <ul>
+      <li><strong>Approved objective and non-goals:</strong> implement only the Loading asset, immediate framebuffer A display, temporary Vbord animation, and direct complete-Attract B handoff described above. Do not expand the behavior, memory range, profile set, or verification matrix without renewed approval.</li>
+      <li><strong>Branch and ownership:</strong> parent coordinator owns implementation and final integration in a clean worktree on <code>feat/feat018-boot-loading-screen</code> from <code>main</code>. Record the immutable base revision before building; no delegation or push/merge authority is assigned.</li>
+      <li><strong>Owned artifacts:</strong> <code>tiled/coco-loading-screen.tmx</code>; <code>src/gmc_bootstrap.s</code>; the existing asset-compiler integration only if required to include this TMX in Bank 0; <code>scripts/verify_gmc_boot.py</code>; <code>scripts/verify_presentation_flow.py</code> only if its current first-frame assertion must be updated to the approved Loading-to-Attract sequence; generated ROM/map/listing outputs from the canonical build; DOC-002 source-reference/contract/catalog artifacts for any changed symbols; and this ticket, ticket index, and project log.</li>
+      <li><strong>Implementation constraints:</strong> preserve the <code>$FE00-$FE8F</code> boundary and current IRQ ownership; verify the current handler/jump-slot setup before changing it; keep the temporary handler valid across both SAM modes; leave the IRQ mask and normal runtime handler in a valid state at handoff; retain the 186-byte Bank 0 target and all current build guards. Generated-symbol/source-reference tracing is a pre-build requirement; rerun the automated DOC-002 audit after the generated registry and final complete-profile build are produced.</li>
+      <li><strong>Required commands:</strong> run the asset/build and verification commands in F18-01 through F18-03 from the repository's approved WSL workflow. Run the XRoar/hardware visual check only as the user-owned manual criterion. Do not launch an unapproved alternate emulator or add a test gate.</li>
+      <li><strong>Evidence and commit:</strong> retain concise command results, ROM SHA-256, measured asset/handler size, capacity guards, DOC-002 receipt, boot/IRQ/framebuffer markers, existing-verifier results, and the manual observation when supplied. One bounded FEAT-018 commit; no generated build artifacts unless the canonical workflow explicitly tracks them.</li>
+      <li><strong>Completion report:</strong> state result versus each acceptance criterion, exact commands and evidence, measured capacities, commit hash, rejected experiments, residual risk, and pending or completed manual acceptance. Stop after the first failed or timed-out automated phase and report product failure, setup/observer failure, missing coverage, and manual-pending status separately.</li>
+    </ul>
+  </section>
+
+  <section id="progress-log">
+    <h2>Progress Log</h2>
+    <ul>
+      <li><strong>2026-11-28 (Ready):</strong> User approved FEAT-018 scope, acceptance criteria, and verification on 2026-11-28. Recorded the approved 186-byte Bank 0 Loading asset, startup draw on framebuffer A, 15-frame Vbord dot cadence and frame-120 clear in the forced-RAM handler window, and direct handoff to complete Attract on B. Reused BUG-009's Attract boot path and existing build/flow/text/audio checks. Implementation evidence and the user visual result are not recorded in this ticket yet.</li>
+      <li><strong>2026-11-28 (Ready contract QA):</strong> Reviewed the approved scope, high-risk boundary, assignment, verification cards, relative links, and index/log registration. Ticket remains Ready for implementation; no source build, automated test, XRoar launch, or hardware observation was run as part of this documentation task.</li>
+    </ul>
+  </section>
+</body>
+</html>
