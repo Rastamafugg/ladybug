@@ -13,7 +13,7 @@ Ladybug is a 6809 assembly-language port of Universal's 1981 arcade game for the
 
 ## Play a prebuilt ROM
 
-The repository keeps one built ROM for each tagged version. The current prebuilt image is [`coco-ladybug-1.0.0-rc1.rom`](https://github.com/Rastamafugg/ladybug/blob/1.0.0-rc1/roms/coco-ladybug-1.0.0-rc1.rom) (64 KiB four-bank GMC cartridge, SHA-256 `8d25a9a276b6608aadd688b3598c021a16b7e948c72ae8520c46119db25e3b58`). Use the XRoar Online instructions below to play in a browser. The desktop XRoar and MAME examples assume you run them from a cloned repository; if you downloaded only the ROM, replace `roms/coco-ladybug-1.0.0-rc1.rom` with the path where you saved the ROM.
+The repository keeps one built ROM for each tagged version. The current prebuilt image is [`coco-ladybug-1.0.0-rc1.rom`](https://github.com/Rastamafugg/ladybug/blob/1.0.0-rc1/roms/coco-ladybug-1.0.0-rc1.rom) (64 KiB four-bank GMC cartridge, SHA-256 `e7836e87f5c2f437dc4c46a8513109342df3845ca3799272c3c54e0ecd9f81ee`). Use the XRoar Online instructions below to play in a browser. The desktop XRoar and MAME examples assume you run them from a cloned repository; if you downloaded only the ROM, replace `roms/coco-ladybug-1.0.0-rc1.rom` with the path where you saved the ROM.
 
 ### XRoar
 
